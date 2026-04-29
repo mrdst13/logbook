@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-title" content="My Logbook">
 <title>My Logbook — F/O M. Daoust</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
   --navy: #0f2044;
@@ -43,6 +45,9 @@ body {
   font-size: 14px;
 }
 
+/* Prevent body scroll when mobile nav is open */
+body.nav-open { overflow: hidden; }
+
 /* ═══════════════════════════════════════
    HEADER
 ═══════════════════════════════════════ */
@@ -52,11 +57,42 @@ header {
   display: flex;
   align-items: center;
   padding: 0 20px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 100;
   box-shadow: 0 2px 16px rgba(15,32,68,0.4);
 }
+
+/* ── HAMBURGER ── */
+.hamburger {
+  display: none; /* shown only on mobile via media query */
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.hamburger:hover { background: rgba(255,255,255,0.16); }
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 2px;
+  transition: transform 0.28s ease, opacity 0.2s ease;
+}
+/* Animate to X when nav is open */
+body.nav-open .hamburger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+body.nav-open .hamburger span:nth-child(2) { opacity: 0; transform: scaleX(0.1); }
+body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 .logo {
   display: flex;
@@ -106,6 +142,23 @@ header {
   letter-spacing: 1px;
 }
 
+/* ── MOBILE NAV OVERLAY ── */
+.nav-overlay {
+  display: none;          /* block on mobile via media query */
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 98;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+/* Make overlay clickable and visible when nav is open */
+body.nav-open .nav-overlay {
+  opacity: 1;
+  pointer-events: all;
+}
+
 /* ═══════════════════════════════════════
    LAYOUT
 ═══════════════════════════════════════ */
@@ -129,6 +182,8 @@ nav {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  /* Smooth slide transition (used on mobile) */
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-group { margin-bottom: 4px; }
@@ -610,8 +665,265 @@ textarea { resize: vertical; min-height: 64px; }
 /* ═══════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════ */
+/* ═══════════════════════════════════════
+   PROFILE TYPE SELECTOR  (Feature 3)
+═══════════════════════════════════════ */
+.profile-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.profile-type-card {
+  border: 2px solid var(--gray-100);
+  border-radius: var(--radius);
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--off-white);
+  user-select: none;
+}
+.profile-type-card:hover {
+  border-color: var(--accent);
+  background: #eef5ff;
+}
+.profile-type-card.active {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: var(--white);
+}
+.profile-type-card.active .pt-desc { color: rgba(255,255,255,0.6); }
+.pt-icon { font-size: 26px; margin-bottom: 8px; }
+.pt-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
+}
+.pt-desc {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-family: 'DM Mono', monospace;
+  line-height: 1.4;
+}
+
+/* ═══════════════════════════════════════
+   Q&A  (Feature 12)
+═══════════════════════════════════════ */
+.faq-item { border-bottom: 1px solid var(--gray-100); }
+.faq-item:last-child { border-bottom: none; }
+.faq-q {
+  padding: 13px 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 13px;
+  transition: background 0.1s;
+  gap: 8px;
+}
+.faq-q:hover { background: var(--off-white); }
+.faq-chevron { color: var(--gray-500); font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
+.faq-item.open .faq-chevron { transform: rotate(180deg); }
+.faq-a {
+  display: none;
+  padding: 0 18px 14px;
+  font-size: 13px;
+  color: var(--gray-700);
+  line-height: 1.65;
+  font-family: 'Lato', sans-serif;
+}
+.faq-item.open .faq-a { display: block; }
+.qa-history-item {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.qa-history-q { font-weight: 700; font-size: 13px; margin-bottom: 8px; color: var(--navy); }
+.qa-history-a { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+
+/* ═══════════════════════════════════════
+   GLOSSARY  (Feature 10)
+═══════════════════════════════════════ */
+.glossary-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background 0.1s;
+}
+.glossary-item:last-child { border-bottom: none; }
+.glossary-item:hover { background: var(--off-white); }
+.glossary-abbr {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+  min-width: 70px;
+  letter-spacing: 1px;
+}
+.glossary-def { font-size: 13px; color: var(--text); line-height: 1.4; }
+
+/* ═══════════════════════════════════════
+   FEATURE 8 — UI POLISH
+═══════════════════════════════════════ */
+.stat-card.accent::after { background: linear-gradient(90deg, var(--accent), var(--accent-bright)); }
+.stat-card.success::after { background: linear-gradient(90deg, var(--success), #2ecc71); }
+.stat-card.night::after  { background: linear-gradient(90deg, #1a1a5e, #3d3dc4); }
+.stat-card.warn::after   { background: linear-gradient(90deg, var(--warning), #f39c12); }
+
+.page-badge {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--gray-100);
+  color: var(--gray-500);
+  margin-left: 10px;
+  vertical-align: middle;
+}
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; } 50% { opacity:0.45; }
+}
+
+/* ═══════════════════════════════════════
+   DARK MODE  (Feature 6)
+═══════════════════════════════════════ */
+body.dark {
+  --off-white: #0d1b3e;
+  --white: #132047;
+  --gray-100: #1e2f58;
+  --gray-300: #2d4070;
+  --gray-500: #7a90bb;
+  --gray-700: #a0b4d8;
+  --text: #dde5f5;
+  --shadow: 0 4px 20px rgba(0,0,0,0.35);
+  background: #0d1b3e;
+  color: #dde5f5;
+}
+body.dark header { background: #091530; }
+body.dark nav { background: #091530; }
+body.dark .card { background: #132047; border-color: #1e2f58; }
+body.dark .card-header { background: #0f1a3a; border-color: #1e2f58; }
+body.dark .stat-card { background: #132047; border-color: #1e2f58; }
+body.dark .stat-value { color: #dde5f5; }
+body.dark .page-title { color: #dde5f5; }
+body.dark .form-card { background: #132047; border-color: #1e2f58; }
+body.dark .form-card-title { color: #dde5f5; border-color: #1e2f58; }
+body.dark input, body.dark select, body.dark textarea {
+  background: #0f1a3a; border-color: #2d4070; color: #dde5f5;
+}
+body.dark input:focus, body.dark select:focus, body.dark textarea:focus { border-color: var(--accent); }
+body.dark .backup-option { background: #132047; border-color: #1e2f58; }
+body.dark .backup-title { color: #dde5f5; }
+body.dark .review-item { background: #0f1a3a; border-color: #1e2f58; }
+body.dark .drop-zone { background: #132047; border-color: #2d4070; }
+body.dark .drop-zone:hover { background: #172850; }
+body.dark tbody tr:hover td { background: #1a2e5e; }
+body.dark td { color: #dde5f5; }
+body.dark .reg-tag { background: #1e2f58; color: #a0b4d8; }
+body.dark .profile-type-card { background: #0f1a3a; border-color: #2d4070; }
+body.dark .profile-type-card:hover { background: #172850; }
+body.dark .btn-ghost { background: #1e2f58; color: #a0b4d8; }
+body.dark .btn-ghost:hover { background: #2d4070; }
+body.dark .search-input { background: #0f1a3a; border-color: #2d4070; color: #dde5f5; }
+body.dark .alert-bar.green  { background:#0d2b1c; color:#6ec98f; }
+body.dark .alert-bar.yellow { background:#2b1f00; color:#f0c040; }
+body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
+.dark-toggle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.toggle-switch {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--gray-300);
+  border-radius: 26px;
+  transition: background 0.25s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  left: 3px; top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.25s;
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+/* ═══════════════════════════════════════
+   ALERTS  (Feature 5)
+═══════════════════════════════════════ */
+.alert-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 9px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-left: 4px solid transparent;
+}
+.alert-bar.green  { background:#eafaf1; border-left-color:var(--success); color:#1a5c38; }
+.alert-bar.yellow { background:#fef9e7; border-left-color:var(--warning); color:#7d5200; }
+.alert-bar.red    { background:#fdecea; border-left-color:var(--danger);  color:#7b1a1a; }
+.alert-bar .alert-icon { font-size:18px; flex-shrink:0; }
+.alert-bar .alert-text { flex:1; }
+.alert-bar .alert-sub { font-size:11px; font-family:'DM Mono',monospace; font-weight:400; opacity:0.75; margin-top:2px; }
+
 @media (max-width: 860px) {
-  nav { display: none; }
+  /* Show hamburger button */
+  .hamburger { display: flex; }
+
+  /* Show overlay element (opacity controlled by nav-open class) */
+  .nav-overlay { display: block; }
+
+  /* Sidebar: fixed, full-height, slides in from left */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 99;
+    padding-top: calc(var(--header) + 10px);
+    transform: translateX(-100%);
+    /* Keep transition defined on nav element */
+  }
+  body.nav-open nav {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.35);
+  }
+
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .form-grid-3 { grid-template-columns: 1fr 1fr; }
   .form-grid-4 { grid-template-columns: 1fr 1fr; }
@@ -627,8 +939,18 @@ textarea { resize: vertical; min-height: 64px; }
 </head>
 <body>
 
+<!-- MOBILE NAV OVERLAY — click to close -->
+<div class="nav-overlay" id="navOverlay" onclick="closeMobileNav()"></div>
+
 <!-- HEADER -->
 <header>
+  <!-- Hamburger: only visible on mobile -->
+  <button class="hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Toggle navigation">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
   <div class="logo">
     <div class="logo-icon">✈</div>
     <div class="logo-texts">
@@ -645,7 +967,7 @@ textarea { resize: vertical; min-height: 64px; }
 <div class="app-body">
 
 <!-- SIDEBAR -->
-<nav>
+<nav id="sidebar">
   <div class="nav-group">
     <div class="nav-label">Main</div>
     <div class="nav-item active" onclick="showPage('dashboard')">
@@ -666,17 +988,31 @@ textarea { resize: vertical; min-height: 64px; }
     </div>
   </div>
   <div class="nav-divider"></div>
+  <div class="nav-divider"></div>
+  <div class="nav-group">
+    <div class="nav-label">Reports</div>
+    <div class="nav-item" onclick="showPage('recap')">
+      <span class="nav-icon">🗓</span> Year Recap
+    </div>
+    <div class="nav-item" onclick="showPage('glossary')">
+      <span class="nav-icon">📖</span> Glossary
+    </div>
+    <div class="nav-item" onclick="showPage('qa')">
+      <span class="nav-icon">💬</span> Q&A
+    </div>
+  </div>
+  <div class="nav-divider"></div>
   <div class="nav-group">
     <div class="nav-label">Settings</div>
     <div class="nav-item" onclick="showPage('profile')">
       <span class="nav-icon">👤</span> Profile
     </div>
     <div class="nav-item" onclick="showPage('backup')">
-      <span class="nav-icon">☁</span> Backup
+      <span class="nav-icon">⚙</span> Settings
     </div>
   </div>
   <div class="nav-spacer"></div>
-  <div class="nav-version">v1.0.0 beta</div>
+  <div class="nav-version">v2.0 · My Logbook</div>
 </nav>
 
 <!-- MAIN -->
@@ -694,23 +1030,25 @@ textarea { resize: vertical; min-height: 64px; }
       </div>
     </div>
 
+    <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
+
     <div class="stats-grid">
-      <div class="stat-card">
+      <div class="stat-card accent">
         <div class="stat-label">Total Time</div>
         <div class="stat-value" id="s-total">0.0</div>
         <div class="stat-unit">hours</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card success">
         <div class="stat-label">PIC Time</div>
         <div class="stat-value" id="s-pic">0.0</div>
         <div class="stat-unit">hours</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card night">
         <div class="stat-label">Night Time</div>
         <div class="stat-value" id="s-night">0.0</div>
         <div class="stat-unit">hours</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card warn">
         <div class="stat-label">Landings</div>
         <div class="stat-value" id="s-ldg">0</div>
         <div class="stat-unit">total</div>
@@ -737,6 +1075,16 @@ textarea { resize: vertical; min-height: 64px; }
         <div class="stat-label">Entries</div>
         <div class="stat-value" id="s-entries">0</div>
         <div class="stat-unit">flights logged</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">
+        <div class="card-title">Monthly Block Hours</div>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-500);letter-spacing:1px">LAST 12 MONTHS</span>
+      </div>
+      <div style="padding:16px 18px 12px">
+        <canvas id="monthlyChart" height="75"></canvas>
       </div>
     </div>
 
@@ -834,7 +1182,13 @@ textarea { resize: vertical; min-height: 64px; }
         </div>
         <div class="form-group">
           <label>Aircraft Type</label>
-          <input type="text" id="f-type" placeholder="E2-195">
+          <select id="f-type-select" onchange="onAircraftSelect()">
+            <option value="">— Select type —</option>
+            <option value="E195-E2">E195-E2 (Embraer E-Jet)</option>
+            <option value="Q400">Q400 (DHC-8-400)</option>
+            <option value="custom">Other — enter manually</option>
+          </select>
+          <input type="text" id="f-type-custom" placeholder="Enter aircraft type" style="display:none;margin-top:6px">
         </div>
         <div class="form-group">
           <label>Registration</label>
@@ -866,11 +1220,11 @@ textarea { resize: vertical; min-height: 64px; }
     <div class="form-card">
       <div class="form-card-title">⏱ Time</div>
       <div class="form-grid form-grid-3">
-        <div class="form-group">
+        <div class="form-group" id="fg-block">
           <label>Block Time (hrs)</label>
           <input type="number" id="f-block" placeholder="0.0" step="0.1" min="0">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fg-duty">
           <label>Duty Time (hrs)</label>
           <input type="number" id="f-duty" placeholder="0.0" step="0.1" min="0">
         </div>
@@ -892,7 +1246,7 @@ textarea { resize: vertical; min-height: 64px; }
           <label>ME Day — PIC</label>
           <input type="number" id="f-me-day-pic" placeholder="0.0" step="0.1" min="0">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fg-me-day-cop">
           <label>ME Day — Co-Pilot</label>
           <input type="number" id="f-me-day-cop" placeholder="0.0" step="0.1" min="0">
         </div>
@@ -904,7 +1258,7 @@ textarea { resize: vertical; min-height: 64px; }
           <label>ME Night — PIC</label>
           <input type="number" id="f-me-night-pic" placeholder="0.0" step="0.1" min="0">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fg-me-night-cop">
           <label>ME Night — Co-Pilot</label>
           <input type="number" id="f-me-night-cop" placeholder="0.0" step="0.1" min="0">
         </div>
@@ -956,7 +1310,7 @@ textarea { resize: vertical; min-height: 64px; }
           <label>Instrument — Sim</label>
           <input type="number" id="f-inst-sim" placeholder="0.0" step="0.1" min="0">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fg-picus">
           <label>PICUS</label>
           <input type="number" id="f-picus" placeholder="0.0" step="0.1" min="0">
         </div>
@@ -981,7 +1335,7 @@ textarea { resize: vertical; min-height: 64px; }
     <div class="import-grid">
       <div class="drop-zone" id="photoZone"
            onclick="document.getElementById('photoInput').click()"
-           ondragover="ev.preventDefault();this.classList.add('dragover')"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
            ondrop="handleDrop(event,'photo')">
         <div class="drop-icon">📸</div>
@@ -992,7 +1346,7 @@ textarea { resize: vertical; min-height: 64px; }
       <div class="drop-zone" id="pdfZone" onclick="toggleNavbluePanel()" style="cursor:pointer">
         <div class="drop-icon">📄</div>
         <div class="drop-title">Navblue Roster</div>
-        <div class="drop-sub">Open your Navblue PDF in Chrome,<br>select all text, paste it here.</div>
+        <div class="drop-sub">Upload your Navblue PDF roster.<br>AI extracts only real flights.</div>
       </div>
     </div>
 
@@ -1052,6 +1406,27 @@ textarea { resize: vertical; min-height: 64px; }
     </div>
 
     <div class="form-card">
+      <div class="form-card-title">✈ Pilot Type</div>
+      <div class="profile-type-grid">
+        <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
+          <div class="pt-icon">✈</div>
+          <div class="pt-name">Airline 705</div>
+          <div class="pt-desc">Air carrier ops<br>All TC columns</div>
+        </div>
+        <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')">
+          <div class="pt-icon">🛩</div>
+          <div class="pt-name">Private / CPL</div>
+          <div class="pt-desc">PPL / recreational<br>Simplified form</div>
+        </div>
+        <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')">
+          <div class="pt-icon">📚</div>
+          <div class="pt-name">Student / CPL</div>
+          <div class="pt-desc">Flight training<br>Dual & solo focus</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
       <div class="form-card-title">👤 Pilot Information</div>
       <div class="form-grid">
         <div class="form-group">
@@ -1094,12 +1469,124 @@ textarea { resize: vertical; min-height: 64px; }
         </div>
       </div>
     </div>
+
+    <div class="form-card">
+      <div class="form-card-title">✍ Electronic Signature</div>
+      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:'DM Mono',monospace;line-height:1.5">
+        Sign below. Your signature is saved locally and appears on PDF exports.
+      </p>
+      <div style="border:1.5px solid var(--gray-100);border-radius:8px;background:var(--white);overflow:hidden;touch-action:none">
+        <canvas id="sigCanvas" width="600" height="120" style="display:block;width:100%;cursor:crosshair"></canvas>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="clearSignature()">🗑 Clear</button>
+        <button class="btn btn-primary btn-sm" onclick="saveSignature()">💾 Save Signature</button>
+        <span id="sigStatus" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-500)"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Q&A ── -->
+  <div id="page-qa" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Q&A</div>
+        <div class="page-sub">Aviation & logbook questions — powered by AI</div>
+      </div>
+    </div>
+
+    <!-- FAQ accordion -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-header"><div class="card-title">Common Questions</div></div>
+      <div id="faqList"></div>
+    </div>
+
+    <!-- Ask a question -->
+    <div class="form-card">
+      <div class="form-card-title">💬 Ask a Question</div>
+      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:'DM Mono',monospace;line-height:1.5">
+        Ask anything about Canadian logbook regulations, TC requirements, or aviation currency rules.
+      </p>
+      <div class="form-group" style="margin-bottom:12px">
+        <textarea id="qaInput" placeholder="e.g. How long is my IFR currency valid?" style="min-height:80px"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-primary" onclick="askQuestion()">✈ Ask AI</button>
+        <div class="ai-spinner" id="qaSpinner" style="display:none;width:22px;height:22px;border-width:2px;margin:0"></div>
+      </div>
+      <div id="qaAnswer" style="display:none;margin-top:16px;padding:14px;background:var(--off-white);border-radius:8px;border-left:3px solid var(--accent);font-size:13px;line-height:1.7"></div>
+    </div>
+
+    <!-- Saved Q&A history -->
+    <div id="qaHistory" style="margin-top:18px"></div>
+  </div>
+
+  <!-- ── GLOSSARY ── -->
+  <div id="page-glossary" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Aviation Glossary</div>
+        <div class="page-sub">Logbook abbreviations & definitions</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <input type="text" class="search-input" placeholder="Search abbreviation or definition..." oninput="filterGlossary(this.value)" id="glossarySearch">
+      </div>
+      <div id="glossaryList" style="padding:6px 0"></div>
+    </div>
+  </div>
+
+  <!-- ── YEAR RECAP ── -->
+  <div id="page-recap" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Year Recap</div>
+        <div class="page-sub">Annual flight summary</div>
+      </div>
+      <div class="page-actions">
+        <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--gray-100);font-family:'DM Mono',monospace;font-size:13px;background:var(--white);color:var(--text)"></select>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="recapStats" style="margin-bottom:20px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Monthly Hours</div></div>
+        <div style="padding:16px"><canvas id="recapChart" height="130"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Top Airports</div></div>
+        <div id="recapAirports" style="padding:16px;font-size:13px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Top Routes</div></div>
+      <div id="recapRoutes" style="padding:16px;font-size:13px"></div>
+    </div>
   </div>
 
   <!-- ── BACKUP ── -->
   <div id="page-backup" class="page">
     <div class="page-header">
       <div><div class="page-title">Backup & Restore</div></div>
+    </div>
+
+    <div class="backup-option">
+      <div class="backup-icon">🌙</div>
+      <div class="backup-info">
+        <div class="backup-title">Dark Mode</div>
+        <div class="backup-desc">Switch between light and dark theme. Preference saved automatically.</div>
+      </div>
+      <label class="dark-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </label>
     </div>
 
     <div class="backup-option">
@@ -1144,7 +1631,6 @@ textarea { resize: vertical; min-height: 64px; }
 const DB = {
   key: 'logbook_v1',
   profileKey: 'logbook_profile_v1',
-  pendingKey: 'logbook_pending',
 
   load() {
     try { return JSON.parse(localStorage.getItem(this.key) || '[]'); }
@@ -1167,6 +1653,17 @@ let pendingImport = [];
 let editingId = null;
 
 // ═══════════════════════════════════════════
+// MOBILE NAVIGATION  (Feature 1 — new in v2)
+// ═══════════════════════════════════════════
+function toggleMobileNav() {
+  document.body.classList.toggle('nav-open');
+}
+
+function closeMobileNav() {
+  document.body.classList.remove('nav-open');
+}
+
+// ═══════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════
 function showPage(id) {
@@ -1178,14 +1675,27 @@ function showPage(id) {
       n.classList.add('active');
     }
   });
+
+  // Close mobile nav whenever a page is selected
+  closeMobileNav();
+
   if (id === 'dashboard') renderDashboard();
   if (id === 'logbook') renderLogbook();
-  if (id === 'profile') loadProfile();
+  if (id === 'profile') { loadProfile(); setTimeout(initSignature, 50); }
+  if (id === 'backup') {
+    const toggle = document.getElementById('darkModeToggle');
+    if (toggle) toggle.checked = localStorage.getItem('logbook_dark') === '1';
+  }
+  if (id === 'recap') { initRecapYears(); renderRecap(); }
+  if (id === 'glossary') renderGlossary();
+  if (id === 'qa') renderQA();
   if (id === 'add' && !editingId) {
     document.getElementById('formTitle').textContent = 'Log a Flight';
     clearForm();
-    // Default date = today
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  }
+  if (id === 'add') {
+    adaptFormToProfile(DB.loadProfile().pilotType || 'airline705');
   }
 }
 
@@ -1199,7 +1709,7 @@ function calcStats() {
     pic += (+f.meDayPic||0) + (+f.meNightPic||0);
     night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0);
     ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
-    me += (+f.meDayPic||0)+( +f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
+    me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
     xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0);
     block += +f.block || 0;
   });
@@ -1221,6 +1731,8 @@ function renderDashboard() {
   document.getElementById('headerHours').textContent = fmt(s.total) + ' hrs total';
   document.getElementById('dashDate').textContent = new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
+  renderAlerts();
+  renderChart();
   const recent = [...flights].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
   const tbody = document.getElementById('recentTbody');
   if (!recent.length) {
@@ -1236,6 +1748,120 @@ function renderDashboard() {
       <td class="hrs">${fmt(f.total)}</td>
       <td>${(+f.ldgDay||0)+(+f.ldgNight||0)}</td>
     </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 5 — MEDICAL & RECENCY ALERTS
+// ═══════════════════════════════════════════
+function renderAlerts() {
+  const section = document.getElementById('alertsSection');
+  if (!section) return;
+  const p = DB.loadProfile();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const alerts = [];
+
+  // Medical expiry
+  if (p.medical) {
+    const exp = new Date(p.medical); exp.setHours(0,0,0,0);
+    const days = Math.round((exp - today) / 86400000);
+    if (days < 0) {
+      alerts.push({ level:'red', icon:'🏥', title:'Medical EXPIRED', sub:`Expired ${Math.abs(days)} day${Math.abs(days)!==1?'s':''} ago` });
+    } else if (days <= 60) {
+      alerts.push({ level:'yellow', icon:'🏥', title:`Medical expires in ${days} day${days!==1?'s':''}`, sub:`Expiry: ${exp.toLocaleDateString('en-CA')}` });
+    } else {
+      alerts.push({ level:'green', icon:'🏥', title:'Medical current', sub:`Expires ${exp.toLocaleDateString('en-CA')} · ${days} days remaining` });
+    }
+  }
+
+  // Day/Night landing currency — last 3 landings within 90 days
+  const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
+  const cut90str = cutoff90.toISOString().split('T')[0];
+  const recentLdg = flights
+    .filter(f => f.date >= cut90str)
+    .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
+  if (recentLdg >= 3) {
+    alerts.push({ level:'green', icon:'🛬', title:`Landing currency OK (${recentLdg} landings in 90 days)`, sub:'3 landings required within 90 days' });
+  } else {
+    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title:`Landing currency: ${recentLdg}/3 landings in last 90 days`, sub:'3 landings required within 90 days — CAR 401.05' });
+  }
+
+  // IFR currency — 6 instrument approaches within 6 months
+  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
+  const cut6mStr = cutoff6m.toISOString().split('T')[0];
+  const recentApp = flights
+    .filter(f => f.date >= cut6mStr)
+    .reduce((sum, f) => sum + (+f.instActual||0), 0);
+  const appCount = Math.floor(recentApp); // count approaches stored as number
+  if (appCount >= 6) {
+    alerts.push({ level:'green', icon:'🌫', title:`IFR currency OK (${appCount} approaches in 6 months)`, sub:'6 approaches required within 6 months' });
+  } else {
+    alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title:`IFR currency: ${appCount}/6 approaches in last 6 months`, sub:'6 approaches required within 6 months — CAR 401.05' });
+  }
+
+  if (!alerts.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  section.innerHTML = alerts.map(a => `
+    <div class="alert-bar ${a.level}">
+      <div class="alert-icon">${a.icon}</div>
+      <div class="alert-text">
+        ${a.title}
+        <div class="alert-sub">${a.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 4 — MONTHLY CHART
+// ═══════════════════════════════════════════
+let monthlyChartInst = null;
+
+function renderChart() {
+  const canvas = document.getElementById('monthlyChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const now = new Date();
+  const labels = [], data = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = d.toISOString().substring(0, 7);
+    labels.push(d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' }));
+    const hrs = flights.filter(f => f.date && f.date.startsWith(key))
+                       .reduce((sum, f) => sum + (+f.block || 0), 0);
+    data.push(parseFloat(hrs.toFixed(1)));
+  }
+  if (monthlyChartInst) { monthlyChartInst.destroy(); monthlyChartInst = null; }
+  monthlyChartInst = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Block Hours',
+        data,
+        backgroundColor: 'rgba(61,123,196,0.72)',
+        borderColor: 'rgba(61,123,196,1)',
+        borderWidth: 1.5,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' hrs' } }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { font: { family: "'DM Mono', monospace", size: 10 }, color: '#6b7fa3' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: "'DM Mono', monospace", size: 10 }, color: '#6b7fa3' }
+        }
+      }
+    }
+  });
 }
 
 // ═══════════════════════════════════════════
@@ -1298,6 +1924,62 @@ function filterTable(val) { renderLogbook(val); }
 function gv(id) { return document.getElementById(id).value; }
 function sv(id, val) { document.getElementById(id).value = val || ''; }
 
+// ═══════════════════════════════════════════
+// AIRCRAFT DROPDOWN  (Feature 2 — new in v2)
+// ═══════════════════════════════════════════
+const AIRCRAFT_RATINGS = {
+  'E195-E2': 'E195',
+  'Q400':    'DH4',
+};
+
+function onAircraftSelect() {
+  const sel    = document.getElementById('f-type-select');
+  const custom = document.getElementById('f-type-custom');
+  const rating = document.getElementById('f-rating');
+
+  if (sel.value === 'custom') {
+    custom.style.display = 'block';
+    custom.value = '';
+    custom.focus();
+    if (rating) rating.value = '';
+  } else {
+    custom.style.display = 'none';
+    custom.value = sel.value;
+    if (rating && AIRCRAFT_RATINGS[sel.value]) {
+      rating.value = AIRCRAFT_RATINGS[sel.value];
+    }
+  }
+}
+
+function getAircraftType() {
+  const sel = document.getElementById('f-type-select');
+  if (!sel) return '';
+  return sel.value === 'custom'
+    ? (document.getElementById('f-type-custom').value || '')
+    : sel.value;
+}
+
+function setAircraftTypeField(val) {
+  const sel    = document.getElementById('f-type-select');
+  const custom = document.getElementById('f-type-custom');
+  if (!sel) return;
+
+  const known = ['E195-E2', 'Q400'];
+  if (!val) {
+    sel.value = '';
+    custom.style.display = 'none';
+    custom.value = '';
+  } else if (known.includes(val)) {
+    sel.value = val;
+    custom.style.display = 'none';
+    custom.value = val;
+  } else {
+    sel.value = 'custom';
+    custom.style.display = 'block';
+    custom.value = val;
+  }
+}
+
 function saveFlight() {
   const date = gv('f-date');
   if (!date) { showToast('Date is required', 'error'); return; }
@@ -1305,7 +1987,7 @@ function saveFlight() {
   const flight = {
     id: editingId || Date.now().toString(),
     date,
-    type: gv('f-type'),
+    type: getAircraftType(),
     reg: gv('f-reg'),
     rating: gv('f-rating'),
     pic: gv('f-pic'),
@@ -1351,7 +2033,7 @@ function editFlight(id) {
   if (!f) return;
   editingId = id;
   document.getElementById('formTitle').textContent = 'Edit Flight';
-  sv('f-date', f.date); sv('f-type', f.type); sv('f-reg', f.reg);
+  sv('f-date', f.date); setAircraftTypeField(f.type); sv('f-reg', f.reg);
   sv('f-rating', f.rating); sv('f-pic', f.pic); sv('f-copilot', f.copilot);
   sv('f-route', f.route); sv('f-remarks', f.remarks);
   sv('f-block', f.block); sv('f-duty', f.duty); sv('f-total', f.total);
@@ -1374,7 +2056,13 @@ function deleteFlight(id) {
 }
 
 function clearForm() {
-  ['f-date','f-type','f-reg','f-rating','f-pic','f-copilot','f-route','f-remarks',
+  // Reset aircraft dropdown and hide custom input
+  const sel = document.getElementById('f-type-select');
+  const custom = document.getElementById('f-type-custom');
+  if (sel) sel.value = '';
+  if (custom) { custom.value = ''; custom.style.display = 'none'; }
+
+  ['f-date','f-reg','f-rating','f-pic','f-copilot','f-route','f-remarks',
    'f-block','f-duty','f-total','f-me-day-dual','f-me-day-pic','f-me-day-cop',
    'f-me-night-dual','f-me-night-pic','f-me-night-cop','f-xc-day-dual','f-xc-day-pic',
    'f-xc-night-dual','f-xc-night-pic','f-ldg-day','f-ldg-night',
@@ -1402,7 +2090,6 @@ async function handlePhotoImport(input) {
   box.classList.add('show');
   msg.textContent = 'READING LOGBOOK IMAGE...';
 
-  // Convert to base64
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result.split(',')[1]);
@@ -1421,100 +2108,16 @@ async function handlePhotoImport(input) {
         messages: [{
           role: 'user',
           content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: file.type || 'image/jpeg', data: b64 }
-            },
-            {
-              type: 'text',
-              text: `This is a page from a Canadian ICAO pilot logbook. Extract ALL flight entries visible.
+            { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: b64 } },
+            { type: 'text', text: `This is a page from a Canadian ICAO pilot logbook. Extract ALL flight entries visible.
 RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ].
-[{
-  "date": "YYYY-MM-DD",
-  "type": "aircraft type",
-  "reg": "registration",
-  "pic": "pilot name",
-  "copilot": "co-pilot name",
-  "route": "route e.g. YOW-YYZ",
-  "total": number,
-  "meDayPic": number,
-  "meNightPic": number,
-  "meDayDual": number,
-  "meNightDual": number,
-  "meDayCop": number,
-  "meNightCop": number,
-  "xcDayPic": number,
-  "xcNightPic": number,
-  "xcDayDual": number,
-  "xcNightDual": number,
-  "ldgDay": integer,
-  "ldgNight": integer,
-  "instActual": number,
-  "picus": number,
-  "block": number
-}]
-Use 0 for empty fields. Infer year from context if not explicit.`
-            }
+[{"date":"YYYY-MM-DD","type":"","reg":"","pic":"","copilot":"","route":"","total":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"meDayCop":0,"meNightCop":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":0,"ldgNight":0,"instActual":0,"picus":0,"block":0}]
+Use 0 for empty fields. Infer year from context if not explicit.` }
           ]
         }]
       })
     });
 
-    const data = await resp.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const extracted = JSON.parse(clean);
-
-    box.classList.remove('show');
-    showImportPreview(extracted);
-  } catch(e) {
-    box.classList.remove('show');
-    showToast('Could not parse image — try a clearer photo', 'error');
-    console.error(e);
-  }
-}
-
-async function handlePDFImport(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-  const box = document.getElementById('aiBox');
-  const msg = document.getElementById('aiMsg');
-  box.classList.add('show');
-  msg.textContent = 'READING NAVBLUE PDF...';
-
-  const b64 = await new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(',')[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-
-  try {
-    msg.textContent = 'AI EXTRACTING FLIGHTS FROM PDF...';
-    const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: b64 }
-            },
-            {
-              type: 'text',
-              text: `This is a Navblue pilot logbook PDF export. Extract ALL flight entries.
-RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ].
-[{"date":"YYYY-MM-DD","type":"","reg":"","pic":"","copilot":"","route":"","total":0,"block":0,"duty":0,"meDayPic":0,"meNightPic":0,"ldgDay":0,"ldgNight":0,"instActual":0,"picus":0,"xcDayPic":0,"xcNightPic":0}]`
-            }
-          ]
-        }]
-      })
-    });
     const data = await resp.json();
     const text = data.content?.map(c => c.text || '').join('') || '';
     const clean = text.replace(/```json|```/g, '').trim();
@@ -1523,7 +2126,8 @@ RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ]
     showImportPreview(extracted);
   } catch(e) {
     box.classList.remove('show');
-    showToast('Could not parse PDF', 'error');
+    showToast('Could not parse image — try a clearer photo', 'error');
+    console.error(e);
   }
 }
 
@@ -1558,52 +2162,16 @@ async function parseNavbluePDF(input) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 4000,
-        system: 'You are a data extraction API. You ONLY output valid JSON arrays. Never include explanations, reasoning, or text outside the JSON array. Your entire response must be a valid JSON array starting with [ and ending with ].',
+        system: 'You are a data extraction API. You ONLY output valid JSON arrays. Never include explanations or text outside the JSON array.',
         messages: [{
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-            { type: 'text', text: `This is a Porter Airlines Navblue HrRosterReport PDF for the pilot.
-
-Extract ONLY real flight legs. SKIP these codes entirely: VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH (deadhead positions count as 0 block).
-
-For each real flight leg return JSON. RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ].
-[{
-  "date": "YYYY-MM-DD",
-  "flightNum": "PD150",
-  "type": "E2-195",
-  "reg": "C-GXXX or empty",
-  "pic": "Captain last name first name",
-  "copilot": "M. Daoust",
-  "route": "YOW-YYZ",
-  "dep": "YOW",
-  "arr": "YYZ",
-  "block": 1.1,
-  "duty": 0,
-  "total": 1.1,
-  "meDayCop": 1.1,
-  "meNightCop": 0,
-  "meDayPic": 0,
-  "meNightPic": 0,
-  "meDayDual": 0,
-  "meNightDual": 0,
-  "xcDayPic": 0,
-  "xcNightPic": 0,
-  "xcDayDual": 0,
-  "xcNightDual": 0,
-  "ldgDay": 1,
-  "ldgNight": 0,
-  "instActual": 0,
-  "picus": 0
-}]
-
-CRITICAL RULES:
-1. Only import COMPLETED flights where date <= today. Skip any future-dated flight — scheduled times are NOT accepted by Transport Canada.
-2. Use BLH column for block time (HH:MM → decimal: 01:06=1.1, 04:02=4.03). Skip real flight legs where BLH is 00:00.
-3. Pilot is FO: meDayCop=block(day flights), meNightCop=block(night flights), meDayPic=0.
-4. Extract Captain from Crew line CA: Lastname, Firstname → Firstname Lastname.
-5. Extract registration C-XXXX from AC column.
-6. Skip codes: VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH.` }
+            { type: 'text', text: `This is a Porter Airlines Navblue HrRosterReport PDF.
+Extract ONLY real flight legs. SKIP: VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH.
+RESPOND WITH ONLY A JSON ARRAY. START WITH [ END WITH ].
+[{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E2-195","reg":"","pic":"Captain Name","copilot":"M. Daoust","route":"YOW-YYZ","block":1.1,"duty":0,"total":1.1,"meDayCop":1.1,"meNightCop":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":1,"ldgNight":0,"instActual":0,"picus":0}]
+RULES: Only completed flights (date <= today). BLH column for block (HH:MM to decimal). Pilot is FO: meDayCop=block day, meNightCop=block night. Skip DH (deadhead).` }
           ]
         }]
       })
@@ -1614,12 +2182,10 @@ CRITICAL RULES:
     try { data = JSON.parse(rawText); } catch(e) { throw new Error('Worker response: ' + rawText.substring(0, 200)); }
     const text = data.content?.map(c => c.text || '').join('') || '';
     const clean = text.replace(/```json|```/g, '');
-    // Extract JSON array even if AI adds text before/after
     const match = clean.match(/\[.*\]/s);
     if (!match) throw new Error('No JSON array found in AI response');
     let extracted;
     try { extracted = JSON.parse(match[0]); } catch(e) { throw new Error('Invalid JSON: ' + match[0].substring(0, 200)); }
-    // Filter out future flights client-side (belt AND suspenders)
     const today = new Date().toISOString().split('T')[0];
     const filtered = extracted.filter(f => f.date && f.date <= today && f.block > 0);
     box.classList.remove('show');
@@ -1640,10 +2206,6 @@ function handleDrop(event, type) {
     const dt = new DataTransfer(); dt.items.add(file);
     document.getElementById('photoInput').files = dt.files;
     handlePhotoImport(document.getElementById('photoInput'));
-  } else {
-    const dt = new DataTransfer(); dt.items.add(file);
-    document.getElementById('pdfInput').files = dt.files;
-    handlePDFImport(document.getElementById('pdfInput'));
   }
 }
 
@@ -1651,7 +2213,7 @@ function showImportPreview(list) {
   pendingImport = list;
   const container = document.getElementById('extractedList');
   if (!list.length) {
-    container.innerHTML = '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No flights found in this image.</p>';
+    container.innerHTML = '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No flights found.</p>';
   } else {
     container.innerHTML = list.map((f, i) => `
       <div class="review-item">
@@ -1670,19 +2232,77 @@ function showImportPreview(list) {
 }
 
 function confirmImport() {
+  const count = pendingImport.length;
   pendingImport.forEach(f => {
     flights.push({ ...f, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);
   pendingImport = [];
   document.getElementById('importPreview').style.display = 'none';
-  showToast(pendingImport.length + ' flights imported ✓', 'success');
+  showToast(count + ' flight' + (count !== 1 ? 's' : '') + ' imported ✓', 'success');
   showPage('logbook');
 }
 
 function cancelImport() {
   pendingImport = [];
   document.getElementById('importPreview').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════
+// PILOT PROFILE TYPES  (Feature 3 — new in v2)
+// ═══════════════════════════════════════════
+function setProfileType(type) {
+  const p = DB.loadProfile();
+  p.pilotType = type;
+  DB.saveProfile(p);
+  highlightProfileTypeCard(type);
+  showToast('Profile type saved ✓', 'success');
+}
+
+function highlightProfileTypeCard(type) {
+  ['airline705', 'private', 'student'].forEach(t => {
+    const card = document.getElementById('pt-' + t);
+    if (card) card.classList.toggle('active', t === type);
+  });
+}
+
+function adaptFormToProfile(type) {
+  const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
+  const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+  const setLbl = (inputId, text) => {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    const lbl = el.closest('.form-group')?.querySelector('label');
+    if (lbl) lbl.textContent = text;
+  };
+
+  // Reset everything to default (airline705) first
+  ['fg-block', 'fg-duty', 'fg-me-day-cop', 'fg-me-night-cop', 'fg-picus'].forEach(show);
+  setLbl('f-pic',          'Pilot in Command');
+  setLbl('f-copilot',      'Co-Pilot / Passenger');
+  setLbl('f-me-day-pic',   'ME Day — PIC');
+  setLbl('f-me-night-pic', 'ME Night — PIC');
+  setLbl('f-me-day-dual',  'ME Day — Dual');
+  setLbl('f-me-night-dual','ME Night — Dual');
+
+  if (type === 'private') {
+    hide('fg-duty');
+    hide('fg-me-day-cop');
+    hide('fg-me-night-cop');
+    hide('fg-picus');
+  } else if (type === 'student') {
+    hide('fg-block');
+    hide('fg-duty');
+    hide('fg-me-day-cop');
+    hide('fg-me-night-cop');
+    hide('fg-picus');
+    setLbl('f-pic',          'Instructor');
+    setLbl('f-copilot',      'Student Name');
+    setLbl('f-me-day-pic',   'ME Day — Solo');
+    setLbl('f-me-night-pic', 'ME Night — Solo');
+    setLbl('f-me-day-dual',  'ME Day — Dual (Instruction)');
+    setLbl('f-me-night-dual','ME Night — Dual (Instruction)');
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1698,10 +2318,12 @@ function loadProfile() {
   sv('p-medical', p.medical);
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E2-195');
+  highlightProfileTypeCard(p.pilotType || 'airline705');
   updateProfileDisplay(p);
 }
 
 function saveProfile() {
+  const existing = DB.loadProfile();
   const p = {
     fname: gv('p-fname'),
     lname: gv('p-lname'),
@@ -1711,6 +2333,7 @@ function saveProfile() {
     medical: gv('p-medical'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
+    pilotType: existing.pilotType || 'airline705',
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
@@ -1718,15 +2341,14 @@ function saveProfile() {
 }
 
 function updateProfileDisplay(p) {
-  const name = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`;
+  const name = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`.trim();
   document.getElementById('profileNameDisp').textContent = name;
   document.getElementById('profileRoleDisp').textContent = p.airline || 'Porter Airlines';
-  document.getElementById('headerPilot') && (document.getElementById('headerPilot').textContent = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`);
-  document.querySelector('.pilot-name').textContent = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`;
+  document.querySelector('.pilot-name').textContent = name;
 }
 
 // ═══════════════════════════════════════════
-// BACKUP / RESTORE / EXPORT
+// BACKUP / RESTORE
 // ═══════════════════════════════════════════
 function backupData() {
   const data = { flights, profile: DB.loadProfile(), exportedAt: new Date().toISOString() };
@@ -1762,8 +2384,483 @@ function clearAll() {
   renderDashboard();
 }
 
+// ═══════════════════════════════════════════
+// FEATURE 7 — PDF EXPORT (TC FORMAT)
+// ═══════════════════════════════════════════
 function exportPDF() {
-  showToast('PDF export coming in next version', '');
+  if (typeof window.jspdf === 'undefined') { showToast('PDF library loading, try again', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const p = DB.loadProfile();
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+  const W = 279, H = 216;
+  const navy = [15,32,68], accent = [61,123,196], white = [255,255,255], light = [244,246,251];
+
+  // ── Header ──
+  doc.setFillColor(...navy);
+  doc.rect(0, 0, W, 22, 'F');
+  doc.setTextColor(...white);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('PILOT LOGBOOK — TRANSPORT CANADA FORMAT', 14, 9);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  const name = `${p.rank||'F/O'} ${p.fname||'M.'} ${p.lname||'Daoust'}`.trim();
+  doc.text(`Pilot: ${name}   License: ${p.license||'—'}   Airline: ${p.airline||'Porter Airlines'}   Base: ${p.base||'YOW'}`, 14, 16);
+  doc.text(`Generated: ${new Date().toLocaleDateString('en-CA')}   Total entries: ${flights.length}`, 14, 20);
+
+  // ── Column layout ──
+  const cols = [
+    { h: 'DATE',       w: 18, key: f => f.date },
+    { h: 'ACFT TYPE',  w: 18, key: f => f.type||'—' },
+    { h: 'REG',        w: 17, key: f => f.reg||'—' },
+    { h: 'PIC',        w: 22, key: f => f.pic||'—' },
+    { h: 'ROUTE',      w: 30, key: f => f.route||'—' },
+    { h: 'BLOCK',      w: 14, key: f => fmt(f.block) },
+    { h: 'DUTY',       w: 13, key: f => fmt(f.duty) },
+    { h: 'ME DAY PIC', w: 16, key: f => fmt(f.meDayPic) },
+    { h: 'ME NGT PIC', w: 16, key: f => fmt(f.meNightPic) },
+    { h: 'ME DAY COP', w: 16, key: f => fmt(f.meDayCop) },
+    { h: 'ME NGT COP', w: 16, key: f => fmt(f.meNightCop) },
+    { h: 'XC',         w: 12, key: f => fmt((+f.xcDayPic||0)+(+f.xcNightPic||0)) },
+    { h: 'LDG',        w: 10, key: f => String((+f.ldgDay||0)+(+f.ldgNight||0)) },
+    { h: 'INST',       w: 12, key: f => fmt((+f.instActual||0)+(+f.instHood||0)) },
+    { h: 'TOTAL',      w: 13, key: f => fmt(f.total) },
+  ];
+
+  const ROWS_PER_PAGE = 22;
+  const sorted = [...flights].sort((a,b) => a.date.localeCompare(b.date));
+  let pageFlights = [];
+  let runTotals = { block:0, duty:0, meDayPic:0, meNightPic:0, meDayCop:0, meNightCop:0, xc:0, ldg:0, inst:0, total:0 };
+
+  const drawPage = (rows, isLast) => {
+    let x = 10, y = 28;
+    // Column headers
+    doc.setFillColor(...navy); doc.rect(10, y, W-20, 6, 'F');
+    doc.setTextColor(...white); doc.setFontSize(6); doc.setFont('helvetica','bold');
+    cols.forEach(c => { doc.text(c.h, x+1, y+4); x += c.w; });
+    y += 7;
+
+    // Rows
+    rows.forEach((f, i) => {
+      if (i % 2 === 0) { doc.setFillColor(...light); doc.rect(10, y-3, W-20, 6, 'F'); }
+      doc.setTextColor(13,27,62); doc.setFontSize(6); doc.setFont('helvetica','normal');
+      x = 10;
+      cols.forEach(c => { const v = c.key(f); doc.text(v.substring(0,16), x+1, y+2); x += c.w; });
+      y += 6;
+    });
+
+    // Page totals
+    y += 2;
+    doc.setFillColor(...accent); doc.rect(10, y, W-20, 7, 'F');
+    doc.setTextColor(...white); doc.setFontSize(6); doc.setFont('helvetica','bold');
+    doc.text('PAGE TOTALS', 11, y+5);
+    const pageTotals = rows.reduce((acc, f) => {
+      acc.block += +f.block||0; acc.duty += +f.duty||0;
+      acc.meDayPic += +f.meDayPic||0; acc.meNightPic += +f.meNightPic||0;
+      acc.meDayCop += +f.meDayCop||0; acc.meNightCop += +f.meNightCop||0;
+      acc.xc += (+f.xcDayPic||0)+(+f.xcNightPic||0);
+      acc.ldg += (+f.ldgDay||0)+(+f.ldgNight||0);
+      acc.inst += (+f.instActual||0)+(+f.instHood||0);
+      acc.total += +f.total||0; return acc;
+    }, {block:0,duty:0,meDayPic:0,meNightPic:0,meDayCop:0,meNightCop:0,xc:0,ldg:0,inst:0,total:0});
+
+    const ptVals = ['','','','','',fmt(pageTotals.block),fmt(pageTotals.duty),fmt(pageTotals.meDayPic),fmt(pageTotals.meNightPic),fmt(pageTotals.meDayCop),fmt(pageTotals.meNightCop),fmt(pageTotals.xc),String(pageTotals.ldg),fmt(pageTotals.inst),fmt(pageTotals.total)];
+    x = 10; cols.forEach((c, i) => { doc.text(ptVals[i]||'', x+1, y+5); x += c.w; });
+
+    // Running totals (carried forward)
+    Object.keys(runTotals).forEach(k => { runTotals[k] += pageTotals[k]||0; });
+    y += 9;
+    doc.setFillColor(...navy); doc.rect(10, y, W-20, 7, 'F');
+    doc.text('CUMULATIVE TOTALS', 11, y+5);
+    const rtVals = ['','','','','',fmt(runTotals.block),fmt(runTotals.duty),fmt(runTotals.meDayPic),fmt(runTotals.meNightPic),fmt(runTotals.meDayCop),fmt(runTotals.meNightCop),fmt(runTotals.xc),String(runTotals.ldg),fmt(runTotals.inst),fmt(runTotals.total)];
+    x = 10; cols.forEach((c, i) => { doc.text(rtVals[i]||'', x+1, y+5); x += c.w; });
+
+    if (isLast) {
+      // Certification block
+      y += 12;
+      doc.setFontSize(7); doc.setTextColor(13,27,62); doc.setFont('helvetica','normal');
+      doc.text('I certify that the entries in this logbook are true and correct to the best of my knowledge.', 14, y);
+      y += 10;
+      doc.line(14, y, 90, y); doc.line(100, y, 160, y); doc.line(170, y, 230, y);
+      y += 4;
+      doc.text('Pilot Signature', 14, y);
+      doc.text('Date', 100, y);
+      doc.text('License Number', 170, y);
+    }
+  };
+
+  for (let i = 0; i < sorted.length; i += ROWS_PER_PAGE) {
+    if (i > 0) doc.addPage();
+    // Re-draw header on each page
+    doc.setFillColor(...navy); doc.rect(0, 0, W, 22, 'F');
+    doc.setTextColor(...white); doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text('PILOT LOGBOOK — TRANSPORT CANADA FORMAT', 14, 9);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(`Pilot: ${name}   License: ${p.license||'—'}   Page ${Math.floor(i/ROWS_PER_PAGE)+1} of ${Math.ceil(sorted.length/ROWS_PER_PAGE)}`, 14, 16);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-CA')}`, 14, 20);
+
+    const chunk = sorted.slice(i, i + ROWS_PER_PAGE);
+    const isLast = i + ROWS_PER_PAGE >= sorted.length;
+    drawPage(chunk, isLast);
+  }
+
+  if (!sorted.length) {
+    doc.setFontSize(14); doc.setTextColor(13,27,62);
+    doc.text('No flights logged yet.', W/2, H/2, { align: 'center' });
+  }
+
+  doc.save(`logbook_${name.replace(/\s+/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+  showToast('PDF exported ✓', 'success');
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 12 — Q&A SECTION
+// ═══════════════════════════════════════════
+const FAQS = [
+  {
+    q: 'How many landings do I need to stay current as PIC?',
+    a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(3), you need 5 take-offs and 5 landings at night within the preceding 6 months.'
+  },
+  {
+    q: 'What is IFR recency and how long is it valid?',
+    a: 'Under CAR 401.05(5), to act as PIC under IFR you must have completed at least 6 instrument approaches in the preceding 6 months, either in an aircraft or approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.'
+  },
+  {
+    q: 'What is PICUS and when can I log it?',
+    a: 'PICUS (Pilot in Command Under Supervision) is time logged by a co-pilot (F/O) when acting in the role of PIC under the supervision of a qualified captain. In Canada, this is recognized under CAR 401.08 and can be credited toward ATPL minimums. You may log PICUS only when you are the actual decision-maker for the flight under direct supervision.'
+  },
+  {
+    q: 'How do I count block time vs. flight time?',
+    a: 'Block time (BLH) starts when the aircraft moves under its own power (chocks out / brakes released) and ends when it comes to rest at the gate (chocks in). Flight time starts at first movement for takeoff and ends at landing rollout. For airline operations, Transport Canada generally accepts block time for logbook purposes under CAR 401.08.'
+  },
+  {
+    q: 'What medical class do airline pilots need and how often must I renew?',
+    a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. For pilots under 40, it is valid for 12 months. For pilots 40 and older, it must be renewed every 6 months. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).'
+  },
+  {
+    q: 'Can I count simulator time toward my ATPL hours?',
+    a: 'Yes, but with limits. Under CAR 401.73, a maximum of 25 hours of approved flight simulator time may be credited toward the 1,500-hour ATPL requirement (200 hours for multi-engine helicopter). The simulator must be approved by Transport Canada. All simulator time should be logged under the Simulator (SIM) column, not as flight time.'
+  },
+];
+
+let qaHistory = [];
+
+function renderQA() {
+  // FAQ accordion
+  const faqList = document.getElementById('faqList');
+  if (faqList && !faqList.children.length) {
+    faqList.innerHTML = FAQS.map((f, i) => `
+      <div class="faq-item" id="faq-${i}">
+        <div class="faq-q" onclick="toggleFaq(${i})">
+          <span>${f.q}</span>
+          <span class="faq-chevron">▼</span>
+        </div>
+        <div class="faq-a">${f.a}</div>
+      </div>`).join('');
+  }
+
+  // Load saved Q&A history
+  try { qaHistory = JSON.parse(localStorage.getItem('logbook_qa') || '[]'); } catch { qaHistory = []; }
+  renderQAHistory();
+}
+
+function toggleFaq(i) {
+  const el = document.getElementById('faq-' + i);
+  if (el) el.classList.toggle('open');
+}
+
+async function askQuestion() {
+  const input = document.getElementById('qaInput');
+  const q = input.value.trim();
+  if (!q) { showToast('Enter a question first', 'error'); return; }
+
+  const spinner = document.getElementById('qaSpinner');
+  const answerDiv = document.getElementById('qaAnswer');
+  spinner.style.display = 'block';
+  answerDiv.style.display = 'none';
+
+  try {
+    const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: 'You are an expert on Canadian aviation regulations (CARs), Transport Canada requirements, and pilot logbook rules. Give clear, accurate, concise answers. Reference specific CAR sections when relevant. Respond in 3-5 sentences maximum.',
+        messages: [{ role: 'user', content: q }]
+      })
+    });
+
+    const data = await resp.json();
+    const answer = data.content?.map(c => c.text || '').join('') || 'No answer received.';
+    spinner.style.display = 'none';
+    answerDiv.style.display = 'block';
+    answerDiv.textContent = answer;
+
+    // Save to history
+    qaHistory.unshift({ q, a: answer, date: new Date().toLocaleDateString('en-CA') });
+    if (qaHistory.length > 20) qaHistory.length = 20;
+    localStorage.setItem('logbook_qa', JSON.stringify(qaHistory));
+    renderQAHistory();
+    input.value = '';
+  } catch(e) {
+    spinner.style.display = 'none';
+    showToast('Could not get an answer — check your connection', 'error');
+    console.error(e);
+  }
+}
+
+function renderQAHistory() {
+  const el = document.getElementById('qaHistory');
+  if (!el) return;
+  if (!qaHistory.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gray-500);text-transform:uppercase;margin-bottom:10px">Previous Questions</div>
+    ${qaHistory.map(item => `
+      <div class="qa-history-item">
+        <div class="qa-history-q">Q: ${item.q} <span style="font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:var(--gray-500);margin-left:8px">${item.date}</span></div>
+        <div class="qa-history-a">${item.a}</div>
+      </div>`).join('')}`;
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 11 — ELECTRONIC SIGNATURE
+// ═══════════════════════════════════════════
+let sigDrawing = false, sigCtx = null, sigCanvas = null;
+
+function initSignature() {
+  sigCanvas = document.getElementById('sigCanvas');
+  if (!sigCanvas) return;
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCanvas.width = sigCanvas.offsetWidth || 600;
+  sigCtx = sigCanvas.getContext('2d');
+  sigCtx.strokeStyle = '#0f2044';
+  sigCtx.lineWidth = 2.2;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+
+  // Load saved signature
+  const saved = localStorage.getItem('logbook_signature');
+  if (saved) {
+    const img = new Image();
+    img.onload = () => sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
+    img.src = saved;
+    document.getElementById('sigStatus').textContent = '✓ Signature saved';
+  }
+
+  const getPos = e => {
+    const r = sigCanvas.getBoundingClientRect();
+    const scaleX = sigCanvas.width / r.width;
+    const scaleY = sigCanvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+  };
+
+  sigCanvas.addEventListener('mousedown',  e => { sigDrawing=true; const p=getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); });
+  sigCanvas.addEventListener('mousemove',  e => { if(!sigDrawing) return; const p=getPos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); });
+  sigCanvas.addEventListener('mouseup',    () => sigDrawing=false);
+  sigCanvas.addEventListener('mouseleave', () => sigDrawing=false);
+  sigCanvas.addEventListener('touchstart', e => { e.preventDefault(); sigDrawing=true; const p=getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); }, {passive:false});
+  sigCanvas.addEventListener('touchmove',  e => { e.preventDefault(); if(!sigDrawing) return; const p=getPos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); }, {passive:false});
+  sigCanvas.addEventListener('touchend',   () => sigDrawing=false);
+}
+
+function clearSignature() {
+  if (!sigCtx || !sigCanvas) return;
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  document.getElementById('sigStatus').textContent = '';
+}
+
+function saveSignature() {
+  if (!sigCanvas) return;
+  const data = sigCanvas.toDataURL('image/png');
+  localStorage.setItem('logbook_signature', data);
+  document.getElementById('sigStatus').textContent = '✓ Saved';
+  showToast('Signature saved ✓', 'success');
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 10 — AVIATION GLOSSARY
+// ═══════════════════════════════════════════
+const GLOSSARY = [
+  ['ATA','Actual Time of Arrival — when the aircraft actually arrives at the gate'],
+  ['ATD','Actual Time of Departure — when the aircraft actually departs the gate'],
+  ['ATC','Air Traffic Control'],
+  ['ATPL','Airline Transport Pilot Licence — highest pilot certificate in Canada'],
+  ['BLH','Block Hours — total time from chocks out to chocks in'],
+  ['CAR','Canadian Aviation Regulations — Transport Canada regulatory framework'],
+  ['CPL','Commercial Pilot Licence'],
+  ['DA','Decision Altitude — altitude at which a missed approach must be initiated'],
+  ['DH','Deadhead — crew travelling as passenger for positioning'],
+  ['DME','Distance Measuring Equipment — radio nav aid for distance'],
+  ['ETA','Estimated Time of Arrival'],
+  ['ETD','Estimated Time of Departure'],
+  ['FBO','Fixed Base Operator — general aviation services company'],
+  ['FL','Flight Level — altitude in hundreds of feet above standard datum'],
+  ['F/O','First Officer — co-pilot, second in command'],
+  ['GD','Ground Duty — day off for crew'],
+  ['IFR','Instrument Flight Rules — flight in IMC using instruments'],
+  ['ILS','Instrument Landing System — precision approach aid'],
+  ['IMC','Instrument Meteorological Conditions — low visibility / cloud'],
+  ['LDG','Landing'],
+  ['ME','Multi-Engine — aircraft with more than one engine'],
+  ['MDA','Minimum Descent Altitude — non-precision approach minimum altitude'],
+  ['OFP','Operational Flight Plan'],
+  ['PIC','Pilot in Command — the captain; legally responsible for the flight'],
+  ['PICUS','Pilot in Command Under Supervision — co-pilot acting as PIC supervised'],
+  ['PPL','Private Pilot Licence'],
+  ['PF','Pilot Flying — pilot actively controlling the aircraft'],
+  ['PM','Pilot Monitoring — pilot managing radios, checklists, monitoring'],
+  ['QFE','Altimeter setting to read zero at field elevation'],
+  ['QNH','Altimeter setting to read field elevation at the airport'],
+  ['SDO','Scheduled Day Off — rest day'],
+  ['SE','Single-Engine'],
+  ['SIC','Second in Command — co-pilot / first officer role'],
+  ['SIM','Simulator — approved flight training device'],
+  ['TC','Transport Canada — Canadian aviation regulatory authority'],
+  ['TCAS','Traffic Collision Avoidance System'],
+  ['VAC','Vacation'],
+  ['VFR','Visual Flight Rules — flight in VMC by visual reference'],
+  ['VMC','Visual Meteorological Conditions — ceiling and visibility allowing VFR'],
+  ['VOR','VHF Omnidirectional Range — radio navigation aid'],
+  ['XC','Cross Country — flight to a point beyond a specified distance'],
+].sort((a,b) => a[0].localeCompare(b[0]));
+
+let glossaryFilter = '';
+
+function renderGlossary() {
+  filterGlossary('');
+  const s = document.getElementById('glossarySearch');
+  if (s) s.value = '';
+}
+
+function filterGlossary(val) {
+  glossaryFilter = val.toLowerCase();
+  const list = GLOSSARY.filter(([abbr, def]) =>
+    abbr.toLowerCase().includes(glossaryFilter) || def.toLowerCase().includes(glossaryFilter)
+  );
+  const el = document.getElementById('glossaryList');
+  if (!el) return;
+  el.innerHTML = list.length
+    ? list.map(([abbr, def]) => `
+        <div class="glossary-item">
+          <div class="glossary-abbr">${abbr}</div>
+          <div class="glossary-def">${def}</div>
+        </div>`).join('')
+    : '<p style="padding:20px;color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No results found.</p>';
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 9 — YEAR RECAP
+// ═══════════════════════════════════════════
+let recapChartInst = null;
+
+function initRecapYears() {
+  const sel = document.getElementById('recapYear');
+  if (!sel) return;
+  const years = [...new Set(flights.map(f => f.date&&f.date.substring(0,4)).filter(Boolean))].sort().reverse();
+  const thisYear = new Date().getFullYear().toString();
+  if (!years.includes(thisYear)) years.unshift(thisYear);
+  sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+}
+
+function renderRecap() {
+  const sel = document.getElementById('recapYear');
+  if (!sel) return;
+  const year = sel.value;
+  const yFlights = flights.filter(f => f.date && f.date.startsWith(year));
+
+  // Stats
+  const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
+  const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
+  const ldg   = yFlights.reduce((s,f) => s + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
+  const night = yFlights.reduce((s,f) => s + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0), 0);
+  document.getElementById('recapStats').innerHTML = [
+    ['Total Hours', fmt(total), 'hours'],
+    ['Block Hours', fmt(block), 'hours'],
+    ['Night Time',  fmt(night), 'hours'],
+    ['Landings',    ldg,        'total'],
+  ].map(([lbl,val,unit]) => `
+    <div class="stat-card">
+      <div class="stat-label">${lbl}</div>
+      <div class="stat-value">${val}</div>
+      <div class="stat-unit">${unit}</div>
+    </div>`).join('');
+
+  // Monthly chart
+  const months = Array.from({length:12}, (_,i) => {
+    const key = `${year}-${String(i+1).padStart(2,'0')}`;
+    const d = new Date(+year, i, 1);
+    return {
+      label: d.toLocaleDateString('en-CA',{month:'short'}),
+      val: parseFloat(yFlights.filter(f=>f.date&&f.date.startsWith(key)).reduce((s,f)=>s+(+f.block||0),0).toFixed(1))
+    };
+  });
+
+  const canvas = document.getElementById('recapChart');
+  if (canvas && typeof Chart !== 'undefined') {
+    if (recapChartInst) { recapChartInst.destroy(); recapChartInst = null; }
+    recapChartInst = new Chart(canvas, {
+      type:'bar',
+      data:{
+        labels: months.map(m=>m.label),
+        datasets:[{
+          label:'Block Hours',data:months.map(m=>m.val),
+          backgroundColor:'rgba(61,123,196,0.72)',borderColor:'rgba(61,123,196,1)',borderWidth:1.5,borderRadius:4
+        }]
+      },
+      options:{
+        responsive:true,animation:{duration:600},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' hrs'}}},
+        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"'DM Mono',monospace",size:10},color:'#6b7fa3'}},
+                x:{grid:{display:false},ticks:{font:{family:"'DM Mono',monospace",size:10},color:'#6b7fa3'}}}
+      }
+    });
+  }
+
+  // Top airports (from routes)
+  const airports = {};
+  yFlights.forEach(f => {
+    (f.route||'').split(/[\s\-\/]+/).forEach(a => {
+      a = a.trim().toUpperCase();
+      if (a.length===3 || a.length===4) airports[a] = (airports[a]||0) + 1;
+    });
+  });
+  const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('recapAirports').innerHTML = topAirports.length
+    ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-100)">
+        <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--navy)">${a}</span>
+        <span style="color:var(--gray-500);font-size:12px">${n} visit${n!==1?'s':''}</span>
+      </div>`).join('')
+    : '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No data for this year.</p>';
+
+  // Top routes
+  const routes = {};
+  yFlights.forEach(f => {
+    const r = (f.route||'').trim().toUpperCase();
+    if (r) routes[r] = (routes[r]||0) + 1;
+  });
+  const topRoutes = Object.entries(routes).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  document.getElementById('recapRoutes').innerHTML = topRoutes.length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${topRoutes.map(([r,n]) =>
+        `<div style="background:var(--gray-100);border-radius:6px;padding:5px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--navy)">
+          ${r} <span style="color:var(--accent);margin-left:4px">×${n}</span>
+        </div>`).join('')}</div>`
+    : '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No routes for this year.</p>';
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 6 — DARK MODE
+// ═══════════════════════════════════════════
+function toggleDarkMode(on) {
+  document.body.classList.toggle('dark', on);
+  localStorage.setItem('logbook_dark', on ? '1' : '0');
+  if (monthlyChartInst) renderChart();
+}
+
+function applyDarkMode() {
+  const on = localStorage.getItem('logbook_dark') === '1';
+  document.body.classList.toggle('dark', on);
+  const toggle = document.getElementById('darkModeToggle');
+  if (toggle) toggle.checked = on;
 }
 
 // ═══════════════════════════════════════════
@@ -1782,6 +2879,7 @@ function showToast(msg, type='') {
 // INIT
 // ═══════════════════════════════════════════
 (function init() {
+  applyDarkMode();
   const p = DB.loadProfile();
   if (p.fname) updateProfileDisplay(p);
   renderDashboard();
