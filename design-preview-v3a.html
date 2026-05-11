@@ -98,37 +98,37 @@
 
 /* ── Dark theme ─────────────────────────────────────────────────── */
 :root[data-theme="dark"] {
-  --bg-app:        #0A0B0F;
-  --bg-surface:    #14161D;
-  --bg-elevated:   #1C1F28;
-  --bg-subtle:     #1A1D26;
-  --bg-muted:      #252830;
+  --bg-app:        #13151D;
+  --bg-surface:    #1B1E27;
+  --bg-elevated:   #232633;
+  --bg-subtle:     #1F222B;
+  --bg-muted:      #2D3140;
 
-  --glass-bg:      rgba(28, 31, 40, 0.6);
-  --glass-border:  rgba(255, 255, 255, 0.06);
+  --glass-bg:      rgba(40, 44, 58, 0.55);
+  --glass-border:  rgba(255, 255, 255, 0.08);
   --glass-blur:    24px;
 
-  --border:        #252830;
-  --border-strong: #353945;
+  --border:        #2D3140;
+  --border-strong: #3F4452;
 
   --text:          #F2F4F8;
   --text-secondary:#B0B6C4;
-  --text-muted:    #6B7180;
-  --text-disabled: #3F4452;
+  --text-muted:    #7C8497;
+  --text-disabled: #4A4F5E;
 
-  --accent:        #4D8AFF;
-  --accent-hover:  #6FA1FF;
-  --accent-soft:   #1A2740;
+  --accent:        #5B95FF;
+  --accent-hover:  #7AAAFF;
+  --accent-soft:   #1F2D4D;
   --accent-text:   #FFFFFF;
 
   --success:       #14C690;
-  --success-soft:  #0E2A22;
+  --success-soft:  #11362B;
   --warning:       #F0B53B;
-  --warning-soft:  #2B1F0A;
+  --warning-soft:  #33260E;
   --danger:        #FF4D4D;
-  --danger-soft:   #2B0E0E;
+  --danger-soft:   #3A1313;
   --night:         #818CF8;
-  --night-soft:    #1B1E3A;
+  --night-soft:    #232645;
 
   --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm:  0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -406,8 +406,12 @@ body::after {
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--s-8) var(--s-8) var(--s-12);
+  padding: var(--s-10) var(--s-8) var(--s-12);
   scroll-behavior: smooth;
+}
+.content-inner {
+  max-width: 1400px;
+  margin: 0 auto;
 }
 .content::-webkit-scrollbar { width: 10px; }
 .content::-webkit-scrollbar-track { background: transparent; }
@@ -440,22 +444,15 @@ body::after {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: var(--s-6);
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--s-6);
+  padding: var(--s-6) var(--s-8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-8);
   margin-bottom: var(--s-6);
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-}
-.hero::before {
-  content: '';
-  position: absolute;
-  top: -50%; right: -10%;
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, var(--accent-soft), transparent 60%);
-  pointer-events: none;
 }
 .hero-content { position: relative; z-index: 1; }
 .hero-label {
@@ -508,6 +505,10 @@ body::after {
   color: var(--text);
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
+}
+.mini-stat-value.zero {
+  color: var(--text-disabled);
+  font-weight: 500;
 }
 
 /* ── Stats grid ─────────────────────────────────────────────────── */
@@ -563,12 +564,19 @@ body::after {
   margin-bottom: var(--s-1);
 }
 .stat-value {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--text);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1;
+}
+.stat-value .stat-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 4px;
+  letter-spacing: 0;
 }
 .stat-sub {
   margin-top: var(--s-2);
@@ -965,6 +973,7 @@ body::after {
     </header>
 
     <div class="content">
+     <div class="content-inner">
 
       <!-- ── HERO ── -->
       <section class="section">
@@ -983,7 +992,7 @@ body::after {
           <div class="hero-mini">
             <div class="mini-stat">
               <div class="mini-stat-label">PIC</div>
-              <div class="mini-stat-value">0.0</div>
+              <div class="mini-stat-value zero">0.0</div>
             </div>
             <div class="mini-stat">
               <div class="mini-stat-label">SIC</div>
@@ -1013,7 +1022,7 @@ body::after {
               <span class="stat-pill">+12%</span>
             </div>
             <div class="stat-label">Flights</div>
-            <div class="stat-value">23</div>
+            <div class="stat-value">23<span class="stat-unit">legs</span></div>
             <div class="stat-sub">vs 20 prev. period</div>
           </div>
 
@@ -1025,7 +1034,7 @@ body::after {
               <span class="stat-pill">+8.4 h</span>
             </div>
             <div class="stat-label">Block hours</div>
-            <div class="stat-value">87.3</div>
+            <div class="stat-value">87.3<span class="stat-unit">hrs</span></div>
             <div class="stat-sub">avg 3.79 hrs / flight</div>
           </div>
 
@@ -1037,7 +1046,7 @@ body::after {
               <span class="stat-pill">+2.1 h</span>
             </div>
             <div class="stat-label">Night hours <small style="font-weight:400;color:var(--text-muted)">(RAC 101.01)</small></div>
-            <div class="stat-value">14.6</div>
+            <div class="stat-value">14.6<span class="stat-unit">hrs</span></div>
             <div class="stat-sub">16.7% of total</div>
           </div>
 
@@ -1049,7 +1058,7 @@ body::after {
               <span class="stat-pill down">−1</span>
             </div>
             <div class="stat-label">Landings</div>
-            <div class="stat-value">23</div>
+            <div class="stat-value">23<span class="stat-unit">total</span></div>
             <div class="stat-sub">22 day · 1 night</div>
           </div>
 
@@ -1200,6 +1209,7 @@ body::after {
         </div>
       </section>
 
+     </div>
     </div>
   </main>
 </div>
@@ -1306,13 +1316,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeCmd();
 });
 
-// ── Nav active state demo ──
-document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    item.classList.add('active');
-  });
-});
+// Nav items are static in this preview — Dashboard stays active.
+// In the real app, clicks will route to the corresponding page.
 </script>
 
 </body>
