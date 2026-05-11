@@ -1068,7 +1068,19 @@ textarea { resize: vertical; min-height: 72px; }
 /* ═══════════════════════════════════════
    REVIEW TABLE (import preview)
 ═══════════════════════════════════════ */
+.import-bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-3) var(--s-2);
+  margin-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
 .review-item {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--s-4);
@@ -1076,8 +1088,43 @@ textarea { resize: vertical; min-height: 72px; }
   background: var(--bg-subtle);
   font-size: 12.5px;
   transition: all var(--t-micro) var(--ease-out);
+  cursor: pointer;
 }
 .review-item:hover { border-color: var(--border-strong); }
+.review-item.is-deselected {
+  opacity: 0.45;
+  background: var(--bg-app);
+}
+.review-item.is-selected { border-color: var(--accent); background: var(--bg-surface); }
+
+.review-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  position: relative;
+  background: var(--bg-surface);
+  transition: all var(--t-micro) var(--ease-out);
+}
+.review-check:hover { border-color: var(--accent); }
+.review-check:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.review-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px; top: 1px;
+  width: 5px; height: 9px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.review-body { flex: 1; min-width: 0; }
 .review-item-header {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1786,7 +1833,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         <div id="extractedList"></div>
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px">
           <button class="btn btn-ghost" onclick="cancelImport()">Cancel</button>
-          <button class="btn btn-primary" onclick="confirmImport()">✅ Import All</button>
+          <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()">✅ Import</button>
         </div>
       </div>
     </div>
@@ -2662,11 +2709,12 @@ RULES:
     }
 
     const today = new Date().toISOString().split('T')[0];
-    const filtered = extracted.filter(f => f.date && f.date <= today && f.block > 0);
-    console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights.`);
+    // Strict: only flights from BEFORE today (today's flight may still be in progress)
+    const filtered = extracted.filter(f => f.date && f.date < today && f.block > 0);
+    console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
 
     if (filtered.length === 0) {
-      throw new Error(`AI extracted ${extracted.length} entries but all were filtered out (future dates or zero block time).`);
+      throw new Error(`AI extracted ${extracted.length} entries but none are completed (date must be before today and block > 0).`);
     }
 
     box.classList.remove('show');
@@ -2691,31 +2739,87 @@ function handleDrop(event, type) {
 }
 
 function showImportPreview(list) {
-  pendingImport = list;
-  const container = document.getElementById('extractedList');
-  if (!list.length) {
-    container.innerHTML = '<p style="color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No flights found.</p>';
-  } else {
-    container.innerHTML = list.map((f, i) => `
-      <div class="review-item">
-        <div class="review-item-header">#${i+1} · ${f.date} · ${f.reg||'?'} · ${f.route||'?'}</div>
-        <div class="review-fields">
-          <div class="review-field"><span>Total</span> ${f.total}h</div>
-          <div class="review-field"><span>Block</span> ${f.block||0}h</div>
-          <div class="review-field"><span>PIC Day</span> ${f.meDayPic||0}h</div>
-          <div class="review-field"><span>PIC Night</span> ${f.meNightPic||0}h</div>
-          <div class="review-field"><span>Ldg</span> ${(f.ldgDay||0)+(f.ldgNight||0)}</div>
-          ${f.pic ? `<div class="review-field"><span>PIC</span> ${f.pic}</div>` : ''}
-        </div>
-      </div>`).join('');
-  }
+  // Each entry gets a `selected` flag (default true)
+  pendingImport = list.map(f => ({ ...f, selected: true }));
+  renderImportPreview();
   document.getElementById('importPreview').style.display = 'block';
 }
 
+function renderImportPreview() {
+  const container = document.getElementById('extractedList');
+  if (!pendingImport.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No flights found.</p>';
+    updateImportButton();
+    return;
+  }
+  container.innerHTML = `
+    <div class="import-bulk-bar">
+      <span class="eyebrow" id="importCount">0 of 0 selected</span>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllImport(true)">Select all</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllImport(false)">Deselect all</button>
+      </div>
+    </div>
+    ${pendingImport.map((f, i) => `
+      <label class="review-item ${f.selected ? 'is-selected' : 'is-deselected'}" for="imp-${i}">
+        <input type="checkbox" id="imp-${i}" class="review-check"
+               ${f.selected ? 'checked' : ''}
+               onchange="toggleImportItem(${i}, this.checked)">
+        <div class="review-body">
+          <div class="review-item-header">#${i+1} · ${f.date} · ${f.flightNum || f.reg || '?'} · ${f.route || '?'}</div>
+          <div class="review-fields">
+            <div class="review-field"><span>Total</span> ${f.total}h</div>
+            <div class="review-field"><span>Block</span> ${f.block || 0}h</div>
+            <div class="review-field"><span>PIC Day</span> ${f.meDayPic || 0}h</div>
+            <div class="review-field"><span>PIC Night</span> ${f.meNightPic || 0}h</div>
+            ${(f.meDayCop || f.meNightCop) ? `<div class="review-field"><span>SIC</span> ${((+f.meDayCop||0)+(+f.meNightCop||0)).toFixed(2)}h</div>` : ''}
+            <div class="review-field"><span>Ldg</span> ${(f.ldgDay || 0) + (f.ldgNight || 0)}</div>
+            ${f.pic ? `<div class="review-field"><span>PIC</span> ${f.pic}</div>` : ''}
+          </div>
+        </div>
+      </label>`).join('')}
+  `;
+  updateImportButton();
+}
+
+function toggleImportItem(idx, checked) {
+  if (pendingImport[idx]) pendingImport[idx].selected = checked;
+  // Toggle visual class on the label without full re-render (keeps scroll position)
+  const el = document.querySelector(`label[for="imp-${idx}"]`);
+  if (el) {
+    el.classList.toggle('is-selected', checked);
+    el.classList.toggle('is-deselected', !checked);
+  }
+  updateImportButton();
+}
+
+function toggleAllImport(checked) {
+  pendingImport.forEach(f => f.selected = checked);
+  renderImportPreview();
+}
+
+function updateImportButton() {
+  const selected = pendingImport.filter(f => f.selected).length;
+  const total = pendingImport.length;
+  const counter = document.getElementById('importCount');
+  if (counter) counter.textContent = `${selected} of ${total} selected`;
+  const btn = document.getElementById('importConfirmBtn');
+  if (btn) {
+    btn.textContent = selected > 0 ? `✅ Import ${selected} flight${selected !== 1 ? 's' : ''}` : 'Nothing to import';
+    btn.disabled = selected === 0;
+  }
+}
+
 function confirmImport() {
-  const count = pendingImport.length;
-  pendingImport.forEach(f => {
-    flights.push({ ...f, id: Date.now().toString() + Math.random() });
+  const toImport = pendingImport.filter(f => f.selected);
+  const count = toImport.length;
+  if (count === 0) {
+    showToast('Nothing selected to import', 'error');
+    return;
+  }
+  toImport.forEach(f => {
+    const { selected, ...flightData } = f;  // strip the selected flag
+    flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);
   pendingImport = [];
