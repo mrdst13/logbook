@@ -2410,18 +2410,34 @@ function recalculateFlightDayNightXC(f) {
   return out;
 }
 
-// Re-process ALL existing flights and persist
+// Re-process ALL existing flights and persist. Reports skips with reasons.
 function recalculateAllFlights() {
   if (!confirm('Recalculate night-time and cross-country for all imported flights?\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.')) return;
-  let updated = 0;
+  const result = recalculateAllFlightsInternal();
+  DB.save(flights);
+  renderDashboard();
+  const msgs = [`${result.updated} recalculated`];
+  if (result.skippedNoUTC) msgs.push(`${result.skippedNoUTC} missing UTC time (re-sync from Navblue to enable)`);
+  if (result.skippedNoCoords) msgs.push(`${result.skippedNoCoords} unknown airport coords`);
+  if (result.skippedNoBlock) msgs.push(`${result.skippedNoBlock} zero block hours`);
+  showToast(msgs.join(' · '), result.updated > 0 ? 'success' : 'error');
+  console.log('[Recalc] Details:', result, 'flights:', flights.length);
+}
+
+function recalculateAllFlightsInternal() {
+  let updated = 0, skippedNoUTC = 0, skippedNoCoords = 0, skippedNoBlock = 0;
   flights = flights.map(f => {
+    const block = +f.block || 0;
+    if (block <= 0) { skippedNoBlock++; return f; }
+    const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
+    const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
+    if (!AIRPORT_COORDS[depICAO] || !AIRPORT_COORDS[arrICAO]) { skippedNoCoords++; return f; }
+    if (!f.std_utc || f.std_utc.length !== 4) { skippedNoUTC++; return f; }
     const recalc = recalculateFlightDayNightXC(f);
     if (recalc !== f) updated++;
     return recalc;
   });
-  DB.save(flights);
-  renderDashboard();
-  showToast(`${updated} flight${updated !== 1 ? 's' : ''} recalculated ✓`, 'success');
+  return { updated, skippedNoUTC, skippedNoCoords, skippedNoBlock };
 }
 
 function fmt(n) { return (+n).toFixed(1); }
@@ -3662,28 +3678,74 @@ async function syncNavblueNow() {
 
     console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (date < today, block > 0)`);
 
-    // Dedupe against existing flights (key: date + flightNum + route)
-    const existingKeys = new Set(flights.map(f =>
-      `${f.date}|${f.flightNum || ''}|${f.route || ''}`
-    ));
-    const fresh = mapped.filter(f =>
-      !existingKeys.has(`${f.date}|${f.flightNum}|${f.route}`)
-    );
+    // Match each incoming flight against existing logbook (key: date + flightNum + route)
+    // - If new (no match) → goes to import preview as fresh
+    // - If exists but is missing modern fields (std_utc, dep_icao, coords) → silently merge
+    const existingByKey = new Map();
+    flights.forEach((f, idx) => {
+      existingByKey.set(`${f.date}|${f.flightNum || ''}|${f.route || ''}`, { f, idx });
+    });
+
+    const fresh = [];
+    let mergedCount = 0;
+    mapped.forEach(f => {
+      const key = `${f.date}|${f.flightNum}|${f.route}`;
+      const existing = existingByKey.get(key);
+      if (!existing) {
+        fresh.push(f);
+        return;
+      }
+      // Existing flight — merge missing fields without overwriting user data
+      const e = existing.f;
+      const mergeFields = ['std_utc','sta_utc','co_utc','ci_utc','dep_icao','arr_icao',
+                           'reg','type','flightNum','multiCrew'];
+      let changed = false;
+      const merged = { ...e };
+      mergeFields.forEach(k => {
+        if ((merged[k] === undefined || merged[k] === '' || merged[k] === 0 || merged[k] === null) && f[k] !== undefined && f[k] !== '' && f[k] !== 0) {
+          merged[k] = f[k];
+          changed = true;
+        }
+      });
+      if (changed) {
+        flights[existing.idx] = merged;
+        mergedCount++;
+      }
+    });
+
+    // Persist any merged changes (so the recalc below sees them)
+    if (mergedCount > 0) DB.save(flights);
+
+    // Auto-recalc night/XC for the now-enriched existing flights
+    let recalcStats = { updated: 0, skippedNoUTC: 0, skippedNoCoords: 0, skippedNoBlock: 0 };
+    if (mergedCount > 0 || fresh.length === 0) {
+      recalcStats = recalculateAllFlightsInternal();
+      DB.save(flights);
+    }
 
     localStorage.setItem(NAVBLUE_LAST_SYNC_KEY, Date.now().toString());
 
     details.style.display = 'block';
-    if (fresh.length === 0) {
-      details.innerHTML = `Calendar parsed: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights · all already in your logbook ✓`;
-      showToast('Already up to date — no new flights');
-      updateNavblueStatus();
-      return;
-    }
+    const detailLines = [
+      `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
+    ];
+    if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
+    if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
+    if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
+    if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
+    details.innerHTML = detailLines.join('<br>');
 
-    details.innerHTML = `Found <strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} (out of ${mapped.length} completed in the calendar). Review below.`;
-    showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
     updateNavblueStatus();
-    showToast(`${fresh.length} new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
+    renderDashboard();
+
+    if (fresh.length > 0) {
+      showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
+      showToast(`${fresh.length} new + ${mergedCount} enriched`);
+    } else if (mergedCount > 0) {
+      showToast(`${mergedCount} existing flights enriched + ${recalcStats.updated} recalculated ✓`, 'success');
+    } else {
+      showToast('Already up to date');
+    }
 
   } catch(e) {
     console.error('[Navblue Sync] Error:', e);
