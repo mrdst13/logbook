@@ -1314,39 +1314,90 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 .alert-bar .alert-text { flex: 1; }
 .alert-bar .alert-sub { font-size: 11px; font-family: var(--font-mono); font-weight: 400; opacity: 0.85; margin-top: 2px; }
 
+/* ═══════════════════════════════════════
+   RESPONSIVE (v3a)
+═══════════════════════════════════════ */
 @media (max-width: 860px) {
-  /* Show hamburger button */
   .hamburger { display: flex; }
-
-  /* Show overlay element (opacity controlled by nav-open class) */
   .nav-overlay { display: block; }
 
-  /* Sidebar: fixed, full-height, slides in from left */
+  /* Sidebar: drawer with opaque background (glass would be unreadable over content) */
   nav {
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
+    width: 260px;
     z-index: 99;
-    padding-top: calc(var(--header) + 10px);
+    padding-top: calc(var(--header) + var(--s-3));
+    background: var(--bg-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-right: 1px solid var(--border);
     transform: translateX(-100%);
-    /* Keep transition defined on nav element */
   }
   body.nav-open nav {
     transform: translateX(0);
-    box-shadow: 4px 0 32px rgba(0,0,0,0.35);
+    box-shadow: 8px 0 32px rgba(0,0,0,0.25);
   }
 
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .form-grid-3 { grid-template-columns: 1fr 1fr; }
-  .form-grid-4 { grid-template-columns: 1fr 1fr; }
+  /* Topbar tightening: hide pilot text on mobile, keep brand + toggle */
+  header { padding: 0 var(--s-3); gap: var(--s-2); }
+  .header-pilot { display: none; }
+  .logo-icon { width: 28px; height: 28px; font-size: 12px; }
+  .logo-title { font-size: 14px; }
+  .logo-sub { font-size: 9px; }
+
+  /* Hero card stacks vertically on mobile */
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--s-5);
+    gap: var(--s-4);
+  }
+  .hero-value { font-size: 36px; }
+  .hero-unit { font-size: 15px; }
+  .hero-mini {
+    gap: var(--s-5);
+    width: 100%;
+    justify-content: space-between;
+  }
+  .mini-stat { text-align: left; }
+  .mini-stat-value { font-size: 18px; }
+
+  /* Grids collapse */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+  .stat-card { padding: var(--s-4); }
+  .stat-value { font-size: 26px; }
+  .form-grid-3, .form-grid-4 { grid-template-columns: 1fr 1fr; }
   .import-grid { grid-template-columns: 1fr; }
-  main { padding: 16px; }
+  main { padding: var(--s-5) var(--s-4) var(--s-10); }
+
+  /* Page title smaller */
+  .page-title { font-size: 22px; }
+
+  /* Table cells tighter */
+  th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
+
+  /* Theme toggle stays visible — slightly smaller */
+  .theme-toggle button { width: 28px; height: 28px; }
 }
+
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+  .stat-card { padding: var(--s-3); }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 11px; }
   .form-grid { grid-template-columns: 1fr; }
   .col-span-2 { grid-column: span 1; }
+  .hero { padding: var(--s-4); }
+  .hero-value { font-size: 32px; }
+  .hero-mini { gap: var(--s-3); }
+  .mini-stat-value { font-size: 16px; }
+  .logo-sub { display: none; }  /* keep just "My Logbook" */
+  main { padding: var(--s-4) var(--s-3) var(--s-10); }
+  .form-actions { flex-direction: column; }
+  .form-actions .btn { width: 100%; justify-content: center; }
 }
 </style>
 </head>
@@ -2023,7 +2074,31 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   <!-- ── BACKUP ── -->
   <div id="page-backup" class="page">
     <div class="page-header">
-      <div><div class="page-title">Backup & Restore</div></div>
+      <div><div class="page-title">Settings</div></div>
+    </div>
+
+    <!-- ─── NAVBLUE AUTO-SYNC ─── -->
+    <div class="form-card" style="background:linear-gradient(135deg, var(--accent-soft), var(--night-soft)); border:1px solid var(--accent);">
+      <div class="form-card-title">🔄 Navblue iCal Auto-Sync</div>
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
+        Paste your Navblue calendar subscription URL. Cumulo will fetch your roster automatically — completed flights are imported with real block hours, future flights are skipped.
+      </p>
+
+      <div class="form-group" style="margin-bottom:var(--s-3);">
+        <label for="navblueUrl">Navblue iCal URL</label>
+        <input type="url" id="navblueUrl"
+               placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
+               style="font-family:var(--font-mono); font-size:11px;">
+      </div>
+
+      <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center;">
+        <button class="btn btn-primary" onclick="saveNavblueUrl()">💾 Save URL</button>
+        <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn">🔄 Sync now</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()">Clear</button>
+        <span id="navblueStatus" class="eyebrow" style="margin-left:auto;"></span>
+      </div>
+
+      <div id="navblueDetails" style="display:none; margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-surface); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
     </div>
 
     <div class="backup-option">
@@ -2933,6 +3008,273 @@ function updateProfileDisplay(p) {
 }
 
 // ═══════════════════════════════════════════
+// NAVBLUE iCal AUTO-SYNC
+// ═══════════════════════════════════════════
+const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
+const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
+const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
+
+// IATA → ICAO map for destinations Porter operates.
+// For unknown IATA codes starting with Y (typically Canadian), we prefix with "C".
+const IATA_TO_ICAO = {
+  // Canada (most Porter routes — preserving full ICAO)
+  YOW:'CYOW', YYZ:'CYYZ', YYC:'CYYC', YVR:'CYVR', YYJ:'CYYJ', YHZ:'CYHZ',
+  YEG:'CYEG', YYT:'CYYT', YTZ:'CYTZ', YQB:'CYQB', YUL:'CYUL', YHM:'CYHM',
+  YQT:'CYQT', YQR:'CYQR', YXE:'CYXE', YQM:'CYQM', YWG:'CYWG', YFB:'CYFB',
+  YYG:'CYYG', YQX:'CYQX', YDF:'CYDF', YQY:'CYQY', YSJ:'CYSJ', YQI:'CYQI',
+  YZF:'CYZF', YXY:'CYXY', YXX:'CYXX', YLW:'CYLW', YKA:'CYKA', YXS:'CYXS',
+  YBR:'CYBR', YPR:'CYPR', YZT:'CYZT', YOJ:'CYOJ',
+  // USA (Porter International)
+  BOS:'KBOS', JFK:'KJFK', LGA:'KLGA', EWR:'KEWR', PHL:'KPHL', DCA:'KDCA',
+  IAD:'KIAD', MIA:'KMIA', MCO:'KMCO', FLL:'KFLL', TPA:'KTPA', LAX:'KLAX',
+  SFO:'KSFO', LAS:'KLAS', ORD:'KORD', MDW:'KMDW', DEN:'KDEN', PHX:'KPHX',
+  // Mexico, Caribbean
+  CUN:'MMUN', PVR:'MMPR', SJD:'MMSD', NAS:'MYNN', POP:'MDPP', PUJ:'MDPC',
+  MBJ:'MKJS', BGI:'TBPB', AUA:'TNCA'
+};
+
+function iataToIcao(iata) {
+  if (!iata) return '';
+  const u = iata.toUpperCase().trim();
+  if (u.length === 4) return u;  // already ICAO
+  if (IATA_TO_ICAO[u]) return IATA_TO_ICAO[u];
+  // Canadian fallback: prefix with C if 3 letters starting with Y
+  if (u.length === 3 && u[0] === 'Y') return 'C' + u;
+  return u;  // unknown — leave as-is
+}
+
+// Parse ICS text (handles RFC 5545 line-folding: continuation lines start with space/tab)
+function parseICS(text) {
+  // Unfold continuation lines
+  const unfolded = text.replace(/\r?\n[ \t]/g, '');
+  const lines = unfolded.split(/\r?\n/);
+  const events = [];
+  let current = null;
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') current = {};
+    else if (line === 'END:VEVENT') { if (current) events.push(current); current = null; }
+    else if (current) {
+      const colon = line.indexOf(':');
+      if (colon === -1) continue;
+      const keyPart = line.substring(0, colon);
+      const value = line.substring(colon + 1);
+      const key = keyPart.split(';')[0];  // strip params like ;VALUE=DATE
+      current[key] = value;
+    }
+  }
+  return events;
+}
+
+// "HH:MM" → decimal hours (e.g. "4:30" → 4.50). Returns 0 if invalid.
+function hhmmToDecimal(s) {
+  if (!s) return 0;
+  const m = s.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return 0;
+  return +m[1] + (+m[2] / 60);
+}
+
+// "YYYYMMDD" or "YYYYMMDDTHHMMSSZ" → "YYYY-MM-DD"
+function icsDate(dtstart) {
+  if (!dtstart) return '';
+  const m = dtstart.match(/^(\d{4})(\d{2})(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+// Convert one Navblue VEVENT into a Cumulo flight object.
+// Returns null if it's not a real flight.
+function navblueEventToFlight(ev, isFO) {
+  const summary = (ev.SUMMARY || '').trim();
+  const desc = (ev.DESCRIPTION || '').trim();
+
+  // Filter: only PD### Porter mainline flights, not deadheads (D), not other activities
+  if (!/^PD\d+\s/.test(summary)) return null;
+  if (summary.includes('(D)')) return null;
+
+  // Parse SUMMARY: "PD274 YYC-YOW"
+  const parts = summary.split(/\s+/);
+  const flightNum = parts[0];
+  const routeRaw = parts[1] || '';
+  const [depIATA, arrIATA] = routeRaw.split('-');
+  if (!depIATA || !arrIATA) return null;
+
+  // Parse DESCRIPTION fields
+  const blhMatch = desc.match(/BLH:\s*(\d{1,2}:\d{2})/);
+  const durMatch = desc.match(/Duration:\s*(\d{1,2}:\d{2})/);
+  const stdMatch = desc.match(/STD\s+(\d{4})Z/);
+  const staMatch = desc.match(/STA\s+(\d{4})Z/);
+  const coMatch  = desc.match(/CO\s+(\d{4})Z/);
+  const ciMatch  = desc.match(/CI\s+(\d{4})Z/);
+  const acftMatch = desc.match(/Aircraft:\s*([^\s-]+)/);
+  const regMatch  = desc.match(/(C-[A-Z]{4})/);
+
+  const block = blhMatch ? +hhmmToDecimal(blhMatch[1]).toFixed(2) : 0;
+  const duty  = durMatch ? +hhmmToDecimal(durMatch[1]).toFixed(2) : 0;
+  if (block <= 0) return null;  // skip flights without block hours (future or in-progress)
+
+  // Aircraft type mapping
+  let acftType = '';
+  if (acftMatch) {
+    const code = acftMatch[1];
+    if (code === '295' || code.startsWith('295')) acftType = 'E195-E2';
+    else if (code === 'DH4' || code.startsWith('DH4')) acftType = 'DH4';
+    else acftType = code;
+  }
+
+  // F/O: block goes to SIC columns (meDayCop)
+  // We don't have day/night split from ICS alone → put all into meDayCop for now
+  // (the proper RAC 101.01 night calc will come in a later iteration)
+  const dep = iataToIcao(depIATA);
+  const arr = iataToIcao(arrIATA);
+
+  return {
+    date: icsDate(ev.DTSTART),
+    flightNum,
+    type: acftType,
+    reg: regMatch ? regMatch[1] : '',
+    pic: '',
+    copilot: 'M. Daoust',
+    route: `${depIATA}-${arrIATA}`,
+    dep_icao: dep,
+    arr_icao: arr,
+    block,
+    duty,
+    total: block,
+    meDayPic: 0, meNightPic: 0,
+    meDayDual: 0, meNightDual: 0,
+    meDayCop: isFO ? block : 0,
+    meNightCop: 0,
+    xcDayPic: 0, xcNightPic: 0, xcDayDual: 0, xcNightDual: 0,
+    ldgDay: 1, ldgNight: 0,
+    instActual: 0,
+    picus: 0,
+    source: 'navblue-ics',
+    navblueUid: ev.UID || ''
+  };
+}
+
+function saveNavblueUrl() {
+  const input = document.getElementById('navblueUrl');
+  let url = (input.value || '').trim();
+  if (!url) { showToast('Enter a Navblue iCal URL first', 'error'); return; }
+  // Normalize webcal:// → https://
+  url = url.replace(/^webcal:\/\//i, 'https://');
+  if (!/^https:\/\/[^/]*navblue\.cloud\//i.test(url)) {
+    showToast('URL must be a Navblue domain (navblue.cloud)', 'error');
+    return;
+  }
+  localStorage.setItem(NAVBLUE_URL_KEY, url);
+  input.value = url;
+  showToast('Navblue URL saved ✓', 'success');
+  updateNavblueStatus();
+}
+
+function clearNavblueUrl() {
+  if (!confirm('Remove the saved Navblue URL?')) return;
+  localStorage.removeItem(NAVBLUE_URL_KEY);
+  localStorage.removeItem(NAVBLUE_LAST_SYNC_KEY);
+  document.getElementById('navblueUrl').value = '';
+  document.getElementById('navblueDetails').style.display = 'none';
+  updateNavblueStatus();
+  showToast('Navblue URL cleared');
+}
+
+function updateNavblueStatus() {
+  const status = document.getElementById('navblueStatus');
+  if (!status) return;
+  const url = localStorage.getItem(NAVBLUE_URL_KEY);
+  const last = localStorage.getItem(NAVBLUE_LAST_SYNC_KEY);
+  if (!url) { status.textContent = 'NOT CONFIGURED'; return; }
+  if (!last) { status.textContent = 'NEVER SYNCED'; return; }
+  const minutes = Math.floor((Date.now() - +last) / 60000);
+  if (minutes < 1) status.textContent = 'JUST SYNCED';
+  else if (minutes < 60) status.textContent = `${minutes}M AGO`;
+  else if (minutes < 1440) status.textContent = `${Math.floor(minutes/60)}H AGO`;
+  else status.textContent = `${Math.floor(minutes/1440)}D AGO`;
+}
+
+async function syncNavblueNow() {
+  const url = localStorage.getItem(NAVBLUE_URL_KEY);
+  if (!url) { showToast('Save a Navblue URL first', 'error'); return; }
+
+  const btn = document.getElementById('syncNowBtn');
+  const details = document.getElementById('navblueDetails');
+  btn.disabled = true;
+  btn.textContent = '⏳ Syncing...';
+
+  try {
+    const resp = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch-ics', url })
+    });
+    const rawText = await resp.text();
+    if (!resp.ok) throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
+
+    // Worker returns either raw ICS text or { ics: "..." } JSON
+    let icsText = rawText;
+    if (rawText.startsWith('{')) {
+      try { const j = JSON.parse(rawText); icsText = j.ics || j.body || rawText; } catch {}
+    }
+    if (!icsText.includes('BEGIN:VCALENDAR')) {
+      throw new Error('Response does not look like an iCal calendar. Worker may not support /fetch-ics yet.');
+    }
+
+    const events = parseICS(icsText);
+    console.log(`[Navblue Sync] Parsed ${events.length} VEVENTs from iCal`);
+
+    const isFO = (DB.loadProfile().role || '').toLowerCase().includes('officer')
+              || (DB.loadProfile().role || '').toLowerCase().includes('fo')
+              || true;  // default Martin = F/O
+
+    const today = new Date().toISOString().split('T')[0];
+    const mapped = events
+      .map(ev => navblueEventToFlight(ev, isFO))
+      .filter(f => f && f.date && f.date < today);
+
+    console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (date < today, block > 0)`);
+
+    // Dedupe against existing flights (key: date + flightNum + route)
+    const existingKeys = new Set(flights.map(f =>
+      `${f.date}|${f.flightNum || ''}|${f.route || ''}`
+    ));
+    const fresh = mapped.filter(f =>
+      !existingKeys.has(`${f.date}|${f.flightNum}|${f.route}`)
+    );
+
+    localStorage.setItem(NAVBLUE_LAST_SYNC_KEY, Date.now().toString());
+
+    details.style.display = 'block';
+    if (fresh.length === 0) {
+      details.innerHTML = `Calendar parsed: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights · all already in your logbook ✓`;
+      showToast('Already up to date — no new flights');
+      updateNavblueStatus();
+      return;
+    }
+
+    details.innerHTML = `Found <strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} (out of ${mapped.length} completed in the calendar). Review and confirm below.`;
+    showImportPreview(fresh);
+    updateNavblueStatus();
+    showToast(`${fresh.length} new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
+
+  } catch(e) {
+    console.error('[Navblue Sync] Error:', e);
+    details.style.display = 'block';
+    details.innerHTML = `<span style="color:var(--danger);">Error: ${e.message}</span>`;
+    showToast(e.message || 'Sync failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Sync now';
+  }
+}
+
+function loadNavblueUI() {
+  const url = localStorage.getItem(NAVBLUE_URL_KEY);
+  const input = document.getElementById('navblueUrl');
+  if (input && url) input.value = url;
+  updateNavblueStatus();
+}
+
+// ═══════════════════════════════════════════
 // BACKUP / RESTORE
 // ═══════════════════════════════════════════
 function backupData() {
@@ -3483,6 +3825,9 @@ function showToast(msg, type='') {
   renderDashboard();
   document.getElementById('dashDate').textContent =
     new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  loadNavblueUI();
+  // Update relative-time status every minute
+  setInterval(updateNavblueStatus, 60000);
 })();
 </script>
 </body>
