@@ -2488,7 +2488,10 @@ function renderAlerts() {
   const today = new Date(); today.setHours(0,0,0,0);
   const alerts = [];
 
-  // Medical expiry
+  // Show alerts ONLY when there's something the pilot needs to act on.
+  // Green / "all good" states are hidden — no clutter on the dashboard.
+
+  // Medical expiry — only show if expired or expiring soon (<60 days)
   if (p.medical) {
     const exp = new Date(p.medical); exp.setHours(0,0,0,0);
     const days = Math.round((exp - today) / 86400000);
@@ -2496,33 +2499,28 @@ function renderAlerts() {
       alerts.push({ level:'red', icon:'🏥', title:'Medical EXPIRED', sub:`Expired ${Math.abs(days)} day${Math.abs(days)!==1?'s':''} ago` });
     } else if (days <= 60) {
       alerts.push({ level:'yellow', icon:'🏥', title:`Medical expires in ${days} day${days!==1?'s':''}`, sub:`Expiry: ${exp.toLocaleDateString('en-CA')}` });
-    } else {
-      alerts.push({ level:'green', icon:'🏥', title:'Medical current', sub:`Expires ${exp.toLocaleDateString('en-CA')} · ${days} days remaining` });
     }
+    // > 60 days = current = no alert shown
   }
 
-  // Day/Night landing currency — last 3 landings within 90 days
+  // Landing currency — only show if NOT current (<3 in 90 days)
   const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
   const cut90str = cutoff90.toISOString().split('T')[0];
   const recentLdg = flights
     .filter(f => f.date >= cut90str)
     .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
-  if (recentLdg >= 3) {
-    alerts.push({ level:'green', icon:'🛬', title:`Landing currency OK (${recentLdg} landings in 90 days)`, sub:'3 landings required within 90 days' });
-  } else {
+  if (recentLdg < 3) {
     alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title:`Landing currency: ${recentLdg}/3 landings in last 90 days`, sub:'3 landings required within 90 days — CAR 401.05' });
   }
 
-  // IFR currency — 6 instrument approaches within 6 months
+  // IFR currency — only show if NOT current (<6 approaches in 6 months)
   const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
   const cut6mStr = cutoff6m.toISOString().split('T')[0];
   const recentApp = flights
     .filter(f => f.date >= cut6mStr)
-    .reduce((sum, f) => sum + (+f.instActual||0), 0);
-  const appCount = Math.floor(recentApp); // count approaches stored as number
-  if (appCount >= 6) {
-    alerts.push({ level:'green', icon:'🌫', title:`IFR currency OK (${appCount} approaches in 6 months)`, sub:'6 approaches required within 6 months' });
-  } else {
+    .reduce((sum, f) => sum + (+f.instActual||0) + (+f.approaches||0), 0);
+  const appCount = Math.floor(recentApp);
+  if (appCount < 6) {
     alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title:`IFR currency: ${appCount}/6 approaches in last 6 months`, sub:'6 approaches required within 6 months — CAR 401.05' });
   }
 
