@@ -861,6 +861,91 @@ tbody tr:hover td { background: var(--bg-subtle); }
 }
 .empty-row:hover td { background: transparent; }
 
+/* Compact logbook table : no horizontal scroll on normal viewports.
+   Click row to expand full detail (Linear/Notion pattern). */
+.logbook-compact table { min-width: 0; }
+.row-clickable { cursor: pointer; }
+.row-actions { white-space: nowrap; text-align: right; }
+.row-actions button { padding: 4px 8px; font-size: 11px; }
+.cell-num.muted { color: var(--text-muted); }
+
+/* Flight detail modal — key / value layout */
+#flightDetailBody { display: flex; flex-direction: column; gap: 2px; }
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.detail-val {
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.detail-sep { height: 12px; }
+
+/* MOBILE : transform the table into stacked cards (one per flight).
+   Pattern used by Stripe Dashboard, Linear mobile, GitHub. */
+@media (max-width: 720px) {
+  .logbook-compact table,
+  .logbook-compact thead,
+  .logbook-compact tbody,
+  .logbook-compact tr,
+  .logbook-compact td {
+    display: block;
+    width: 100%;
+  }
+  .logbook-compact thead { display: none; }
+  .logbook-compact tbody tr {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: var(--s-3);
+    padding: var(--s-4);
+    box-shadow: var(--shadow-xs);
+  }
+  .logbook-compact tbody tr:hover { background: var(--bg-surface); border-color: var(--accent); }
+  .logbook-compact tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: none;
+    text-align: left !important;
+    white-space: normal;
+  }
+  .logbook-compact tbody td::before {
+    content: attr(data-label);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    margin-right: var(--s-3);
+  }
+  .logbook-compact tbody td.row-actions {
+    justify-content: flex-end;
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--border);
+    margin-top: var(--s-2);
+  }
+  .logbook-compact tbody td.row-actions::before { display: none; }
+  .empty-row td { display: block !important; text-align: center !important; }
+  .empty-row td::before { display: none; }
+}
+
 .reg-tag {
   display: inline-flex; align-items: center;
   font-family: var(--font-mono);
@@ -1736,32 +1821,22 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="card-header">
         <input type="text" class="search-input" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap logbook-compact">
         <table>
           <thead>
             <tr>
               <th>Date</th>
               <th>Aircraft</th>
               <th>Reg</th>
-              <th>PIC</th>
-              <th>Co-Pilot</th>
               <th>Route</th>
-              <th>Block</th>
-              <th>Duty</th>
-              <th>ME Day PIC</th>
-              <th>ME Night PIC</th>
-              <th>XC Day</th>
-              <th>XC Night</th>
-              <th>Day Ldg</th>
-              <th>Night Ldg</th>
-              <th>Inst</th>
-              <th>PICUS</th>
-              <th>Total</th>
+              <th>PIC</th>
+              <th style="text-align:right;">Night</th>
+              <th style="text-align:right;">Flight Time</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="logbookTbody">
-            <tr class="empty-row"><td colspan="18">No flights logged yet ✈</td></tr>
+            <tr class="empty-row"><td colspan="8">No flights logged yet ✈</td></tr>
           </tbody>
         </table>
       </div>
@@ -2267,6 +2342,28 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   </div>
 
 </main>
+</div>
+
+<!-- FLIGHT DETAIL MODAL (click any row in Logbook to open) -->
+<div class="import-overlay" id="flightDetailOverlay" onclick="if(event.target===this)closeFlightDetail()">
+  <div class="import-modal" style="max-width:560px;">
+    <div class="import-modal-head">
+      <div>
+        <div class="eyebrow" style="margin-bottom:4px;">Flight Detail</div>
+        <div class="t-title-2" id="flightDetailTitle">Flight</div>
+      </div>
+      <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="import-modal-body">
+      <div id="flightDetailBody"></div>
+    </div>
+    <div class="import-modal-foot">
+      <button class="btn btn-ghost" id="flightDetailDeleteBtn">🗑 Delete</button>
+      <button class="btn btn-primary" id="flightDetailEditBtn">✏ Edit flight</button>
+    </div>
+  </div>
 </div>
 
 <!-- IMPORT REVIEW MODAL (floating overlay — appears over any page) -->
@@ -2806,33 +2903,92 @@ function renderLogbook(filter='') {
 
   const tbody = document.getElementById('logbookTbody');
   if (!list.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="18">No flights found ✈</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No flights found ✈</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map(f => `
-    <tr>
-      <td>${f.date}</td>
-      <td>${f.type||'—'}</td>
-      <td><span class="reg-tag">${f.reg||'—'}</span></td>
-      <td>${f.pic||'—'}</td>
-      <td>${f.copilot||'—'}</td>
-      <td><span class="route-tag">${f.route||'—'}</span></td>
-      <td class="hrs">${fmt(f.block)}</td>
-      <td class="hrs">${fmt(f.duty)}</td>
-      <td class="hrs">${fmt(f.meDayPic)}</td>
-      <td class="hrs">${fmt(f.meNightPic)}</td>
-      <td class="hrs">${fmt(f.xcDayPic)}</td>
-      <td class="hrs">${fmt(f.xcNightPic)}</td>
-      <td>${f.ldgDay||0}</td>
-      <td>${f.ldgNight||0}</td>
-      <td class="hrs">${fmt((+f.instActual||0)+(+f.instHood||0))}</td>
-      <td class="hrs">${fmt(f.picus)}</td>
-      <td class="hrs"><strong>${fmt(f.total)}</strong></td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="editFlight('${f.id}')">✏</button>
-        <button class="btn btn-sm" style="background:#fee;color:#a00;margin-left:4px" onclick="deleteFlight('${f.id}')">🗑</button>
+  // Compact view (Linear/Notion pattern) : 7 essential columns visible.
+  // Click row → opens full detail panel (see openFlightDetail).
+  tbody.innerHTML = list.map(f => {
+    const night = (+f.meNightPic||0) + (+f.meNightCop||0) + (+f.meNightDual||0);
+    const role = (+f.meDayPic||0) + (+f.meNightPic||0) > 0 ? 'PIC'
+              : (+f.meDayDual||0) + (+f.meNightDual||0) > 0 ? 'DUAL'
+              : 'SIC';
+    return `
+    <tr onclick="openFlightDetail('${f.id}')" class="row-clickable">
+      <td data-label="Date" class="cell-date">${f.date}</td>
+      <td data-label="Aircraft">${f.type || '—'}</td>
+      <td data-label="Reg">${f.reg ? `<span class="reg-tag">${f.reg}</span>` : '<span class="cell-num muted">—</span>'}</td>
+      <td data-label="Route"><span class="route-tag">${f.route || '—'}</span></td>
+      <td data-label="PIC">${f.pic || (role==='PIC' ? '<span class="tag pic">PIC</span>' : '<span class="cell-num muted">—</span>')}</td>
+      <td data-label="Night" class="hrs" style="text-align:right;">${night > 0 ? fmt(night) : '<span class="cell-num muted">—</span>'}</td>
+      <td data-label="Flight Time" class="hrs" style="text-align:right;"><strong>${fmt(f.total || f.block)}</strong></td>
+      <td data-label="" class="row-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="editFlight('${f.id}')" title="Edit">✏</button>
+        <button class="btn btn-sm" style="background:var(--danger-soft);color:var(--danger);margin-left:4px" onclick="deleteFlight('${f.id}')" title="Delete">🗑</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+// Open a side-panel / modal with the FULL detail of a flight.
+function openFlightDetail(id) {
+  const f = flights.find(x => x.id === id);
+  if (!f) return;
+  const detail = document.getElementById('flightDetailOverlay');
+  if (!detail) return;
+  const fmtCell = (v) => (v === undefined || v === null || v === '' || v === 0) ? '—' : (typeof v === 'number' ? fmt(v) : v);
+  const fields = [
+    ['Date', f.date],
+    ['Flight Number', f.flightNum],
+    ['Aircraft Type', f.type],
+    ['Registration', f.reg],
+    ['Route', f.route],
+    ['Departure (ICAO)', f.dep_icao],
+    ['Arrival (ICAO)', f.arr_icao],
+    ['Crew Position', f.pic ? 'SIC (PIC: ' + f.pic + ')' : 'PIC'],
+    ['Pilot in Command', f.pic],
+    ['Co-pilot', f.copilot],
+    ['STD UTC', f.std_utc],
+    ['STA UTC', f.sta_utc],
+    ['Check-Out UTC', f.co_utc],
+    [],
+    ['Flight Time (decimal)', fmtCell(+f.total || +f.block)],
+    ['Block Time', fmtCell(+f.block)],
+    ['Duty Time', fmtCell(+f.duty)],
+    [],
+    ['ME Day PIC', fmtCell(+f.meDayPic)],
+    ['ME Night PIC', fmtCell(+f.meNightPic)],
+    ['ME Day SIC', fmtCell(+f.meDayCop)],
+    ['ME Night SIC', fmtCell(+f.meNightCop)],
+    ['ME Day Dual', fmtCell(+f.meDayDual)],
+    ['ME Night Dual', fmtCell(+f.meNightDual)],
+    [],
+    ['XC Day', fmtCell((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0))],
+    ['XC Night', fmtCell((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0))],
+    ['Day Landings', f.ldgDay || 0],
+    ['Night Landings', f.ldgNight || 0],
+    ['IFR Actual', fmtCell(+f.instActual)],
+    ['IFR Hood', fmtCell(+f.instHood)],
+    ['Approaches', f.approaches || 0],
+    ['PICUS', fmtCell(+f.picus)],
+    ['Multi-Crew', f.multiCrew ? 'Yes' : '—']
+  ];
+  const rows = fields.map(([k, v]) => {
+    if (!k) return '<div class="detail-sep"></div>';
+    return `<div class="detail-row"><div class="detail-key">${k}</div><div class="detail-val">${v || '—'}</div></div>`;
+  }).join('');
+  document.getElementById('flightDetailTitle').textContent = `${f.date} · ${f.flightNum || ''} ${f.route || ''}`.trim();
+  document.getElementById('flightDetailBody').innerHTML = rows;
+  document.getElementById('flightDetailEditBtn').onclick = () => { closeFlightDetail(); editFlight(id); };
+  document.getElementById('flightDetailDeleteBtn').onclick = () => { closeFlightDetail(); deleteFlight(id); };
+  detail.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFlightDetail() {
+  const detail = document.getElementById('flightDetailOverlay');
+  if (detail) detail.classList.remove('show');
+  document.body.style.overflow = '';
 }
 
 function filterTable(val) { renderLogbook(val); }
@@ -3288,11 +3444,13 @@ function closeImportOverlay() {
   document.body.style.overflow = '';
 }
 
-// Close modal on Escape key
+// Close modals on Escape key
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    const overlay = document.getElementById('importPreview');
-    if (overlay && overlay.classList.contains('show')) cancelImport();
+    const importOverlay = document.getElementById('importPreview');
+    if (importOverlay && importOverlay.classList.contains('show')) { cancelImport(); return; }
+    const detailOverlay = document.getElementById('flightDetailOverlay');
+    if (detailOverlay && detailOverlay.classList.contains('show')) closeFlightDetail();
   }
 });
 
