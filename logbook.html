@@ -2588,40 +2588,93 @@ async function parseNavbluePDF(input) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        system: 'You are a data extraction API. You ONLY output valid JSON arrays. Never include explanations or text outside the JSON array.',
+        model: 'claude-sonnet-4-5',
+        max_tokens: 8000,
+        system: 'You are a data extraction API. You ONLY output valid JSON arrays. Never include explanations, markdown, or text outside the JSON array. If you cannot extract anything, return [].',
         messages: [{
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-            { type: 'text', text: `This is a Porter Airlines Navblue HrRosterReport PDF.
-Extract ONLY real flight legs. SKIP: VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH.
-RESPOND WITH ONLY A JSON ARRAY. START WITH [ END WITH ].
-[{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E2-195","reg":"","pic":"Captain Name","copilot":"M. Daoust","route":"YOW-YYZ","block":1.1,"duty":0,"total":1.1,"meDayCop":1.1,"meNightCop":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":1,"ldgNight":0,"instActual":0,"picus":0}]
-RULES: Only completed flights (date <= today). BLH column for block (HH:MM to decimal). Pilot is FO: meDayCop=block day, meNightCop=block night. Skip DH (deadhead).` }
+            { type: 'text', text: `This is a Porter Airlines Navblue HrRosterReport PDF. Extract ONLY real flight legs Martin Daoust operated as F/O.
+
+SKIP these activity codes (NOT flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, RDG, P32### (P followed by 5 digits = deadhead positioning).
+
+KEEP only PD### flights (Porter mainline) where Martin was crew operating.
+
+Output a JSON array. If nothing to extract, output [].
+Format per flight:
+{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain Name","copilot":"M. Daoust","route":"YOW-YYZ","block":1.10,"duty":1.50,"total":1.10,"meDayCop":1.10,"meNightCop":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":1,"ldgNight":0,"instActual":0,"picus":0}
+
+RULES:
+- Only completed flights (date <= today)
+- BLH column = block hours (convert HH:MM to decimal, e.g. 4:30 → 4.50)
+- Pilot is F/O (SIC): put block into meDayCop (day landings) or meNightCop (night landings)
+- ldgDay/ldgNight: 1 per leg landing during day/night
+- type: "E195-E2" for 295, "DH4" for Dash 8 Q400` }
           ]
         }]
       })
     });
 
     const rawText = await resp.text();
+    console.log('[Navblue] Worker HTTP status:', resp.status);
+    console.log('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
+
+    if (!resp.ok) {
+      throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
+    }
+
     let data;
-    try { data = JSON.parse(rawText); } catch(e) { throw new Error('Worker response: ' + rawText.substring(0, 200)); }
+    try { data = JSON.parse(rawText); } catch(e) {
+      throw new Error('Worker did not return JSON. Response: ' + rawText.substring(0, 200));
+    }
+
+    // Anthropic API error inside the worker response?
+    if (data.error) {
+      throw new Error(`Anthropic API error: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+
     const text = data.content?.map(c => c.text || '').join('') || '';
-    const clean = text.replace(/```json|```/g, '');
-    const match = clean.match(/\[.*\]/s);
-    if (!match) throw new Error('No JSON array found in AI response');
+    console.log('[Navblue] AI response text (first 800 chars):', text.substring(0, 800));
+
+    if (!text.trim()) {
+      throw new Error('AI returned empty response. Check worker logs / API key.');
+    }
+
+    // Strip markdown fences if present
+    const clean = text.replace(/```(?:json)?/gi, '').trim();
+
+    // Find a JSON array — prefer the largest [...] block (handles nested objects)
+    let match = clean.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (!match) match = clean.match(/\[\s*\]/);  // empty array fallback
+    if (!match) {
+      // The AI replied with text instead of JSON — surface what it said
+      throw new Error(`AI did not return JSON. It said: "${clean.substring(0, 250)}"`);
+    }
+
     let extracted;
-    try { extracted = JSON.parse(match[0]); } catch(e) { throw new Error('Invalid JSON: ' + match[0].substring(0, 200)); }
+    try { extracted = JSON.parse(match[0]); } catch(e) {
+      throw new Error('Malformed JSON from AI: ' + match[0].substring(0, 200));
+    }
+
+    if (!Array.isArray(extracted) || extracted.length === 0) {
+      throw new Error('AI found no flights to import in this PDF.');
+    }
+
     const today = new Date().toISOString().split('T')[0];
     const filtered = extracted.filter(f => f.date && f.date <= today && f.block > 0);
+    console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights.`);
+
+    if (filtered.length === 0) {
+      throw new Error(`AI extracted ${extracted.length} entries but all were filtered out (future dates or zero block time).`);
+    }
+
     box.classList.remove('show');
     showImportPreview(filtered);
   } catch(e) {
     box.classList.remove('show');
     showToast(e.message || 'Could not parse PDF', 'error');
-    console.error(e);
+    console.error('[Navblue] Error:', e);
   }
 }
 
