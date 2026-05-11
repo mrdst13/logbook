@@ -178,6 +178,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* App-like scroll behavior (Linear / Notion / Stripe Dashboard pattern):
+   body never scrolls, only the main content area scrolls vertically,
+   and only the table-wrap scrolls horizontally. */
+html, body { height: 100vh; overflow: hidden; }
+
 /* ─── Typography utilities (Notion/Linear-inspired) ─── */
 .eyebrow {
   font-family: var(--font-mono);
@@ -201,7 +206,7 @@ body {
   font-family: var(--font-sans);
   background: var(--bg-app);
   color: var(--text);
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   font-size: 14px;
@@ -421,7 +426,8 @@ body.nav-open .nav-overlay {
 .app-body {
   display: flex;
   flex: 1;
-  min-height: calc(100vh - var(--header));
+  min-height: 0;          /* allow children to set their own scroll context */
+  overflow: hidden;
 }
 
 /* ═══════════════════════════════════════
@@ -434,15 +440,18 @@ nav {
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   border-right: 1px solid var(--glass-border);
   padding: var(--s-4) var(--s-3);
-  position: sticky;
-  top: var(--header);
-  height: calc(100vh - var(--header));
+  height: 100%;
   overflow-y: auto;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  scrollbar-width: thin;
 }
+nav::-webkit-scrollbar { width: 6px; }
+nav::-webkit-scrollbar-track { background: transparent; }
+nav::-webkit-scrollbar-thumb { background: transparent; border-radius: 6px; }
+nav:hover::-webkit-scrollbar-thumb { background: var(--border); }
 
 .nav-group { margin-bottom: 2px; display: flex; flex-direction: column; gap: 2px; }
 
@@ -512,8 +521,16 @@ main {
   flex: 1;
   padding: 24px;
   min-width: 0;
-  overflow-x: hidden;    /* prevent page-level horizontal scroll — only the table scrolls horizontally */
+  min-height: 0;
+  overflow-y: auto;       /* main is the ONLY vertical scroll container */
+  overflow-x: hidden;     /* horizontal scroll lives inside the table only */
+  scrollbar-width: thin;
 }
+main::-webkit-scrollbar { width: 10px; }
+main::-webkit-scrollbar-track { background: transparent; }
+main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--bg-app); }
+main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
 .page { max-width: 100%; overflow-x: hidden; }
 
 .page { display: none; animation: fadeIn 0.2s ease; }
@@ -805,7 +822,12 @@ main {
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; font-variant-numeric: tabular-nums; }
 
-thead { background: var(--bg-subtle); }
+thead {
+  background: var(--bg-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 th {
   padding: var(--s-3) var(--s-4);
   text-align: left;
@@ -817,6 +839,7 @@ th {
   font-weight: 500;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);  /* needed because sticky thead loses bg in some browsers */
 }
 td {
   padding: var(--s-3) var(--s-4);
