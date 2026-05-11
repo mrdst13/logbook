@@ -7,42 +7,204 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="My Logbook">
 <title>My Logbook — F/O M. Daoust</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+/* ═══════════════════════════════════════════════════════════════════
+   CUMULO V3A — Design tokens (Stripe × Linear × Apple Liquid Glass)
+═══════════════════════════════════════════════════════════════════ */
 :root {
+  /* Legacy tokens (preserved for backward compat with existing CSS) */
   --navy: #0f2044;
   --navy-light: #234080;
-  --accent: #3d7bc4;
-  --accent-bright: #5b9bd5;
+  --accent: #2E63D8;
+  --accent-bright: #4D8AFF;
   --white: #ffffff;
-  --off-white: #f4f6fb;
-  --gray-100: #e8ecf5;
-  --gray-300: #b8c4d8;
-  --gray-500: #6b7fa3;
-  --gray-700: #374163;
-  --success: #27ae60;
-  --warning: #e67e22;
-  --danger: #c0392b;
-  --text: #0d1b3e;
-  --sidebar: 200px;
+  --off-white: #F7F8FA;
+  --gray-100: #E8ECF2;
+  --gray-300: #C9D0DC;
+  --gray-500: #7C8497;
+  --gray-700: #475063;
+  --success: #10A37F;
+  --warning: #D97706;
+  --danger: #DC2A2A;
+  --text: #0A0E1A;
+  --sidebar: 240px;
   --header: 60px;
-  --radius: 10px;
-  --shadow: 0 4px 20px rgba(15,32,68,0.12);
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+
+  /* V3A — Background layers */
+  --bg-app:        #F7F8FA;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #FFFFFF;
+  --bg-subtle:     #F1F3F7;
+  --bg-muted:      #E8ECF2;
+
+  /* V3A — Glass (frosted layer) */
+  --glass-bg:      rgba(255, 255, 255, 0.65);
+  --glass-border:  rgba(15, 23, 42, 0.06);
+  --glass-blur:    20px;
+
+  /* V3A — Borders */
+  --border:        #E1E5EC;
+  --border-strong: #C9D0DC;
+
+  /* V3A — Text */
+  --text-primary:  #0A0E1A;
+  --text-secondary:#475063;
+  --text-muted:    #7C8497;
+  --text-disabled: #B5BCCB;
+
+  /* V3A — Brand & accent */
+  --accent-hover:  #2552B8;
+  --accent-soft:   #E6EDFB;
+  --accent-text:   #FFFFFF;
+
+  /* V3A — Semantic */
+  --success-soft:  #DDF4EC;
+  --warning-soft:  #FEF1DD;
+  --danger-soft:   #FCE4E4;
+  --night:         #6366F1;
+  --night-soft:    #EBECFE;
+
+  /* V3A — Shadows */
+  --shadow-xs:  0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:  0 2px 4px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-md:  0 8px 16px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg:  0 20px 40px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-glass: 0 8px 32px rgba(15, 23, 42, 0.06);
+
+  /* V3A — Radius */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* V3A — Spacing scale (8pt) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  --s-12: 48px; --s-16: 64px;
+
+  /* V3A — Type */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-display: 'Inter', -apple-system, sans-serif;
+
+  /* V3A — Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-micro: 150ms;
+  --t-std: 220ms;
+  --t-emphasis: 380ms;
+}
+
+/* ═══ DARK THEME ═══ */
+:root[data-theme="dark"] {
+  --navy: #1B1E27;            /* Stays dark in dark mode (used as bg for sidebar/header) */
+  --navy-light: #232633;
+  --white: #14161D;           /* "White" surfaces become dark surfaces */
+  --off-white: #13151D;       /* App background */
+  --gray-100: #2D3140;
+  --gray-300: #3F4452;
+  --gray-500: #7C8497;
+  --gray-700: #B0B6C4;
+  --text: #F2F4F8;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  --bg-app:        #13151D;
+  --bg-surface:    #1B1E27;
+  --bg-elevated:   #232633;
+  --bg-subtle:     #1F222B;
+  --bg-muted:      #2D3140;
+
+  --glass-bg:      rgba(40, 44, 58, 0.55);
+  --glass-border:  rgba(255, 255, 255, 0.08);
+  --glass-blur:    24px;
+
+  --border:        #2D3140;
+  --border-strong: #3F4452;
+
+  --text-primary:  #F2F4F8;
+  --text-secondary:#B0B6C4;
+  --text-muted:    #7C8497;
+  --text-disabled: #4A4F5E;
+
+  --accent:        #5B95FF;
+  --accent-bright: #7AAAFF;
+  --accent-hover:  #7AAAFF;
+  --accent-soft:   #1F2D4D;
+
+  --success:       #14C690;
+  --success-soft:  #11362B;
+  --warning:       #F0B53B;
+  --warning-soft:  #33260E;
+  --danger:        #FF4D4D;
+  --danger-soft:   #3A1313;
+  --night:         #818CF8;
+  --night-soft:    #232645;
+
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm:  0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md:  0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:  0 20px 40px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 body {
-  font-family: 'Lato', sans-serif;
-  background: var(--off-white);
+  font-family: var(--font-sans);
+  background: var(--bg-app);
   color: var(--text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background var(--t-std) var(--ease-out), color var(--t-std) var(--ease-out);
 }
+
+/* Ambient color blobs that the glass layers catch */
+body::before, body::after {
+  content: '';
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+  transition: opacity var(--t-emphasis) var(--ease-out);
+}
+body::before {
+  width: 500px; height: 500px;
+  top: -150px; left: -150px;
+  background: radial-gradient(circle, rgba(46, 99, 216, 0.10), transparent 70%);
+  opacity: 0.7;
+}
+body::after {
+  width: 600px; height: 600px;
+  bottom: -200px; right: -200px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08), transparent 70%);
+  opacity: 0.7;
+}
+:root[data-theme="dark"] body::before {
+  background: radial-gradient(circle, rgba(77, 138, 255, 0.16), transparent 70%);
+  opacity: 0.5;
+}
+:root[data-theme="dark"] body::after {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.13), transparent 70%);
+  opacity: 0.5;
+}
+
+/* Make sure all layout sits above the blobs */
+header, .app-body, main, nav { position: relative; z-index: 1; }
 
 /* Prevent body scroll when mobile nav is open */
 body.nav-open { overflow: hidden; }
@@ -106,14 +268,14 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
 }
 
 .logo-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 22px;
   color: var(--white);
   letter-spacing: 2px;
   line-height: 1;
 }
 .logo-sub {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent-bright);
   letter-spacing: 2px;
@@ -128,13 +290,13 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   gap: 2px;
 }
 .pilot-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 16px;
   color: var(--white);
   letter-spacing: 1.5px;
 }
 .pilot-hours {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--accent-bright);
   letter-spacing: 1px;
@@ -187,7 +349,7 @@ nav {
 .nav-group { margin-bottom: 4px; }
 
 .nav-label {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 2px;
   color: var(--gray-500);
@@ -225,7 +387,7 @@ nav {
 .nav-spacer { flex: 1; }
 
 .nav-version {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: var(--gray-500);
   padding: 12px 16px;
@@ -255,14 +417,14 @@ main {
   flex-wrap: wrap;
 }
 .page-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 32px;
   color: var(--navy);
   letter-spacing: 2px;
   line-height: 1;
 }
 .page-sub {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--gray-500);
   margin-top: 4px;
@@ -298,7 +460,7 @@ main {
   background: linear-gradient(90deg, var(--navy-light), var(--accent-bright));
 }
 .stat-label {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -306,14 +468,14 @@ main {
   margin-bottom: 8px;
 }
 .stat-value {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 36px;
   color: var(--navy);
   line-height: 1;
   letter-spacing: 1px;
 }
 .stat-unit {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--gray-500);
   margin-top: 3px;
@@ -333,7 +495,7 @@ main {
   cursor: pointer;
   border: none;
   transition: all 0.15s;
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
@@ -368,7 +530,7 @@ main {
   gap: 12px;
 }
 .card-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 16px;
   color: var(--navy);
   letter-spacing: 1.5px;
@@ -381,7 +543,7 @@ main {
   border: 1.5px solid var(--gray-100);
   border-radius: 7px;
   font-size: 13px;
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font-sans);
   outline: none;
   transition: border-color 0.15s;
   background: var(--white);
@@ -396,7 +558,7 @@ thead { background: var(--navy); }
 th {
   padding: 10px 12px;
   text-align: left;
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -417,13 +579,13 @@ tbody tr:hover td { background: #f0f5ff; }
   text-align: center;
   padding: 40px;
   color: var(--gray-500);
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 1px;
 }
 
 .reg-tag {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   background: var(--gray-100);
   color: var(--navy);
@@ -432,13 +594,13 @@ tbody tr:hover td { background: #f0f5ff; }
   font-weight: 500;
 }
 .route-tag {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--gray-500);
   letter-spacing: 1px;
 }
 .hrs {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 500;
   color: var(--navy-light);
 }
@@ -455,7 +617,7 @@ tbody tr:hover td { background: #f0f5ff; }
   box-shadow: var(--shadow);
 }
 .form-card-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 16px;
   color: var(--navy);
   letter-spacing: 2px;
@@ -475,7 +637,7 @@ tbody tr:hover td { background: #f0f5ff; }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 
 label {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -492,7 +654,7 @@ textarea {
   border: 1.5px solid var(--gray-100);
   border-radius: 7px;
   font-size: 13.5px;
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font-sans);
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   background: var(--white);
@@ -530,7 +692,7 @@ textarea { resize: vertical; min-height: 64px; }
 .drop-zone:hover { border-color: var(--accent); background: #f0f7ff; }
 .drop-zone.dragover { border-color: var(--accent-bright); background: #e8f2ff; transform: scale(1.01); }
 .drop-icon { font-size: 36px; margin-bottom: 10px; }
-.drop-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--navy); letter-spacing: 1.5px; margin-bottom: 6px; }
+.drop-title { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--navy); letter-spacing: 1.5px; margin-bottom: 6px; }
 .drop-sub { font-size: 12px; color: var(--gray-500); line-height: 1.5; }
 
 .ai-box {
@@ -552,7 +714,7 @@ textarea { resize: vertical; min-height: 64px; }
   margin: 0 auto 12px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.ai-msg { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 1px; }
+.ai-msg { font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px; }
 
 /* ═══════════════════════════════════════
    PROFILE
@@ -577,12 +739,12 @@ textarea { resize: vertical; min-height: 64px; }
   border: 2px solid rgba(255,255,255,0.3);
 }
 .profile-name-display {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 26px;
   letter-spacing: 2px;
 }
 .profile-role-display {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--accent-bright);
   letter-spacing: 2px;
@@ -605,7 +767,7 @@ textarea { resize: vertical; min-height: 64px; }
 }
 .backup-icon { font-size: 28px; flex-shrink: 0; }
 .backup-info { flex: 1; }
-.backup-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--navy); letter-spacing: 1.5px; margin-bottom: 3px; }
+.backup-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--navy); letter-spacing: 1.5px; margin-bottom: 3px; }
 .backup-desc { font-size: 12px; color: var(--gray-500); line-height: 1.5; }
 
 /* ═══════════════════════════════════════
@@ -645,7 +807,7 @@ textarea { resize: vertical; min-height: 64px; }
   font-size: 12.5px;
 }
 .review-item-header {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--navy);
   font-weight: 500;
@@ -657,7 +819,7 @@ textarea { resize: vertical; min-height: 64px; }
   font-size: 12px; color: var(--gray-700);
 }
 .review-field { display: flex; gap: 4px; }
-.review-field span { color: var(--gray-500); font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; }
+.review-field span { color: var(--gray-500); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; }
 
 /* ═══════════════════════════════════════
    PROFILE TYPE SELECTOR  (Feature 3)
@@ -689,7 +851,7 @@ textarea { resize: vertical; min-height: 64px; }
 .profile-type-card.active .pt-desc { color: rgba(255,255,255,0.6); }
 .pt-icon { font-size: 26px; margin-bottom: 8px; }
 .pt-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display); font-weight: 700;
   font-size: 15px;
   letter-spacing: 1.5px;
   margin-bottom: 4px;
@@ -697,7 +859,7 @@ textarea { resize: vertical; min-height: 64px; }
 .pt-desc {
   font-size: 11px;
   color: var(--gray-500);
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   line-height: 1.4;
 }
 
@@ -726,7 +888,7 @@ textarea { resize: vertical; min-height: 64px; }
   font-size: 13px;
   color: var(--gray-700);
   line-height: 1.65;
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font-sans);
 }
 .faq-item.open .faq-a { display: block; }
 .qa-history-item {
@@ -753,7 +915,7 @@ textarea { resize: vertical; min-height: 64px; }
 .glossary-item:last-child { border-bottom: none; }
 .glossary-item:hover { background: var(--off-white); }
 .glossary-abbr {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
   color: var(--navy);
@@ -868,7 +1030,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
 .alert-bar.red    { background:#fdecea; border-left-color:var(--danger);  color:#7b1a1a; }
 .alert-bar .alert-icon { font-size:18px; flex-shrink:0; }
 .alert-bar .alert-text { flex:1; }
-.alert-bar .alert-sub { font-size:11px; font-family:'DM Mono',monospace; font-weight:400; opacity:0.75; margin-top:2px; }
+.alert-bar .alert-sub { font-size:11px; font-family:var(--font-mono); font-weight:400; opacity:0.75; margin-top:2px; }
 
 @media (max-width: 860px) {
   /* Show hamburger button */
@@ -1049,7 +1211,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
     <div class="card" style="margin-bottom:24px">
       <div class="card-header">
         <div class="card-title">Monthly Block Hours</div>
-        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-500);letter-spacing:1px">LAST 12 MONTHS</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--gray-500);letter-spacing:1px">LAST 12 MONTHS</span>
       </div>
       <div style="padding:16px 18px 12px">
         <canvas id="monthlyChart" height="75"></canvas>
@@ -1322,7 +1484,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
     <div id="navbluePanel" style="display:none;margin-bottom:18px">
       <div class="form-card">
         <div class="form-card-title">📄 Navblue Roster — Upload PDF</div>
-        <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px;line-height:1.6;font-family:'DM Mono',monospace">
+        <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px;line-height:1.6;font-family:var(--font-mono)">
           Upload your Navblue HrRosterReport PDF directly.<br>
           AI reads the format and imports only your real flights.<br>
           <strong>Skips:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO
@@ -1440,7 +1602,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
 
     <div class="form-card">
       <div class="form-card-title">✍ Electronic Signature</div>
-      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:'DM Mono',monospace;line-height:1.5">
+      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:var(--font-mono);line-height:1.5">
         Sign below. Your signature is saved locally and appears on PDF exports.
       </p>
       <div style="border:1.5px solid var(--gray-100);border-radius:8px;background:var(--white);overflow:hidden;touch-action:none">
@@ -1449,7 +1611,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
       <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="clearSignature()">🗑 Clear</button>
         <button class="btn btn-primary btn-sm" onclick="saveSignature()">💾 Save Signature</button>
-        <span id="sigStatus" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-500)"></span>
+        <span id="sigStatus" style="font-family:var(--font-mono);font-size:11px;color:var(--gray-500)"></span>
       </div>
     </div>
 
@@ -1473,7 +1635,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
     <!-- Ask a question -->
     <div class="form-card">
       <div class="form-card-title">💬 Ask a Question</div>
-      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:'DM Mono',monospace;line-height:1.5">
+      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:var(--font-mono);line-height:1.5">
         Ask anything about Canadian logbook regulations, TC requirements, or aviation currency rules.
       </p>
       <div class="form-group" style="margin-bottom:12px">
@@ -1514,7 +1676,7 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
         <div class="page-sub">Annual flight summary</div>
       </div>
       <div class="page-actions">
-        <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--gray-100);font-family:'DM Mono',monospace;font-size:13px;background:var(--white);color:var(--text)"></select>
+        <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--gray-100);font-family:var(--font-mono);font-size:13px;background:var(--white);color:var(--text)"></select>
       </div>
     </div>
 
@@ -1821,11 +1983,11 @@ function renderChart() {
         y: {
           beginAtZero: true,
           grid: { color: 'rgba(0,0,0,0.05)' },
-          ticks: { font: { family: "'DM Mono', monospace", size: 10 }, color: '#6b7fa3' }
+          ticks: { font: { family: "'JetBrains Mono', ui-monospace, monospace", size: 10 }, color: '#6b7fa3' }
         },
         x: {
           grid: { display: false },
-          ticks: { font: { family: "'DM Mono', monospace", size: 10 }, color: '#6b7fa3' }
+          ticks: { font: { family: "'JetBrains Mono', ui-monospace, monospace", size: 10 }, color: '#6b7fa3' }
         }
       }
     }
@@ -2181,7 +2343,7 @@ function showImportPreview(list) {
   pendingImport = list;
   const container = document.getElementById('extractedList');
   if (!list.length) {
-    container.innerHTML = '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No flights found.</p>';
+    container.innerHTML = '<p style="color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No flights found.</p>';
   } else {
     container.innerHTML = list.map((f, i) => `
       <div class="review-item">
@@ -2580,10 +2742,10 @@ function renderQAHistory() {
   if (!el) return;
   if (!qaHistory.length) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gray-500);text-transform:uppercase;margin-bottom:10px">Previous Questions</div>
+    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--gray-500);text-transform:uppercase;margin-bottom:10px">Previous Questions</div>
     ${qaHistory.map(item => `
       <div class="qa-history-item">
-        <div class="qa-history-q">Q: ${item.q} <span style="font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:var(--gray-500);margin-left:8px">${item.date}</span></div>
+        <div class="qa-history-q">Q: ${item.q} <span style="font-family:var(--font-mono);font-weight:400;font-size:10px;color:var(--gray-500);margin-left:8px">${item.date}</span></div>
         <div class="qa-history-a">${item.a}</div>
       </div>`).join('')}`;
 }
@@ -2711,7 +2873,7 @@ function filterGlossary(val) {
           <div class="glossary-abbr">${abbr}</div>
           <div class="glossary-def">${def}</div>
         </div>`).join('')
-    : '<p style="padding:20px;color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No results found.</p>';
+    : '<p style="padding:20px;color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No results found.</p>';
 }
 
 // ═══════════════════════════════════════════
@@ -2776,8 +2938,8 @@ function renderRecap() {
       options:{
         responsive:true,animation:{duration:600},
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' hrs'}}},
-        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"'DM Mono',monospace",size:10},color:'#6b7fa3'}},
-                x:{grid:{display:false},ticks:{font:{family:"'DM Mono',monospace",size:10},color:'#6b7fa3'}}}
+        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}},
+                x:{grid:{display:false},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}}}
       }
     });
   }
@@ -2793,10 +2955,10 @@ function renderRecap() {
   const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('recapAirports').innerHTML = topAirports.length
     ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-100)">
-        <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--navy)">${a}</span>
+        <span style="font-family:var(--font-mono);font-weight:600;color:var(--navy)">${a}</span>
         <span style="color:var(--gray-500);font-size:12px">${n} visit${n!==1?'s':''}</span>
       </div>`).join('')
-    : '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No data for this year.</p>';
+    : '<p style="color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No data for this year.</p>';
 
   // Top routes
   const routes = {};
@@ -2807,10 +2969,10 @@ function renderRecap() {
   const topRoutes = Object.entries(routes).sort((a,b)=>b[1]-a[1]).slice(0,10);
   document.getElementById('recapRoutes').innerHTML = topRoutes.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${topRoutes.map(([r,n]) =>
-        `<div style="background:var(--gray-100);border-radius:6px;padding:5px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--navy)">
+        `<div style="background:var(--gray-100);border-radius:6px;padding:5px 12px;font-family:var(--font-mono);font-size:11px;color:var(--navy)">
           ${r} <span style="color:var(--accent);margin-left:4px">×${n}</span>
         </div>`).join('')}</div>`
-    : '<p style="color:var(--gray-500);font-family:\'DM Mono\',monospace;font-size:12px">No routes for this year.</p>';
+    : '<p style="color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No routes for this year.</p>';
 }
 
 // ═══════════════════════════════════════════
@@ -2818,6 +2980,7 @@ function renderRecap() {
 // ═══════════════════════════════════════════
 function toggleDarkMode(on) {
   document.body.classList.toggle('dark', on);
+  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
   localStorage.setItem('logbook_dark', on ? '1' : '0');
   if (monthlyChartInst) renderChart();
 }
@@ -2825,6 +2988,7 @@ function toggleDarkMode(on) {
 function applyDarkMode() {
   const on = localStorage.getItem('logbook_dark') === '1';
   document.body.classList.toggle('dark', on);
+  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
   const toggle = document.getElementById('darkModeToggle');
   if (toggle) toggle.checked = on;
 }
