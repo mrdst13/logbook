@@ -512,7 +512,9 @@ main {
   flex: 1;
   padding: 24px;
   min-width: 0;
+  overflow-x: hidden;    /* prevent page-level horizontal scroll — only the table scrolls horizontally */
 }
+.page { max-width: 100%; overflow-x: hidden; }
 
 .page { display: none; animation: fadeIn 0.2s ease; }
 .page.active { display: block; }
@@ -751,6 +753,8 @@ main {
   border-radius: var(--r-md);
   overflow: hidden;
   box-shadow: var(--shadow-xs);
+  max-width: 100%;       /* never push the page wider than viewport */
+  min-width: 0;
 }
 
 .card-header {
@@ -788,7 +792,16 @@ main {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  /* Single, smooth horizontal scrollbar contained inside the card */
+  scrollbar-width: thin;
+}
+.table-wrap::-webkit-scrollbar { height: 10px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--bg-subtle); }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; font-variant-numeric: tabular-nums; }
 
