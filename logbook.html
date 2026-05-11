@@ -13,7 +13,6 @@
 <style>
 :root {
   --navy: #0f2044;
-  --navy-mid: #1a3260;
   --navy-light: #234080;
   --accent: #3d7bc4;
   --accent-bright: #5b9bd5;
@@ -106,7 +105,6 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   line-height: 1;
 }
 
-.logo-texts {}
 .logo-title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 22px;
@@ -473,7 +471,6 @@ tbody tr:hover td { background: #f0f5ff; }
 .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 .form-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .col-span-2 { grid-column: span 2; }
-.col-span-full { grid-column: 1 / -1; }
 
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 
@@ -663,9 +660,6 @@ textarea { resize: vertical; min-height: 64px; }
 .review-field span { color: var(--gray-500); font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; }
 
 /* ═══════════════════════════════════════
-   RESPONSIVE
-═══════════════════════════════════════ */
-/* ═══════════════════════════════════════
    PROFILE TYPE SELECTOR  (Feature 3)
 ═══════════════════════════════════════ */
 .profile-type-grid {
@@ -775,31 +769,6 @@ textarea { resize: vertical; min-height: 64px; }
 .stat-card.success::after { background: linear-gradient(90deg, var(--success), #2ecc71); }
 .stat-card.night::after  { background: linear-gradient(90deg, #1a1a5e, #3d3dc4); }
 .stat-card.warn::after   { background: linear-gradient(90deg, var(--warning), #f39c12); }
-
-.page-badge {
-  display: inline-block;
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 20px;
-  background: var(--gray-100);
-  color: var(--gray-500);
-  margin-left: 10px;
-  vertical-align: middle;
-}
-.status-dot {
-  display: inline-block;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-  margin-right: 6px;
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0%,100% { opacity:1; } 50% { opacity:0.45; }
-}
 
 /* ═══════════════════════════════════════
    DARK MODE  (Feature 6)
@@ -987,7 +956,6 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
       <span class="nav-icon">📸</span> Photo / PDF
     </div>
   </div>
-  <div class="nav-divider"></div>
   <div class="nav-divider"></div>
   <div class="nav-group">
     <div class="nav-label">Reports</div>
@@ -1581,12 +1549,12 @@ body.dark .alert-bar.red    { background:#2b0d0d; color:#f08080; }
         <div class="backup-title">Dark Mode</div>
         <div class="backup-desc">Switch between light and dark theme. Preference saved automatically.</div>
       </div>
-      <label class="dark-toggle">
+      <div class="dark-toggle">
         <label class="toggle-switch">
           <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
           <span class="toggle-slider"></span>
         </label>
-      </label>
+      </div>
     </div>
 
     <div class="backup-option">
@@ -1653,7 +1621,7 @@ let pendingImport = [];
 let editingId = null;
 
 // ═══════════════════════════════════════════
-// MOBILE NAVIGATION  (Feature 1 — new in v2)
+// MOBILE NAVIGATION (Feature 1)
 // ═══════════════════════════════════════════
 function toggleMobileNav() {
   document.body.classList.toggle('nav-open');
@@ -1925,7 +1893,7 @@ function gv(id) { return document.getElementById(id).value; }
 function sv(id, val) { document.getElementById(id).value = val || ''; }
 
 // ═══════════════════════════════════════════
-// AIRCRAFT DROPDOWN  (Feature 2 — new in v2)
+// AIRCRAFT DROPDOWN (Feature 2)
 // ═══════════════════════════════════════════
 const AIRCRAFT_RATINGS = {
   'E195-E2': 'E195',
@@ -2249,7 +2217,7 @@ function cancelImport() {
 }
 
 // ═══════════════════════════════════════════
-// PILOT PROFILE TYPES  (Feature 3 — new in v2)
+// PILOT PROFILE TYPES (Feature 3)
 // ═══════════════════════════════════════════
 function setProfileType(type) {
   const p = DB.loadProfile();
@@ -2427,7 +2395,6 @@ function exportPDF() {
 
   const ROWS_PER_PAGE = 22;
   const sorted = [...flights].sort((a,b) => a.date.localeCompare(b.date));
-  let pageFlights = [];
   let runTotals = { block:0, duty:0, meDayPic:0, meNightPic:0, meDayCop:0, meNightCop:0, xc:0, ldg:0, inst:0, total:0 };
 
   const drawPage = (rows, isLast) => {
@@ -2629,7 +2596,6 @@ let sigDrawing = false, sigCtx = null, sigCanvas = null;
 function initSignature() {
   sigCanvas = document.getElementById('sigCanvas');
   if (!sigCanvas) return;
-  const rect = sigCanvas.getBoundingClientRect();
   sigCanvas.width = sigCanvas.offsetWidth || 600;
   sigCtx = sigCanvas.getContext('2d');
   sigCtx.strokeStyle = '#0f2044';
