@@ -446,12 +446,10 @@ nav {
   display: flex;
   flex-direction: column;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  scrollbar-width: thin;
+  /* Hide sidebar scrollbar entirely — sidebar should fit at full height. */
+  scrollbar-width: none;
 }
-nav::-webkit-scrollbar { width: 6px; }
-nav::-webkit-scrollbar-track { background: transparent; }
-nav::-webkit-scrollbar-thumb { background: transparent; border-radius: 6px; }
-nav:hover::-webkit-scrollbar-thumb { background: var(--border); }
+nav::-webkit-scrollbar { width: 0; display: none; }
 
 .nav-group { margin-bottom: 2px; display: flex; flex-direction: column; gap: 2px; }
 
