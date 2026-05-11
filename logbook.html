@@ -2180,9 +2180,18 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="backup-icon">📄</div>
       <div class="backup-info">
         <div class="backup-title">Export Logbook as PDF</div>
-        <div class="backup-desc">Print-ready Transport Canada format. Landscape, paginated, with running totals and signature block. <strong>Use this for Transport Canada inspections, employer submissions, or just to print on paper.</strong></div>
+        <div class="backup-desc">Landscape print-ready logbook. CAR 401.08 column layout with running totals and signature block. <strong>Use this for Transport Canada inspections, employer submissions, or just to print on paper.</strong></div>
       </div>
       <button class="btn btn-primary" onclick="exportPDF()">📄 Export PDF</button>
+    </div>
+
+    <div class="backup-option" style="border-left:3px solid var(--night);">
+      <div class="backup-icon">🌙</div>
+      <div class="backup-info">
+        <div class="backup-title">Recalculate Night & Cross-Country</div>
+        <div class="backup-desc">Re-process all imported flights to compute night hours (RAC 101.01) and cross-country (CAR 401.34 — &gt; 25 NM) using astronomical sunrise/sunset and great-circle distance. Run this once after importing from Navblue iCal — older imports had no day/night split.</div>
+      </div>
+      <button class="btn btn-outline" onclick="recalculateAllFlights()">🔄 Recalculate</button>
     </div>
 
     <div class="backup-option">
@@ -2331,11 +2340,88 @@ function calcStats() {
     night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0);
     ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
     me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
-    xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0);
+    xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
+        + (+f.xcDayCop||0)+(+f.xcNightCop||0);
     block += +f.block || 0;
     if (f.date && new Date(f.date) >= cutoff30) block30 += +f.block || 0;
   });
   return {total,pic,sic,night,ldg,me,xc,block,block30,entries:flights.length};
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Re-calculate night/XC for an existing flight using known coords + STD time.
+//  Returns a new flight object with the updated fields, or the original if
+//  we don't have enough info to compute.
+// ─────────────────────────────────────────────────────────────────
+function recalculateFlightDayNightXC(f) {
+  // Need ICAO codes + a UTC departure time + block hours
+  const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
+  const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
+  const block = +f.block || 0;
+  if (!depICAO || !arrICAO || block <= 0) return f;
+
+  const depCoords = AIRPORT_COORDS[depICAO];
+  const arrCoords = AIRPORT_COORDS[arrICAO];
+  if (!depCoords || !arrCoords) return f;  // unknown airports
+
+  let blockOff = null;
+  if (f.std_utc && f.std_utc.length === 4) {
+    blockOff = buildUTCDateTime(f.date, f.std_utc);
+  }
+  if (!blockOff) return f;  // no UTC time to anchor the calc
+
+  const blockOn = new Date(blockOff.getTime() + block * 3600000);
+  const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
+  const isXC = isCrossCountry(depICAO, arrICAO);
+
+  // Detect role: if existing has any meDayPic/meNightPic > 0 OR meDayDual > 0 it's PIC/Dual,
+  // otherwise default to F/O (cop). Override with role-detection: if pic name field present and meDayPic was set, keep.
+  let role = 'cop';
+  if ((+f.meDayPic||0) + (+f.meNightPic||0) > 0) role = 'pic';
+  else if ((+f.meDayDual||0) + (+f.meNightDual||0) > 0) role = 'dual';
+
+  const out = { ...f };
+  out.dep_icao = depICAO;
+  out.arr_icao = arrICAO;
+
+  if (role === 'cop') {
+    out.meDayCop = split.dayHours; out.meNightCop = split.nightHours;
+    out.meDayPic = 0; out.meNightPic = 0;
+    out.xcDayCop = isXC ? split.dayHours : 0;
+    out.xcNightCop = isXC ? split.nightHours : 0;
+    out.xcDayPic = 0; out.xcNightPic = 0;
+  } else if (role === 'pic') {
+    out.meDayPic = split.dayHours; out.meNightPic = split.nightHours;
+    out.xcDayPic = isXC ? split.dayHours : 0;
+    out.xcNightPic = isXC ? split.nightHours : 0;
+  } else {
+    out.meDayDual = split.dayHours; out.meNightDual = split.nightHours;
+    out.xcDayDual = isXC ? split.dayHours : 0;
+    out.xcNightDual = isXC ? split.nightHours : 0;
+  }
+
+  // Landing day/night based on arrival
+  if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
+    out.ldgDay = 0; out.ldgNight = (+f.ldgNight || +f.ldgDay || 1);
+  } else {
+    out.ldgNight = 0; out.ldgDay = (+f.ldgDay || +f.ldgNight || 1);
+  }
+
+  return out;
+}
+
+// Re-process ALL existing flights and persist
+function recalculateAllFlights() {
+  if (!confirm('Recalculate night-time and cross-country for all imported flights?\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.')) return;
+  let updated = 0;
+  flights = flights.map(f => {
+    const recalc = recalculateFlightDayNightXC(f);
+    if (recalc !== f) updated++;
+    return recalc;
+  });
+  DB.save(flights);
+  renderDashboard();
+  showToast(`${updated} flight${updated !== 1 ? 's' : ''} recalculated ✓`, 'success');
 }
 
 function fmt(n) { return (+n).toFixed(1); }
@@ -3125,6 +3211,189 @@ const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
 const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
 const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
 
+// ─────────────────────────────────────────────────────────────────
+//  AIRPORT COORDS — needed for night-time (RAC 101.01) and
+//  cross-country (CAR 401.34) calculations
+// ─────────────────────────────────────────────────────────────────
+const AIRPORT_COORDS = {
+  // Canada
+  CYOW: { lat: 45.3225, lon: -75.6692, name: 'Ottawa' },
+  CYYZ: { lat: 43.6777, lon: -79.6248, name: 'Toronto Pearson' },
+  CYYC: { lat: 51.1140, lon: -114.0203, name: 'Calgary' },
+  CYVR: { lat: 49.1939, lon: -123.1844, name: 'Vancouver' },
+  CYYJ: { lat: 48.6469, lon: -123.4258, name: 'Victoria' },
+  CYHZ: { lat: 44.8808, lon: -63.5089, name: 'Halifax' },
+  CYEG: { lat: 53.3097, lon: -113.5800, name: 'Edmonton' },
+  CYYT: { lat: 47.6186, lon: -52.7519, name: "St. John's" },
+  CYTZ: { lat: 43.6275, lon: -79.3961, name: 'Toronto Billy Bishop' },
+  CYQB: { lat: 46.7911, lon: -71.3933, name: 'Quebec City' },
+  CYUL: { lat: 45.4706, lon: -73.7408, name: 'Montreal' },
+  CYHM: { lat: 43.1731, lon: -79.9347, name: 'Hamilton' },
+  CYQT: { lat: 48.3717, lon: -89.3239, name: 'Thunder Bay' },
+  CYQR: { lat: 50.4319, lon: -104.6660, name: 'Regina' },
+  CYXE: { lat: 52.1708, lon: -106.6997, name: 'Saskatoon' },
+  CYQM: { lat: 46.1122, lon: -64.6786, name: 'Moncton' },
+  CYWG: { lat: 49.9100, lon: -97.2398, name: 'Winnipeg' },
+  CYFB: { lat: 63.7564, lon: -68.5558, name: 'Iqaluit' },
+  CYYG: { lat: 46.2900, lon: -63.1211, name: 'Charlottetown' },
+  CYQX: { lat: 48.9369, lon: -54.5681, name: 'Gander' },
+  CYDF: { lat: 49.2108, lon: -57.3914, name: 'Deer Lake' },
+  CYQY: { lat: 46.1614, lon: -60.0478, name: 'Sydney' },
+  CYSJ: { lat: 45.3161, lon: -65.8903, name: 'Saint John' },
+  CYQI: { lat: 43.8269, lon: -66.0881, name: 'Yarmouth' },
+  CYZF: { lat: 62.4628, lon: -114.4403, name: 'Yellowknife' },
+  CYXY: { lat: 60.7095, lon: -135.0672, name: 'Whitehorse' },
+  CYXX: { lat: 49.0252, lon: -122.3611, name: 'Abbotsford' },
+  CYLW: { lat: 49.9561, lon: -119.3778, name: 'Kelowna' },
+  CYKA: { lat: 50.7022, lon: -120.4444, name: 'Kamloops' },
+  CYXS: { lat: 53.8894, lon: -122.6789, name: 'Prince George' },
+  // USA
+  KBOS: { lat: 42.3656, lon: -71.0096, name: 'Boston' },
+  KJFK: { lat: 40.6398, lon: -73.7789, name: 'New York JFK' },
+  KLGA: { lat: 40.7772, lon: -73.8726, name: 'New York LaGuardia' },
+  KEWR: { lat: 40.6925, lon: -74.1687, name: 'Newark' },
+  KPHL: { lat: 39.8729, lon: -75.2437, name: 'Philadelphia' },
+  KDCA: { lat: 38.8521, lon: -77.0377, name: 'Washington Reagan' },
+  KIAD: { lat: 38.9531, lon: -77.4565, name: 'Washington Dulles' },
+  KMIA: { lat: 25.7959, lon: -80.2870, name: 'Miami' },
+  KMCO: { lat: 28.4312, lon: -81.3081, name: 'Orlando' },
+  KFLL: { lat: 26.0726, lon: -80.1527, name: 'Fort Lauderdale' },
+  KTPA: { lat: 27.9755, lon: -82.5332, name: 'Tampa' },
+  KLAX: { lat: 33.9416, lon: -118.4085, name: 'Los Angeles' },
+  KSFO: { lat: 37.6213, lon: -122.3790, name: 'San Francisco' },
+  KLAS: { lat: 36.0840, lon: -115.1537, name: 'Las Vegas' },
+  KORD: { lat: 41.9742, lon: -87.9073, name: "Chicago O'Hare" },
+  KMDW: { lat: 41.7868, lon: -87.7522, name: 'Chicago Midway' },
+  KDEN: { lat: 39.8561, lon: -104.6737, name: 'Denver' },
+  KPHX: { lat: 33.4373, lon: -112.0078, name: 'Phoenix' },
+  // Mexico, Caribbean
+  MMUN: { lat: 21.0365, lon: -86.8771, name: 'Cancun' },
+  MMPR: { lat: 20.6801, lon: -105.2542, name: 'Puerto Vallarta' },
+  MMSD: { lat: 23.1518, lon: -109.7211, name: 'San Jose del Cabo' },
+  MYNN: { lat: 25.0390, lon: -77.4661, name: 'Nassau' },
+  MDPC: { lat: 18.5675, lon: -68.3634, name: 'Punta Cana' },
+  MDPP: { lat: 19.7579, lon: -70.5700, name: 'Puerto Plata' },
+  MKJS: { lat: 18.5037, lon: -77.9134, name: 'Montego Bay' },
+  TBPB: { lat: 13.0746, lon: -59.4925, name: 'Bridgetown' },
+  TNCA: { lat: 12.5014, lon: -70.0152, name: 'Aruba' }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GEO / DISTANCE — Haversine + Cross-Country detection
+//  CAR 401.34 : cross-country = straight-line distance > 25 NM (46.3 km)
+// ─────────────────────────────────────────────────────────────────
+function haversineKM(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2
+          + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180)
+          * Math.sin(dLon/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function isCrossCountry(depICAO, arrICAO) {
+  if (!depICAO || !arrICAO || depICAO === arrICAO) return false;
+  const dep = AIRPORT_COORDS[depICAO];
+  const arr = AIRPORT_COORDS[arrICAO];
+  if (!dep || !arr) {
+    // Unknown airports — conservative: assume XC if ICAO codes differ
+    return depICAO !== arrICAO;
+  }
+  return haversineKM(dep.lat, dep.lon, arr.lat, arr.lon) > 46.3;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SUNRISE / SUNSET — NOAA solar position algorithm
+//  Returns { sunriseUTC, sunsetUTC, polar } for the given UTC date + coords
+// ─────────────────────────────────────────────────────────────────
+function calcSunriseSunset(date, lat, lon) {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth() + 1;
+  const d = date.getUTCDate();
+  const startUTC = Date.UTC(y, 0, 1);
+  const dayOfYear = Math.floor((Date.UTC(y, m-1, d) - startUTC) / 86400000) + 1;
+
+  const gamma = 2 * Math.PI / 365 * (dayOfYear - 1);
+  const decl = 0.006918 - 0.399912*Math.cos(gamma) + 0.070257*Math.sin(gamma)
+             - 0.006758*Math.cos(2*gamma) + 0.000907*Math.sin(2*gamma)
+             - 0.002697*Math.cos(3*gamma) + 0.00148*Math.sin(3*gamma);
+  const eot = 229.18 * (0.000075 + 0.001868*Math.cos(gamma) - 0.032077*Math.sin(gamma)
+            - 0.014615*Math.cos(2*gamma) - 0.040849*Math.sin(2*gamma));
+
+  const solarNoonMin = 720 - 4*lon - eot;
+
+  const latRad = lat * Math.PI / 180;
+  const zenith = 90.833 * Math.PI / 180;
+  const cosH = (Math.cos(zenith) - Math.sin(latRad)*Math.sin(decl))
+             / (Math.cos(latRad) * Math.cos(decl));
+
+  if (cosH > 1)  return { sunriseUTC: null, sunsetUTC: null, polar: 'night' };
+  if (cosH < -1) return { sunriseUTC: null, sunsetUTC: null, polar: 'day' };
+
+  const H_min = Math.acos(cosH) * 180 / Math.PI * 4;
+  const sunriseMin = solarNoonMin - H_min;
+  const sunsetMin  = solarNoonMin + H_min;
+
+  const dayStart = Date.UTC(y, m-1, d);
+  return {
+    sunriseUTC: new Date(dayStart + sunriseMin * 60000),
+    sunsetUTC:  new Date(dayStart + sunsetMin * 60000),
+    polar: null
+  };
+}
+
+// "Is this UTC time considered night under RAC 101.01 at this location?"
+// Night = from 30 min after sunset to 30 min before sunrise.
+function isNightUTC(utcTime, lat, lon) {
+  const ss = calcSunriseSunset(utcTime, lat, lon);
+  if (ss.polar === 'night') return true;
+  if (ss.polar === 'day')   return false;
+  const halfHour = 30 * 60 * 1000;
+  const nightStart = new Date(ss.sunsetUTC.getTime() + halfHour);
+  const nightEndMorning = new Date(ss.sunriseUTC.getTime() - halfHour);
+  // RAC night spans midnight: it's night either after nightStart (today)
+  // or before nightEndMorning (today, early hours).
+  return utcTime >= nightStart || utcTime <= nightEndMorning;
+}
+
+// Calculate the day/night split (in hours) of a flight given its
+// UTC block-off / block-on times and dep/arr coords.
+// Sampling at 1-minute resolution (max 360 samples for a 6h flight = fast).
+function calculateDayNightSplit(blockOffUTC, blockOnUTC, depCoords, arrCoords) {
+  const totalMs = blockOnUTC.getTime() - blockOffUTC.getTime();
+  if (totalMs <= 0) return { dayHours: 0, nightHours: 0 };
+  const totalHours = totalMs / 3600000;
+
+  // Use midpoint coords (good enough for non-polar flights up to 6h)
+  const lat = (depCoords.lat + arrCoords.lat) / 2;
+  const lon = (depCoords.lon + arrCoords.lon) / 2;
+
+  const stepMs = 60000;
+  let nightMs = 0;
+  for (let t = blockOffUTC.getTime(); t < blockOnUTC.getTime(); t += stepMs) {
+    if (isNightUTC(new Date(t), lat, lon)) nightMs += stepMs;
+  }
+  // Account for the final partial minute
+  const remainder = (blockOnUTC.getTime() - blockOffUTC.getTime()) % stepMs;
+  if (remainder > 0 && isNightUTC(new Date(blockOnUTC.getTime() - 1), lat, lon)) {
+    nightMs += remainder;
+  }
+  const nightHours = +(nightMs / 3600000).toFixed(2);
+  const dayHours = +(totalHours - nightHours).toFixed(2);
+  return { dayHours, nightHours };
+}
+
+// Build a UTC Date from a flight date "YYYY-MM-DD" + UTC time "HHMM"
+function buildUTCDateTime(yyyyMmDd, hhmm) {
+  if (!yyyyMmDd || !hhmm || hhmm.length !== 4) return null;
+  const [y, m, d] = yyyyMmDd.split('-').map(Number);
+  const hh = +hhmm.substring(0, 2);
+  const mm = +hhmm.substring(2, 4);
+  if (isNaN(y) || isNaN(hh)) return null;
+  return new Date(Date.UTC(y, m-1, d, hh, mm));
+}
+
 // IATA → ICAO map for destinations Porter operates.
 // For unknown IATA codes starting with Y (typically Canadian), we prefix with "C".
 const IATA_TO_ICAO = {
@@ -3193,6 +3462,7 @@ function icsDate(dtstart) {
 
 // Convert one Navblue VEVENT into a Cumulo flight object.
 // Returns null if it's not a real flight.
+// Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
 function navblueEventToFlight(ev, isFO) {
   const summary = (ev.SUMMARY || '').trim();
   const desc = (ev.DESCRIPTION || '').trim();
@@ -3231,33 +3501,83 @@ function navblueEventToFlight(ev, isFO) {
     else acftType = code;
   }
 
-  // F/O: block goes to SIC columns (meDayCop)
-  // We don't have day/night split from ICS alone → put all into meDayCop for now
-  // (the proper RAC 101.01 night calc will come in a later iteration)
-  const dep = iataToIcao(depIATA);
-  const arr = iataToIcao(arrIATA);
+  const depICAO = iataToIcao(depIATA);
+  const arrICAO = iataToIcao(arrIATA);
+  const dateStr = icsDate(ev.DTSTART);
+
+  // ── Day/Night split (RAC 101.01) ──
+  // We need block-off and block-on UTC times. Use STD as block-off approximation,
+  // and STD + block hours as block-on (since STA is scheduled, not actual).
+  // CO (Check-Out) when present is the most accurate proxy for block-on.
+  const depCoords = AIRPORT_COORDS[depICAO];
+  const arrCoords = AIRPORT_COORDS[arrICAO];
+  let dayHours = block, nightHours = 0;
+  if (depCoords && arrCoords && stdMatch) {
+    const blockOff = buildUTCDateTime(dateStr, stdMatch[1]);
+    if (blockOff) {
+      const blockOn = new Date(blockOff.getTime() + block * 3600000);
+      // Handle day rollover (e.g. flight crosses midnight UTC)
+      const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
+      dayHours = split.dayHours;
+      nightHours = split.nightHours;
+    }
+  }
+
+  // ── Cross-Country detection (CAR 401.34: > 25 NM) ──
+  const isXC = isCrossCountry(depICAO, arrICAO);
+
+  // ── Landing day/night based on arrival time ──
+  let ldgDay = 1, ldgNight = 0;
+  if (arrCoords && stdMatch) {
+    const blockOff = buildUTCDateTime(dateStr, stdMatch[1]);
+    if (blockOff) {
+      const blockOn = new Date(blockOff.getTime() + block * 3600000);
+      if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
+        ldgDay = 0; ldgNight = 1;
+      }
+    }
+  }
+
+  // F/O: block goes to SIC columns. Split into day/night, and XC variants.
+  const role = isFO ? 'cop' : 'pic';
+  const meDayPic    = role === 'pic' ? dayHours   : 0;
+  const meNightPic  = role === 'pic' ? nightHours : 0;
+  const meDayCop    = role === 'cop' ? dayHours   : 0;
+  const meNightCop  = role === 'cop' ? nightHours : 0;
+  const xcDayPic    = isXC && role === 'pic' ? dayHours   : 0;
+  const xcNightPic  = isXC && role === 'pic' ? nightHours : 0;
+  const xcDayCop    = isXC && role === 'cop' ? dayHours   : 0;
+  const xcNightCop  = isXC && role === 'cop' ? nightHours : 0;
 
   return {
-    date: icsDate(ev.DTSTART),
+    date: dateStr,
     flightNum,
     type: acftType,
     reg: regMatch ? regMatch[1] : '',
     pic: '',
     copilot: 'M. Daoust',
     route: `${depIATA}-${arrIATA}`,
-    dep_icao: dep,
-    arr_icao: arr,
+    dep_icao: depICAO,
+    arr_icao: arrICAO,
+    std_utc: stdMatch ? stdMatch[1] : '',
+    sta_utc: staMatch ? staMatch[1] : '',
+    co_utc:  coMatch  ? coMatch[1]  : '',
+    ci_utc:  ciMatch  ? ciMatch[1]  : '',
     block,
     duty,
     total: block,
-    meDayPic: 0, meNightPic: 0,
+    meDayPic, meNightPic,
     meDayDual: 0, meNightDual: 0,
-    meDayCop: isFO ? block : 0,
-    meNightCop: 0,
-    xcDayPic: 0, xcNightPic: 0, xcDayDual: 0, xcNightDual: 0,
-    ldgDay: 1, ldgNight: 0,
-    instActual: 0,
+    meDayCop, meNightCop,
+    xcDayPic, xcNightPic,
+    xcDayDual: 0, xcNightDual: 0,
+    xcDayCop, xcNightCop,
+    ldgDay, ldgNight,
+    instActual: 0, instHood: 0, instSim: 0,
+    approaches: 0,
     picus: 0,
+    multiCrew: 1,           // 705 ops are always multi-crew
+    remarks: '',
     source: 'navblue-ics',
     navblueUid: ev.UID || ''
   };
@@ -3438,7 +3758,7 @@ function exportPDF() {
   doc.rect(0, 0, W, 22, 'F');
   doc.setTextColor(...white);
   doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text('PILOT LOGBOOK — TRANSPORT CANADA FORMAT', 14, 9);
+  doc.text('PILOT LOGBOOK', 14, 9);
   doc.setFontSize(8); doc.setFont('helvetica','normal');
   const name = `${p.rank||'F/O'} ${p.fname||'M.'} ${p.lname||'Daoust'}`.trim();
   doc.text(`Pilot: ${name}   License: ${p.license||'—'}   Airline: ${p.airline||'Porter Airlines'}   Base: ${p.base||'YOW'}`, 14, 16);
@@ -3529,7 +3849,7 @@ function exportPDF() {
     // Re-draw header on each page
     doc.setFillColor(...navy); doc.rect(0, 0, W, 22, 'F');
     doc.setTextColor(...white); doc.setFontSize(16); doc.setFont('helvetica','bold');
-    doc.text('PILOT LOGBOOK — TRANSPORT CANADA FORMAT', 14, 9);
+    doc.text('PILOT LOGBOOK', 14, 9);
     doc.setFontSize(8); doc.setFont('helvetica','normal');
     doc.text(`Pilot: ${name}   License: ${p.license||'—'}   Page ${Math.floor(i/ROWS_PER_PAGE)+1} of ${Math.ceil(sorted.length/ROWS_PER_PAGE)}`, 14, 16);
     doc.text(`Generated: ${new Date().toLocaleDateString('en-CA')}`, 14, 20);
