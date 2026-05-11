@@ -2364,8 +2364,16 @@ function recalculateFlightDayNightXC(f) {
   const arrCoords = AIRPORT_COORDS[arrICAO];
   if (!depCoords || !arrCoords) return f;  // unknown airports
 
+  // SOURCE OF TRUTH for the UTC instant of block-off:
+  //   1. dtstart_utc (full ISO, never ambiguous) — preferred
+  //   2. buildUTCDateTime(date, std_utc) — only as a fallback when dtstart_utc absent
+  // Reconstruction can drift across UTC midnight for late-local departures.
   let blockOff = null;
-  if (f.std_utc && f.std_utc.length === 4) {
+  if (f.dtstart_utc) {
+    blockOff = new Date(f.dtstart_utc);
+    if (isNaN(blockOff.getTime())) blockOff = null;
+  }
+  if (!blockOff && f.std_utc && f.std_utc.length === 4) {
     blockOff = buildUTCDateTime(f.date, f.std_utc);
   }
   if (!blockOff) return f;  // no UTC time to anchor the calc
@@ -3467,11 +3475,22 @@ function hhmmToDecimal(s) {
   return +m[1] + (+m[2] / 60);
 }
 
-// "YYYYMMDD" or "YYYYMMDDTHHMMSSZ" → "YYYY-MM-DD"
+// "YYYYMMDD" or "YYYYMMDDTHHMMSSZ" → "YYYY-MM-DD" (UTC date)
 function icsDate(dtstart) {
   if (!dtstart) return '';
   const m = dtstart.match(/^(\d{4})(\d{2})(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+// "YYYYMMDDTHHMMSSZ" → Date object (UTC, never ambiguous)
+// This is the SOURCE OF TRUTH for time calculations — always parse the full DTSTART
+// instead of reconstructing from date + HHMM (which can drift across UTC midnight
+// for flights departing late local time, e.g. CYYC 21:00L → 04:00Z next day).
+function icsDateTime(dtstart) {
+  if (!dtstart) return null;
+  const m = dtstart.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
+  if (!m) return null;
+  return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]));
 }
 
 // Convert one Navblue VEVENT into a Cumulo flight object.
@@ -3519,37 +3538,30 @@ function navblueEventToFlight(ev, isFO) {
   const arrICAO = iataToIcao(arrIATA);
   const dateStr = icsDate(ev.DTSTART);
 
-  // ── Day/Night split (RAC 101.01) ──
-  // We need block-off and block-on UTC times. Use STD as block-off approximation,
-  // and STD + block hours as block-on (since STA is scheduled, not actual).
-  // CO (Check-Out) when present is the most accurate proxy for block-on.
+  // ── Block-off / Block-on UTC times ──
+  // SOURCE OF TRUTH = DTSTART (full ISO UTC, no ambiguity).
+  // Falls back to buildUTCDateTime(date, STD) only if DTSTART is malformed.
   const depCoords = AIRPORT_COORDS[depICAO];
   const arrCoords = AIRPORT_COORDS[arrICAO];
+  const blockOffUTC = icsDateTime(ev.DTSTART)
+                  || (stdMatch ? buildUTCDateTime(dateStr, stdMatch[1]) : null);
+  const blockOnUTC = blockOffUTC ? new Date(blockOffUTC.getTime() + block * 3600000) : null;
+
+  // ── Day/Night split (RAC 101.01) ──
   let dayHours = block, nightHours = 0;
-  if (depCoords && arrCoords && stdMatch) {
-    const blockOff = buildUTCDateTime(dateStr, stdMatch[1]);
-    if (blockOff) {
-      const blockOn = new Date(blockOff.getTime() + block * 3600000);
-      // Handle day rollover (e.g. flight crosses midnight UTC)
-      const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
-      dayHours = split.dayHours;
-      nightHours = split.nightHours;
-    }
+  if (depCoords && arrCoords && blockOffUTC && blockOnUTC) {
+    const split = calculateDayNightSplit(blockOffUTC, blockOnUTC, depCoords, arrCoords);
+    dayHours = split.dayHours;
+    nightHours = split.nightHours;
   }
 
   // ── Cross-Country detection (CAR 401.34: > 25 NM) ──
   const isXC = isCrossCountry(depICAO, arrICAO);
 
-  // ── Landing day/night based on arrival time ──
+  // ── Landing day/night based on arrival UTC time + arrival airport coords ──
   let ldgDay = 1, ldgNight = 0;
-  if (arrCoords && stdMatch) {
-    const blockOff = buildUTCDateTime(dateStr, stdMatch[1]);
-    if (blockOff) {
-      const blockOn = new Date(blockOff.getTime() + block * 3600000);
-      if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
-        ldgDay = 0; ldgNight = 1;
-      }
-    }
+  if (arrCoords && blockOnUTC && isNightUTC(blockOnUTC, arrCoords.lat, arrCoords.lon)) {
+    ldgDay = 0; ldgNight = 1;
   }
 
   // F/O: block goes to SIC columns. Split into day/night, and XC variants.
@@ -3573,6 +3585,8 @@ function navblueEventToFlight(ev, isFO) {
     route: `${depIATA}-${arrIATA}`,
     dep_icao: depICAO,
     arr_icao: arrICAO,
+    // dtstart_utc = full ISO timestamp (source of truth for all time math)
+    dtstart_utc: blockOffUTC ? blockOffUTC.toISOString() : '',
     std_utc: stdMatch ? stdMatch[1] : '',
     sta_utc: staMatch ? staMatch[1] : '',
     co_utc:  coMatch  ? coMatch[1]  : '',
@@ -3697,8 +3711,8 @@ async function syncNavblueNow() {
       }
       // Existing flight — merge missing fields without overwriting user data
       const e = existing.f;
-      const mergeFields = ['std_utc','sta_utc','co_utc','ci_utc','dep_icao','arr_icao',
-                           'reg','type','flightNum','multiCrew'];
+      const mergeFields = ['dtstart_utc','std_utc','sta_utc','co_utc','ci_utc',
+                           'dep_icao','arr_icao','reg','type','flightNum','multiCrew'];
       let changed = false;
       const merged = { ...e };
       mergeFields.forEach(k => {
