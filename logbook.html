@@ -2200,7 +2200,15 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         </div>
         <div class="form-group">
           <label>Primary Fleet</label>
-          <input type="text" id="p-fleet" placeholder="E2-195">
+          <input type="text" id="p-fleet" placeholder="E195-E2">
+        </div>
+        <div class="form-group col-span-2">
+          <label>Operator Codes (for flight number recognition)</label>
+          <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;">
+            Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes.<br>
+            <strong>PD</strong>=Porter · <strong>AC</strong>=Air Canada · <strong>QK</strong>=Jazz · <strong>WS</strong>=WestJet · <strong>WR</strong>=WestJet Encore · <strong>TS</strong>=Air Transat · <strong>F8</strong>=Flair · <strong>Y9</strong>=Lynx
+          </div>
         </div>
       </div>
     </div>
@@ -2440,6 +2448,29 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 </main>
 </div>
 
+<!-- ONBOARDING WIZARD (shown on first launch — no profile set) -->
+<div class="import-overlay" id="onboardingOverlay" onclick="if(event.target===this)skipOnboarding()">
+  <div class="import-modal" style="max-width:560px;">
+    <div class="import-modal-head">
+      <div>
+        <div class="eyebrow" style="margin-bottom:4px;">Step <span id="onbStepNum">1</span> of 4</div>
+        <div class="t-title-2" id="onbStepTitle">Welcome to Cumulo</div>
+      </div>
+      <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="import-modal-body" id="onbBody">
+      <!-- Filled by onboarding script -->
+    </div>
+    <div class="import-modal-foot">
+      <button class="btn btn-ghost" onclick="skipOnboarding()">Skip setup</button>
+      <button class="btn btn-ghost" id="onbBackBtn" onclick="onboardingBack()" style="display:none;">← Back</button>
+      <button class="btn btn-primary" id="onbNextBtn" onclick="onboardingNext()">Continue →</button>
+    </div>
+  </div>
+</div>
+
 <!-- FLIGHT DETAIL MODAL (click any row in Logbook to open) -->
 <div class="import-overlay" id="flightDetailOverlay" onclick="if(event.target===this)closeFlightDetail()">
   <div class="import-modal" style="max-width:560px;">
@@ -2655,14 +2686,48 @@ function recalculateFlightDayNightXC(f) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  ZERO-DATA-LOSS SYSTEM
+//  ZERO-DATA-LOSS SYSTEM (multi-snapshot history)
 //
 //  Policy : Cumulo never deletes a flight without explicit per-flight
 //  user confirmation. Every bulk operation (sync, recalc) snapshots
-//  the entire logbook to localStorage BEFORE running, so the user
-//  can undo with one click if something looks off.
+//  the entire logbook to localStorage BEFORE running.
+//
+//  We keep the LAST 10 snapshots (rolling history) — pilot can roll
+//  back several steps if needed.
 // ─────────────────────────────────────────────────────────────────
-const SNAPSHOT_KEY = 'cumulo_snapshot_v1';
+const SNAPSHOTS_KEY = 'cumulo_snapshots_v2';   // v2 = array of snapshots
+const SNAPSHOT_KEY_LEGACY = 'cumulo_snapshot_v1';  // v1 = single snapshot (auto-migrated)
+const MAX_SNAPSHOTS = 10;
+
+function loadSnapshots() {
+  try {
+    const raw = localStorage.getItem(SNAPSHOTS_KEY);
+    if (raw) return JSON.parse(raw);
+    // Migrate from v1 legacy single-snapshot
+    const legacy = localStorage.getItem(SNAPSHOT_KEY_LEGACY);
+    if (legacy) {
+      const snap = JSON.parse(legacy);
+      const arr = [snap];
+      localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(arr));
+      localStorage.removeItem(SNAPSHOT_KEY_LEGACY);
+      return arr;
+    }
+    return [];
+  } catch { return []; }
+}
+
+function saveSnapshots(arr) {
+  // Trim to MAX_SNAPSHOTS most recent (LIFO — newest first)
+  const trimmed = arr.slice(0, MAX_SNAPSHOTS);
+  try {
+    localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(trimmed));
+  } catch (e) {
+    console.warn('[Snapshot] localStorage full — trimming further:', e);
+    // Quota exceeded — keep only 3 most recent
+    try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(arr.slice(0, 3))); }
+    catch { localStorage.removeItem(SNAPSHOTS_KEY); }
+  }
+}
 
 function snapshotBeforeOperation(operationName) {
   const snapshot = {
@@ -2671,66 +2736,108 @@ function snapshotBeforeOperation(operationName) {
     operation: operationName,
     flightCount: flights.length
   };
-  try {
-    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
-    console.log(`[Snapshot] Saved before "${operationName}" — ${flights.length} flights`);
-    return true;
-  } catch (e) {
-    console.warn('[Snapshot] Failed to save:', e);
-    return false;
-  }
+  const history = loadSnapshots();
+  history.unshift(snapshot);  // newest first
+  saveSnapshots(history);
+  console.log(`[Snapshot] Saved before "${operationName}" — ${flights.length} flights · ${history.length} snapshots in history`);
+  return true;
+}
+
+function ageString(ms) {
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  if (min < 1440) return `${Math.floor(min / 60)}h ago`;
+  return `${Math.floor(min / 1440)}d ago`;
 }
 
 function undoLastOperation() {
-  const raw = localStorage.getItem(SNAPSHOT_KEY);
-  if (!raw) { showToast('No snapshot to restore — Cumulo only saves snapshots before bulk operations.', 'error'); return; }
+  const history = loadSnapshots();
+  if (history.length === 0) {
+    showToast('No snapshot to restore — Cumulo only saves snapshots before bulk operations.', 'error');
+    return;
+  }
+  // If multiple snapshots, let the user pick one
+  if (history.length > 1) {
+    showSnapshotHistoryModal();
+    return;
+  }
+  // Single snapshot — quick restore
+  restoreSnapshot(0);
+}
 
-  let snap;
-  try { snap = JSON.parse(raw); }
-  catch { showToast('Snapshot corrupted — cannot restore', 'error'); return; }
+function restoreSnapshot(index) {
+  const history = loadSnapshots();
+  if (!history[index]) { showToast('Snapshot not found', 'error'); return; }
+  const snap = history[index];
 
-  const ageMin = Math.floor((Date.now() - snap.timestamp) / 60000);
-  const ageStr = ageMin < 1 ? 'just now'
-              : ageMin < 60 ? `${ageMin} min ago`
-              : ageMin < 1440 ? `${Math.floor(ageMin/60)}h ago`
-              : `${Math.floor(ageMin/1440)}d ago`;
+  if (!confirm(`Restore logbook to state before "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})?\n\nCurrent: ${flights.length} flights\nSnapshot: ${snap.flightCount} flights\n\nThe current state will be saved as a new snapshot — you can always undo again.`)) return;
 
-  if (!confirm(`Restore logbook to state before "${snap.operation}" (${ageStr})?\n\nCurrent: ${flights.length} flights\nSnapshot: ${snap.flightCount} flights\n\nThis will replace your current data with the snapshot. The current state will be saved as a new snapshot, so you can undo again.`)) return;
-
-  // Save current state as new snapshot (so undo of undo works)
-  const previousState = {
+  // Push current state as new snapshot (so user can undo this undo)
+  const currentSnap = {
     flights: flights,
     timestamp: Date.now(),
     operation: `before undo of "${snap.operation}"`,
     flightCount: flights.length
   };
+  // Remove the snapshot we're restoring from history, add current as new
+  history.splice(index, 1);
+  history.unshift(currentSnap);
+  saveSnapshots(history);
 
   flights = snap.flights;
   DB.save(flights);
-  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(previousState));
   renderDashboard();
   updateUndoButton();
-  showToast(`Restored to ${snap.flightCount} flights (state from ${ageStr})`, 'success');
+  showToast(`Restored ${snap.flightCount} flights from ${ageString(Date.now() - snap.timestamp)} state`, 'success');
+}
+
+function showSnapshotHistoryModal() {
+  const history = loadSnapshots();
+  if (history.length === 0) return;
+  const overlay = document.getElementById('importPreview');
+  // Use the import-overlay as a generic modal
+  document.getElementById('importSubtitle').textContent = `${history.length} snapshot${history.length !== 1 ? 's' : ''} available — pick one to restore`;
+  document.getElementById('extractedList').innerHTML = `
+    <p style="margin-bottom:var(--s-3); font-size:13px; color:var(--text-secondary);">
+      Each snapshot was taken automatically before a bulk operation. The current state will be preserved when you restore.
+    </p>
+    ${history.map((s, i) => `
+      <div class="review-item is-selected" style="cursor:pointer;" onclick="restoreSnapshot(${i}); cancelImport();">
+        <div class="review-body">
+          <div class="review-item-header" style="font-weight:600;">${s.operation}</div>
+          <div class="review-fields">
+            <div class="review-field"><span>When</span> ${ageString(Date.now() - s.timestamp)}</div>
+            <div class="review-field"><span>Flights</span> ${s.flightCount}</div>
+            <div class="review-field"><span>Date</span> ${new Date(s.timestamp).toLocaleString('en-CA')}</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); restoreSnapshot(${i}); cancelImport();">Restore</button>
+      </div>
+    `).join('')}
+  `;
+  // Override confirm button to close (no bulk action)
+  document.getElementById('importConfirmBtn').textContent = 'Close';
+  document.getElementById('importConfirmBtn').onclick = () => cancelImport();
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
 function updateUndoButton() {
   const btn = document.getElementById('undoBtn');
   if (!btn) return;
-  const raw = localStorage.getItem(SNAPSHOT_KEY);
-  if (!raw) { btn.disabled = true; btn.textContent = '↩️ No snapshot'; return; }
-  try {
-    const snap = JSON.parse(raw);
-    const ageMin = Math.floor((Date.now() - snap.timestamp) / 60000);
-    const ageStr = ageMin < 1 ? 'just now'
-                 : ageMin < 60 ? `${ageMin}m ago`
-                 : ageMin < 1440 ? `${Math.floor(ageMin/60)}h ago`
-                 : `${Math.floor(ageMin/1440)}d ago`;
-    btn.disabled = false;
-    btn.textContent = `↩️ Undo "${snap.operation}" (${ageStr})`;
-  } catch {
+  const history = loadSnapshots();
+  if (history.length === 0) {
     btn.disabled = true;
-    btn.textContent = '↩️ Undo';
+    btn.textContent = '↩️ No snapshot';
+    return;
   }
+  const snap = history[0];
+  const label = history.length > 1
+    ? `↩️ Undo · ${history.length} snapshots`
+    : `↩️ Undo "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})`;
+  btn.disabled = false;
+  btn.textContent = label;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -3646,7 +3753,8 @@ function loadProfile() {
   sv('p-license', p.license);
   sv('p-medical', p.medical);
   sv('p-base', p.base || 'YOW');
-  sv('p-fleet', p.fleet || 'E2-195');
+  sv('p-fleet', p.fleet || 'E195-E2');
+  sv('p-operatorCodes', p.operatorCodes || 'PD');
   highlightProfileTypeCard(p.pilotType || 'airline705');
   updateProfileDisplay(p);
 }
@@ -3662,6 +3770,7 @@ function saveProfile() {
     medical: gv('p-medical'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
+    operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
     pilotType: existing.pilotType || 'airline705',
   };
   DB.saveProfile(p);
@@ -4070,15 +4179,27 @@ function icsDateTime(dtstart) {
   return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]));
 }
 
+// Build the airline-flight regex from the user's profile operatorCodes
+function getOperatorFlightRegex() {
+  const p = DB.loadProfile();
+  const codes = (p.operatorCodes || 'PD').split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+  if (codes.length === 0) return /^PD\d+\s/;
+  // Build /^(PD|AC|QK|...)\d+\s/
+  const pattern = codes.map(c => c.replace(/[^A-Z0-9]/g, '')).join('|');
+  return new RegExp(`^(?:${pattern})\\d+\\s`, 'i');
+}
+
 // Convert one Navblue VEVENT into a Cumulo flight object.
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
+// Supports multi-airline via the user's operatorCodes profile setting.
 function navblueEventToFlight(ev, isFO) {
   const summary = (ev.SUMMARY || '').trim();
   const desc = (ev.DESCRIPTION || '').trim();
 
-  // Filter: only PD### Porter mainline flights, not deadheads (D), not other activities
-  if (!/^PD\d+\s/.test(summary)) return null;
+  // Filter: only flights from the airlines the pilot operates (per profile)
+  // Default = PD (Porter). Configurable in Profile > Operator Codes.
+  if (!getOperatorFlightRegex().test(summary)) return null;
   if (summary.includes('(D)')) return null;
 
   // Parse SUMMARY: "PD274 YYC-YOW"
@@ -4359,6 +4480,266 @@ async function syncNavblueNow() {
 }
 
 // ═══════════════════════════════════════════
+// ONBOARDING WIZARD — first launch experience
+// Triggered when no profile name is set. Skippable.
+// ═══════════════════════════════════════════
+const ONBOARDING_KEY = 'cumulo_onboarded_v1';
+let onbStep = 1;
+let onbData = {};
+
+function shouldShowOnboarding() {
+  if (localStorage.getItem(ONBOARDING_KEY)) return false;
+  const p = DB.loadProfile();
+  // Show if profile name is missing
+  return !p.fname && !p.lname;
+}
+
+function startOnboarding() {
+  onbStep = 1;
+  onbData = {};
+  document.getElementById('onboardingOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  renderOnboardingStep();
+}
+
+function skipOnboarding() {
+  if (!confirm('Skip the setup wizard? You can always access these settings later from the Settings page.')) return;
+  localStorage.setItem(ONBOARDING_KEY, 'skipped');
+  document.getElementById('onboardingOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function finishOnboarding() {
+  localStorage.setItem(ONBOARDING_KEY, 'done');
+  document.getElementById('onboardingOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+  renderDashboard();
+  showToast('Setup complete — welcome aboard ✈', 'success');
+}
+
+function onboardingBack() {
+  if (onbStep > 1) { onbStep--; renderOnboardingStep(); }
+}
+
+function onboardingNext() {
+  // Capture current step inputs
+  if (onbStep === 1) {
+    onbData.fname = document.getElementById('onb-fname')?.value?.trim() || '';
+    onbData.lname = document.getElementById('onb-lname')?.value?.trim() || '';
+    onbData.rank = document.getElementById('onb-rank')?.value || 'F/O';
+    onbData.airline = document.getElementById('onb-airline')?.value?.trim() || '';
+    onbData.base = document.getElementById('onb-base')?.value?.trim() || '';
+    onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || 'PD';
+    if (!onbData.fname || !onbData.lname) {
+      showToast('Please enter your first and last name', 'error');
+      return;
+    }
+  } else if (onbStep === 2) {
+    onbData.license = document.getElementById('onb-license')?.value?.trim() || '';
+    onbData.medical = document.getElementById('onb-medical')?.value || '';
+    onbData.fleet = document.getElementById('onb-fleet')?.value?.trim() || '';
+  } else if (onbStep === 3) {
+    onbData.navblueUrl = document.getElementById('onb-navblue')?.value?.trim() || '';
+  } else if (onbStep === 4) {
+    onbData.columnPreset = document.querySelector('input[name="onb-preset"]:checked')?.value || 'compact';
+  }
+
+  if (onbStep < 4) {
+    onbStep++;
+    renderOnboardingStep();
+    return;
+  }
+
+  // Final step → save everything
+  const profile = {
+    fname: onbData.fname,
+    lname: onbData.lname,
+    rank: onbData.rank,
+    airline: onbData.airline,
+    base: onbData.base,
+    license: onbData.license,
+    medical: onbData.medical,
+    fleet: onbData.fleet,
+    operatorCodes: onbData.operatorCodes || 'PD',
+    pilotType: 'airline705'
+  };
+  DB.saveProfile(profile);
+  updateProfileDisplay(profile);
+
+  if (onbData.navblueUrl) {
+    let url = onbData.navblueUrl.replace(/^webcal:\/\//i, 'https://');
+    if (/^https:\/\/[^/]*navblue\.cloud\//i.test(url)) {
+      localStorage.setItem(NAVBLUE_URL_KEY, url);
+    }
+  }
+
+  applyColumnPreset(onbData.columnPreset || 'compact');
+  finishOnboarding();
+}
+
+function renderOnboardingStep() {
+  document.getElementById('onbStepNum').textContent = onbStep;
+  const titles = {
+    1: 'Welcome — tell us about you',
+    2: 'License & aircraft',
+    3: 'Connect Navblue (optional)',
+    4: 'Choose your default view'
+  };
+  document.getElementById('onbStepTitle').textContent = titles[onbStep];
+
+  const body = document.getElementById('onbBody');
+  const backBtn = document.getElementById('onbBackBtn');
+  const nextBtn = document.getElementById('onbNextBtn');
+  backBtn.style.display = onbStep > 1 ? 'inline-flex' : 'none';
+  nextBtn.textContent = onbStep < 4 ? 'Continue →' : '✓ Finish setup';
+
+  if (onbStep === 1) {
+    body.innerHTML = `
+      <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
+        Cumulo is your personal pilot logbook. Let's set up your profile (you can change everything later).
+      </p>
+      <div class="form-grid" style="gap:var(--s-3);">
+        <div class="form-group">
+          <label>First name</label>
+          <input type="text" id="onb-fname" placeholder="Martin" autofocus />
+        </div>
+        <div class="form-group">
+          <label>Last name</label>
+          <input type="text" id="onb-lname" placeholder="Daoust" />
+        </div>
+        <div class="form-group">
+          <label>Rank</label>
+          <select id="onb-rank">
+            <option value="F/O">First Officer (F/O)</option>
+            <option value="Capt">Captain</option>
+            <option value="SIC">Second-in-Command (SIC)</option>
+            <option value="PIC">Pilot-in-Command (PIC)</option>
+            <option value="Student">Student Pilot</option>
+            <option value="Instructor">Instructor</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Base (ICAO or IATA)</label>
+          <input type="text" id="onb-base" placeholder="YOW" maxlength="4" style="text-transform:uppercase;" />
+        </div>
+        <div class="form-group col-span-2">
+          <label>Airline / Operator</label>
+          <input type="text" id="onb-airline" placeholder="Porter Airlines" />
+        </div>
+        <div class="form-group col-span-2">
+          <label>Operator codes (comma-separated)</label>
+          <input type="text" id="onb-codes" placeholder="PD" value="PD" style="font-family:var(--font-mono);text-transform:uppercase;" />
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+            IATA codes for the airlines you fly with. <strong>PD</strong>=Porter · <strong>AC</strong>=Air Canada · <strong>QK</strong>=Jazz · <strong>WS</strong>=WestJet · <strong>TS</strong>=Transat
+          </div>
+        </div>
+      </div>
+    `;
+    // Pre-fill if user came back
+    if (onbData.fname) document.getElementById('onb-fname').value = onbData.fname;
+    if (onbData.lname) document.getElementById('onb-lname').value = onbData.lname;
+    if (onbData.rank) document.getElementById('onb-rank').value = onbData.rank;
+    if (onbData.base) document.getElementById('onb-base').value = onbData.base;
+    if (onbData.airline) document.getElementById('onb-airline').value = onbData.airline;
+    if (onbData.operatorCodes) document.getElementById('onb-codes').value = onbData.operatorCodes;
+  } else if (onbStep === 2) {
+    body.innerHTML = `
+      <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
+        These appear on your printed logbook PDF and help track currency.
+      </p>
+      <div class="form-grid" style="gap:var(--s-3);">
+        <div class="form-group col-span-2">
+          <label>Transport Canada license number</label>
+          <input type="text" id="onb-license" placeholder="A123456" style="font-family:var(--font-mono);" />
+        </div>
+        <div class="form-group">
+          <label>Medical expiry date</label>
+          <input type="date" id="onb-medical" />
+        </div>
+        <div class="form-group">
+          <label>Primary aircraft type</label>
+          <input type="text" id="onb-fleet" placeholder="E195-E2" />
+        </div>
+      </div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
+        All fields are optional. Cumulo will show alerts if your medical is expiring soon.
+      </p>
+    `;
+    if (onbData.license) document.getElementById('onb-license').value = onbData.license;
+    if (onbData.medical) document.getElementById('onb-medical').value = onbData.medical;
+    if (onbData.fleet) document.getElementById('onb-fleet').value = onbData.fleet;
+  } else if (onbStep === 3) {
+    body.innerHTML = `
+      <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
+        If your airline uses <strong>Navblue N-OC</strong> (Porter, WestJet Encore, Jazz, etc.), paste your roster subscription URL.
+        Cumulo will fetch your flights automatically.
+      </p>
+      <div class="form-group">
+        <label>Navblue iCal URL (optional)</label>
+        <input type="url" id="onb-navblue"
+               placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
+               style="font-family:var(--font-mono); font-size:11px;" />
+      </div>
+      <div style="margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.6;">
+        <strong>How to get this URL :</strong><br>
+        1. Log into Navblue → Roster → Subscribe to calendar<br>
+        2. Copy the <code>webcal://</code> link<br>
+        3. Paste it above (or skip and add it later in Settings)
+      </div>
+    `;
+    if (onbData.navblueUrl) document.getElementById('onb-navblue').value = onbData.navblueUrl;
+  } else if (onbStep === 4) {
+    body.innerHTML = `
+      <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
+        Choose which columns appear by default in your logbook table and PDF export. You can change this anytime in Settings.
+      </p>
+      <div style="display:flex; flex-direction:column; gap:var(--s-2);">
+        <label class="col-option is-on" style="padding:var(--s-4); display:flex; gap:var(--s-3); align-items:flex-start;">
+          <input type="radio" name="onb-preset" value="compact" checked
+                 style="appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid var(--accent);border-radius:50%;flex-shrink:0;margin-top:2px;background:radial-gradient(circle, var(--accent) 0% 50%, transparent 50%);" />
+          <div>
+            <div style="font-weight:600; font-size:14px;">Compact (F/O airline 705)</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">8 essential columns: Date, Aircraft, Reg, Route, PIC, Night, Flight Time. Recommended for daily use.</div>
+          </div>
+        </label>
+        <label class="col-option" style="padding:var(--s-4); display:flex; gap:var(--s-3); align-items:flex-start;">
+          <input type="radio" name="onb-preset" value="atpl"
+                 style="appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid var(--border-strong);border-radius:50%;flex-shrink:0;margin-top:2px;" />
+          <div>
+            <div style="font-weight:600; font-size:14px;">ATPL preparation</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">~22 columns covering all Standard 421 experience categories. For pilots preparing their ATPL application.</div>
+          </div>
+        </label>
+        <label class="col-option" style="padding:var(--s-4); display:flex; gap:var(--s-3); align-items:flex-start;">
+          <input type="radio" name="onb-preset" value="all"
+                 style="appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid var(--border-strong);border-radius:50%;flex-shrink:0;margin-top:2px;" />
+          <div>
+            <div style="font-weight:600; font-size:14px;">All columns (38)</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Show everything. Best for detailed audit or recurrent training.</div>
+          </div>
+        </label>
+      </div>
+    `;
+    // Pre-select
+    if (onbData.columnPreset) {
+      const r = document.querySelector(`input[name="onb-preset"][value="${onbData.columnPreset}"]`);
+      if (r) r.checked = true;
+    }
+    // Sync visual selected state on click
+    document.querySelectorAll('input[name="onb-preset"]').forEach(input => {
+      input.addEventListener('change', () => {
+        document.querySelectorAll('label.col-option').forEach(l => l.classList.remove('is-on'));
+        input.closest('label').classList.add('is-on');
+        document.querySelectorAll('input[name="onb-preset"]').forEach(i => {
+          i.style.background = i.checked ? 'radial-gradient(circle, var(--accent) 0% 50%, transparent 50%)' : '';
+          i.style.borderColor = i.checked ? 'var(--accent)' : 'var(--border-strong)';
+        });
+      });
+    });
+  }
+}
+
+// ═══════════════════════════════════════════
 // NAVBLUE PDF ROSTER PARSER — captain name capture
 // ═══════════════════════════════════════════
 // Parses an HrRosterReport PDF entirely client-side using pdf.js.
@@ -4499,10 +4880,16 @@ function parseNavblueRosterText(text) {
     if (d) dateOnLine[i] = d;
   }
 
+  // Build airline-flight regex from profile operator codes
+  const profile = DB.loadProfile();
+  const codes = (profile.operatorCodes || 'PD').split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+  const codesPattern = codes.length > 0 ? codes.join('|') : 'PD';
+  const flightNumRegex = new RegExp(`\\b((?:${codesPattern})\\d{2,4})\\b`, 'gi');
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    // Find PD### flight numbers in this line (Porter mainline only)
-    const flightMatches = [...line.matchAll(/\b(PD\d{2,4})\b/g)];
+    // Find airline flight numbers in this line (per user's operator codes)
+    const flightMatches = [...line.matchAll(flightNumRegex)];
     if (flightMatches.length === 0) continue;
 
     flightMatches.forEach(m => {
@@ -4972,8 +5359,152 @@ function exportPDF() {
     });
   }
 
+  // ════════════════════════════════════════════
+  // FINAL PAGE — CURRENCY STATUS (CAR 401.05)
+  // ════════════════════════════════════════════
+  doc.addPage();
+  drawCurrencyPage();
+
+  function drawCurrencyPage() {
+    // Header band
+    doc.setFillColor(...navy);
+    doc.rect(0, 0, W, 14, 'F');
+    doc.setTextColor(...white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Currency & Recency Status', tableMargin, 9);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(`${fullTitle} · ${new Date().toLocaleDateString('en-CA')}`, W - tableMargin, 9, { align: 'right' });
+
+    let y = 28;
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Title
+    doc.setTextColor(...textPrimary);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Regulatory currency overview', tableMargin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.text('Per Canadian Aviation Regulations (CAR 401.05). Status as of generation date.', tableMargin, y + 6);
+    y += 18;
+
+    // Compute currency stats
+    const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
+    const cutoff90Str = cutoff90.toISOString().split('T')[0];
+    const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
+    const cutoff6mStr = cutoff6m.toISOString().split('T')[0];
+    const cutoff12m = new Date(today); cutoff12m.setMonth(cutoff12m.getMonth() - 12);
+    const cutoff12mStr = cutoff12m.toISOString().split('T')[0];
+
+    const recent90 = flights.filter(f => f.date && f.date >= cutoff90Str);
+    const recent6m = flights.filter(f => f.date && f.date >= cutoff6mStr);
+    const recent12m = flights.filter(f => f.date && f.date >= cutoff12mStr);
+
+    const ldg90Day = recent90.reduce((s, f) => s + (+f.ldgDay || 0), 0);
+    const ldg90Night = recent90.reduce((s, f) => s + (+f.ldgNight || 0), 0);
+    const ldg90Total = ldg90Day + ldg90Night;
+    const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0) + (+f.instActual || 0), 0);
+
+    const items = [
+      {
+        title: 'Passenger-carrying currency (Day)',
+        reg: 'CAR 401.05(2)(a)',
+        requirement: '5 take-offs and 5 landings within preceding 6 months',
+        current: `${recent6m.length} flight${recent6m.length !== 1 ? 's' : ''} in last 6 months · ${ldg90Total} landing${ldg90Total !== 1 ? 's' : ''} in last 90 days`,
+        ok: recent6m.length >= 5 && ldg90Total >= 5
+      },
+      {
+        title: 'Passenger-carrying currency (Night)',
+        reg: 'CAR 401.05(2)(b)',
+        requirement: '5 night take-offs and 5 night landings within preceding 6 months',
+        current: `${ldg90Night} night landing${ldg90Night !== 1 ? 's' : ''} in last 90 days`,
+        ok: ldg90Night >= 5
+      },
+      {
+        title: 'IFR currency',
+        reg: 'CAR 401.05(2)(c)',
+        requirement: '6 instrument approaches within preceding 6 months (PIC or required pilot)',
+        current: `${Math.floor(approaches6m)} approach${approaches6m !== 1 ? 'es' : ''} logged in last 6 months`,
+        ok: approaches6m >= 6
+      },
+      {
+        title: 'Medical certificate',
+        reg: 'CAR 404',
+        requirement: 'Valid Category 1 or 3 medical for commercial operations',
+        current: p.medical ? `Expires ${new Date(p.medical).toLocaleDateString('en-CA')}` : 'Not set in profile',
+        ok: p.medical ? (new Date(p.medical) >= today) : null
+      },
+      {
+        title: '90-day recency',
+        reg: 'Operator best practice',
+        requirement: 'Recent flying activity',
+        current: `${recent90.length} flight${recent90.length !== 1 ? 's' : ''} in last 90 days`,
+        ok: recent90.length > 0
+      }
+    ];
+
+    items.forEach(item => {
+      const statusColor = item.ok === null ? muted : item.ok ? [16, 163, 127] : [220, 42, 42];
+      const statusText = item.ok === null ? 'UNKNOWN' : item.ok ? '✓ CURRENT' : '✗ NOT CURRENT';
+
+      doc.setDrawColor(...border);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(tableMargin, y, W - 2 * tableMargin, 22, 2, 2, 'S');
+
+      // Left bar (color-coded status)
+      doc.setFillColor(...statusColor);
+      doc.rect(tableMargin, y, 2, 22, 'F');
+
+      // Title + reg
+      doc.setTextColor(...textPrimary);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(item.title, tableMargin + 6, y + 6);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...muted);
+      doc.text(item.reg, tableMargin + 6, y + 11);
+
+      // Requirement + current state
+      doc.setFontSize(8);
+      doc.setTextColor(...textPrimary);
+      doc.text('Requirement: ' + item.requirement, tableMargin + 6, y + 16);
+      doc.setTextColor(...muted);
+      doc.text('Current: ' + item.current, tableMargin + 6, y + 20);
+
+      // Status badge (right)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...statusColor);
+      doc.text(statusText, W - tableMargin - 4, y + 13, { align: 'right' });
+
+      y += 26;
+    });
+
+    // Disclaimer footer
+    y += 8;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(...muted);
+    doc.text('This summary is informational. The pilot remains solely responsible for verifying their currency before each flight in accordance with CAR 401.05 and the Operator Manual.', tableMargin, y, { maxWidth: W - 2 * tableMargin });
+
+    // Signature line
+    y += 16;
+    doc.setLineWidth(0.3);
+    doc.line(tableMargin, y, tableMargin + 70, y);
+    doc.line(tableMargin + 90, y, tableMargin + 140, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text('Pilot Signature', tableMargin, y + 3);
+    doc.text('Date', tableMargin + 90, y + 3);
+  }
+
   doc.save(`logbook_${name.replace(/\s+/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-  showToast(`PDF exported (${totalPages + 1} pages) ✓`, 'success');
+  showToast(`PDF exported (${totalPages + 2} pages) ✓`, 'success');
 }
 
 // ═══════════════════════════════════════════
@@ -5367,6 +5898,10 @@ function showToast(msg, type='') {
   loadNavblueUI();
   // Update relative-time status every minute
   setInterval(updateNavblueStatus, 60000);
+  // First-launch onboarding (only if no profile name set)
+  if (shouldShowOnboarding()) {
+    setTimeout(startOnboarding, 400);
+  }
 })();
 </script>
 </body>
