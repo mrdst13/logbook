@@ -2194,6 +2194,15 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <button class="btn btn-outline" onclick="recalculateAllFlights()">🔄 Recalculate</button>
     </div>
 
+    <div class="backup-option" style="border-left:3px solid var(--warning);">
+      <div class="backup-icon">🧹</div>
+      <div class="backup-info">
+        <div class="backup-title">Clean up incomplete imports</div>
+        <div class="backup-desc">Find flights from the last 30 days that are missing UTC time + airport coordinates (typically PDF-imported flights where the AI couldn't capture timing details). Remove them so they can be re-imported via Navblue iCal sync with full data — registration, real block hours, night/XC calculation.</div>
+      </div>
+      <button class="btn btn-outline" onclick="smartCleanupForResync()">🧹 Clean &amp; prep for re-sync</button>
+    </div>
+
     <div class="backup-option">
       <div class="backup-icon">💾</div>
       <div class="backup-info">
@@ -2418,17 +2427,64 @@ function recalculateFlightDayNightXC(f) {
   return out;
 }
 
+// Identify flights that look incomplete (missing UTC + ICAO + coords data).
+// These are typically PDF-imported flights that can't be recalculated until
+// re-imported from Navblue iCal.
+function findIncompleteFlights() {
+  return flights.filter(f => {
+    const block = +f.block || 0;
+    if (block <= 0) return false;
+    if (f.dtstart_utc) return false;  // has UTC anchor — fine
+    if (f.std_utc && f.std_utc.length === 4) return false;  // has STD time — fine
+    return true;  // missing UTC info → can't compute night/XC
+  });
+}
+
+// Smart cleanup: remove PDF-imported flights from the last 30 days
+// (the iCal Navblue window) so they can be re-imported via Sync now
+// with full data (UTC, ICAO, coords, registration, accurate block).
+function smartCleanupForResync() {
+  const today = new Date().toISOString().split('T')[0];
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+
+  const incomplete = flights.filter(f =>
+    f.date >= cutoffStr && f.date < today &&
+    (!f.dtstart_utc && !(f.std_utc && f.std_utc.length === 4))
+  );
+
+  if (incomplete.length === 0) {
+    showToast('No incomplete flights to clean up in the last 30 days.', 'success');
+    return;
+  }
+
+  const lines = incomplete.map(f => `  • ${f.date} · ${f.flightNum || '?'} · ${f.route || '?'} · ${f.pic || 'no PIC'}`).join('\n');
+  if (!confirm(`Found ${incomplete.length} flight(s) in the last 30 days that are missing UTC time + airport coords (likely PDF imports):\n\n${lines}\n\nDelete them so they can be re-imported from Navblue iCal with full data?`)) return;
+
+  const toDeleteIds = new Set(incomplete.map(f => f.id));
+  flights = flights.filter(f => !toDeleteIds.has(f.id));
+  DB.save(flights);
+  renderDashboard();
+
+  showToast(`${incomplete.length} incomplete flight(s) removed — now click 'Sync now' to re-import them.`, 'success');
+}
+
 // Re-process ALL existing flights and persist. Reports skips with reasons.
 function recalculateAllFlights() {
   if (!confirm('Recalculate night-time and cross-country for all imported flights?\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.')) return;
   const result = recalculateAllFlightsInternal();
   DB.save(flights);
   renderDashboard();
-  const msgs = [`${result.updated} recalculated`];
-  if (result.skippedNoUTC) msgs.push(`${result.skippedNoUTC} missing UTC time (re-sync from Navblue to enable)`);
-  if (result.skippedNoCoords) msgs.push(`${result.skippedNoCoords} unknown airport coords`);
-  if (result.skippedNoBlock) msgs.push(`${result.skippedNoBlock} zero block hours`);
-  showToast(msgs.join(' · '), result.updated > 0 ? 'success' : 'error');
+  // Build honest detailed message
+  const parts = [];
+  parts.push(`${result.updated} recalculated`);
+  if (result.skippedNoUTC) parts.push(`${result.skippedNoUTC} skipped (no UTC time — use "Clean & re-sync" below)`);
+  if (result.skippedNoCoords) parts.push(`${result.skippedNoCoords} skipped (unknown airport coords)`);
+  if (result.skippedNoBlock) parts.push(`${result.skippedNoBlock} skipped (zero block hours)`);
+  const totalSkipped = result.skippedNoUTC + result.skippedNoCoords + result.skippedNoBlock;
+  const toastType = result.updated > 0 && totalSkipped === 0 ? 'success'
+                  : totalSkipped > 0 ? 'error' : 'success';
+  showToast(parts.join(' · '), toastType);
   console.log('[Recalc] Details:', result, 'flights:', flights.length);
 }
 
