@@ -2194,13 +2194,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <button class="btn btn-outline" onclick="recalculateAllFlights()">🔄 Recalculate</button>
     </div>
 
-    <div class="backup-option" style="border-left:3px solid var(--warning);">
-      <div class="backup-icon">🧹</div>
+    <div class="backup-option" style="border-left:3px solid var(--success);">
+      <div class="backup-icon">↩️</div>
       <div class="backup-info">
-        <div class="backup-title">Clean up incomplete imports</div>
-        <div class="backup-desc">Find flights from the last 30 days that are missing UTC time + airport coordinates (typically PDF-imported flights where the AI couldn't capture timing details). Remove them so they can be re-imported via Navblue iCal sync with full data — registration, real block hours, night/XC calculation.</div>
+        <div class="backup-title">Undo last bulk operation</div>
+        <div class="backup-desc">Cumulo automatically snapshots your logbook before any bulk operation (sync, recalculate, etc.). If something went wrong, restore the previous state with one click. <strong>Your flight data is precious — Cumulo never deletes without explicit per-flight confirmation.</strong></div>
       </div>
-      <button class="btn btn-outline" onclick="smartCleanupForResync()">🧹 Clean &amp; prep for re-sync</button>
+      <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">↩️ Undo</button>
     </div>
 
     <div class="backup-option">
@@ -2427,51 +2427,130 @@ function recalculateFlightDayNightXC(f) {
   return out;
 }
 
-// Identify flights that look incomplete (missing UTC + ICAO + coords data).
-// These are typically PDF-imported flights that can't be recalculated until
-// re-imported from Navblue iCal.
-function findIncompleteFlights() {
-  return flights.filter(f => {
-    const block = +f.block || 0;
-    if (block <= 0) return false;
-    if (f.dtstart_utc) return false;  // has UTC anchor — fine
-    if (f.std_utc && f.std_utc.length === 4) return false;  // has STD time — fine
-    return true;  // missing UTC info → can't compute night/XC
-  });
+// ─────────────────────────────────────────────────────────────────
+//  ZERO-DATA-LOSS SYSTEM
+//
+//  Policy : Cumulo never deletes a flight without explicit per-flight
+//  user confirmation. Every bulk operation (sync, recalc) snapshots
+//  the entire logbook to localStorage BEFORE running, so the user
+//  can undo with one click if something looks off.
+// ─────────────────────────────────────────────────────────────────
+const SNAPSHOT_KEY = 'cumulo_snapshot_v1';
+
+function snapshotBeforeOperation(operationName) {
+  const snapshot = {
+    flights: flights,
+    timestamp: Date.now(),
+    operation: operationName,
+    flightCount: flights.length
+  };
+  try {
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+    console.log(`[Snapshot] Saved before "${operationName}" — ${flights.length} flights`);
+    return true;
+  } catch (e) {
+    console.warn('[Snapshot] Failed to save:', e);
+    return false;
+  }
 }
 
-// Smart cleanup: remove PDF-imported flights from the last 30 days
-// (the iCal Navblue window) so they can be re-imported via Sync now
-// with full data (UTC, ICAO, coords, registration, accurate block).
-function smartCleanupForResync() {
-  const today = new Date().toISOString().split('T')[0];
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffStr = cutoff.toISOString().split('T')[0];
+function undoLastOperation() {
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
+  if (!raw) { showToast('No snapshot to restore — Cumulo only saves snapshots before bulk operations.', 'error'); return; }
 
-  const incomplete = flights.filter(f =>
-    f.date >= cutoffStr && f.date < today &&
-    (!f.dtstart_utc && !(f.std_utc && f.std_utc.length === 4))
+  let snap;
+  try { snap = JSON.parse(raw); }
+  catch { showToast('Snapshot corrupted — cannot restore', 'error'); return; }
+
+  const ageMin = Math.floor((Date.now() - snap.timestamp) / 60000);
+  const ageStr = ageMin < 1 ? 'just now'
+              : ageMin < 60 ? `${ageMin} min ago`
+              : ageMin < 1440 ? `${Math.floor(ageMin/60)}h ago`
+              : `${Math.floor(ageMin/1440)}d ago`;
+
+  if (!confirm(`Restore logbook to state before "${snap.operation}" (${ageStr})?\n\nCurrent: ${flights.length} flights\nSnapshot: ${snap.flightCount} flights\n\nThis will replace your current data with the snapshot. The current state will be saved as a new snapshot, so you can undo again.`)) return;
+
+  // Save current state as new snapshot (so undo of undo works)
+  const previousState = {
+    flights: flights,
+    timestamp: Date.now(),
+    operation: `before undo of "${snap.operation}"`,
+    flightCount: flights.length
+  };
+
+  flights = snap.flights;
+  DB.save(flights);
+  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(previousState));
+  renderDashboard();
+  updateUndoButton();
+  showToast(`Restored to ${snap.flightCount} flights (state from ${ageStr})`, 'success');
+}
+
+function updateUndoButton() {
+  const btn = document.getElementById('undoBtn');
+  if (!btn) return;
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
+  if (!raw) { btn.disabled = true; btn.textContent = '↩️ No snapshot'; return; }
+  try {
+    const snap = JSON.parse(raw);
+    const ageMin = Math.floor((Date.now() - snap.timestamp) / 60000);
+    const ageStr = ageMin < 1 ? 'just now'
+                 : ageMin < 60 ? `${ageMin}m ago`
+                 : ageMin < 1440 ? `${Math.floor(ageMin/60)}h ago`
+                 : `${Math.floor(ageMin/1440)}d ago`;
+    btn.disabled = false;
+    btn.textContent = `↩️ Undo "${snap.operation}" (${ageStr})`;
+  } catch {
+    btn.disabled = true;
+    btn.textContent = '↩️ Undo';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Smart matching : find the best existing flight that matches an
+//  incoming Navblue iCal flight, even when the existing flight has
+//  no flightNum (PDF import). Matches on date + route + block (±0.15h).
+// ─────────────────────────────────────────────────────────────────
+function findMatchingExistingFlight(incoming) {
+  if (!incoming || !incoming.date) return null;
+  // First try exact match: date + flightNum + route
+  const exactKey = `${incoming.date}|${incoming.flightNum}|${incoming.route}`;
+  const exact = flights.findIndex(f =>
+    `${f.date}|${f.flightNum || ''}|${f.route || ''}` === exactKey
   );
+  if (exact >= 0) return { idx: exact, matchType: 'exact' };
 
-  if (incomplete.length === 0) {
-    showToast('No incomplete flights to clean up in the last 30 days.', 'success');
-    return;
+  // Fallback: match on date + route + block similar (within 0.15h = 9 min)
+  const incomingRouteNorm = (incoming.route || '').toUpperCase().replace(/\s/g,'');
+  const incomingBlock = +incoming.block || 0;
+  for (let i = 0; i < flights.length; i++) {
+    const f = flights[i];
+    if (f.date !== incoming.date) continue;
+    const fRouteNorm = (f.route || '').toUpperCase().replace(/\s/g,'');
+    if (fRouteNorm !== incomingRouteNorm) continue;
+    const fBlock = +f.block || 0;
+    if (Math.abs(fBlock - incomingBlock) > 0.15) continue;
+    return { idx: i, matchType: 'fuzzy' };
   }
 
-  const lines = incomplete.map(f => `  • ${f.date} · ${f.flightNum || '?'} · ${f.route || '?'} · ${f.pic || 'no PIC'}`).join('\n');
-  if (!confirm(`Found ${incomplete.length} flight(s) in the last 30 days that are missing UTC time + airport coords (likely PDF imports):\n\n${lines}\n\nDelete them so they can be re-imported from Navblue iCal with full data?`)) return;
+  // Also try without route (some PDF imports may have route in different format)
+  for (let i = 0; i < flights.length; i++) {
+    const f = flights[i];
+    if (f.date !== incoming.date) continue;
+    const fBlock = +f.block || 0;
+    if (Math.abs(fBlock - incomingBlock) > 0.15) continue;
+    // Same date + same block → very likely the same flight
+    return { idx: i, matchType: 'date-block' };
+  }
 
-  const toDeleteIds = new Set(incomplete.map(f => f.id));
-  flights = flights.filter(f => !toDeleteIds.has(f.id));
-  DB.save(flights);
-  renderDashboard();
-
-  showToast(`${incomplete.length} incomplete flight(s) removed — now click 'Sync now' to re-import them.`, 'success');
+  return null;
 }
 
 // Re-process ALL existing flights and persist. Reports skips with reasons.
 function recalculateAllFlights() {
-  if (!confirm('Recalculate night-time and cross-country for all imported flights?\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.')) return;
+  if (!confirm('Recalculate night-time and cross-country for all imported flights?\n\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.\n\nA snapshot will be saved automatically — you can undo this from Settings if needed.')) return;
+  snapshotBeforeOperation('Recalculate Night & XC');
+  updateUndoButton();
   const result = recalculateAllFlightsInternal();
   DB.save(flights);
   renderDashboard();
@@ -3748,27 +3827,28 @@ async function syncNavblueNow() {
 
     console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (date < today, block > 0)`);
 
-    // Match each incoming flight against existing logbook (key: date + flightNum + route)
-    // - If new (no match) → goes to import preview as fresh
-    // - If exists but is missing modern fields (std_utc, dep_icao, coords) → silently merge
-    const existingByKey = new Map();
-    flights.forEach((f, idx) => {
-      existingByKey.set(`${f.date}|${f.flightNum || ''}|${f.route || ''}`, { f, idx });
-    });
+    // SNAPSHOT before any modification — pilot data is precious
+    snapshotBeforeOperation('Navblue iCal sync');
+    updateUndoButton();
 
+    // Smart matching :
+    //   1. Try exact match (date + flightNum + route)
+    //   2. Fall back to fuzzy match (date + route + block within 0.15h)
+    //   3. Fall back to date+block match (PDF imports may have no flightNum/route)
+    // Goal: NEVER duplicate a flight that already exists, even when imported via PDF.
     const fresh = [];
     let mergedCount = 0;
+    const mergeFields = ['dtstart_utc','std_utc','sta_utc','co_utc','ci_utc',
+                         'dep_icao','arr_icao','reg','type','flightNum','multiCrew'];
     mapped.forEach(f => {
-      const key = `${f.date}|${f.flightNum}|${f.route}`;
-      const existing = existingByKey.get(key);
-      if (!existing) {
+      const match = findMatchingExistingFlight(f);
+      if (!match) {
         fresh.push(f);
         return;
       }
-      // Existing flight — merge missing fields without overwriting user data
-      const e = existing.f;
-      const mergeFields = ['dtstart_utc','std_utc','sta_utc','co_utc','ci_utc',
-                           'dep_icao','arr_icao','reg','type','flightNum','multiCrew'];
+      // Existing flight matched — enrich missing fields without overwriting user data.
+      // Never overwrite: pic (capitaine), total, block (user may have corrected)
+      const e = flights[match.idx];
       let changed = false;
       const merged = { ...e };
       mergeFields.forEach(k => {
@@ -3777,9 +3857,17 @@ async function syncNavblueNow() {
           changed = true;
         }
       });
+      // Mark source so we know this flight has been enriched from iCal
+      if (!merged.sources) merged.sources = [];
+      if (e.source && !merged.sources.includes(e.source)) merged.sources.push(e.source);
+      if (!merged.sources.includes('navblue-ics')) {
+        merged.sources.push('navblue-ics');
+        changed = true;
+      }
       if (changed) {
-        flights[existing.idx] = merged;
+        flights[match.idx] = merged;
         mergedCount++;
+        console.log(`[Sync] Merged ${match.matchType} match for ${f.date} ${f.flightNum} ${f.route}`);
       }
     });
 
@@ -3833,6 +3921,7 @@ function loadNavblueUI() {
   const input = document.getElementById('navblueUrl');
   if (input && url) input.value = url;
   updateNavblueStatus();
+  updateUndoButton();
 }
 
 // ═══════════════════════════════════════════
