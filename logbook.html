@@ -895,6 +895,73 @@ tbody tr:hover td { background: var(--bg-subtle); }
 }
 .detail-sep { height: 12px; }
 
+/* ─── Column picker (Settings) ─── */
+.col-group {
+  margin-bottom: var(--s-4);
+}
+.col-group-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: var(--s-2);
+}
+.col-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+}
+.col-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all var(--t-micro) var(--ease-out);
+  user-select: none;
+}
+.col-option:hover { border-color: var(--border-strong); }
+.col-option.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+.col-option input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  background: var(--bg-surface);
+  padding: 0;
+  margin: 0;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.col-option input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.col-option input:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 0px;
+  width: 4px; height: 8px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.col-option-label { flex: 1; }
+
 /* MOBILE : transform the table into stacked cards (one per flight).
    Pattern used by Stripe Dashboard, Linear mobile, GitHub. */
 @media (max-width: 720px) {
@@ -1823,20 +1890,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       </div>
       <div class="table-wrap logbook-compact">
         <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Aircraft</th>
-              <th>Reg</th>
-              <th>Route</th>
-              <th>PIC</th>
-              <th style="text-align:right;">Night</th>
-              <th style="text-align:right;">Flight Time</th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead id="logbookThead"></thead>
           <tbody id="logbookTbody">
-            <tr class="empty-row"><td colspan="8">No flights logged yet ✈</td></tr>
+            <tr class="empty-row"><td>No flights logged yet ✈</td></tr>
           </tbody>
         </table>
       </div>
@@ -2292,6 +2348,19 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         <div class="backup-desc">Landscape print-ready logbook. CAR 401.08 column layout with running totals and signature block. <strong>Use this for Transport Canada inspections, employer submissions, or just to print on paper.</strong></div>
       </div>
       <button class="btn btn-primary" onclick="exportPDF()">📄 Export PDF</button>
+    </div>
+
+    <!-- ─── VISIBLE COLUMNS (Logbook table + PDF export) ─── -->
+    <div class="backup-option" style="border-left:3px solid var(--accent); display:block;">
+      <div style="display:flex; align-items:flex-start; gap:var(--s-4); margin-bottom:var(--s-3);">
+        <div class="backup-icon">📊</div>
+        <div class="backup-info" style="flex:1;">
+          <div class="backup-title">Visible columns (Logbook table + PDF export)</div>
+          <div class="backup-desc">All data is captured on every flight (Transport Canada CAR 401.08 + Standard 421 categories). Pick which columns you want visible in the table and PDF. Defaults : essential 705 F/O view. Add more for ATPL preparation, recurrent training, or detailed audit.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()">Reset to defaults</button>
+      </div>
+      <div id="columnPicker"></div>
     </div>
 
     <div class="backup-option" style="border-left:3px solid var(--night);">
@@ -2902,26 +2971,53 @@ function renderLogbook(filter='') {
   }
 
   const tbody = document.getElementById('logbookTbody');
+  const thead = document.getElementById('logbookThead');
+  const cols = getVisibleColumns('table');
+
+  // Render thead dynamically based on user column preferences
+  if (thead) {
+    thead.innerHTML = '<tr>' +
+      cols.map(c => `<th style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
+      '<th style="text-align:right; width:80px;"></th>' +
+    '</tr>';
+  }
+
   if (!list.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No flights found ✈</td></tr>';
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length + 1}">No flights found ✈</td></tr>`;
     return;
   }
-  // Compact view (Linear/Notion pattern) : 7 essential columns visible.
+
+  // Render rows dynamically — only the user-selected columns show.
   // Click row → opens full detail panel (see openFlightDetail).
   tbody.innerHTML = list.map(f => {
-    const night = (+f.meNightPic||0) + (+f.meNightCop||0) + (+f.meNightDual||0);
-    const role = (+f.meDayPic||0) + (+f.meNightPic||0) > 0 ? 'PIC'
-              : (+f.meDayDual||0) + (+f.meNightDual||0) > 0 ? 'DUAL'
-              : 'SIC';
+    const cells = cols.map(c => {
+      const v = computeCellValue(f, c.key);
+      const isMuted = (v === undefined || v === null || v === '' || (c.decimal && (+v === 0)));
+      let display;
+      if (isMuted) {
+        display = '<span class="cell-num muted">—</span>';
+      } else if (c.key === 'reg') {
+        display = `<span class="reg-tag">${v}</span>`;
+      } else if (c.key === 'route') {
+        display = `<span class="route-tag">${v}</span>`;
+      } else if (c.key === 'date') {
+        display = `<span class="cell-date">${v}</span>`;
+      } else if (c.key === 'total') {
+        display = `<strong>${fmt(v)}</strong>`;
+      } else if (c.decimal) {
+        display = `<span class="hrs">${fmt(v)}</span>`;
+      } else if (typeof v === 'number') {
+        display = `<span class="cell-num">${v}</span>`;
+      } else {
+        display = v;
+      }
+      const tdClass = c.decimal ? 'hrs' : '';
+      return `<td data-label="${c.short}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
+    }).join('');
+
     return `
     <tr onclick="openFlightDetail('${f.id}')" class="row-clickable">
-      <td data-label="Date" class="cell-date">${f.date}</td>
-      <td data-label="Aircraft">${f.type || '—'}</td>
-      <td data-label="Reg">${f.reg ? `<span class="reg-tag">${f.reg}</span>` : '<span class="cell-num muted">—</span>'}</td>
-      <td data-label="Route"><span class="route-tag">${f.route || '—'}</span></td>
-      <td data-label="PIC">${f.pic || (role==='PIC' ? '<span class="tag pic">PIC</span>' : '<span class="cell-num muted">—</span>')}</td>
-      <td data-label="Night" class="hrs" style="text-align:right;">${night > 0 ? fmt(night) : '<span class="cell-num muted">—</span>'}</td>
-      <td data-label="Flight Time" class="hrs" style="text-align:right;"><strong>${fmt(f.total || f.block)}</strong></td>
+      ${cells}
       <td data-label="" class="row-actions" onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-sm" onclick="editFlight('${f.id}')" title="Edit">✏</button>
         <button class="btn btn-sm" style="background:var(--danger-soft);color:var(--danger);margin-left:4px" onclick="deleteFlight('${f.id}')" title="Delete">🗑</button>
@@ -3556,6 +3652,133 @@ function updateProfileDisplay(p) {
 // ═══════════════════════════════════════════
 // NAVBLUE iCal AUTO-SYNC
 // ═══════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────
+//  LOGBOOK COLUMNS — defined per Transport Canada CAR 401.08(2)
+//  + Standard 421 (experience categories needed for ATPL / currency).
+//  Each column has:
+//    key       — field name in the flight object
+//    label     — display name (TC official terminology)
+//    short     — compact label for narrow columns
+//    group     — section grouping for the Settings UI
+//    width     — relative width hint (pdf + table)
+//    align     — left | right | center
+//    decimal   — hours field (rendered as 0.1h)
+//    default   — whether shown by default
+//    role      — only relevant for which pilot type
+// ─────────────────────────────────────────────────────────────────
+const LOGBOOK_COLUMNS = [
+  // Identification (CAR 401.08(2)(a)(b)(c)(e)(f))
+  { key: 'date',         label: 'Date',                short: 'Date',     group: 'Identification', width: 18, align: 'left',   default: true },
+  { key: 'flightNum',    label: 'Flight #',            short: 'Flt#',     group: 'Identification', width: 14, align: 'left',   default: false },
+  { key: 'type',         label: 'A/C Type',            short: 'Type',     group: 'Identification', width: 16, align: 'left',   default: true },
+  { key: 'reg',          label: 'Registration',        short: 'Reg',      group: 'Identification', width: 16, align: 'left',   default: true },
+  { key: 'dep_icao',     label: 'From',                short: 'From',     group: 'Identification', width: 12, align: 'left',   default: false },
+  { key: 'via',          label: 'Via (intermediate)',  short: 'Via',      group: 'Identification', width: 14, align: 'left',   default: false },
+  { key: 'arr_icao',     label: 'To',                  short: 'To',       group: 'Identification', width: 12, align: 'left',   default: false },
+  { key: 'route',        label: 'Route',               short: 'Route',    group: 'Identification', width: 18, align: 'left',   default: true },
+  { key: 'pic',          label: 'Pilot in Command',    short: 'PIC',      group: 'Identification', width: 22, align: 'left',   default: true },
+  { key: 'copilot',      label: 'Co-pilot',            short: 'Cop',      group: 'Identification', width: 22, align: 'left',   default: false },
+  { key: 'crewPosition', label: 'Crew Position',       short: 'Position', group: 'Identification', width: 14, align: 'left',   default: false },
+
+  // Flight conditions (CAR 401.08(2)(d))
+  { key: 'day',          label: 'Day',                 short: 'Day',      group: 'Conditions',     width: 10, align: 'right', decimal: true, default: false },
+  { key: 'night',        label: 'Night',               short: 'Night',    group: 'Conditions',     width: 10, align: 'right', decimal: true, default: true },
+  { key: 'vfr',          label: 'VFR',                 short: 'VFR',      group: 'Conditions',     width: 10, align: 'right', decimal: true, default: false },
+  { key: 'ifr',          label: 'IFR',                 short: 'IFR',      group: 'Conditions',     width: 10, align: 'right', decimal: true, default: false },
+
+  // Times (CAR 401.08(2)(g))
+  { key: 'block',        label: 'Flight Time',         short: 'Flt Time', group: 'Times',          width: 12, align: 'right', decimal: true, default: true },
+  { key: 'duty',         label: 'Duty Time',           short: 'Duty',     group: 'Times',          width: 10, align: 'right', decimal: true, default: false },
+
+  // Engine class (Standard 421)
+  { key: 'seDay',        label: 'SE Day',              short: 'SE Day',   group: 'Engine class',   width: 10, align: 'right', decimal: true, default: false },
+  { key: 'seNight',      label: 'SE Night',            short: 'SE Ngt',   group: 'Engine class',   width: 10, align: 'right', decimal: true, default: false },
+  { key: 'meDayPic',     label: 'ME Day PIC',          short: 'MED PIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
+  { key: 'meNightPic',   label: 'ME Night PIC',        short: 'MEN PIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
+  { key: 'meDayCop',     label: 'ME Day SIC',          short: 'MED SIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: true },
+  { key: 'meNightCop',   label: 'ME Night SIC',        short: 'MEN SIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: true },
+  { key: 'meDayDual',    label: 'ME Day Dual',         short: 'MED Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
+  { key: 'meNightDual',  label: 'ME Night Dual',       short: 'MEN Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
+
+  // Cross-country (Standard 421, CAR 401.34)
+  { key: 'xcDay',        label: 'XC Day',              short: 'XC Day',   group: 'Cross-country',  width: 10, align: 'right', decimal: true, default: false },
+  { key: 'xcNight',      label: 'XC Night',            short: 'XC Ngt',   group: 'Cross-country',  width: 10, align: 'right', decimal: true, default: false },
+
+  // Instrument (Standard 421 — split per inspector best practice)
+  { key: 'instActual',   label: 'Inst Actual',         short: 'InstA',    group: 'Instrument',     width: 10, align: 'right', decimal: true, default: false },
+  { key: 'instHood',     label: 'Inst Hood',           short: 'InstH',    group: 'Instrument',     width: 10, align: 'right', decimal: true, default: false },
+  { key: 'instSim',      label: 'Inst Sim/FSTD',       short: 'InstSim',  group: 'Instrument',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'approaches',   label: 'Approaches',          short: 'App',      group: 'Instrument',     width: 9,  align: 'right', default: false },
+
+  // Take-offs & Landings (CAR 401.05 currency)
+  { key: 'toDay',        label: 'T/O Day',             short: 'T/O D',    group: 'Landings',       width: 9,  align: 'right', default: false },
+  { key: 'toNight',      label: 'T/O Night',           short: 'T/O N',    group: 'Landings',       width: 9,  align: 'right', default: false },
+  { key: 'ldgDay',       label: 'LDG Day',             short: 'L Day',    group: 'Landings',       width: 9,  align: 'right', default: false },
+  { key: 'ldgNight',     label: 'LDG Night',           short: 'L Ngt',    group: 'Landings',       width: 9,  align: 'right', default: false },
+
+  // Other
+  { key: 'picus',        label: 'PICUS',               short: 'PICUS',    group: 'Other',          width: 10, align: 'right', decimal: true, default: false },
+  { key: 'multiCrew',    label: 'Multi-Crew',          short: 'MC',       group: 'Other',          width: 9,  align: 'center', default: false },
+  { key: 'remarks',      label: 'Remarks',             short: 'Remarks',  group: 'Other',          width: 24, align: 'left',  default: false },
+
+  // Computed total (always shown)
+  { key: 'total',        label: 'Total',               short: 'Total',    group: 'Times',          width: 12, align: 'right', decimal: true, default: true }
+];
+
+const COLUMN_PREFS_KEY = 'cumulo_column_prefs_v1';
+
+function loadColumnPrefs() {
+  try {
+    const raw = localStorage.getItem(COLUMN_PREFS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveColumnPrefs(prefs) {
+  localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(prefs));
+}
+
+function getVisibleColumns(context = 'table') {
+  // context: 'table' (logbook page) or 'pdf' (export)
+  const prefs = loadColumnPrefs() || {};
+  const visible = LOGBOOK_COLUMNS.filter(c => {
+    const pref = prefs[c.key];
+    return pref === undefined ? c.default : pref === true;
+  });
+  // Always include 'total' as final column
+  if (!visible.find(c => c.key === 'total')) {
+    visible.push(LOGBOOK_COLUMNS.find(c => c.key === 'total'));
+  }
+  return visible;
+}
+
+// Compute derived fields on the fly (sum aggregates)
+function computeCellValue(f, key) {
+  switch (key) {
+    case 'day':         return ((+f.meDayPic||0)+(+f.meDayCop||0)+(+f.meDayDual||0)+(+f.seDay||0));
+    case 'night':       return ((+f.meNightPic||0)+(+f.meNightCop||0)+(+f.meNightDual||0)+(+f.seNight||0));
+    case 'ifr':         return ((+f.instActual||0)+(+f.instHood||0));
+    case 'vfr':         {
+      const total = +f.total || +f.block || 0;
+      const ifr = (+f.instActual||0)+(+f.instHood||0);
+      return Math.max(0, total - ifr);
+    }
+    case 'xcDay':       return ((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0));
+    case 'xcNight':     return ((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0));
+    case 'crewPosition': {
+      if ((+f.meDayPic||0)+(+f.meNightPic||0)+(+f.seDay||0) > 0) return 'PIC';
+      if ((+f.meDayDual||0)+(+f.meNightDual||0) > 0) return 'Dual';
+      if ((+f.meDayCop||0)+(+f.meNightCop||0) > 0) return 'SIC';
+      return '—';
+    }
+    case 'multiCrew':   return f.multiCrew ? '✓' : '—';
+    case 'toDay':       return f.toDay !== undefined ? f.toDay : (f.ldgDay || 0);
+    case 'toNight':     return f.toNight !== undefined ? f.toNight : (f.ldgNight || 0);
+    default:            return f[key];
+  }
+}
+
 const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
 const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
 const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
@@ -4114,6 +4337,89 @@ function loadNavblueUI() {
   if (input && url) input.value = url;
   updateNavblueStatus();
   updateUndoButton();
+  renderColumnPicker();
+}
+
+// ═══════════════════════════════════════════
+// COLUMN PICKER (Settings → Visible Columns)
+// ═══════════════════════════════════════════
+function renderColumnPicker() {
+  const container = document.getElementById('columnPicker');
+  if (!container) return;
+  const prefs = loadColumnPrefs() || {};
+
+  // Group columns by section
+  const groups = {};
+  LOGBOOK_COLUMNS.forEach(c => {
+    if (c.key === 'total') return;  // always shown, no toggle
+    if (!groups[c.group]) groups[c.group] = [];
+    groups[c.group].push(c);
+  });
+
+  const html = Object.keys(groups).map(group => `
+    <div class="col-group">
+      <div class="col-group-title">${group}</div>
+      <div class="col-group-grid">
+        ${groups[group].map(c => {
+          const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
+          return `
+          <label class="col-option ${checked ? 'is-on' : ''}">
+            <input type="checkbox" ${checked ? 'checked' : ''}
+                   onchange="toggleColumn('${c.key}', this.checked)" />
+            <span class="col-option-label">${c.label}</span>
+          </label>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  container.innerHTML = html + `
+    <div style="margin-top:var(--s-3); padding-top:var(--s-3); border-top:1px solid var(--border); display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center;">
+      <span class="eyebrow">Quick presets:</span>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('compact')">Compact F/O 705</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')">ATPL preparation</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')">All columns</button>
+    </div>
+  `;
+}
+
+function toggleColumn(key, checked) {
+  const prefs = loadColumnPrefs() || {};
+  prefs[key] = checked;
+  saveColumnPrefs(prefs);
+  renderColumnPicker();
+  // Live-refresh the logbook table if user is looking at it
+  if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
+}
+
+function resetColumnPrefs() {
+  if (!confirm('Reset all column visibility to defaults? Your data is not affected.')) return;
+  localStorage.removeItem(COLUMN_PREFS_KEY);
+  renderColumnPicker();
+  if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
+  showToast('Column visibility reset to defaults');
+}
+
+function applyColumnPreset(preset) {
+  const prefs = {};
+  if (preset === 'compact') {
+    // F/O 705 essentials
+    ['date','type','reg','route','pic','night','block','total'].forEach(k => prefs[k] = true);
+    LOGBOOK_COLUMNS.forEach(c => { if (prefs[c.key] === undefined) prefs[c.key] = false; });
+  } else if (preset === 'atpl') {
+    // ATPL preparation: all categories needed for the experience demo
+    ['date','type','reg','route','pic','crewPosition','block','duty',
+     'day','night','meDayPic','meNightPic','meDayCop','meNightCop',
+     'xcDay','xcNight','instActual','instSim','approaches',
+     'ldgDay','ldgNight','picus','total'].forEach(k => prefs[k] = true);
+    LOGBOOK_COLUMNS.forEach(c => { if (prefs[c.key] === undefined) prefs[c.key] = false; });
+  } else if (preset === 'all') {
+    LOGBOOK_COLUMNS.forEach(c => { prefs[c.key] = true; });
+  }
+  saveColumnPrefs(prefs);
+  renderColumnPicker();
+  if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
+  showToast(`Preset "${preset}" applied`);
 }
 
 // ═══════════════════════════════════════════
