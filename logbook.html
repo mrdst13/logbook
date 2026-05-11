@@ -2176,20 +2176,29 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       </div>
     </div>
 
-    <div class="backup-option">
-      <div class="backup-icon">📥</div>
+    <div class="backup-option" style="border-left:3px solid var(--accent);">
+      <div class="backup-icon">📄</div>
       <div class="backup-info">
-        <div class="backup-title">Download Backup</div>
-        <div class="backup-desc">Export all your flight data as a JSON file. Keep this safe — it's your complete logbook.</div>
+        <div class="backup-title">Export Logbook as PDF</div>
+        <div class="backup-desc">Print-ready Transport Canada format. Landscape, paginated, with running totals and signature block. <strong>Use this for Transport Canada inspections, employer submissions, or just to print on paper.</strong></div>
       </div>
-      <button class="btn btn-primary" onclick="backupData()">Download</button>
+      <button class="btn btn-primary" onclick="exportPDF()">📄 Export PDF</button>
+    </div>
+
+    <div class="backup-option">
+      <div class="backup-icon">💾</div>
+      <div class="backup-info">
+        <div class="backup-title">Download Data Backup (JSON)</div>
+        <div class="backup-desc">Technical backup of all your flight data in JSON format. Use this only to restore Cumulo on another device or recover from a bug. <em>This file is not human-readable — use Export PDF instead if you want to read your logbook.</em></div>
+      </div>
+      <button class="btn btn-ghost" onclick="backupData()">Download JSON</button>
     </div>
 
     <div class="backup-option">
       <div class="backup-icon">📤</div>
       <div class="backup-info">
-        <div class="backup-title">Restore from Backup</div>
-        <div class="backup-desc">Restore a previously exported JSON backup file.</div>
+        <div class="backup-title">Restore from JSON Backup</div>
+        <div class="backup-desc">Restore a previously downloaded JSON backup file.</div>
       </div>
       <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">Restore</button>
       <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)">
