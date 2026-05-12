@@ -23,28 +23,43 @@ const path = require('path');
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 const STYLES_DIR = path.join(SRC, 'styles');
+const JS_DIR = path.join(SRC, 'js');
 
 const checkMode = process.argv.includes('--check');
 const OUT = path.join(ROOT, checkMode ? 'logbook.built.html' : 'logbook.html');
 
 // Read head + body
 const head = fs.readFileSync(path.join(SRC, 'head.html'), 'utf8');
-const body = fs.readFileSync(path.join(SRC, 'body.html'), 'utf8');
+let body = fs.readFileSync(path.join(SRC, 'body.html'), 'utf8');
+
+// Detect line ending from source so the build matches the original convention.
+// Windows checkouts get CRLF (\r\n); Unix gets LF (\n). Either way, output stays
+// consistent with the source files.
+const EOL = head.includes('\r\n') ? '\r\n' : '\n';
 
 // Read CSS files in alphabetical order (the numeric prefixes enforce order)
 const styleFiles = fs
   .readdirSync(STYLES_DIR)
   .filter(f => f.endsWith('.css'))
   .sort();
-
 const styles = styleFiles
   .map(f => fs.readFileSync(path.join(STYLES_DIR, f), 'utf8'))
   .join('');
 
-// Detect line ending from source so the build matches the original convention.
-// Windows checkouts get CRLF (\r\n); Unix gets LF (\n). Either way, output stays
-// consistent with the source files.
-const EOL = head.includes('\r\n') ? '\r\n' : '\n';
+// Read JS files in alphabetical order. Currently a single app.js; numeric
+// prefixes (00-util.js, 01-db.js, 02-domain.js, etc.) enforce order when
+// the JS is split further in later phases.
+const jsFiles = fs.existsSync(JS_DIR)
+  ? fs.readdirSync(JS_DIR).filter(f => f.endsWith('.js')).sort()
+  : [];
+const jsContent = jsFiles
+  .map(f => fs.readFileSync(path.join(JS_DIR, f), 'utf8'))
+  .join('');
+
+// Inject <script>...</script> into body.html at the marker
+const SCRIPT_MARKER = '<!-- INJECT_JS -->';
+const scriptBlock = '<script>' + EOL + jsContent + EOL + '</script>';
+body = body.replace(SCRIPT_MARKER, scriptBlock);
 
 // Assemble
 const output = head + '<style>' + EOL + styles + '</style>' + EOL + body;
@@ -55,6 +70,7 @@ console.log(`Built ${path.relative(ROOT, OUT)}`);
 console.log(`  ${output.length.toLocaleString()} bytes`);
 console.log(`  ${output.split('\n').length.toLocaleString()} lines`);
 console.log(`  ${styleFiles.length} CSS files: ${styleFiles.join(', ')}`);
+console.log(`  ${jsFiles.length} JS files:  ${jsFiles.join(', ')}`);
 
 if (checkMode) {
   const original = fs.readFileSync(path.join(ROOT, 'logbook.html'), 'utf8');
