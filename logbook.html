@@ -1047,6 +1047,41 @@ tbody tr:hover td { background: var(--bg-subtle); }
 }
 .detail-sep { height: 12px; }
 
+/* ─── Column menu popover (Logbook table header) ─── */
+.column-menu-wrap { position: relative; }
+.column-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 480px;
+  max-height: 70vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  padding: var(--s-4);
+  overflow-y: auto;
+  animation: popIn var(--t-emphasis) var(--ease-emphasis);
+}
+.column-menu.show { display: block; }
+.column-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .column-menu {
+    width: calc(100vw - 32px);
+    right: -8px;
+    max-height: 70vh;
+  }
+}
+
 /* ─── Column picker (Settings) ─── */
 .col-group {
   margin-bottom: var(--s-4);
@@ -2039,6 +2074,19 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     <div class="card">
       <div class="card-header">
         <input type="text" class="search-input" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
+        <div class="column-menu-wrap">
+          <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
+            📊 Columns
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
+            <div class="column-menu-head">
+              <div class="t-headline">Visible columns</div>
+              <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
+            </div>
+            <div id="columnPicker"></div>
+          </div>
+        </div>
       </div>
       <div class="table-wrap logbook-compact">
         <table>
@@ -2380,8 +2428,48 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           </select>
         </div>
         <div class="form-group">
-          <label>Airline / Company</label>
-          <input type="text" id="p-airline" placeholder="Porter Airlines">
+          <label>Airline / Operator</label>
+          <select id="p-airlineSelect" onchange="onAirlineSelectChange()">
+            <option value="">— Select airline —</option>
+            <optgroup label="705 — Airline Operations">
+              <option value="Air Canada|AC">Air Canada (AC)</option>
+              <option value="Air Canada Express / Jazz|QK">Air Canada Express / Jazz (QK)</option>
+              <option value="WestJet|WS">WestJet (WS)</option>
+              <option value="WestJet Encore|WR">WestJet Encore (WR)</option>
+              <option value="Air Transat|TS">Air Transat (TS)</option>
+              <option value="Porter Airlines|PD">Porter Airlines (PD)</option>
+              <option value="Flair Airlines|F8">Flair Airlines (F8)</option>
+              <option value="Canadian North|5T">Canadian North (5T)</option>
+              <option value="Sunwing Airlines|WG">Sunwing Airlines (WG)</option>
+            </optgroup>
+            <optgroup label="704 — Commuter Operations">
+              <option value="PAL Airlines|PB">PAL Airlines (PB)</option>
+              <option value="Pacific Coastal Airlines|8P">Pacific Coastal Airlines (8P)</option>
+              <option value="Bearskin Airlines|JV">Bearskin Airlines (JV)</option>
+              <option value="Air Inuit|3H">Air Inuit (3H)</option>
+              <option value="Calm Air|MO">Calm Air (MO)</option>
+              <option value="Central Mountain Air|9M">Central Mountain Air (9M)</option>
+              <option value="North Star Air||NSA">North Star Air (NSA)</option>
+              <option value="Air Tindi|8T">Air Tindi (8T)</option>
+              <option value="Air Creebec|YN">Air Creebec (YN)</option>
+            </optgroup>
+            <optgroup label="703 — Air Taxi Operations">
+              <option value="Buffalo Airways|BFL">Buffalo Airways</option>
+              <option value="Wasaya Airways|WT">Wasaya Airways (WT)</option>
+              <option value="North-Wright Airways|HW">North-Wright Airways</option>
+              <option value="Summit Air|SUT">Summit Air</option>
+              <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
+              <option value="Missinippi Airways|MWT">Missinippi Airways</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="other">— Other / Custom (enter manually) —</option>
+              <option value="none">Private / Not affiliated with an operator</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-group" id="p-airline-custom-wrap" style="display:none;">
+          <label>Custom Airline Name</label>
+          <input type="text" id="p-airline" placeholder="Type the airline name">
         </div>
         <div class="form-group">
           <label>License Number</label>
@@ -2403,8 +2491,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <label>Operator Codes (for flight number recognition)</label>
           <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;">
-            Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes.<br>
-            <strong>PD</strong>=Porter · <strong>AC</strong>=Air Canada · <strong>QK</strong>=Jazz · <strong>WS</strong>=WestJet · <strong>WR</strong>=WestJet Encore · <strong>TS</strong>=Air Transat · <strong>F8</strong>=Flair · <strong>Y9</strong>=Lynx
+            Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
           </div>
         </div>
       </div>
@@ -2601,18 +2688,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         <button class="btn btn-primary" onclick="exportPDF()">📄 Export</button>
       </div>
 
-      <!-- Visible Columns -->
-      <div class="form-card settings-card">
-        <div class="settings-card-head">
-          <div class="settings-card-icon">📊</div>
-          <div>
-            <div class="settings-card-title">Visible columns</div>
-            <div class="settings-card-desc">Applies to <strong>Logbook table</strong> + <strong>PDF export</strong>. All TC categories captured per flight — pick what to show.</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()">Reset</button>
-        </div>
-        <div id="columnPicker"></div>
-      </div>
+      <!-- Column visibility is now controlled inline:
+           - Logbook page: 'Columns ▾' menu in the table header
+           - PDF export: 'Select columns' modal before generating -->
     </div>
 
     <!-- ═══════════════════════════════════════════ -->
@@ -4033,7 +4111,20 @@ function loadProfile() {
   sv('p-fname', p.fname || 'Martin');
   sv('p-lname', p.lname || 'Daoust');
   document.getElementById('p-rank').value = p.rank || 'F/O';
-  sv('p-airline', p.airline || 'Porter Airlines');
+  // Airline: try to pre-select the dropdown if the saved value matches a known option
+  const airlineName = p.airline || 'Porter Airlines';
+  const sel = document.getElementById('p-airlineSelect');
+  if (sel) {
+    const matchOpt = [...sel.options].find(o => o.value.startsWith(airlineName + '|'));
+    if (matchOpt) {
+      sel.value = matchOpt.value;
+      document.getElementById('p-airline-custom-wrap').style.display = 'none';
+    } else if (airlineName) {
+      sel.value = 'other';
+      document.getElementById('p-airline-custom-wrap').style.display = 'block';
+      sv('p-airline', airlineName);
+    }
+  }
   sv('p-license', p.license);
   sv('p-medical', p.medical);
   sv('p-base', p.base || 'YOW');
@@ -4043,13 +4134,49 @@ function loadProfile() {
   updateProfileDisplay(p);
 }
 
+function onAirlineSelectChange() {
+  const sel = document.getElementById('p-airlineSelect');
+  const customWrap = document.getElementById('p-airline-custom-wrap');
+  const v = sel.value;
+  if (v === 'other') {
+    customWrap.style.display = 'block';
+    sv('p-airline', '');
+    return;
+  }
+  if (v === 'none' || v === '') {
+    customWrap.style.display = 'none';
+    sv('p-airline', '');
+    return;
+  }
+  // Selected airline format = "Name|CODE"
+  const [name, code] = v.split('|');
+  customWrap.style.display = 'none';
+  sv('p-airline', name);
+  // Auto-fill the operator codes input (if user wants to override, they still can)
+  const codesInput = document.getElementById('p-operatorCodes');
+  if (codesInput && code) {
+    const existing = (codesInput.value || '').toUpperCase().replace(/\s/g, '');
+    if (!existing.split(',').includes(code)) {
+      // Append code if not already in the list
+      codesInput.value = existing ? `${existing},${code}` : code;
+    }
+  }
+}
+
 function saveProfile() {
   const existing = DB.loadProfile();
+  const sel = document.getElementById('p-airlineSelect');
+  let airline = '';
+  if (sel.value === 'other') {
+    airline = gv('p-airline');
+  } else if (sel.value && sel.value !== 'none' && sel.value !== '') {
+    airline = sel.value.split('|')[0];
+  }
   const p = {
     fname: gv('p-fname'),
     lname: gv('p-lname'),
     rank: gv('p-rank'),
-    airline: gv('p-airline'),
+    airline: airline,
     license: gv('p-license'),
     medical: gv('p-medical'),
     base: gv('p-base'),
@@ -4920,7 +5047,7 @@ function renderOnboardingStep() {
           <label>Operator codes (comma-separated)</label>
           <input type="text" id="onb-codes" placeholder="PD" value="PD" style="font-family:var(--font-mono);text-transform:uppercase;" />
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-            IATA codes for the airlines you fly with. <strong>PD</strong>=Porter · <strong>AC</strong>=Air Canada · <strong>QK</strong>=Jazz · <strong>WS</strong>=WestJet · <strong>TS</strong>=Transat
+            IATA codes for the airlines you fly with. <strong>PD</strong>=Porter · <strong>AC</strong>=Air Canada · <strong>QK</strong>=Jazz · <strong>WS</strong>=WestJet · <strong>WR</strong>=WestJet Encore · <strong>TS</strong>=Transat · <strong>F8</strong>=Flair · <strong>5T</strong>=Canadian North · <strong>PB</strong>=PAL · <strong>8P</strong>=Pacific Coastal
           </div>
         </div>
       </div>
@@ -5307,6 +5434,27 @@ function toggleColumn(key, checked) {
   if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
 }
 
+function toggleColumnMenu() {
+  const menu = document.getElementById('columnMenu');
+  if (!menu) return;
+  const isOpen = menu.classList.toggle('show');
+  if (isOpen) {
+    renderColumnPicker();  // refresh checkboxes state
+    // Close on click outside
+    setTimeout(() => {
+      document.addEventListener('click', closeColumnMenuOnOutside);
+    }, 50);
+  }
+}
+function closeColumnMenuOnOutside(e) {
+  const menu = document.getElementById('columnMenu');
+  const btn = document.getElementById('columnMenuBtn');
+  if (menu && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    menu.classList.remove('show');
+    document.removeEventListener('click', closeColumnMenuOnOutside);
+  }
+}
+
 function resetColumnPrefs() {
   if (!confirm('Reset all column visibility to defaults? Your data is not affected.')) return;
   localStorage.removeItem(COLUMN_PREFS_KEY);
@@ -5384,9 +5532,68 @@ function clearAll() {
 //  - Signature line on EVERY page (TC inspector expectation)
 //  - Single-line strike-through for corrections (audit best practice)
 //  - Decimal hours 0.1h (TC standard)
-//  - Uses user's column visibility prefs
+//  - Uses user's column visibility prefs (configurable per export)
 // ─────────────────────────────────────────────────────────────────
+
+// Entry point : shows a modal to confirm which columns to include,
+// then calls _generatePDF() with the chosen visible columns.
 function exportPDF() {
+  const overlay = document.getElementById('importPreview');
+  if (!overlay) { _generatePDF(); return; }
+  // Render the column picker inside the import modal (reused as a generic modal)
+  document.getElementById('importSubtitle').textContent = 'Choose which columns to include in your printed PDF';
+  // Read current prefs to seed the picker
+  const html = (function() {
+    const prefs = loadColumnPrefs() || {};
+    const groups = {};
+    LOGBOOK_COLUMNS.forEach(c => {
+      if (c.key === 'total') return;
+      if (!groups[c.group]) groups[c.group] = [];
+      groups[c.group].push(c);
+    });
+    return Object.keys(groups).map(group => `
+      <div class="col-group">
+        <div class="col-group-title">${group}</div>
+        <div class="col-group-grid">
+          ${groups[group].map(c => {
+            const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
+            return `
+              <label class="col-option ${checked ? 'is-on' : ''}">
+                <input type="checkbox" data-col-key="${c.key}" ${checked ? 'checked' : ''}
+                       onchange="this.closest('label').classList.toggle('is-on', this.checked)" />
+                <span class="col-option-label">${c.label}</span>
+              </label>`;
+          }).join('')}
+        </div>
+      </div>
+    `).join('') + `
+      <div style="margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.5;">
+        <strong>Tip:</strong> Picking fewer columns gives more space per row in landscape. Picking many makes the table denser. The cover page + currency annexe always print.
+      </div>
+    `;
+  })();
+  document.getElementById('extractedList').innerHTML = html;
+  // Configure the confirm button
+  const confirmBtn = document.getElementById('importConfirmBtn');
+  confirmBtn.textContent = '📄 Generate PDF';
+  confirmBtn.disabled = false;
+  confirmBtn.onclick = function() {
+    // Read selected columns
+    const selected = {};
+    document.querySelectorAll('#extractedList input[type="checkbox"][data-col-key]').forEach(input => {
+      selected[input.getAttribute('data-col-key')] = input.checked;
+    });
+    // Save as prefs (so the Logbook table updates too — consistent)
+    saveColumnPrefs(selected);
+    if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
+    closeImportOverlay();
+    _generatePDF();
+  };
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function _generatePDF() {
   if (typeof window.jspdf === 'undefined') { showToast('PDF library loading, try again', 'error'); return; }
   const { jsPDF } = window.jspdf;
   const p = DB.loadProfile();
