@@ -14,6 +14,67 @@ function esc(s) {
 }
 
 // ═══════════════════════════════════════════
+// PIPEDA — Captain-name anonymization
+//
+// Third-party PII handling: when Cumulo imports flight data from Navblue
+// iCal or PDF rosters, it may detect captain names (other pilots — third
+// parties who haven't consented to being in this user's logbook).
+// PIPEDA Principle 4.3 requires consent from the data subject. To stay
+// compliant at scale, captain names are anonymized to initials by default.
+//
+// The user can opt-in to keep full names via Profile → "I have consent /
+// will anonymize" toggle (`profile.consentCaptainNames`). Default: false
+// (anonymize). When false, this function is called on every incoming
+// captain name before it lands in `flights[]`.
+//
+// Format normalization:
+//   "DAOUST, Martin"   → "M.D."  (last, first  →  first.last initials)
+//   "Daoust, M"        → "M.D."
+//   "Martin Daoust"    → "M.D."
+//   "M. Daoust"        → "M.D."
+//   "MD"               → "M.D."
+//   ""  /  null        → ""
+//   "M.D."             → "M.D."  (idempotent — already initials)
+// ═══════════════════════════════════════════
+function anonymizeCaptainName(name) {
+  if (!name || typeof name !== 'string') return '';
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  // Already-initial format like "M.D." or "M. D." → return as-is (idempotent)
+  if (/^[A-Z]\.\s?[A-Z]\.\s*$/.test(trimmed)) return trimmed.replace(/\s+/g, '');
+
+  // Comma format: "Lastname, Firstname" (Navblue convention)
+  if (trimmed.includes(',')) {
+    const [last, first] = trimmed.split(',').map(s => s.trim());
+    const fi = first ? first.charAt(0).toUpperCase() : '';
+    const li = last ? last.charAt(0).toUpperCase() : '';
+    return (fi && li) ? `${fi}.${li}.` : (fi ? `${fi}.` : (li ? `${li}.` : ''));
+  }
+
+  // Space-separated: "Firstname Lastname" or "Martin Daoust" or "M. Daoust"
+  const parts = trimmed.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) {
+    // Single token: take first letter
+    return parts[0].charAt(0).toUpperCase() + '.';
+  }
+  // 2+ tokens: first letter of first + first letter of last
+  const fi = parts[0].charAt(0).toUpperCase();
+  const li = parts[parts.length - 1].charAt(0).toUpperCase();
+  return `${fi}.${li}.`;
+}
+
+// Convenience: apply captain-name anonymization gate based on profile setting.
+// Returns the original name if the user has consented (toggle ON),
+// otherwise returns the anonymized version.
+function gateCaptainName(name, profile) {
+  if (!name) return '';
+  // Default OFF (anonymize). User must explicitly opt-in via Profile.
+  const consented = profile && profile.consentCaptainNames === true;
+  return consented ? name : anonymizeCaptainName(name);
+}
+
+// ═══════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════
 const DB = {

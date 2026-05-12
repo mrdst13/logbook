@@ -764,6 +764,16 @@
           </div>
         </div>
         <div class="form-group col-span-2">
+          <label>Captain Name Privacy (PIPEDA)</label>
+          <label class="col-option" style="margin-top:6px;">
+            <input type="checkbox" id="p-consentCaptainNames" />
+            <span class="col-option-label">I have my crew's consent (or accept responsibility) — keep full captain names</span>
+          </label>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+            <strong>Default: OFF (anonymized).</strong> When OFF, Cumulo automatically stores captain names from Navblue / PDF roster / AI photo imports as <strong>initials only</strong> (e.g. <code>M.D.</code> instead of <code>Martin Daoust</code>). This protects third-party privacy under PIPEDA Principle 4.3 (consent from the data subject).<br><br>Turn ON only if you've obtained your crew's consent to record their names in your logbook, or if you take responsibility for that handling. Already-imported names are not touched retroactively — only new imports follow the current setting.
+          </div>
+        </div>
+        <div class="form-group col-span-2">
           <label>Aircraft Configurations (for bush / GA pilots)</label>
           <div style="display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:6px;" id="p-acConfigs">
             <label class="col-option"><input type="checkbox" value="wheels" /> <span class="col-option-label">Wheels (standard)</span></label>

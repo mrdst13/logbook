@@ -114,6 +114,14 @@ function loadProfile() {
     autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
     autoCb.onchange = () => autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
   }
+  // Captain-name PIPEDA toggle: default OFF (anonymize). User explicitly opts in
+  // if they have crew consent or accept responsibility for third-party data.
+  const consentCb = document.getElementById('p-consentCaptainNames');
+  if (consentCb) {
+    consentCb.checked = !!p.consentCaptainNames; // explicit false when missing
+    consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+    consentCb.onchange = () => consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+  }
   // Aircraft configurations checkboxes
   const acConfigs = p.acConfigs || ['wheels'];
   document.querySelectorAll('#p-acConfigs input[type=checkbox]').forEach(cb => {
@@ -183,6 +191,7 @@ function saveProfile() {
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
     autoCountIFR: !!document.getElementById('p-autoCountIFR')?.checked,
+    consentCaptainNames: !!document.getElementById('p-consentCaptainNames')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
   };

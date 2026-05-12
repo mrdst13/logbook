@@ -56,6 +56,10 @@ async function handleRosterFile(file) {
     snapshotBeforeOperation('Crew names enrichment from PDF');
     updateUndoButton();
 
+    // PIPEDA: read consent toggle BEFORE looping so we apply the same policy
+    // to every captain name in this import batch.
+    const rosterProfile = DB.loadProfile();
+
     // Merge captain names into existing flights — match by date + flight number
     let matched = 0, alreadyHad = 0, noMatch = 0;
     const stillMissing = [];
@@ -72,7 +76,10 @@ async function handleRosterFile(file) {
         alreadyHad++;
         return;
       }
-      flights[idx] = { ...existing, pic: item.pic };
+      // PIPEDA gate: anonymize to initials unless user has explicitly consented
+      // via Profile → Captain Name Privacy toggle (default OFF).
+      const picValue = gateCaptainName(item.pic, rosterProfile);
+      flights[idx] = { ...existing, pic: picValue };
       matched++;
     });
 

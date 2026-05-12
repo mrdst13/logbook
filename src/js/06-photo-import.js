@@ -268,8 +268,17 @@ function confirmImport() {
     showToast('Nothing selected to import', 'error');
     return;
   }
+  // PIPEDA: read consent toggle once for the whole batch so the rule
+  // applies uniformly to every captain name in this import.
+  const importProfile = DB.loadProfile();
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
+    // Anonymize captain name unless user has consented via Profile toggle.
+    // Catches photo OCR (Anthropic returns `pic`) and any other path that
+    // flows through the import preview modal.
+    if (flightData.pic) {
+      flightData.pic = gateCaptainName(flightData.pic, importProfile);
+    }
     flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);

@@ -2700,6 +2700,16 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           </div>
         </div>
         <div class="form-group col-span-2">
+          <label>Captain Name Privacy (PIPEDA)</label>
+          <label class="col-option" style="margin-top:6px;">
+            <input type="checkbox" id="p-consentCaptainNames" />
+            <span class="col-option-label">I have my crew's consent (or accept responsibility) — keep full captain names</span>
+          </label>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+            <strong>Default: OFF (anonymized).</strong> When OFF, Cumulo automatically stores captain names from Navblue / PDF roster / AI photo imports as <strong>initials only</strong> (e.g. <code>M.D.</code> instead of <code>Martin Daoust</code>). This protects third-party privacy under PIPEDA Principle 4.3 (consent from the data subject).<br><br>Turn ON only if you've obtained your crew's consent to record their names in your logbook, or if you take responsibility for that handling. Already-imported names are not touched retroactively — only new imports follow the current setting.
+          </div>
+        </div>
+        <div class="form-group col-span-2">
           <label>Aircraft Configurations (for bush / GA pilots)</label>
           <div style="display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:6px;" id="p-acConfigs">
             <label class="col-option"><input type="checkbox" value="wheels" /> <span class="col-option-label">Wheels (standard)</span></label>
@@ -3048,6 +3058,67 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
+}
+
+// ═══════════════════════════════════════════
+// PIPEDA — Captain-name anonymization
+//
+// Third-party PII handling: when Cumulo imports flight data from Navblue
+// iCal or PDF rosters, it may detect captain names (other pilots — third
+// parties who haven't consented to being in this user's logbook).
+// PIPEDA Principle 4.3 requires consent from the data subject. To stay
+// compliant at scale, captain names are anonymized to initials by default.
+//
+// The user can opt-in to keep full names via Profile → "I have consent /
+// will anonymize" toggle (`profile.consentCaptainNames`). Default: false
+// (anonymize). When false, this function is called on every incoming
+// captain name before it lands in `flights[]`.
+//
+// Format normalization:
+//   "DAOUST, Martin"   → "M.D."  (last, first  →  first.last initials)
+//   "Daoust, M"        → "M.D."
+//   "Martin Daoust"    → "M.D."
+//   "M. Daoust"        → "M.D."
+//   "MD"               → "M.D."
+//   ""  /  null        → ""
+//   "M.D."             → "M.D."  (idempotent — already initials)
+// ═══════════════════════════════════════════
+function anonymizeCaptainName(name) {
+  if (!name || typeof name !== 'string') return '';
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  // Already-initial format like "M.D." or "M. D." → return as-is (idempotent)
+  if (/^[A-Z]\.\s?[A-Z]\.\s*$/.test(trimmed)) return trimmed.replace(/\s+/g, '');
+
+  // Comma format: "Lastname, Firstname" (Navblue convention)
+  if (trimmed.includes(',')) {
+    const [last, first] = trimmed.split(',').map(s => s.trim());
+    const fi = first ? first.charAt(0).toUpperCase() : '';
+    const li = last ? last.charAt(0).toUpperCase() : '';
+    return (fi && li) ? `${fi}.${li}.` : (fi ? `${fi}.` : (li ? `${li}.` : ''));
+  }
+
+  // Space-separated: "Firstname Lastname" or "Martin Daoust" or "M. Daoust"
+  const parts = trimmed.split(/[\s.]+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) {
+    // Single token: take first letter
+    return parts[0].charAt(0).toUpperCase() + '.';
+  }
+  // 2+ tokens: first letter of first + first letter of last
+  const fi = parts[0].charAt(0).toUpperCase();
+  const li = parts[parts.length - 1].charAt(0).toUpperCase();
+  return `${fi}.${li}.`;
+}
+
+// Convenience: apply captain-name anonymization gate based on profile setting.
+// Returns the original name if the user has consented (toggle ON),
+// otherwise returns the anonymized version.
+function gateCaptainName(name, profile) {
+  if (!name) return '';
+  // Default OFF (anonymize). User must explicitly opt-in via Profile.
+  const consented = profile && profile.consentCaptainNames === true;
+  return consented ? name : anonymizeCaptainName(name);
 }
 
 // ═══════════════════════════════════════════
@@ -4335,8 +4406,17 @@ function confirmImport() {
     showToast('Nothing selected to import', 'error');
     return;
   }
+  // PIPEDA: read consent toggle once for the whole batch so the rule
+  // applies uniformly to every captain name in this import.
+  const importProfile = DB.loadProfile();
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
+    // Anonymize captain name unless user has consented via Profile toggle.
+    // Catches photo OCR (Anthropic returns `pic`) and any other path that
+    // flows through the import preview modal.
+    if (flightData.pic) {
+      flightData.pic = gateCaptainName(flightData.pic, importProfile);
+    }
     flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);
@@ -4483,6 +4563,14 @@ function loadProfile() {
     autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
     autoCb.onchange = () => autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
   }
+  // Captain-name PIPEDA toggle: default OFF (anonymize). User explicitly opts in
+  // if they have crew consent or accept responsibility for third-party data.
+  const consentCb = document.getElementById('p-consentCaptainNames');
+  if (consentCb) {
+    consentCb.checked = !!p.consentCaptainNames; // explicit false when missing
+    consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+    consentCb.onchange = () => consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+  }
   // Aircraft configurations checkboxes
   const acConfigs = p.acConfigs || ['wheels'];
   document.querySelectorAll('#p-acConfigs input[type=checkbox]').forEach(cb => {
@@ -4552,6 +4640,7 @@ function saveProfile() {
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
     autoCountIFR: !!document.getElementById('p-autoCountIFR')?.checked,
+    consentCaptainNames: !!document.getElementById('p-consentCaptainNames')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
   };
@@ -5593,6 +5682,10 @@ async function handleRosterFile(file) {
     snapshotBeforeOperation('Crew names enrichment from PDF');
     updateUndoButton();
 
+    // PIPEDA: read consent toggle BEFORE looping so we apply the same policy
+    // to every captain name in this import batch.
+    const rosterProfile = DB.loadProfile();
+
     // Merge captain names into existing flights — match by date + flight number
     let matched = 0, alreadyHad = 0, noMatch = 0;
     const stillMissing = [];
@@ -5609,7 +5702,10 @@ async function handleRosterFile(file) {
         alreadyHad++;
         return;
       }
-      flights[idx] = { ...existing, pic: item.pic };
+      // PIPEDA gate: anonymize to initials unless user has explicitly consented
+      // via Profile → Captain Name Privacy toggle (default OFF).
+      const picValue = gateCaptainName(item.pic, rosterProfile);
+      flights[idx] = { ...existing, pic: picValue };
       matched++;
     });
 
