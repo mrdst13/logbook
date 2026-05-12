@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://logbook-api.martindaoust33.workers.dev https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="My Logbook">
@@ -188,7 +190,7 @@
 /* App-like scroll behavior (Linear / Notion / Stripe Dashboard pattern):
    body never scrolls, only the main content area scrolls vertically,
    and only the table-wrap scrolls horizontally. */
-html, body { height: 100vh; overflow: hidden; }
+html, body { height: 100vh; height: 100dvh; overflow: hidden; }
 
 /* ─── Typography utilities (Notion/Linear-inspired) ─── */
 .eyebrow {
@@ -214,6 +216,7 @@ body {
   background: var(--bg-app);
   color: var(--text);
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   font-size: 14px;
@@ -275,7 +278,21 @@ body { position: relative; }
 header, .app-body, main, nav { position: relative; z-index: 1; }
 
 /* Prevent body scroll when mobile nav is open */
+/* Mobile drawer scroll lock (iOS Safari compatible).
+   body already has overflow:hidden since page load, so the real scroller
+   is <main>. Lock IT, plus prevent touchmove scroll-chaining through overlay. */
 body.nav-open { overflow: hidden; }
+body.nav-open main { overflow: hidden; touch-action: none; }
+
+/* Any open modal locks <main> via :has() — avoids touching every show/hide
+   call site. Supported on Safari 15.4+ / Chrome 105+ / Firefox 121+. */
+body:has(.import-overlay.show) main { overflow: hidden; touch-action: none; }
+
+/* Interactive elements: kill the 300ms iOS tap delay. */
+.nav-item, .hamburger, .btn, .theme-toggle button,
+.entry-type-btn, .stat-card, button, a, label {
+  touch-action: manipulation;
+}
 
 /* ═══════════════════════════════════════
    TOPBAR (Liquid Glass)
@@ -420,6 +437,9 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   opacity: 0;
   transition: opacity 0.28s ease;
   pointer-events: none;
+  /* Block touchmove scroll-chaining to <main> on iOS Safari */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 /* Make overlay clickable and visible when nav is open */
 body.nav-open .nav-overlay {
@@ -1285,6 +1305,8 @@ label {
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="email"],
+input[type="tel"],
 select,
 textarea {
   padding: 9px var(--s-3);
@@ -1305,6 +1327,24 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 textarea { resize: vertical; min-height: 72px; }
+
+/* Restore visible chevron on <select> after appearance:none stripped it.
+   Without this, the airline dropdown on iOS looks like a static text field. */
+select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='none' stroke='%23475063' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5l5 5 5-5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+/* iOS: bump form font to 16px on mobile to prevent zoom-on-focus.
+   Anything below 16px triggers Safari's auto-zoom on input focus. */
+@media (max-width: 860px) {
+  input[type="text"], input[type="number"], input[type="date"],
+  input[type="email"], input[type="tel"], select, textarea {
+    font-size: 16px;
+  }
+}
 
 .form-actions {
   display: flex;
@@ -1484,7 +1524,7 @@ textarea { resize: vertical; min-height: 72px; }
   box-shadow: var(--shadow-lg);
   width: 100%;
   max-width: 720px;
-  max-height: calc(100vh - var(--s-16));
+  max-height: calc(100dvh - var(--s-16));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1776,8 +1816,15 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
    RESPONSIVE (v3a)
 ═══════════════════════════════════════ */
 @media (max-width: 860px) {
-  .hamburger { display: flex; }
+  /* Tap targets: bump to Apple HIG min 44pt */
+  .hamburger { display: flex; width: 44px; height: 44px; }
   .nav-overlay { display: block; }
+
+  /* Safe-area inset so content doesn't hide behind iPhone home indicator */
+  main { padding-bottom: calc(var(--s-10) + env(safe-area-inset-bottom)); }
+
+  /* Hero mini-stat row wraps on iPhone SE (~360px) instead of clipping */
+  .hero-mini { flex-wrap: wrap; row-gap: var(--s-3); }
 
   /* Sidebar: drawer with opaque background (glass would be unreadable over content) */
   nav {
@@ -1785,7 +1832,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     top: 0;
     left: 0;
     height: 100vh;
+    height: 100dvh;
     width: 260px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     z-index: 99;
     padding-top: calc(var(--header) + var(--s-3));
     background: var(--bg-surface);
@@ -1837,8 +1887,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   /* Table cells tighter */
   th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
 
-  /* Theme toggle stays visible — slightly smaller */
-  .theme-toggle button { width: 28px; height: 28px; }
+  /* Theme toggle stays visible — bumped to comfortable tap size */
+  .theme-toggle button { width: 36px; height: 36px; }
+
+  /* Nav item tap height */
+  .nav-item { padding-top: 12px; padding-bottom: 12px; }
 }
 
 @media (max-width: 480px) {
@@ -2567,7 +2620,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
               <option value="Air Inuit|3H">Air Inuit (3H)</option>
               <option value="Calm Air|MO">Calm Air (MO)</option>
               <option value="Central Mountain Air|9M">Central Mountain Air (9M)</option>
-              <option value="North Star Air||NSA">North Star Air (NSA)</option>
+              <option value="North Star Air|NSA">North Star Air (NSA)</option>
               <option value="Air Tindi|8T">Air Tindi (8T)</option>
               <option value="Kenn Borek Air|KBA">Kenn Borek Air (KBA)</option>
               <option value="Air Creebec|YN">Air Creebec (YN)</option>
@@ -2960,6 +3013,21 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
 <script>
 // ═══════════════════════════════════════════
+// XSS escape helper — every value interpolated into innerHTML must go
+// through this. Most sensitive sources: Navblue iCal parser (captain
+// names from rosters), Anthropic OCR output (photo logbook imports),
+// PDF roster parser (captain names + flight numbers), JSON backup
+// restore (entire flight payload). Failure mode: a single hostile
+// backup file or roster image runs arbitrary JS in the pilot's
+// browser and exfiltrates localStorage.
+// ═══════════════════════════════════════════
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ═══════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════
 const DB = {
@@ -2988,13 +3056,42 @@ let editingId = null;
 
 // ═══════════════════════════════════════════
 // MOBILE NAVIGATION (Feature 1)
+// iOS Safari scroll lock: body { overflow:hidden } alone doesn't work
+// because <main> is the real scroller. We pin it position:fixed with a
+// negative top offset, then restore scrollTop on close.
 // ═══════════════════════════════════════════
+let _navSavedScroll = 0;
+
 function toggleMobileNav() {
-  document.body.classList.toggle('nav-open');
+  if (document.body.classList.contains('nav-open')) {
+    closeMobileNav();
+  } else {
+    openMobileNav();
+  }
+}
+
+function openMobileNav() {
+  const m = document.querySelector('main');
+  _navSavedScroll = m ? m.scrollTop : 0;
+  document.body.classList.add('nav-open');
+  if (m) {
+    m.style.position = 'fixed';
+    m.style.top = `-${_navSavedScroll}px`;
+    m.style.left = '0';
+    m.style.right = '0';
+  }
 }
 
 function closeMobileNav() {
   document.body.classList.remove('nav-open');
+  const m = document.querySelector('main');
+  if (m) {
+    m.style.position = '';
+    m.style.top = '';
+    m.style.left = '';
+    m.style.right = '';
+    m.scrollTop = _navSavedScroll;
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -3404,9 +3501,9 @@ function renderDashboard() {
   }
   tbody.innerHTML = recent.map(f => `
     <tr>
-      <td>${f.date}</td>
-      <td><span class="reg-tag">${f.reg||'—'}</span></td>
-      <td><span class="route-tag">${f.route||'—'}</span></td>
+      <td>${esc(f.date)}</td>
+      <td><span class="reg-tag">${esc(f.reg||'—')}</span></td>
+      <td><span class="route-tag">${esc(f.route||'—')}</span></td>
       <td class="hrs">${fmt(f.block)}</td>
       <td class="hrs">${fmt(f.total)}</td>
       <td>${(+f.ldgDay||0)+(+f.ldgNight||0)}</td>
@@ -3610,11 +3707,11 @@ function renderLogbook(filter='') {
       if (isMuted) {
         display = '<span class="cell-num muted">—</span>';
       } else if (c.key === 'reg') {
-        display = `<span class="reg-tag">${v}</span>${f.isSim ? ' <span class="sim-badge">SIM</span>' : ''}`;
+        display = `<span class="reg-tag">${esc(v)}</span>${f.isSim ? ' <span class="sim-badge">SIM</span>' : ''}`;
       } else if (c.key === 'route') {
-        display = `<span class="route-tag">${v}</span>`;
+        display = `<span class="route-tag">${esc(v)}</span>`;
       } else if (c.key === 'date') {
-        display = `<span class="cell-date">${v}</span>`;
+        display = `<span class="cell-date">${esc(v)}</span>`;
       } else if (c.key === 'total') {
         display = `<strong>${fmt(v)}</strong>`;
       } else if (c.decimal) {
@@ -3622,18 +3719,19 @@ function renderLogbook(filter='') {
       } else if (typeof v === 'number') {
         display = `<span class="cell-num">${v}</span>`;
       } else {
-        display = v;
+        display = esc(v);
       }
       const tdClass = c.decimal ? 'hrs' : '';
-      return `<td data-label="${c.short}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
+      return `<td data-label="${esc(c.short)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
     }).join('');
 
+    const fid = esc(f.id);
     return `
-    <tr onclick="openFlightDetail('${f.id}')" class="row-clickable">
+    <tr onclick="openFlightDetail('${fid}')" class="row-clickable">
       ${cells}
       <td data-label="" class="row-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="editFlight('${f.id}')" title="Edit">✏</button>
-        <button class="btn btn-sm" style="background:var(--danger-soft);color:var(--danger);margin-left:4px" onclick="deleteFlight('${f.id}')" title="Delete">🗑</button>
+        <button class="btn btn-ghost btn-sm" onclick="editFlight('${fid}')" title="Edit">✏</button>
+        <button class="btn btn-sm" style="background:var(--danger-soft);color:var(--danger);margin-left:4px" onclick="deleteFlight('${fid}')" title="Delete">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -3710,7 +3808,7 @@ function openFlightDetail(id) {
   ];
   const rows = fields.map(([k, v]) => {
     if (!k) return '<div class="detail-sep"></div>';
-    return `<div class="detail-row"><div class="detail-key">${k}</div><div class="detail-val">${v || '—'}</div></div>`;
+    return `<div class="detail-row"><div class="detail-key">${esc(k)}</div><div class="detail-val">${esc(v || '—')}</div></div>`;
   }).join('');
   document.getElementById('flightDetailTitle').textContent = `${f.date} · ${f.flightNum || ''} ${f.route || ''}`.trim();
   document.getElementById('flightDetailBody').innerHTML = rows;
@@ -4136,15 +4234,15 @@ function renderImportPreview() {
                ${f.selected ? 'checked' : ''}
                onchange="toggleImportItem(${i}, this.checked)">
         <div class="review-body">
-          <div class="review-item-header">#${i+1} · ${f.date} · ${f.flightNum || f.reg || '?'} · ${f.route || '?'}</div>
+          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}</div>
           <div class="review-fields">
-            <div class="review-field"><span>Total</span> ${f.total}h</div>
-            <div class="review-field"><span>Block</span> ${f.block || 0}h</div>
-            <div class="review-field"><span>PIC Day</span> ${f.meDayPic || 0}h</div>
-            <div class="review-field"><span>PIC Night</span> ${f.meNightPic || 0}h</div>
+            <div class="review-field"><span>Total</span> ${+f.total||0}h</div>
+            <div class="review-field"><span>Block</span> ${+f.block || 0}h</div>
+            <div class="review-field"><span>PIC Day</span> ${+f.meDayPic || 0}h</div>
+            <div class="review-field"><span>PIC Night</span> ${+f.meNightPic || 0}h</div>
             ${(f.meDayCop || f.meNightCop) ? `<div class="review-field"><span>SIC</span> ${((+f.meDayCop||0)+(+f.meNightCop||0)).toFixed(2)}h</div>` : ''}
-            <div class="review-field"><span>Ldg</span> ${(f.ldgDay || 0) + (f.ldgNight || 0)}</div>
-            ${f.pic ? `<div class="review-field"><span>PIC</span> ${f.pic}</div>` : ''}
+            <div class="review-field"><span>Ldg</span> ${(+f.ldgDay || 0) + (+f.ldgNight || 0)}</div>
+            ${f.pic ? `<div class="review-field"><span>PIC</span> ${esc(f.pic)}</div>` : ''}
           </div>
         </div>
       </label>`).join('')}
