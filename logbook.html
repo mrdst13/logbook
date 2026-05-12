@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://logbook-api.martindaoust33.workers.dev https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="My Logbook">
@@ -6729,8 +6732,17 @@ function showToast(msg, type='') {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
+// Build version stamp — bump every push so user can verify fresh load
+const BUILD_VERSION = 'v3a-2026-05-11-fix3';
+
 (function init() {
   applyDarkMode();
+  // Visible version badge bottom-right — verifies fresh page load on iOS
+  const vBadge = document.createElement('div');
+  vBadge.id = 'buildVersion';
+  vBadge.textContent = BUILD_VERSION;
+  vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
+  document.body.appendChild(vBadge);
   // Rebind nav-items via addEventListener (iOS Safari reliability)
   wireNavItems();
   const p = DB.loadProfile();
