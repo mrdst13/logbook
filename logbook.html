@@ -876,6 +876,151 @@ tbody tr:hover td { background: var(--bg-subtle); }
 .row-actions button { padding: 4px 8px; font-size: 11px; }
 .cell-num.muted { color: var(--text-muted); }
 
+/* Settings page — grouped sections (Linear / Stripe Dashboard pattern) */
+.settings-section {
+  margin-bottom: var(--s-8);
+}
+.settings-section-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+.settings-section-danger { padding: var(--s-4); border: 1px solid var(--danger-soft); border-radius: var(--r-md); background: var(--bg-surface); }
+.settings-section-danger .settings-section-title { border-color: var(--danger-soft); margin-bottom: 0; }
+
+/* Settings cards (richer, with form inputs inside) */
+.settings-card { padding: var(--s-5); margin-bottom: var(--s-3); }
+.settings-card-head {
+  display: flex;
+  gap: var(--s-4);
+  align-items: flex-start;
+  margin-bottom: var(--s-4);
+}
+.settings-card-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  opacity: 0.9;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+  display: grid; place-items: center;
+}
+.settings-card-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.settings-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.settings-card-head > div:nth-child(2) { flex: 1; }
+.settings-card-accent { border-left: 3px solid var(--accent); }
+.settings-card-success { border-left: 3px solid var(--success); }
+
+/* Settings rows (simple key/value with toggle/button on right) */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-2);
+  transition: border-color var(--t-micro) var(--ease-out);
+}
+.settings-row:hover { border-color: var(--border-strong); }
+.settings-row-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  display: grid; place-items: center;
+}
+.settings-row-info { flex: 1; min-width: 0; }
+.settings-row-title { font-weight: 600; font-size: 14px; color: var(--text); }
+.settings-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
+.settings-row-danger { background: var(--danger-soft); border-color: var(--danger); }
+
+@media (max-width: 640px) {
+  .settings-row { flex-wrap: wrap; }
+  .settings-row .btn { width: 100%; justify-content: center; }
+  .settings-card-head { flex-wrap: wrap; }
+}
+
+/* SIM badge (table cell) */
+.sim-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--warning-soft);
+  color: var(--warning);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Entry type toggle (Flight vs Simulator) */
+.entry-type-btn {
+  flex: 1;
+  padding: var(--s-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.entry-type-btn:hover { color: var(--text); }
+.entry-type-btn.is-active {
+  background: var(--bg-surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Totals footer row (Logbook table) */
+.totals-row {
+  background: var(--bg-subtle);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+.totals-row td.totals-cell {
+  border-top: 2px solid var(--accent);
+  border-bottom: none;
+  padding: var(--s-3) var(--s-4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.totals-row td.totals-cell strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Flight detail modal — key / value layout */
 #flightDetailBody { display: flex; flex-direction: column; gap: 2px; }
 .detail-row {
@@ -1846,7 +1991,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     <div class="card" style="margin-bottom:24px">
       <div class="card-header">
         <div class="card-title">Monthly Block Hours</div>
-        <span style="font-family:var(--font-mono);font-size:10px;color:var(--gray-500);letter-spacing:1px">LAST 12 MONTHS</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px">LAST 12 MONTHS</span>
       </div>
       <div style="padding:16px 18px 12px">
         <canvas id="monthlyChart" height="75"></canvas>
@@ -1901,6 +2046,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <tbody id="logbookTbody">
             <tr class="empty-row"><td>No flights logged yet ✈</td></tr>
           </tbody>
+          <tfoot id="logbookTfoot"></tfoot>
         </table>
       </div>
     </div>
@@ -1916,6 +2062,57 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     </div>
 
     <input type="hidden" id="editId">
+
+    <!-- ─── ENTRY TYPE TOGGLE (Flight vs Simulator) ─── -->
+    <div class="form-card" style="margin-bottom:var(--s-3);">
+      <div style="display:flex; gap:var(--s-2); padding:4px; background:var(--bg-subtle); border-radius:var(--r-md);">
+        <button type="button" class="entry-type-btn is-active" id="entryTypeFlight" onclick="setEntryType('flight')">
+          ✈ Flight
+        </button>
+        <button type="button" class="entry-type-btn" id="entryTypeSim" onclick="setEntryType('sim')">
+          🎮 Simulator session
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── SIMULATOR FIELDS (shown only when sim mode is active) ─── -->
+    <div class="form-card" id="simFields" style="display:none;">
+      <div class="form-card-title">🎮 Simulator Details</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Sim Type</label>
+          <select id="f-simType">
+            <option value="FFS">FFS — Full Flight Simulator (Level D)</option>
+            <option value="FFS-C">FFS — Level C</option>
+            <option value="FTD">FTD — Flight Training Device</option>
+            <option value="FNPT">FNPT — Flight & Navigation Procedures Trainer</option>
+            <option value="BITD">BITD — Basic Instrument Trainer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Session Type</label>
+          <select id="f-simSession">
+            <option value="PPC">PPC — Pilot Proficiency Check</option>
+            <option value="IPC">IPC — Instrument Proficiency Check</option>
+            <option value="IFR-Renewal">IFR Renewal</option>
+            <option value="Recurrent">Recurrent Training</option>
+            <option value="Initial">Initial Training</option>
+            <option value="Type-Rating">Type Rating Course</option>
+            <option value="LOFT">LOFT — Line Oriented Flight Training</option>
+            <option value="Other">Other Training</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sim Device ID</label>
+          <input type="text" id="f-simRegistration" placeholder="e.g. FFS-E195-001" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
+          <label>Instructor / Examiner</label>
+          <input type="text" id="f-simInstructor" placeholder="Captain name or examiner #">
+        </div>
+      </div>
+    </div>
 
     <div class="form-card">
       <div class="form-card-title">✈ Flight Information</div>
@@ -2098,7 +2295,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     <div id="navbluePanel" style="display:none;margin-bottom:18px">
       <div class="form-card">
         <div class="form-card-title">📄 Navblue Roster — Upload PDF</div>
-        <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px;line-height:1.6;font-family:var(--font-mono)">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;font-family:var(--font-mono)">
           Upload your Navblue HrRosterReport PDF directly.<br>
           AI reads the format and imports only your real flights.<br>
           <strong>Skips:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO
@@ -2215,16 +2412,16 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
     <div class="form-card">
       <div class="form-card-title">✍ Electronic Signature</div>
-      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:var(--font-mono);line-height:1.5">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:var(--s-3);line-height:1.5">
         Sign below. Your signature is saved locally and appears on PDF exports.
       </p>
-      <div style="border:1.5px solid var(--gray-100);border-radius:8px;background:var(--white);overflow:hidden;touch-action:none">
+      <div style="border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-surface);overflow:hidden;touch-action:none">
         <canvas id="sigCanvas" width="600" height="120" style="display:block;width:100%;cursor:crosshair"></canvas>
       </div>
-      <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+      <div style="display:flex;gap:var(--s-2);margin-top:var(--s-3);align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="clearSignature()">🗑 Clear</button>
         <button class="btn btn-primary btn-sm" onclick="saveSignature()">💾 Save Signature</button>
-        <span id="sigStatus" style="font-family:var(--font-mono);font-size:11px;color:var(--gray-500)"></span>
+        <span id="sigStatus" class="eyebrow" style="margin-left:auto;"></span>
       </div>
     </div>
 
@@ -2248,7 +2445,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     <!-- Ask a question -->
     <div class="form-card">
       <div class="form-card-title">💬 Ask a Question</div>
-      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;font-family:var(--font-mono);line-height:1.5">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;font-family:var(--font-mono);line-height:1.5">
         Ask anything about Canadian logbook regulations, TC requirements, or aviation currency rules.
       </p>
       <div class="form-group" style="margin-bottom:12px">
@@ -2289,7 +2486,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         <div class="page-sub">Annual flight summary</div>
       </div>
       <div class="page-actions">
-        <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--gray-100);font-family:var(--font-mono);font-size:13px;background:var(--white);color:var(--text)"></select>
+        <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);font-family:var(--font-mono);font-size:13px;background:var(--white);color:var(--text)"></select>
       </div>
     </div>
 
@@ -2315,133 +2512,166 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   <!-- ── BACKUP ── -->
   <div id="page-backup" class="page">
     <div class="page-header">
-      <div><div class="page-title">Settings</div></div>
-    </div>
-
-    <!-- ─── NAVBLUE AUTO-SYNC ─── -->
-    <div class="form-card" style="background:linear-gradient(135deg, var(--accent-soft), var(--night-soft)); border:1px solid var(--accent);">
-      <div class="form-card-title">🔄 Navblue iCal Auto-Sync</div>
-      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
-        Paste your Navblue calendar subscription URL. Cumulo will fetch your roster automatically — completed flights are imported with real block hours, future flights are skipped.
-      </p>
-
-      <div class="form-group" style="margin-bottom:var(--s-3);">
-        <label for="navblueUrl">Navblue iCal URL</label>
-        <input type="url" id="navblueUrl"
-               placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
-               style="font-family:var(--font-mono); font-size:11px;">
-      </div>
-
-      <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center;">
-        <button class="btn btn-primary" onclick="saveNavblueUrl()">💾 Save URL</button>
-        <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn">🔄 Sync now</button>
-        <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()">Clear</button>
-        <span id="navblueStatus" class="eyebrow" style="margin-left:auto;"></span>
-      </div>
-
-      <div id="navblueDetails" style="display:none; margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-surface); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
-    </div>
-
-    <!-- ─── PDF ROSTER ENRICHMENT (captain names from Navblue HrRosterReport) ─── -->
-    <div class="form-card" style="background:linear-gradient(135deg, var(--success-soft), var(--accent-soft)); border:1px solid var(--success);">
-      <div class="form-card-title">👨‍✈️ Crew names from Navblue PDF roster</div>
-      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
-        The Navblue iCal feed doesn't include captain names. Drop your <strong>HrRosterReport PDF</strong> here (download it from Navblue when convenient — once per month is enough). Cumulo extracts the captain name from each flight and merges it into your logbook automatically. <strong>Nothing is uploaded</strong> — parsing happens 100% in your browser.
-      </p>
-
-      <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
-           ondragover="event.preventDefault(); this.classList.add('dragover');"
-           ondragleave="this.classList.remove('dragover');"
-           ondrop="handleRosterDrop(event);">
-        <div class="drop-icon">📄</div>
-        <div class="drop-title">Drop Navblue PDF roster here</div>
-        <div class="drop-sub">or click to select a file · HrRosterReport_*.pdf</div>
-      </div>
-      <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
-
-      <div id="rosterDetails" style="display:none; margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-surface); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
-    </div>
-
-    <div class="backup-option">
-      <div class="backup-icon">🌙</div>
-      <div class="backup-info">
-        <div class="backup-title">Dark Mode</div>
-        <div class="backup-desc">Switch between light and dark theme. Preference saved automatically.</div>
-      </div>
-      <div class="dark-toggle">
-        <label class="toggle-switch">
-          <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
-          <span class="toggle-slider"></span>
-        </label>
+      <div>
+        <div class="page-title">Settings</div>
+        <div class="page-sub">Sync · Display · Export · Data</div>
       </div>
     </div>
 
-    <div class="backup-option" style="border-left:3px solid var(--accent);">
-      <div class="backup-icon">📄</div>
-      <div class="backup-info">
-        <div class="backup-title">Export Logbook as PDF</div>
-        <div class="backup-desc">Landscape print-ready logbook. CAR 401.08 column layout with running totals and signature block. <strong>Use this for Transport Canada inspections, employer submissions, or just to print on paper.</strong></div>
-      </div>
-      <button class="btn btn-primary" onclick="exportPDF()">📄 Export PDF</button>
-    </div>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 1 — IMPORT & SYNC                   -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="settings-section">
+      <div class="settings-section-title">Sync &amp; Import</div>
 
-    <!-- ─── VISIBLE COLUMNS (Logbook table + PDF export) ─── -->
-    <div class="backup-option" style="border-left:3px solid var(--accent); display:block;">
-      <div style="display:flex; align-items:flex-start; gap:var(--s-4); margin-bottom:var(--s-3);">
-        <div class="backup-icon">📊</div>
-        <div class="backup-info" style="flex:1;">
-          <div class="backup-title">Visible columns (Logbook table + PDF export)</div>
-          <div class="backup-desc">All data is captured on every flight (Transport Canada CAR 401.08 + Standard 421 categories). Pick which columns you want visible in the table and PDF. Defaults : essential 705 F/O view. Add more for ATPL preparation, recurrent training, or detailed audit.</div>
+      <!-- Navblue iCal Auto-Sync -->
+      <div class="form-card settings-card settings-card-accent">
+        <div class="settings-card-head">
+          <div class="settings-card-icon">🔄</div>
+          <div>
+            <div class="settings-card-title">Navblue iCal Auto-Sync</div>
+            <div class="settings-card-desc">Fetches your roster automatically — completed flights with real block hours.</div>
+          </div>
+          <span id="navblueStatus" class="eyebrow"></span>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()">Reset to defaults</button>
+        <div class="form-group" style="margin-bottom:var(--s-3);">
+          <label for="navblueUrl">iCal URL</label>
+          <input type="url" id="navblueUrl"
+                 placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
+                 style="font-family:var(--font-mono); font-size:11px;">
+        </div>
+        <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveNavblueUrl()">💾 Save URL</button>
+          <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn">🔄 Sync now</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()">Clear</button>
+        </div>
+        <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
       </div>
-      <div id="columnPicker"></div>
+
+      <!-- PDF Roster for captain names -->
+      <div class="form-card settings-card settings-card-success">
+        <div class="settings-card-head">
+          <div class="settings-card-icon">👨‍✈️</div>
+          <div>
+            <div class="settings-card-title">Crew names from PDF roster</div>
+            <div class="settings-card-desc">iCal doesn't include captains. Drop your <strong>HrRosterReport PDF</strong> — Cumulo extracts and merges captain names. 100% client-side, nothing uploaded.</div>
+          </div>
+        </div>
+        <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
+             ondragover="event.preventDefault(); this.classList.add('dragover');"
+             ondragleave="this.classList.remove('dragover');"
+             ondrop="handleRosterDrop(event);">
+          <div class="drop-icon">📄</div>
+          <div class="drop-title">Drop Navblue PDF roster here</div>
+          <div class="drop-sub">or click · HrRosterReport_*.pdf</div>
+        </div>
+        <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
+        <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
+      </div>
     </div>
 
-    <div class="backup-option" style="border-left:3px solid var(--night);">
-      <div class="backup-icon">🌙</div>
-      <div class="backup-info">
-        <div class="backup-title">Recalculate Night & Cross-Country</div>
-        <div class="backup-desc">Re-process all imported flights to compute night hours (RAC 101.01) and cross-country (CAR 401.34 — &gt; 25 NM) using astronomical sunrise/sunset and great-circle distance. Run this once after importing from Navblue iCal — older imports had no day/night split.</div>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 2 — DISPLAY & EXPORT                -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="settings-section">
+      <div class="settings-section-title">Display &amp; Export</div>
+
+      <!-- Theme -->
+      <div class="settings-row">
+        <div class="settings-row-icon">🌙</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">Dark Mode</div>
+          <div class="settings-row-desc">Switch between light and dark theme.</div>
+        </div>
+        <div class="dark-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
-      <button class="btn btn-outline" onclick="recalculateAllFlights()">🔄 Recalculate</button>
+
+      <!-- Export PDF -->
+      <div class="settings-row">
+        <div class="settings-row-icon">📄</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">Export Logbook as PDF</div>
+          <div class="settings-row-desc">Print-ready CAR 401.08 layout with cover page, signature blocks, and currency status annex.</div>
+        </div>
+        <button class="btn btn-primary" onclick="exportPDF()">📄 Export</button>
+      </div>
+
+      <!-- Visible Columns -->
+      <div class="form-card settings-card">
+        <div class="settings-card-head">
+          <div class="settings-card-icon">📊</div>
+          <div>
+            <div class="settings-card-title">Visible columns</div>
+            <div class="settings-card-desc">Applies to <strong>Logbook table</strong> + <strong>PDF export</strong>. All TC categories captured per flight — pick what to show.</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()">Reset</button>
+        </div>
+        <div id="columnPicker"></div>
+      </div>
     </div>
 
-    <div class="backup-option" style="border-left:3px solid var(--success);">
-      <div class="backup-icon">↩️</div>
-      <div class="backup-info">
-        <div class="backup-title">Undo last bulk operation</div>
-        <div class="backup-desc">Cumulo automatically snapshots your logbook before any bulk operation (sync, recalculate, etc.). If something went wrong, restore the previous state with one click. <strong>Your flight data is precious — Cumulo never deletes without explicit per-flight confirmation.</strong></div>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 3 — DATA MAINTENANCE                -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="settings-section">
+      <div class="settings-section-title">Data &amp; Maintenance</div>
+
+      <div class="settings-row">
+        <div class="settings-row-icon">🌙</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">Recalculate Night &amp; Cross-Country</div>
+          <div class="settings-row-desc">Re-process all flights with astronomical sunrise/sunset (RAC 101.01) and great-circle distance (CAR 401.34).</div>
+        </div>
+        <button class="btn btn-outline" onclick="recalculateAllFlights()">🔄 Recalc</button>
       </div>
-      <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">↩️ Undo</button>
+
+      <div class="settings-row">
+        <div class="settings-row-icon">↩️</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">Undo last bulk operation</div>
+          <div class="settings-row-desc">Cumulo snapshots automatically before sync/recalc. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.</div>
+        </div>
+        <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">↩️ Undo</button>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-row-icon">💾</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">Download data backup (JSON)</div>
+          <div class="settings-row-desc">Technical backup for restoring on another device. Not human-readable — use Export PDF for reading.</div>
+        </div>
+        <button class="btn btn-ghost" onclick="backupData()">Download JSON</button>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-row-icon">📤</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title">Restore from JSON backup</div>
+          <div class="settings-row-desc">Load a previously downloaded backup file.</div>
+        </div>
+        <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">Restore</button>
+        <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)">
+      </div>
     </div>
 
-    <div class="backup-option">
-      <div class="backup-icon">💾</div>
-      <div class="backup-info">
-        <div class="backup-title">Download Data Backup (JSON)</div>
-        <div class="backup-desc">Technical backup of all your flight data in JSON format. Use this only to restore Cumulo on another device or recover from a bug. <em>This file is not human-readable — use Export PDF instead if you want to read your logbook.</em></div>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 4 — DANGER ZONE                     -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="settings-section settings-section-danger">
+      <div class="settings-section-title" style="color:var(--danger);">Danger Zone</div>
+      <div class="settings-row settings-row-danger">
+        <div class="settings-row-icon">🗑</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title" style="color:var(--danger);">Clear all data</div>
+          <div class="settings-row-desc">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong></div>
+        </div>
+        <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
       </div>
-      <button class="btn btn-ghost" onclick="backupData()">Download JSON</button>
-    </div>
-
-    <div class="backup-option">
-      <div class="backup-icon">📤</div>
-      <div class="backup-info">
-        <div class="backup-title">Restore from JSON Backup</div>
-        <div class="backup-desc">Restore a previously downloaded JSON backup file.</div>
-      </div>
-      <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">Restore</button>
-      <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)">
-    </div>
-
-    <div class="backup-option" style="border-color:#fdd;">
-      <div class="backup-icon">🗑</div>
-      <div class="backup-info">
-        <div class="backup-title" style="color:var(--danger)">Clear All Data</div>
-        <div class="backup-desc">Permanently delete all flights. Cannot be undone — back up first!</div>
-      </div>
-      <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
     </div>
   </div>
 
@@ -2587,6 +2817,7 @@ function showPage(id) {
     document.getElementById('formTitle').textContent = 'Log a Flight';
     clearForm();
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    setEntryType('flight');   // default to flight when entering a new entry
   }
   if (id === 'add') {
     adaptFormToProfile(DB.loadProfile().pilotType || 'airline705');
@@ -3131,7 +3362,7 @@ function renderLogbook(filter='') {
       if (isMuted) {
         display = '<span class="cell-num muted">—</span>';
       } else if (c.key === 'reg') {
-        display = `<span class="reg-tag">${v}</span>`;
+        display = `<span class="reg-tag">${v}</span>${f.isSim ? ' <span class="sim-badge">SIM</span>' : ''}`;
       } else if (c.key === 'route') {
         display = `<span class="route-tag">${v}</span>`;
       } else if (c.key === 'date') {
@@ -3158,6 +3389,32 @@ function renderLogbook(filter='') {
       </td>
     </tr>`;
   }).join('');
+
+  // ── Render totals footer (sum of all visible flights for each numeric column) ──
+  const tfoot = document.getElementById('logbookTfoot');
+  if (tfoot) {
+    const totals = {};
+    cols.forEach(c => {
+      if (c.decimal) {
+        totals[c.key] = list.reduce((s, f) => s + (+computeCellValue(f, c.key) || 0), 0);
+      } else if (['ldgDay','ldgNight','approaches','toDay','toNight'].includes(c.key)) {
+        totals[c.key] = list.reduce((s, f) => s + (+f[c.key] || 0), 0);
+      }
+    });
+
+    const totalCells = cols.map((c, i) => {
+      let display = '';
+      if (i === 0) {
+        display = `<strong>TOTALS</strong> · ${list.length} flight${list.length !== 1 ? 's' : ''}`;
+      } else if (totals.hasOwnProperty(c.key)) {
+        const v = totals[c.key];
+        display = c.decimal ? `<strong>${fmt(v)}</strong>` : `<strong>${v}</strong>`;
+      }
+      return `<td class="totals-cell" style="text-align:${c.align||'left'};">${display}</td>`;
+    }).join('');
+
+    tfoot.innerHTML = `<tr class="totals-row">${totalCells}<td class="totals-cell"></td></tr>`;
+  }
 }
 
 // Open a side-panel / modal with the FULL detail of a flight.
@@ -3285,21 +3542,35 @@ function setAircraftTypeField(val) {
   }
 }
 
+let currentEntryType = 'flight';   // 'flight' or 'sim'
+
+function setEntryType(type) {
+  currentEntryType = type;
+  document.getElementById('entryTypeFlight').classList.toggle('is-active', type === 'flight');
+  document.getElementById('entryTypeSim').classList.toggle('is-active', type === 'sim');
+  document.getElementById('simFields').style.display = type === 'sim' ? 'block' : 'none';
+  // Update form title
+  const ft = document.getElementById('formTitle');
+  if (ft && !editingId) ft.textContent = type === 'sim' ? 'Log a Simulator Session' : 'Log a Flight';
+}
+
 function saveFlight() {
   const date = gv('f-date');
   if (!date) { showToast('Date is required', 'error'); return; }
+
+  const isSim = currentEntryType === 'sim';
 
   const flight = {
     id: editingId || Date.now().toString(),
     date,
     type: getAircraftType(),
-    reg: gv('f-reg'),
+    reg: isSim ? (gv('f-simRegistration') || 'SIM') : gv('f-reg'),
     rating: gv('f-rating'),
     pic: gv('f-pic'),
     copilot: gv('f-copilot'),
     route: gv('f-route'),
     remarks: gv('f-remarks'),
-    block: gv('f-block'),
+    block: isSim ? 0 : gv('f-block'),     // sim has no block time (not actual flight)
     duty: gv('f-duty'),
     total: gv('f-total'),
     meDayDual: gv('f-me-day-dual'),
@@ -3312,12 +3583,18 @@ function saveFlight() {
     xcDayPic: gv('f-xc-day-pic'),
     xcNightDual: gv('f-xc-night-dual'),
     xcNightPic: gv('f-xc-night-pic'),
-    ldgDay: gv('f-ldg-day'),
-    ldgNight: gv('f-ldg-night'),
+    ldgDay: isSim ? 0 : gv('f-ldg-day'),
+    ldgNight: isSim ? 0 : gv('f-ldg-night'),
     instActual: gv('f-inst-actual'),
     instHood: gv('f-inst-hood'),
-    instSim: gv('f-inst-sim'),
+    instSim: isSim ? (gv('f-total') || gv('f-inst-sim')) : gv('f-inst-sim'),
     picus: gv('f-picus'),
+    // Simulator fields (per CAR 401.08 — separate from flight time)
+    isSim,
+    simType: isSim ? gv('f-simType') : '',
+    simSession: isSim ? gv('f-simSession') : '',
+    simRegistration: isSim ? gv('f-simRegistration') : '',
+    simInstructor: isSim ? gv('f-simInstructor') : '',
   };
 
   if (editingId) {
@@ -3337,7 +3614,8 @@ function editFlight(id) {
   const f = flights.find(x => x.id === id);
   if (!f) return;
   editingId = id;
-  document.getElementById('formTitle').textContent = 'Edit Flight';
+  document.getElementById('formTitle').textContent = f.isSim ? 'Edit Simulator Session' : 'Edit Flight';
+  setEntryType(f.isSim ? 'sim' : 'flight');
   sv('f-date', f.date); setAircraftTypeField(f.type); sv('f-reg', f.reg);
   sv('f-rating', f.rating); sv('f-pic', f.pic); sv('f-copilot', f.copilot);
   sv('f-route', f.route); sv('f-remarks', f.remarks);
@@ -3349,6 +3627,12 @@ function editFlight(id) {
   sv('f-ldg-day', f.ldgDay); sv('f-ldg-night', f.ldgNight);
   sv('f-inst-actual', f.instActual); sv('f-inst-hood', f.instHood); sv('f-inst-sim', f.instSim);
   sv('f-picus', f.picus);
+  if (f.isSim) {
+    if (document.getElementById('f-simType')) document.getElementById('f-simType').value = f.simType || 'FFS';
+    if (document.getElementById('f-simSession')) document.getElementById('f-simSession').value = f.simSession || 'Recurrent';
+    sv('f-simRegistration', f.simRegistration);
+    sv('f-simInstructor', f.simInstructor);
+  }
   showPage('add');
 }
 
@@ -3851,6 +4135,12 @@ const LOGBOOK_COLUMNS = [
   { key: 'toNight',      label: 'T/O Night',           short: 'T/O N',    group: 'Landings',       width: 9,  align: 'right', default: false },
   { key: 'ldgDay',       label: 'LDG Day',             short: 'L Day',    group: 'Landings',       width: 9,  align: 'right', default: false },
   { key: 'ldgNight',     label: 'LDG Night',           short: 'L Ngt',    group: 'Landings',       width: 9,  align: 'right', default: false },
+
+  // Simulator (CAR 401.08 + Standard 421 — sim time must be separate from flight time)
+  { key: 'isSim',        label: 'Simulator',           short: 'SIM',      group: 'Simulator',      width: 9,  align: 'center', default: false },
+  { key: 'simType',      label: 'Sim Type (FFS/FTD)',  short: 'SimType',  group: 'Simulator',      width: 14, align: 'left',   default: false },
+  { key: 'simSession',   label: 'Session Type',        short: 'Session',  group: 'Simulator',      width: 16, align: 'left',   default: false },
+  { key: 'simRegistration', label: 'Sim Device ID',    short: 'Device',   group: 'Simulator',      width: 14, align: 'left',   default: false },
 
   // Other
   { key: 'picus',        label: 'PICUS',               short: 'PICUS',    group: 'Other',          width: 10, align: 'right', decimal: true, default: false },
@@ -5609,10 +5899,10 @@ function renderQAHistory() {
   if (!el) return;
   if (!qaHistory.length) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--gray-500);text-transform:uppercase;margin-bottom:10px">Previous Questions</div>
+    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Previous Questions</div>
     ${qaHistory.map(item => `
       <div class="qa-history-item">
-        <div class="qa-history-q">Q: ${item.q} <span style="font-family:var(--font-mono);font-weight:400;font-size:10px;color:var(--gray-500);margin-left:8px">${item.date}</span></div>
+        <div class="qa-history-q">Q: ${item.q} <span style="font-family:var(--font-mono);font-weight:400;font-size:10px;color:var(--text-muted);margin-left:8px">${item.date}</span></div>
         <div class="qa-history-a">${item.a}</div>
       </div>`).join('')}`;
 }
@@ -5675,48 +5965,93 @@ function saveSignature() {
 // ═══════════════════════════════════════════
 // FEATURE 10 — AVIATION GLOSSARY
 // ═══════════════════════════════════════════
+// Logbook-only glossary : acronyms a pilot will actually see in their logbook,
+// in TC regulations (CAR / RAC), or in Cumulo's import filters.
+// We exclude general aviation terms (ATC, ILS, VOR, etc.) — they belong in
+// an aviation reference, not a logbook tool.
 const GLOSSARY = [
-  ['ATA','Actual Time of Arrival — when the aircraft actually arrives at the gate'],
-  ['ATD','Actual Time of Departure — when the aircraft actually departs the gate'],
-  ['ATC','Air Traffic Control'],
-  ['ATPL','Airline Transport Pilot Licence — highest pilot certificate in Canada'],
-  ['BLH','Block Hours — total time from chocks out to chocks in'],
-  ['CAR','Canadian Aviation Regulations — Transport Canada regulatory framework'],
-  ['CPL','Commercial Pilot Licence'],
-  ['DA','Decision Altitude — altitude at which a missed approach must be initiated'],
-  ['DH','Deadhead — crew travelling as passenger for positioning'],
-  ['DME','Distance Measuring Equipment — radio nav aid for distance'],
-  ['ETA','Estimated Time of Arrival'],
-  ['ETD','Estimated Time of Departure'],
-  ['FBO','Fixed Base Operator — general aviation services company'],
-  ['FL','Flight Level — altitude in hundreds of feet above standard datum'],
-  ['F/O','First Officer — co-pilot, second in command'],
-  ['GD','Ground Duty — day off for crew'],
-  ['IFR','Instrument Flight Rules — flight in IMC using instruments'],
-  ['ILS','Instrument Landing System — precision approach aid'],
-  ['IMC','Instrument Meteorological Conditions — low visibility / cloud'],
-  ['LDG','Landing'],
-  ['ME','Multi-Engine — aircraft with more than one engine'],
-  ['MDA','Minimum Descent Altitude — non-precision approach minimum altitude'],
-  ['OFP','Operational Flight Plan'],
-  ['PIC','Pilot in Command — the captain; legally responsible for the flight'],
-  ['PICUS','Pilot in Command Under Supervision — co-pilot acting as PIC supervised'],
-  ['PPL','Private Pilot Licence'],
-  ['PF','Pilot Flying — pilot actively controlling the aircraft'],
-  ['PM','Pilot Monitoring — pilot managing radios, checklists, monitoring'],
-  ['QFE','Altimeter setting to read zero at field elevation'],
-  ['QNH','Altimeter setting to read field elevation at the airport'],
-  ['SDO','Scheduled Day Off — rest day'],
-  ['SE','Single-Engine'],
-  ['SIC','Second in Command — co-pilot / first officer role'],
-  ['SIM','Simulator — approved flight training device'],
-  ['TC','Transport Canada — Canadian aviation regulatory authority'],
-  ['TCAS','Traffic Collision Avoidance System'],
-  ['VAC','Vacation'],
-  ['VFR','Visual Flight Rules — flight in VMC by visual reference'],
-  ['VMC','Visual Meteorological Conditions — ceiling and visibility allowing VFR'],
-  ['VOR','VHF Omnidirectional Range — radio navigation aid'],
-  ['XC','Cross Country — flight to a point beyond a specified distance'],
+  // Pilot positions & roles
+  ['PIC',    'Pilot in Command — the captain; legally responsible for the flight'],
+  ['SIC',    'Second in Command — co-pilot / first officer role'],
+  ['F/O',    'First Officer — co-pilot, second in command'],
+  ['PICUS',  'Pilot in Command Under Supervision — co-pilot acting as PIC under captain supervision (counts toward PIC time)'],
+  ['Dual',   'Flight time under instruction from a flight instructor'],
+  ['Solo',   'Flight time without an instructor (typically student pilot)'],
+
+  // Time columns (CAR 401.08)
+  ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Synonym: Flight Time per CAR 101.01'],
+  ['BLH',    'Block Hours — synonym for Block Time / Flight Time'],
+  ['Air Time', 'Time from wheels-up to wheels-down. Used for aircraft maintenance, NOT for the pilot logbook'],
+  ['Duty Time', 'Time on duty — typically check-in to check-out, broader than block time'],
+
+  // Conditions (CAR 401.08(2)(d))
+  ['Day',    'Daytime flight — sunrise to 30 min before sunset (varies by jurisdiction)'],
+  ['Night',  'Per RAC 101.01 (Canada): from 30 min after sunset to 30 min before sunrise'],
+  ['IFR',    'Instrument Flight Rules — flight conducted under instrument procedures'],
+  ['VFR',    'Visual Flight Rules — flight by visual reference'],
+
+  // Engine class (Standard 421)
+  ['SE',     'Single-Engine — aircraft with one engine'],
+  ['ME',     'Multi-Engine — aircraft with more than one engine'],
+
+  // Cross-country
+  ['XC',     'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)'],
+
+  // Instrument
+  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)'],
+  ['Inst Hood',   'Instrument time under a view-limiting device (training)'],
+  ['Inst Sim/FSTD', 'Instrument time in a Flight Simulation Training Device — logged SEPARATELY from flight time'],
+  ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)'],
+
+  // Landings & currency
+  ['LDG',    'Landing'],
+  ['T/O',    'Take-off'],
+
+  // Simulator
+  ['SIM',    'Simulator session — does NOT count as block time, logged separately per CAR 401.08'],
+  ['FFS',    'Full Flight Simulator — highest-fidelity (Level C/D) Approved Flight Simulator'],
+  ['FTD',    'Flight Training Device — fixed-base sim, lower fidelity than FFS'],
+  ['FNPT',   'Flight & Navigation Procedures Trainer — basic flight trainer'],
+  ['PPC',    'Pilot Proficiency Check — annual/biannual proficiency test (CAR 421.05)'],
+  ['IPC',    'Instrument Proficiency Check — restores expired IFR rating'],
+  ['LOFT',   'Line Oriented Flight Training — full-flight scenario training in sim'],
+
+  // Licences
+  ['PPL',    'Private Pilot Licence'],
+  ['CPL',    'Commercial Pilot Licence'],
+  ['ATPL',   'Airline Transport Pilot Licence — highest pilot certificate in Canada'],
+
+  // Reference timestamps used in iCal / rosters
+  ['STD',    'Scheduled Time of Departure (planned block-off)'],
+  ['STA',    'Scheduled Time of Arrival (planned block-on)'],
+  ['ATD',    'Actual Time of Departure (real block-off)'],
+  ['ATA',    'Actual Time of Arrival (real block-on)'],
+  ['CI/CO',  'Check-In / Check-Out — duty-day start and end (broader than block)'],
+
+  // Roster activity codes (Navblue) — what Cumulo filters out of imports
+  ['DH',     'Deadhead — crew travelling as passenger to position to another base (not loggable as PIC/SIC)'],
+  ['GD',     'Guaranteed Day Off (Porter/Navblue roster code)'],
+  ['SDO',    'Scheduled Day Off (rest)'],
+  ['HTL',    'Hotel / layover (roster code)'],
+  ['REAX',   'Reassignable Reserve (roster code)'],
+  ['VAC',    'Vacation'],
+  ['PER',    'Personal Day'],
+
+  // Aircraft / aerodrome identifiers
+  ['ICAO',   '4-letter aerodrome identifier (e.g. CYOW, KBOS) used in flight plans and logbooks'],
+  ['IATA',   '3-letter airport code (e.g. YOW, BOS) — common in tickets and Navblue rosters'],
+  ['MTOW',   'Maximum Take-Off Weight (sometimes referenced for aircraft class)'],
+
+  // Regulatory
+  ['TC',     'Transport Canada — Canadian aviation regulatory authority'],
+  ['CAR',    'Canadian Aviation Regulations (SOR/96-433) — primary aviation regulation in Canada'],
+  ['RAC',    'Règlement de l\'aviation canadien — French name for the CAR'],
+  ['CAR 401.05', 'Recency requirements (5 landings 90 days · 6 IFR approaches 6 months)'],
+  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)'],
+  ['CAR 401.34', 'Cross-country definition (> 25 NM)'],
+  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications'],
+  ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)'],
+  ['705',  'Subpart 705 — Airline Operations under the CARs'],
 ].sort((a,b) => a[0].localeCompare(b[0]));
 
 let glossaryFilter = '';
@@ -5740,7 +6075,7 @@ function filterGlossary(val) {
           <div class="glossary-abbr">${abbr}</div>
           <div class="glossary-def">${def}</div>
         </div>`).join('')
-    : '<p style="padding:20px;color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No results found.</p>';
+    : '<p style="padding:20px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No results found.</p>';
 }
 
 // ═══════════════════════════════════════════
@@ -5821,11 +6156,11 @@ function renderRecap() {
   });
   const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('recapAirports').innerHTML = topAirports.length
-    ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-100)">
+    ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
         <span style="font-family:var(--font-mono);font-weight:600;color:var(--navy)">${a}</span>
-        <span style="color:var(--gray-500);font-size:12px">${n} visit${n!==1?'s':''}</span>
+        <span style="color:var(--text-muted);font-size:12px">${n} visit${n!==1?'s':''}</span>
       </div>`).join('')
-    : '<p style="color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No data for this year.</p>';
+    : '<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No data for this year.</p>';
 
   // Top routes
   const routes = {};
@@ -5836,10 +6171,10 @@ function renderRecap() {
   const topRoutes = Object.entries(routes).sort((a,b)=>b[1]-a[1]).slice(0,10);
   document.getElementById('recapRoutes').innerHTML = topRoutes.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${topRoutes.map(([r,n]) =>
-        `<div style="background:var(--gray-100);border-radius:6px;padding:5px 12px;font-family:var(--font-mono);font-size:11px;color:var(--navy)">
+        `<div style="background:var(--bg-subtle);border-radius:6px;padding:5px 12px;font-family:var(--font-mono);font-size:11px;color:var(--navy)">
           ${r} <span style="color:var(--accent);margin-left:4px">×${n}</span>
         </div>`).join('')}</div>`
-    : '<p style="color:var(--gray-500);font-family:var(--font-mono);font-size:12px">No routes for this year.</p>';
+    : '<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No routes for this year.</p>';
 }
 
 // ═══════════════════════════════════════════
