@@ -277,8 +277,12 @@ body { position: relative; }
   opacity: 0.75;
 }
 
-/* Make sure all layout sits above the blobs */
-header, .app-body, main, nav { position: relative; z-index: 1; }
+/* Make sure header / main / nav sit above the ambient blobs (z-index: 0).
+   DO NOT add .app-body here. A z-index on .app-body creates a stacking
+   context that traps the mobile drawer (nav, fixed, z-99) below the
+   nav-overlay (z-98) at the root level, eating all taps on the drawer.
+   This was the root cause of the hamburger menu tap bug. */
+header, main, nav { position: relative; z-index: 1; }
 
 /* Prevent body scroll when mobile nav is open.
    IMPORTANT: Do NOT set `touch-action: none` on <main> — on iOS Safari that
@@ -6768,7 +6772,7 @@ function showToast(msg, type='') {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-11-drawer-rewrite';
+const BUILD_VERSION = 'v3a-2026-05-11-stacking-fix';
 
 (function init() {
   applyDarkMode();
