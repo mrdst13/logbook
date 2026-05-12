@@ -681,6 +681,21 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .stat-card.night { border-top: 3px solid var(--night); padding-top: calc(var(--s-5) - 2px); }
 .stat-card.warn { border-top: 3px solid var(--warning); padding-top: calc(var(--s-5) - 2px); }
 
+/* IFR Currency card (CAR 401.05 status display) */
+.cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+.cur-label { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.cur-value-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cur-value { font-family: var(--font-sans); font-weight: 700; font-size: 28px; color: var(--text); line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+.cur-unit { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
+.cur-status { margin-left: auto; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+.cur-status.ok { background: rgba(16,163,127,0.12); color: rgb(16,163,127); }
+.cur-status.low { background: rgba(255,176,32,0.14); color: rgb(184,124,12); }
+.cur-status.bad { background: rgba(220,42,42,0.12); color: rgb(220,42,42); }
+.cur-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.02em; }
+@media (max-width: 720px) {
+  #currencyGrid { grid-template-columns: 1fr !important; gap: 14px !important; }
+}
+
 .stat-label {
   font-family: var(--font-sans);
   font-size: 12px;
@@ -2023,6 +2038,34 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       </div>
     </div>
 
+    <!-- ── IFR CURRENCY STATUS (CAR 401.05 — last 6 months) ── -->
+    <div class="card" id="currencyCard" style="margin-bottom:24px">
+      <div class="card-header">
+        <div class="card-title">IFR Currency — Last 6 Months</div>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px">CAR 401.05</span>
+      </div>
+      <div style="padding:14px 18px; display:grid; grid-template-columns:1fr 1fr; gap:18px;" id="currencyGrid">
+        <div class="cur-item" id="cur-approaches">
+          <div class="cur-label">Instrument Approaches</div>
+          <div class="cur-value-row">
+            <span class="cur-value" id="cur-app-count">0</span>
+            <span class="cur-unit">/ 6 required</span>
+            <span class="cur-status" id="cur-app-status">—</span>
+          </div>
+          <div class="cur-sub" id="cur-app-sub">No flights in last 6 months</div>
+        </div>
+        <div class="cur-item" id="cur-instHrs">
+          <div class="cur-label">Instrument Time</div>
+          <div class="cur-value-row">
+            <span class="cur-value" id="cur-hrs-count">0.0</span>
+            <span class="cur-unit">/ 6.0 hrs required</span>
+            <span class="cur-status" id="cur-hrs-status">—</span>
+          </div>
+          <div class="cur-sub" id="cur-hrs-sub">Actual + hood + approved sim</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom:24px">
       <div class="card-header">
         <div class="card-title">Monthly Block Hours</div>
@@ -2118,14 +2161,14 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           ✈ Flight
         </button>
         <button type="button" class="entry-type-btn" id="entryTypeSim" onclick="setEntryType('sim')">
-          🎮 Simulator session
+          Simulator session
         </button>
       </div>
     </div>
 
     <!-- ─── SIMULATOR FIELDS (shown only when sim mode is active) ─── -->
     <div class="form-card" id="simFields" style="display:none;">
-      <div class="form-card-title">🎮 Simulator Details</div>
+      <div class="form-card-title">Simulator Details</div>
       <div class="form-grid">
         <div class="form-group">
           <label>Sim Type</label>
@@ -2516,7 +2559,6 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
               <option value="Porter Airlines|PD">Porter Airlines (PD)</option>
               <option value="Flair Airlines|F8">Flair Airlines (F8)</option>
               <option value="Canadian North|5T">Canadian North (5T)</option>
-              <option value="Sunwing Airlines|WG">Sunwing Airlines (WG)</option>
             </optgroup>
             <optgroup label="704 — Commuter Operations">
               <option value="PAL Airlines|PB">PAL Airlines (PB)</option>
@@ -2527,6 +2569,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
               <option value="Central Mountain Air|9M">Central Mountain Air (9M)</option>
               <option value="North Star Air||NSA">North Star Air (NSA)</option>
               <option value="Air Tindi|8T">Air Tindi (8T)</option>
+              <option value="Kenn Borek Air|KBA">Kenn Borek Air (KBA)</option>
               <option value="Air Creebec|YN">Air Creebec (YN)</option>
             </optgroup>
             <optgroup label="703 — Air Taxi Operations">
@@ -2568,6 +2611,16 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;">
             Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
+          </div>
+        </div>
+        <div class="form-group col-span-2">
+          <label>IFR Approach Auto-Count</label>
+          <label class="col-option" style="margin-top:6px;">
+            <input type="checkbox" id="p-autoCountIFR" />
+            <span class="col-option-label">Count 1 IFR approach per flight on sync (705 line operations)</span>
+          </label>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;">
+            Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.
           </div>
         </div>
         <div class="form-group col-span-2">
@@ -3356,6 +3409,7 @@ function renderDashboard() {
   }
 
   renderAlerts();
+  renderCurrencyCard();
   renderChart();
   const recent = [...flights].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
   const tbody = document.getElementById('recentTbody');
@@ -3409,13 +3463,14 @@ function renderAlerts() {
     alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title:`Landing currency: ${recentLdg}/3 landings in last 90 days`, sub:'3 landings required within 90 days — CAR 401.05' });
   }
 
-  // IFR currency — only show if NOT current (<6 approaches in 6 months)
+  // IFR currency — only show if NOT current (<6 approaches in 6 months).
+  // CAR 401.05 requires 6 instrument approaches in the preceding 6 months.
+  // Counter is approaches only (integer count) — NOT instrument hours.
   const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
   const cut6mStr = cutoff6m.toISOString().split('T')[0];
-  const recentApp = flights
+  const appCount = flights
     .filter(f => f.date >= cut6mStr)
-    .reduce((sum, f) => sum + (+f.instActual||0) + (+f.approaches||0), 0);
-  const appCount = Math.floor(recentApp);
+    .reduce((sum, f) => sum + (+f.approaches||0), 0);
   if (appCount < 6) {
     alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title:`IFR currency: ${appCount}/6 approaches in last 6 months`, sub:'6 approaches required within 6 months — CAR 401.05' });
   }
@@ -3430,6 +3485,42 @@ function renderAlerts() {
         <div class="alert-sub">${a.sub}</div>
       </div>
     </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// IFR CURRENCY CARD (CAR 401.05 — always-visible dashboard status)
+// ═══════════════════════════════════════════
+function renderCurrencyCard() {
+  const card = document.getElementById('currencyCard');
+  if (!card) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
+  const cut6mStr = cutoff6m.toISOString().split('T')[0];
+  const recent6m = flights.filter(f => f.date && f.date >= cut6mStr);
+
+  const approachCount = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
+  const instHours = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
+
+  const setStatus = (elId, ok, low) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.classList.remove('ok','low','bad');
+    if (ok)       { el.classList.add('ok');  el.textContent = 'Current'; }
+    else if (low) { el.classList.add('low'); el.textContent = 'Low';     }
+    else          { el.classList.add('bad'); el.textContent = 'Expired'; }
+  };
+
+  document.getElementById('cur-app-count').textContent = approachCount;
+  setStatus('cur-app-status', approachCount >= 6, approachCount > 0);
+  document.getElementById('cur-app-sub').textContent =
+    recent6m.length === 0
+      ? 'No flights logged in last 6 months'
+      : `Across ${recent6m.length} flight${recent6m.length !== 1 ? 's' : ''}. Toggle auto-count in Profile → IFR Approach Auto-Count.`;
+
+  document.getElementById('cur-hrs-count').textContent = instHours.toFixed(1);
+  setStatus('cur-hrs-status', instHours >= 6, instHours > 0);
+  document.getElementById('cur-hrs-sub').textContent = 'Actual + hood + approved sim';
 }
 
 // ═══════════════════════════════════════════
@@ -4203,6 +4294,23 @@ function adaptFormToProfile(type) {
 // ═══════════════════════════════════════════
 // PROFILE
 // ═══════════════════════════════════════════
+// 705 operators (CAR Subpart 705 — Airline Operations).
+// Used to auto-enable the "1 IFR approach per flight" toggle.
+// Kept in sync with the #p-airlineSelect 705 optgroup.
+const AIRLINES_705 = [
+  'Air Canada',
+  'Air Canada Express / Jazz',
+  'WestJet',
+  'WestJet Encore',
+  'Air Transat',
+  'Porter Airlines',
+  'Flair Airlines',
+  'Canadian North'
+];
+function isAirline705(airlineName) {
+  return AIRLINES_705.includes((airlineName || '').trim());
+}
+
 function loadProfile() {
   const p = DB.loadProfile();
   sv('p-fname', p.fname || 'Martin');
@@ -4233,6 +4341,15 @@ function loadProfile() {
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
+  // IFR approach auto-count: default ON when the saved airline is a 705 operator,
+  // OFF otherwise. Once the user explicitly saves a value, that value sticks.
+  const autoCb = document.getElementById('p-autoCountIFR');
+  if (autoCb) {
+    const inferred = isAirline705(p.airline);
+    autoCb.checked = (p.autoCountIFR !== undefined) ? !!p.autoCountIFR : inferred;
+    autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
+    autoCb.onchange = () => autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
+  }
   // Aircraft configurations checkboxes
   const acConfigs = p.acConfigs || ['wheels'];
   document.querySelectorAll('#p-acConfigs input[type=checkbox]').forEach(cb => {
@@ -4271,6 +4388,15 @@ function onAirlineSelectChange() {
       codesInput.value = existing ? `${existing},${code}` : code;
     }
   }
+  // Auto-set the IFR approach auto-count toggle based on operator category.
+  // 705 ops → ON (every flight has an IAP). 704 / 703 / Other → OFF (manual per flight).
+  const autoCb = document.getElementById('p-autoCountIFR');
+  if (autoCb) {
+    const opt = sel.options[sel.selectedIndex];
+    const grp = opt && opt.parentElement && opt.parentElement.tagName === 'OPTGROUP' ? opt.parentElement : null;
+    autoCb.checked = grp && grp.label && grp.label.startsWith('705');
+    autoCb.closest('label').classList.toggle('is-on', autoCb.checked);
+  }
 }
 
 function saveProfile() {
@@ -4292,6 +4418,7 @@ function saveProfile() {
     base: gv('p-base'),
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
+    autoCountIFR: !!document.getElementById('p-autoCountIFR')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
   };
@@ -4721,7 +4848,7 @@ function getOperatorFlightRegex() {
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
 // Supports multi-airline via the user's operatorCodes profile setting.
-function navblueEventToFlight(ev, isFO) {
+function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const summary = (ev.SUMMARY || '').trim();
   const desc = (ev.DESCRIPTION || '').trim();
 
@@ -4828,7 +4955,9 @@ function navblueEventToFlight(ev, isFO) {
     xcDayCop, xcNightCop,
     ldgDay, ldgNight,
     instActual: 0, instHood: 0, instSim: 0,
-    approaches: 0,
+    // CAR 401.05 currency: at 705, virtually every flight terminates with an IAP.
+    // Profile toggle `autoCountIFR` controls this default. User can edit per-flight.
+    approaches: autoCountIFR ? 1 : 0,
     picus: 0,
     multiCrew: 1,           // 705 ops are always multi-crew
     remarks: '',
@@ -4907,13 +5036,19 @@ async function syncNavblueNow() {
     const events = parseICS(icsText);
     console.log(`[Navblue Sync] Parsed ${events.length} VEVENTs from iCal`);
 
-    const isFO = (DB.loadProfile().role || '').toLowerCase().includes('officer')
-              || (DB.loadProfile().role || '').toLowerCase().includes('fo')
+    const syncProfile = DB.loadProfile();
+    const isFO = (syncProfile.role || '').toLowerCase().includes('officer')
+              || (syncProfile.role || '').toLowerCase().includes('fo')
               || true;  // default Martin = F/O
+    // Per-profile toggle: when set, fresh imported flights default to 1 IFR approach.
+    // Falls back to 705-airline inference for profiles saved before the field existed.
+    const autoCountIFR = (syncProfile.autoCountIFR !== undefined)
+      ? !!syncProfile.autoCountIFR
+      : isAirline705(syncProfile.airline);
 
     const today = new Date().toISOString().split('T')[0];
     const mapped = events
-      .map(ev => navblueEventToFlight(ev, isFO))
+      .map(ev => navblueEventToFlight(ev, isFO, autoCountIFR))
       .filter(f => f && f.date && f.date < today);
 
     console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (date < today, block > 0)`);
@@ -6022,7 +6157,9 @@ function _generatePDF() {
     const ldg90Day = recent90.reduce((s, f) => s + (+f.ldgDay || 0), 0);
     const ldg90Night = recent90.reduce((s, f) => s + (+f.ldgNight || 0), 0);
     const ldg90Total = ldg90Day + ldg90Night;
-    const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0) + (+f.instActual || 0), 0);
+    // CAR 401.05: 6 instrument approaches in 6 months. Counter is approaches only.
+    const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
+    const instHours6m = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
     const items = [
       {
@@ -6040,11 +6177,18 @@ function _generatePDF() {
         ok: ldg90Night >= 5
       },
       {
-        title: 'IFR currency',
-        reg: 'CAR 401.05(2)(c)',
+        title: 'IFR currency — approaches',
+        reg: 'CAR 401.05',
         requirement: '6 instrument approaches within preceding 6 months (PIC or required pilot)',
         current: `${Math.floor(approaches6m)} approach${approaches6m !== 1 ? 'es' : ''} logged in last 6 months`,
         ok: approaches6m >= 6
+      },
+      {
+        title: 'IFR currency — instrument time',
+        reg: 'CAR 401.05',
+        requirement: '6 hours instrument time within preceding 6 months (actual + hood + approved sim)',
+        current: `${instHours6m.toFixed(1)} hrs instrument time logged in last 6 months`,
+        ok: instHours6m >= 6
       },
       {
         title: 'Medical certificate',
