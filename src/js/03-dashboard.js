@@ -1,0 +1,149 @@
+// ═══════════════════════════════════════════
+// FEATURE 5 — MEDICAL & RECENCY ALERTS
+// ═══════════════════════════════════════════
+function renderAlerts() {
+  const section = document.getElementById('alertsSection');
+  if (!section) return;
+  const p = DB.loadProfile();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const alerts = [];
+
+  // Show alerts ONLY when there's something the pilot needs to act on.
+  // Green / "all good" states are hidden — no clutter on the dashboard.
+
+  // Medical expiry — only show if expired or expiring soon (<60 days)
+  if (p.medical) {
+    const exp = new Date(p.medical); exp.setHours(0,0,0,0);
+    const days = Math.round((exp - today) / 86400000);
+    if (days < 0) {
+      alerts.push({ level:'red', icon:'🏥', title:'Medical EXPIRED', sub:`Expired ${Math.abs(days)} day${Math.abs(days)!==1?'s':''} ago` });
+    } else if (days <= 60) {
+      alerts.push({ level:'yellow', icon:'🏥', title:`Medical expires in ${days} day${days!==1?'s':''}`, sub:`Expiry: ${exp.toLocaleDateString('en-CA')}` });
+    }
+    // > 60 days = current = no alert shown
+  }
+
+  // Landing currency — only show if NOT current (<3 in 90 days)
+  const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
+  const cut90str = cutoff90.toISOString().split('T')[0];
+  const recentLdg = flights
+    .filter(f => f.date >= cut90str)
+    .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
+  if (recentLdg < 3) {
+    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title:`Landing currency: ${recentLdg}/3 landings in last 90 days`, sub:'3 landings required within 90 days — CAR 401.05' });
+  }
+
+  // IFR currency — only show if NOT current (<6 approaches in 6 months).
+  // CAR 401.05 requires 6 instrument approaches in the preceding 6 months.
+  // Counter is approaches only (integer count) — NOT instrument hours.
+  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
+  const cut6mStr = cutoff6m.toISOString().split('T')[0];
+  const appCount = flights
+    .filter(f => f.date >= cut6mStr)
+    .reduce((sum, f) => sum + (+f.approaches||0), 0);
+  if (appCount < 6) {
+    alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title:`IFR currency: ${appCount}/6 approaches in last 6 months`, sub:'6 approaches required within 6 months — CAR 401.05' });
+  }
+
+  if (!alerts.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  section.innerHTML = alerts.map(a => `
+    <div class="alert-bar ${a.level}">
+      <div class="alert-icon">${a.icon}</div>
+      <div class="alert-text">
+        ${a.title}
+        <div class="alert-sub">${a.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// IFR CURRENCY CARD (CAR 401.05 — always-visible dashboard status)
+// ═══════════════════════════════════════════
+function renderCurrencyCard() {
+  const card = document.getElementById('currencyCard');
+  if (!card) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
+  const cut6mStr = cutoff6m.toISOString().split('T')[0];
+  const recent6m = flights.filter(f => f.date && f.date >= cut6mStr);
+
+  const approachCount = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
+  const instHours = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
+
+  const setStatus = (elId, ok, low) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.classList.remove('ok','low','bad');
+    if (ok)       { el.classList.add('ok');  el.textContent = 'Current'; }
+    else if (low) { el.classList.add('low'); el.textContent = 'Low';     }
+    else          { el.classList.add('bad'); el.textContent = 'Expired'; }
+  };
+
+  document.getElementById('cur-app-count').textContent = approachCount;
+  setStatus('cur-app-status', approachCount >= 6, approachCount > 0);
+  document.getElementById('cur-app-sub').textContent =
+    recent6m.length === 0
+      ? 'No flights logged in last 6 months'
+      : `Across ${recent6m.length} flight${recent6m.length !== 1 ? 's' : ''}. Toggle auto-count in Profile → IFR Approach Auto-Count.`;
+
+  document.getElementById('cur-hrs-count').textContent = instHours.toFixed(1);
+  setStatus('cur-hrs-status', instHours >= 6, instHours > 0);
+  document.getElementById('cur-hrs-sub').textContent = 'Actual + hood + approved sim';
+}
+
+// ═══════════════════════════════════════════
+// FEATURE 4 — MONTHLY CHART
+// ═══════════════════════════════════════════
+let monthlyChartInst = null;
+
+function renderChart() {
+  const canvas = document.getElementById('monthlyChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const now = new Date();
+  const labels = [], data = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = d.toISOString().substring(0, 7);
+    labels.push(d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' }));
+    const hrs = flights.filter(f => f.date && f.date.startsWith(key))
+                       .reduce((sum, f) => sum + (+f.block || 0), 0);
+    data.push(parseFloat(hrs.toFixed(1)));
+  }
+  if (monthlyChartInst) { monthlyChartInst.destroy(); monthlyChartInst = null; }
+  monthlyChartInst = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Block Hours',
+        data,
+        backgroundColor: 'rgba(61,123,196,0.72)',
+        borderColor: 'rgba(61,123,196,1)',
+        borderWidth: 1.5,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' hrs' } }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { font: { family: "'JetBrains Mono', ui-monospace, monospace", size: 10 }, color: '#6b7fa3' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: "'JetBrains Mono', ui-monospace, monospace", size: 10 }, color: '#6b7fa3' }
+        }
+      }
+    }
+  });
+}
+
