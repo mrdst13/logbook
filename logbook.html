@@ -3056,42 +3056,17 @@ let editingId = null;
 
 // ═══════════════════════════════════════════
 // MOBILE NAVIGATION (Feature 1)
-// iOS Safari scroll lock: body { overflow:hidden } alone doesn't work
-// because <main> is the real scroller. We pin it position:fixed with a
-// negative top offset, then restore scrollTop on close.
+// iOS Safari scroll lock is handled in CSS via
+//   body.nav-open main { overflow: hidden; touch-action: none; }
+// Position:fixed pinning was tried but caused stacking-context issues
+// where nav-item taps stopped registering on iOS Safari.
 // ═══════════════════════════════════════════
-let _navSavedScroll = 0;
-
 function toggleMobileNav() {
-  if (document.body.classList.contains('nav-open')) {
-    closeMobileNav();
-  } else {
-    openMobileNav();
-  }
-}
-
-function openMobileNav() {
-  const m = document.querySelector('main');
-  _navSavedScroll = m ? m.scrollTop : 0;
-  document.body.classList.add('nav-open');
-  if (m) {
-    m.style.position = 'fixed';
-    m.style.top = `-${_navSavedScroll}px`;
-    m.style.left = '0';
-    m.style.right = '0';
-  }
+  document.body.classList.toggle('nav-open');
 }
 
 function closeMobileNav() {
   document.body.classList.remove('nav-open');
-  const m = document.querySelector('main');
-  if (m) {
-    m.style.position = '';
-    m.style.top = '';
-    m.style.left = '';
-    m.style.right = '';
-    m.scrollTop = _navSavedScroll;
-  }
 }
 
 // ═══════════════════════════════════════════
