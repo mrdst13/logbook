@@ -2173,9 +2173,73 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <label>Aircraft Type</label>
           <select id="f-type-select" onchange="onAircraftSelect()">
             <option value="">— Select type —</option>
-            <option value="E195-E2">E195-E2 (Embraer E-Jet)</option>
-            <option value="Q400">Q400 (DHC-8-400)</option>
-            <option value="custom">Other — enter manually</option>
+            <optgroup label="Airline / Regional jets">
+              <option value="E195-E2">E195-E2 — Embraer E-Jet</option>
+              <option value="E190">E190 / E190-E1 — Embraer</option>
+              <option value="A220">A220 (CS300) — Airbus</option>
+              <option value="A319">A319 — Airbus</option>
+              <option value="A320">A320 — Airbus</option>
+              <option value="A321">A321 — Airbus</option>
+              <option value="A330">A330 — Airbus</option>
+              <option value="B737-700">B737-700 — Boeing</option>
+              <option value="B737-800">B737-800 — Boeing</option>
+              <option value="B737 MAX 8">B737 MAX 8 — Boeing</option>
+              <option value="B767">B767 — Boeing</option>
+              <option value="B777">B777 — Boeing</option>
+              <option value="B787">B787 Dreamliner — Boeing</option>
+              <option value="CRJ-200">CRJ-200 — Bombardier</option>
+              <option value="CRJ-700">CRJ-700 — Bombardier</option>
+              <option value="CRJ-900">CRJ-900 — Bombardier</option>
+            </optgroup>
+            <optgroup label="Regional turboprops">
+              <option value="Q400">Q400 (DHC-8-400) — Bombardier</option>
+              <option value="DHC-8-100">DHC-8-100 (Dash 8) — De Havilland</option>
+              <option value="DHC-8-200">DHC-8-200 — De Havilland</option>
+              <option value="DHC-8-300">DHC-8-300 — De Havilland</option>
+              <option value="ATR-42">ATR-42</option>
+              <option value="ATR-72">ATR-72</option>
+              <option value="SAAB 340">SAAB 340</option>
+              <option value="Beechcraft 1900">Beechcraft 1900</option>
+            </optgroup>
+            <optgroup label="Bush / Northern ops">
+              <option value="DHC-6 Twin Otter">DHC-6 Twin Otter — De Havilland</option>
+              <option value="DHC-3 Otter">DHC-3 Otter</option>
+              <option value="DHC-2 Beaver">DHC-2 Beaver</option>
+              <option value="Pilatus PC-12">Pilatus PC-12</option>
+              <option value="King Air 200">King Air 200 / B200</option>
+              <option value="King Air 350">King Air 350</option>
+              <option value="Caravan C208">Cessna 208 Caravan</option>
+              <option value="Cessna 185">Cessna 185 Skywagon</option>
+              <option value="Cessna 206">Cessna 206 Stationair</option>
+              <option value="Beech 18">Beechcraft 18 (Twin Beech)</option>
+              <option value="Britten-Norman BN-2">Britten-Norman BN-2 Islander</option>
+            </optgroup>
+            <optgroup label="General aviation / training">
+              <option value="C172">Cessna 172 Skyhawk</option>
+              <option value="C152">Cessna 152</option>
+              <option value="C150">Cessna 150</option>
+              <option value="PA-28">Piper PA-28 Cherokee / Warrior / Archer</option>
+              <option value="PA-44">Piper PA-44 Seminole</option>
+              <option value="Diamond DA20">Diamond DA20 Katana</option>
+              <option value="Diamond DA40">Diamond DA40 Star</option>
+              <option value="Diamond DA42">Diamond DA42 Twin Star</option>
+              <option value="Cirrus SR20">Cirrus SR20</option>
+              <option value="Cirrus SR22">Cirrus SR22</option>
+            </optgroup>
+            <optgroup label="Helicopter">
+              <option value="R22">Robinson R22</option>
+              <option value="R44">Robinson R44</option>
+              <option value="Bell 206">Bell 206 JetRanger</option>
+              <option value="Bell 407">Bell 407</option>
+              <option value="A-Star AS350">Airbus AS350 (A-Star)</option>
+            </optgroup>
+            <optgroup label="Simulator">
+              <option value="FFS E195-E2">FFS E195-E2 — Level D</option>
+              <option value="FFS Q400">FFS Q400 — Level D</option>
+              <option value="FTD generic">FTD — Flight Training Device</option>
+              <option value="FNPT generic">FNPT — Procedures Trainer</option>
+            </optgroup>
+            <option value="custom">— Other (type manually) —</option>
           </select>
           <input type="text" id="f-type-custom" placeholder="Enter aircraft type" style="display:none;margin-top:6px">
         </div>
@@ -2186,6 +2250,18 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         <div class="form-group">
           <label>Type Rating</label>
           <input type="text" id="f-rating" placeholder="E195">
+        </div>
+        <div class="form-group">
+          <label>Aircraft Configuration</label>
+          <select id="f-acConfig">
+            <option value="wheels">Wheels (standard)</option>
+            <option value="floats">Floats / Seaplane</option>
+            <option value="skis">Skis</option>
+            <option value="amphibian">Amphibian</option>
+            <option value="tailwheel">Tailwheel</option>
+            <option value="ski-wheel">Ski-Wheel (combo)</option>
+            <option value="other">Other</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Pilot in Command</label>
@@ -2492,6 +2568,24 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;">
             Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
+          </div>
+        </div>
+        <div class="form-group col-span-2">
+          <label>Aircraft Configurations (for bush / GA pilots)</label>
+          <div style="display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:6px;" id="p-acConfigs">
+            <label class="col-option"><input type="checkbox" value="wheels" /> <span class="col-option-label">Wheels (standard)</span></label>
+            <label class="col-option"><input type="checkbox" value="floats" /> <span class="col-option-label">Floats / Seaplane</span></label>
+            <label class="col-option"><input type="checkbox" value="skis" /> <span class="col-option-label">Skis</span></label>
+            <label class="col-option"><input type="checkbox" value="amphibian" /> <span class="col-option-label">Amphibian</span></label>
+            <label class="col-option"><input type="checkbox" value="tailwheel" /> <span class="col-option-label">Tailwheel / Conventional gear</span></label>
+            <label class="col-option"><input type="checkbox" value="multiengine" /> <span class="col-option-label">Multi-engine</span></label>
+            <label class="col-option"><input type="checkbox" value="turbine" /> <span class="col-option-label">Turbine</span></label>
+            <label class="col-option"><input type="checkbox" value="jet" /> <span class="col-option-label">Jet</span></label>
+            <label class="col-option"><input type="checkbox" value="helicopter" /> <span class="col-option-label">Helicopter</span></label>
+            <label class="col-option"><input type="checkbox" value="glider" /> <span class="col-option-label">Glider</span></label>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;">
+            Check the configurations you fly. Used to filter aircraft type suggestions and currency tracking (TC requires separate currency for floats, skis, tailwheel per CAR 401.05).
           </div>
         </div>
       </div>
@@ -3644,6 +3738,7 @@ function saveFlight() {
     type: getAircraftType(),
     reg: isSim ? (gv('f-simRegistration') || 'SIM') : gv('f-reg'),
     rating: gv('f-rating'),
+    acConfig: gv('f-acConfig') || 'wheels',
     pic: gv('f-pic'),
     copilot: gv('f-copilot'),
     route: gv('f-route'),
@@ -3695,7 +3790,9 @@ function editFlight(id) {
   document.getElementById('formTitle').textContent = f.isSim ? 'Edit Simulator Session' : 'Edit Flight';
   setEntryType(f.isSim ? 'sim' : 'flight');
   sv('f-date', f.date); setAircraftTypeField(f.type); sv('f-reg', f.reg);
-  sv('f-rating', f.rating); sv('f-pic', f.pic); sv('f-copilot', f.copilot);
+  sv('f-rating', f.rating);
+  if (document.getElementById('f-acConfig')) document.getElementById('f-acConfig').value = f.acConfig || 'wheels';
+  sv('f-pic', f.pic); sv('f-copilot', f.copilot);
   sv('f-route', f.route); sv('f-remarks', f.remarks);
   sv('f-block', f.block); sv('f-duty', f.duty); sv('f-total', f.total);
   sv('f-me-day-dual', f.meDayDual); sv('f-me-day-pic', f.meDayPic); sv('f-me-day-cop', f.meDayCop);
@@ -4111,11 +4208,17 @@ function loadProfile() {
   sv('p-fname', p.fname || 'Martin');
   sv('p-lname', p.lname || 'Daoust');
   document.getElementById('p-rank').value = p.rank || 'F/O';
-  // Airline: try to pre-select the dropdown if the saved value matches a known option
-  const airlineName = p.airline || 'Porter Airlines';
+  // Airline: try to pre-select the dropdown if the saved value matches a known option.
+  // Case-insensitive matching + partial (e.g. "Porter" matches "Porter Airlines|PD").
+  const airlineName = (p.airline || 'Porter Airlines').trim();
   const sel = document.getElementById('p-airlineSelect');
   if (sel) {
-    const matchOpt = [...sel.options].find(o => o.value.startsWith(airlineName + '|'));
+    const lower = airlineName.toLowerCase();
+    const matchOpt = [...sel.options].find(o => {
+      if (!o.value || o.value === 'other' || o.value === 'none') return false;
+      const optName = o.value.split('|')[0].toLowerCase();
+      return optName === lower || optName.includes(lower) || lower.includes(optName);
+    });
     if (matchOpt) {
       sel.value = matchOpt.value;
       document.getElementById('p-airline-custom-wrap').style.display = 'none';
@@ -4130,6 +4233,13 @@ function loadProfile() {
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
+  // Aircraft configurations checkboxes
+  const acConfigs = p.acConfigs || ['wheels'];
+  document.querySelectorAll('#p-acConfigs input[type=checkbox]').forEach(cb => {
+    cb.checked = acConfigs.includes(cb.value);
+    cb.closest('label').classList.toggle('is-on', cb.checked);
+    cb.onchange = () => cb.closest('label').classList.toggle('is-on', cb.checked);
+  });
   highlightProfileTypeCard(p.pilotType || 'airline705');
   updateProfileDisplay(p);
 }
@@ -4182,6 +4292,7 @@ function saveProfile() {
     base: gv('p-base'),
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
+    acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
   };
   DB.saveProfile(p);
@@ -5415,13 +5526,16 @@ function renderColumnPicker() {
     </div>
   `).join('');
 
-  container.innerHTML = html + `
-    <div style="margin-top:var(--s-3); padding-top:var(--s-3); border-top:1px solid var(--border); display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center;">
-      <span class="eyebrow">Quick presets:</span>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('compact')">Compact F/O 705</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')">ATPL preparation</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')">All columns</button>
+  container.innerHTML = `
+    <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')" type="button">✓ Select all</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('none')" type="button">✗ Deselect all</button>
+      <span style="width:1px; height:20px; background:var(--border);"></span>
+      <span class="eyebrow">Presets:</span>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('compact')" type="button">Compact F/O 705</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')" type="button">ATPL prep</button>
     </div>
+    ${html}
   `;
 }
 
@@ -5478,6 +5592,8 @@ function applyColumnPreset(preset) {
     LOGBOOK_COLUMNS.forEach(c => { if (prefs[c.key] === undefined) prefs[c.key] = false; });
   } else if (preset === 'all') {
     LOGBOOK_COLUMNS.forEach(c => { prefs[c.key] = true; });
+  } else if (preset === 'none') {
+    LOGBOOK_COLUMNS.forEach(c => { prefs[c.key] = false; });
   }
   saveColumnPrefs(prefs);
   renderColumnPicker();
@@ -5784,10 +5900,13 @@ function _generatePDF() {
       doc.setTextColor(...textPrimary);
       x = tableMargin;
       cols.forEach((c, ci) => {
-        const v = computeCellValue(f, c.key);
+        let v = computeCellValue(f, c.key);
+        // Translate UI Unicode glyphs to ASCII for jsPDF Helvetica compatibility
+        if (v === '✓') v = 'Yes';
+        if (v === '—') v = '-';
         let display;
-        if (v === undefined || v === null || v === '' || (c.decimal && (+v === 0))) {
-          display = '—';
+        if (v === undefined || v === null || v === '' || (c.decimal && (+v === 0)) || (!c.decimal && c.key !== 'multiCrew' && c.key !== 'remarks' && c.key !== 'crewPosition' && typeof v === 'number' && v === 0)) {
+          display = '-';  // ASCII hyphen, not em-dash (em-dash renders as garbage in Helvetica)
         } else if (c.decimal) {
           display = fmt(v);
           if (runTotals.hasOwnProperty(c.key)) pageTotals[c.key] += +v;
