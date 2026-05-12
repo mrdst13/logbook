@@ -3075,6 +3075,7 @@ function closeMobileNav() {
 }
 
 function wireNavItems() {
+  let count = 0;
   document.querySelectorAll('.nav-item').forEach(item => {
     const onclick = item.getAttribute('onclick');
     if (!onclick) return;
@@ -3084,11 +3085,30 @@ function wireNavItems() {
     item.removeAttribute('onclick');
     item.setAttribute('role', 'button');
     item.setAttribute('tabindex', '0');
-    item.addEventListener('click', () => showPage(pageId));
+    // Use both click AND touchend listeners. The click handler is reliable on
+    // desktop and most mobile browsers; the touchend handler is a fallback for
+    // iOS Safari edge cases where click events don't fire on <div role=button>.
+    let handled = false;
+    item.addEventListener('click', () => {
+      if (handled) { handled = false; return; }
+      try { showToast('click→ ' + pageId, 'success'); } catch {}
+      showPage(pageId);
+    });
+    item.addEventListener('touchend', (e) => {
+      handled = true;
+      e.preventDefault();
+      try { showToast('touchend→ ' + pageId, 'success'); } catch {}
+      showPage(pageId);
+      setTimeout(() => { handled = false; }, 500);
+    });
     item.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPage(pageId); }
     });
+    count++;
   });
+  // Diagnostic toast so the user (and I) can see whether wireNavItems
+  // actually found and bound the nav items at init time.
+  try { showToast('wireNavItems bound ' + count + ' items', 'success'); } catch {}
 
   // Same for the hamburger button (defense in depth — inline onclick on
   // <button> normally works, but rebinding makes it 100% reliable).
@@ -6733,7 +6753,7 @@ function showToast(msg, type='') {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-11-fix3';
+const BUILD_VERSION = 'v3a-2026-05-11-diag1';
 
 (function init() {
   applyDarkMode();
