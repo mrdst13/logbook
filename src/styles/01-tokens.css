@@ -1,0 +1,111 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CUMULO V3A — Design tokens (Stripe × Linear × Apple Liquid Glass)
+
+   TYPOGRAPHY SCALE (Notion / Linear / Apple inspired)
+   ───────────────────────────────────────────────────────────────────
+   Display    : 48px / 700 / -0.03em   (hero values)
+   Title 1    : 28px / 700 / -0.025em  (page titles)
+   Title 2    : 22px / 600 / -0.02em   (section headings)
+   Title 3    : 16px / 600 / -0.01em   (card titles, form-card titles)
+   Headline   : 15px / 600 / -0.01em   (sidebar brand, nav-item)
+   Body Large : 14px / 500 / 0          (default body, buttons)
+   Body       : 13px / 400 / 0          (table cells, descriptions)
+   Footnote   : 12px / 500 / 0          (labels, secondary text)
+   Caption    : 11px / 500 / 0          (timestamps, captions)
+   Eyebrow    : 10-11px / 500 / +0.04-0.08em / uppercase mono
+                (section labels, "LAST 30 DAYS" tags)
+   ───────────────────────────────────────────────────────────────────
+   COLORS
+   text             — primary content
+   text-secondary   — supporting content, descriptions
+   text-muted       — labels, captions, tertiary
+   text-disabled    — zero values, deactivated
+═══════════════════════════════════════════════════════════════════ */
+:root {
+  /* Legacy tokens (preserved for backward compat with existing CSS) */
+  --navy: #0f2044;
+  --navy-light: #234080;
+  --accent: #2E63D8;
+  --accent-bright: #4D8AFF;
+  --white: #ffffff;
+  --off-white: #F7F8FA;
+  --gray-100: #E8ECF2;
+  --gray-300: #C9D0DC;
+  --gray-500: #7C8497;
+  --gray-700: #475063;
+  --success: #10A37F;
+  --warning: #D97706;
+  --danger: #DC2A2A;
+  --text: #0A0E1A;
+  --sidebar: 240px;
+  --header: 60px;
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+
+  /* V3A — Background layers */
+  --bg-app:        #F7F8FA;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #FFFFFF;
+  --bg-subtle:     #F1F3F7;
+  --bg-muted:      #E8ECF2;
+
+  /* V3A — Glass (frosted layer) — more transparent so ambient color shows through */
+  --glass-bg:      rgba(255, 255, 255, 0.45);
+  --glass-border:  rgba(15, 23, 42, 0.08);
+  --glass-blur:    28px;
+
+  /* V3A — Borders */
+  --border:        #E1E5EC;
+  --border-strong: #C9D0DC;
+
+  /* V3A — Text */
+  --text-primary:  #0A0E1A;
+  --text-secondary:#475063;
+  --text-muted:    #7C8497;
+  --text-disabled: #B5BCCB;
+
+  /* V3A — Brand & accent */
+  --accent-hover:  #2552B8;
+  --accent-soft:   #E6EDFB;
+  --accent-text:   #FFFFFF;
+
+  /* V3A — Semantic */
+  --success-soft:  #DDF4EC;
+  --warning-soft:  #FEF1DD;
+  --danger-soft:   #FCE4E4;
+  --night:         #6366F1;
+  --night-soft:    #EBECFE;
+
+  /* V3A — Shadows */
+  --shadow-xs:  0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:  0 2px 4px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-md:  0 8px 16px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg:  0 20px 40px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-glass: 0 8px 32px rgba(15, 23, 42, 0.06);
+
+  /* V3A — Radius */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* V3A — Spacing scale (8pt) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  --s-12: 48px; --s-16: 64px;
+
+  /* V3A — Type */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-display: 'Inter', -apple-system, sans-serif;
+
+  /* V3A — Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-micro: 150ms;
+  --t-std: 220ms;
+  --t-emphasis: 380ms;
+}
+

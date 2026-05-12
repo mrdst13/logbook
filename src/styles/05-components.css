@@ -1,0 +1,612 @@
+/* ═══════════════════════════════════════
+   BUTTONS (v3a)
+═══════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 9px var(--s-4);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--t-micro) var(--ease-out);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(46, 99, 216, 0.2);
+}
+.btn-primary:hover { background: var(--accent-hover); box-shadow: 0 2px 8px rgba(46, 99, 216, 0.3); }
+.btn-accent {
+  background: var(--accent);
+  color: #FFFFFF;
+}
+.btn-accent:hover { background: var(--accent-hover); }
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+.btn-outline:hover {
+  background: var(--bg-subtle);
+  border-color: var(--text);
+}
+.btn-ghost {
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  background: var(--bg-muted);
+  color: var(--text);
+}
+.btn-danger {
+  background: var(--danger);
+  color: #FFFFFF;
+}
+.btn-danger:hover { filter: brightness(0.92); }
+.btn-sm { padding: 6px var(--s-3); font-size: 12px; }
+
+/* ═══════════════════════════════════════
+   TABLE
+═══════════════════════════════════════ */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  max-width: 100%;       /* never push the page wider than viewport */
+  min-width: 0;
+}
+
+.card-header {
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.card-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.search-input {
+  flex: 1;
+  padding: 8px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: all var(--t-micro) var(--ease-out);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  /* Single, smooth horizontal scrollbar contained inside the card */
+  scrollbar-width: thin;
+}
+.table-wrap::-webkit-scrollbar { height: 10px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--bg-subtle); }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; font-variant-numeric: tabular-nums; }
+
+thead {
+  background: var(--bg-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+th {
+  padding: var(--s-3) var(--s-4);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);  /* needed because sticky thead loses bg in some browsers */
+}
+td {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+  transition: background var(--t-micro) var(--ease-out);
+}
+tr:last-child td { border-bottom: none; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--bg-subtle); }
+
+.empty-row td {
+  text-align: center;
+  padding: var(--s-10);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0;
+  cursor: default;
+}
+.empty-row:hover td { background: transparent; }
+
+/* Compact logbook table : no horizontal scroll on normal viewports.
+   Click row to expand full detail (Linear/Notion pattern). */
+.logbook-compact table { min-width: 0; }
+.row-clickable { cursor: pointer; }
+.row-actions { white-space: nowrap; text-align: right; }
+.row-actions button { padding: 4px 8px; font-size: 11px; }
+.cell-num.muted { color: var(--text-muted); }
+
+/* Settings page — grouped sections (Linear / Stripe Dashboard pattern) */
+.settings-section {
+  margin-bottom: var(--s-8);
+}
+.settings-section-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+.settings-section-danger { padding: var(--s-4); border: 1px solid var(--danger-soft); border-radius: var(--r-md); background: var(--bg-surface); }
+.settings-section-danger .settings-section-title { border-color: var(--danger-soft); margin-bottom: 0; }
+
+/* Settings cards (richer, with form inputs inside) */
+.settings-card { padding: var(--s-5); margin-bottom: var(--s-3); }
+.settings-card-head {
+  display: flex;
+  gap: var(--s-4);
+  align-items: flex-start;
+  margin-bottom: var(--s-4);
+}
+.settings-card-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  opacity: 0.9;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+  display: grid; place-items: center;
+}
+.settings-card-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.settings-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.settings-card-head > div:nth-child(2) { flex: 1; }
+.settings-card-accent { border-left: 3px solid var(--accent); }
+.settings-card-success { border-left: 3px solid var(--success); }
+
+/* Settings rows (simple key/value with toggle/button on right) */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-2);
+  transition: border-color var(--t-micro) var(--ease-out);
+}
+.settings-row:hover { border-color: var(--border-strong); }
+.settings-row-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  display: grid; place-items: center;
+}
+.settings-row-info { flex: 1; min-width: 0; }
+.settings-row-title { font-weight: 600; font-size: 14px; color: var(--text); }
+.settings-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
+.settings-row-danger { background: var(--danger-soft); border-color: var(--danger); }
+
+@media (max-width: 640px) {
+  .settings-row { flex-wrap: wrap; }
+  .settings-row .btn { width: 100%; justify-content: center; }
+  .settings-card-head { flex-wrap: wrap; }
+}
+
+/* SIM badge (table cell) */
+.sim-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--warning-soft);
+  color: var(--warning);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Entry type toggle (Flight vs Simulator) */
+.entry-type-btn {
+  flex: 1;
+  padding: var(--s-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.entry-type-btn:hover { color: var(--text); }
+.entry-type-btn.is-active {
+  background: var(--bg-surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Totals footer row (Logbook table) */
+.totals-row {
+  background: var(--bg-subtle);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+.totals-row td.totals-cell {
+  border-top: 2px solid var(--accent);
+  border-bottom: none;
+  padding: var(--s-3) var(--s-4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.totals-row td.totals-cell strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Flight detail modal — key / value layout */
+#flightDetailBody { display: flex; flex-direction: column; gap: 2px; }
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.detail-val {
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.detail-sep { height: 12px; }
+
+/* ─── Column menu popover (Logbook table header) ─── */
+.column-menu-wrap { position: relative; }
+.column-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 480px;
+  max-height: 70vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  padding: var(--s-4);
+  overflow-y: auto;
+  animation: popIn var(--t-emphasis) var(--ease-emphasis);
+}
+.column-menu.show { display: block; }
+.column-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .column-menu {
+    width: calc(100vw - 32px);
+    right: -8px;
+    max-height: 70vh;
+  }
+}
+
+/* ─── Column picker (Settings) ─── */
+.col-group {
+  margin-bottom: var(--s-4);
+}
+.col-group-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: var(--s-2);
+}
+.col-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+}
+.col-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all var(--t-micro) var(--ease-out);
+  user-select: none;
+}
+.col-option:hover { border-color: var(--border-strong); }
+.col-option.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+.col-option input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  background: var(--bg-surface);
+  padding: 0;
+  margin: 0;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.col-option input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.col-option input:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 0px;
+  width: 4px; height: 8px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.col-option-label { flex: 1; }
+
+/* MOBILE : transform the table into stacked cards (one per flight).
+   Pattern used by Stripe Dashboard, Linear mobile, GitHub. */
+@media (max-width: 720px) {
+  .logbook-compact table,
+  .logbook-compact thead,
+  .logbook-compact tbody,
+  .logbook-compact tr,
+  .logbook-compact td {
+    display: block;
+    width: 100%;
+  }
+  .logbook-compact thead { display: none; }
+  .logbook-compact tbody tr {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: var(--s-3);
+    padding: var(--s-4);
+    box-shadow: var(--shadow-xs);
+  }
+  .logbook-compact tbody tr:hover { background: var(--bg-surface); border-color: var(--accent); }
+  .logbook-compact tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: none;
+    text-align: left !important;
+    white-space: normal;
+  }
+  .logbook-compact tbody td::before {
+    content: attr(data-label);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    margin-right: var(--s-3);
+  }
+  .logbook-compact tbody td.row-actions {
+    justify-content: flex-end;
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--border);
+    margin-top: var(--s-2);
+  }
+  .logbook-compact tbody td.row-actions::before { display: none; }
+  .empty-row td { display: block !important; text-align: center !important; }
+  .empty-row td::before { display: none; }
+}
+
+.reg-tag {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border);
+}
+.route-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.hrs {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════
+   FORM (v3a)
+═══════════════════════════════════════ */
+.form-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-6);
+  margin-bottom: var(--s-4);
+  box-shadow: var(--shadow-xs);
+}
+.form-card-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: var(--s-4);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+.form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.col-span-2 { grid-column: span 2; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+
+label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="email"],
+input[type="tel"],
+select,
+textarea {
+  padding: 9px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: all var(--t-micro) var(--ease-out);
+  background: var(--bg-surface);
+  color: var(--text);
+  -webkit-appearance: none;
+}
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+input:hover, select:hover, textarea:hover { border-color: var(--border-strong); }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+textarea { resize: vertical; min-height: 72px; }
+
+/* Restore visible chevron on <select> after appearance:none stripped it.
+   Without this, the airline dropdown on iOS looks like a static text field. */
+select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='none' stroke='%23475063' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M1 1.5l5 5 5-5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+/* iOS: bump form font to 16px on mobile to prevent zoom-on-focus.
+   Anything below 16px triggers Safari's auto-zoom on input focus. */
+@media (max-width: 860px) {
+  input[type="text"], input[type="number"], input[type="date"],
+  input[type="email"], input[type="tel"], select, textarea {
+    font-size: 16px;
+  }
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 8px;
+  margin-bottom: 40px;
+}
+

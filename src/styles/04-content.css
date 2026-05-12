@@ -1,0 +1,203 @@
+/* ═══════════════════════════════════════
+   MAIN
+═══════════════════════════════════════ */
+main {
+  flex: 1;
+  padding: 24px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;       /* main is the ONLY vertical scroll container */
+  overflow-x: hidden;     /* horizontal scroll lives inside the table only */
+  scrollbar-width: thin;
+}
+main::-webkit-scrollbar { width: 10px; }
+main::-webkit-scrollbar-track { background: transparent; }
+main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--bg-app); }
+main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+.page { max-width: 100%; overflow-x: hidden; }
+
+.page { display: none; animation: fadeIn 0.2s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* PAGE HEADER */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--text);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+.page-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.page-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+/* ═══════════════════════════════════════
+   HERO CARD (v3a — Dashboard signature element)
+═══════════════════════════════════════ */
+.hero {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-6) var(--s-8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-6);
+  margin-bottom: var(--s-6);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+.hero-content { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.hero-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.hero-value {
+  font-family: var(--font-sans);
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.hero-unit {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: var(--s-2);
+  letter-spacing: 0;
+}
+.hero-delta {
+  margin-top: var(--s-2);
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.hero-delta-muted { color: var(--text-secondary); font-weight: 400; }
+.hero-mini {
+  display: flex;
+  gap: var(--s-8);
+  align-items: center;
+  flex-shrink: 0;
+}
+.mini-stat { text-align: right; min-width: 64px; }
+.mini-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.mini-stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  line-height: 1.1;
+}
+.mini-stat-value.zero {
+  color: var(--text-disabled);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════
+   STATS (v3a)
+═══════════════════════════════════════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-4);
+  margin-bottom: var(--s-6);
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--t-std) var(--ease-out);
+  cursor: default;
+  box-shadow: var(--shadow-xs);
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.stat-card.accent { border-top: 3px solid var(--accent); padding-top: calc(var(--s-5) - 2px); }
+.stat-card.success { border-top: 3px solid var(--success); padding-top: calc(var(--s-5) - 2px); }
+.stat-card.night { border-top: 3px solid var(--night); padding-top: calc(var(--s-5) - 2px); }
+.stat-card.warn { border-top: 3px solid var(--warning); padding-top: calc(var(--s-5) - 2px); }
+
+/* IFR Currency card (CAR 401.05 status display) */
+.cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+.cur-label { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.cur-value-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cur-value { font-family: var(--font-sans); font-weight: 700; font-size: 28px; color: var(--text); line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+.cur-unit { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
+.cur-status { margin-left: auto; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+.cur-status.ok { background: rgba(16,163,127,0.12); color: rgb(16,163,127); }
+.cur-status.low { background: rgba(255,176,32,0.14); color: rgb(184,124,12); }
+.cur-status.bad { background: rgba(220,42,42,0.12); color: rgb(220,42,42); }
+.cur-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.02em; }
+@media (max-width: 720px) {
+  #currencyGrid { grid-template-columns: 1fr !important; gap: 14px !important; }
+}
+
+.stat-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+  margin-bottom: var(--s-2);
+}
+.stat-value {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 32px;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-unit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: var(--s-2);
+  letter-spacing: 0.02em;
+}
+

@@ -1,0 +1,103 @@
+/* ═══════════════════════════════════════
+   RESPONSIVE (v3a)
+═══════════════════════════════════════ */
+@media (max-width: 860px) {
+  /* Tap targets: bump to Apple HIG min 44pt */
+  .hamburger { display: flex; width: 44px; height: 44px; }
+  .nav-overlay { display: block; }
+
+  /* Safe-area inset so content doesn't hide behind iPhone home indicator */
+  main { padding-bottom: calc(var(--s-10) + env(safe-area-inset-bottom)); }
+
+  /* Hero mini-stat row wraps on iPhone SE (~360px) instead of clipping */
+  .hero-mini { flex-wrap: wrap; row-gap: var(--s-3); }
+
+  /* Sidebar: drawer with opaque background (glass would be unreadable over content) */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 260px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    z-index: 99;            /* above overlay (98), above header? no — header is 100 but doesn't overlap drawer area */
+    padding-top: calc(var(--header) + var(--s-3));
+    background: var(--bg-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    /* Drawer is hidden until open — no taps reach offscreen items */
+    visibility: hidden;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
+  }
+  body.nav-open nav {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(0,0,0,0.25);
+    visibility: visible;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
+  }
+
+  /* Topbar tightening: hide pilot text on mobile, keep brand + toggle */
+  header { padding: 0 var(--s-3); gap: var(--s-2); }
+  .header-pilot { display: none; }
+  .logo-icon { width: 28px; height: 28px; font-size: 12px; }
+  .logo-title { font-size: 14px; }
+  .logo-sub { font-size: 9px; }
+
+  /* Hero card stacks vertically on mobile */
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--s-5);
+    gap: var(--s-4);
+  }
+  .hero-value { font-size: 36px; }
+  .hero-unit { font-size: 15px; }
+  .hero-mini {
+    gap: var(--s-5);
+    width: 100%;
+    justify-content: space-between;
+  }
+  .mini-stat { text-align: left; }
+  .mini-stat-value { font-size: 18px; }
+
+  /* Grids collapse */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+  .stat-card { padding: var(--s-4); }
+  .stat-value { font-size: 26px; }
+  .form-grid-3, .form-grid-4 { grid-template-columns: 1fr 1fr; }
+  .import-grid { grid-template-columns: 1fr; }
+  main { padding: var(--s-5) var(--s-4) var(--s-10); }
+
+  /* Page title smaller */
+  .page-title { font-size: 22px; }
+
+  /* Table cells tighter */
+  th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
+
+  /* Theme toggle stays visible — bumped to comfortable tap size */
+  .theme-toggle button { width: 36px; height: 36px; }
+
+  /* Nav item tap height */
+  .nav-item { padding-top: 12px; padding-bottom: 12px; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+  .stat-card { padding: var(--s-3); }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 11px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .col-span-2 { grid-column: span 1; }
+  .hero { padding: var(--s-4); }
+  .hero-value { font-size: 32px; }
+  .hero-mini { gap: var(--s-3); }
+  .mini-stat-value { font-size: 16px; }
+  .logo-sub { display: none; }  /* keep just "My Logbook" */
+  main { padding: var(--s-4) var(--s-3) var(--s-10); }
+  .form-actions { flex-direction: column; }
+  .form-actions .btn { width: 100%; justify-content: center; }
+}

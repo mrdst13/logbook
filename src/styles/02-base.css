@@ -1,0 +1,166 @@
+/* ═══ DARK THEME ═══ */
+:root[data-theme="dark"] {
+  --navy: #20242E;            /* Stays dark in dark mode (used as bg for sidebar/header) */
+  --navy-light: #2A2E3A;
+  --white: #1E2230;           /* "White" surfaces become dark surfaces */
+  --off-white: #181B24;       /* App background */
+  --gray-100: #353945;
+  --gray-300: #4A4F5E;
+  --gray-500: #8B92A5;
+  --gray-700: #C2C8D6;
+  --text: #F5F6FA;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+
+  --bg-app:        #181B24;
+  --bg-surface:    #232733;
+  --bg-elevated:   #2D3242;
+  --bg-subtle:     #1F222C;
+  --bg-muted:      #353945;
+
+  --glass-bg:      rgba(45, 50, 65, 0.40);
+  --glass-border:  rgba(255, 255, 255, 0.12);
+  --glass-blur:    32px;
+
+  --border:        #2D3140;
+  --border-strong: #3F4452;
+
+  --text-primary:  #F2F4F8;
+  --text-secondary:#B0B6C4;
+  --text-muted:    #7C8497;
+  --text-disabled: #4A4F5E;
+
+  --accent:        #5B95FF;
+  --accent-bright: #7AAAFF;
+  --accent-hover:  #7AAAFF;
+  --accent-soft:   #1F2D4D;
+
+  --success:       #14C690;
+  --success-soft:  #11362B;
+  --warning:       #F0B53B;
+  --warning-soft:  #33260E;
+  --danger:        #FF4D4D;
+  --danger-soft:   #3A1313;
+  --night:         #818CF8;
+  --night-soft:    #232645;
+
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm:  0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md:  0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:  0 20px 40px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+/* App-like scroll behavior (Linear / Notion / Stripe Dashboard pattern):
+   body never scrolls, only the main content area scrolls vertically,
+   and only the table-wrap scrolls horizontally. */
+html, body { height: 100vh; height: 100dvh; overflow: hidden; }
+
+/* ─── Typography utilities (Notion/Linear-inspired) ─── */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.t-title-1 { font-family: var(--font-sans); font-weight: 700; font-size: 28px; letter-spacing: -0.025em; line-height: 1.1; color: var(--text); }
+.t-title-2 { font-family: var(--font-sans); font-weight: 600; font-size: 22px; letter-spacing: -0.02em; line-height: 1.2; color: var(--text); }
+.t-title-3 { font-family: var(--font-sans); font-weight: 600; font-size: 16px; letter-spacing: -0.01em; line-height: 1.3; color: var(--text); }
+.t-headline { font-family: var(--font-sans); font-weight: 600; font-size: 15px; letter-spacing: -0.01em; color: var(--text); }
+.t-body    { font-family: var(--font-sans); font-weight: 400; font-size: 13px; color: var(--text); }
+.t-muted   { color: var(--text-muted); }
+.t-secondary { color: var(--text-secondary); }
+.tabular   { font-variant-numeric: tabular-nums; }
+
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-app);
+  color: var(--text);
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background var(--t-std) var(--ease-out), color var(--t-std) var(--ease-out);
+}
+
+/* Ambient color blobs that the glass layers catch — boosted to make glass alive */
+body::before, body::after {
+  content: '';
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(90px);
+  z-index: 0;
+  transition: opacity var(--t-emphasis) var(--ease-out);
+}
+body::before {
+  width: 650px; height: 650px;
+  top: -180px; left: -180px;
+  background: radial-gradient(circle, rgba(46, 99, 216, 0.28), transparent 70%);
+  opacity: 1;
+}
+body::after {
+  width: 700px; height: 700px;
+  bottom: -220px; right: -220px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22), transparent 70%);
+  opacity: 1;
+}
+/* Third blob centered to feed the middle of the viewport */
+body { position: relative; }
+.app-body::before {
+  content: '';
+  position: fixed;
+  width: 500px; height: 500px;
+  top: 30%; left: 40%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.18), transparent 70%);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
+}
+:root[data-theme="dark"] body::before {
+  background: radial-gradient(circle, rgba(91, 149, 255, 0.35), transparent 70%);
+  opacity: 0.85;
+}
+:root[data-theme="dark"] body::after {
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.28), transparent 70%);
+  opacity: 0.85;
+}
+:root[data-theme="dark"] .app-body::before {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.18), transparent 70%);
+  opacity: 0.75;
+}
+
+/* Make sure header / main / nav sit above the ambient blobs (z-index: 0).
+   DO NOT add .app-body here. A z-index on .app-body creates a stacking
+   context that traps the mobile drawer (nav, fixed, z-99) below the
+   nav-overlay (z-98) at the root level, eating all taps on the drawer.
+   This was the root cause of the hamburger menu tap bug. */
+header, main, nav { position: relative; z-index: 1; }
+
+/* Prevent body scroll when mobile nav is open.
+   IMPORTANT: Do NOT set `touch-action: none` on <main> — on iOS Safari that
+   property bleeds during an in-progress gesture and kills taps on the
+   fixed-position drawer that sits visually on top of <main>. Instead, the
+   nav itself contains its own scroll (overflow-y:auto + overscroll-behavior),
+   and the overlay swallows touchmove events to prevent scroll chaining. */
+body.nav-open { overflow: hidden; }
+body.nav-open main { overflow: hidden; }
+
+/* Any open modal locks <main>. Supported on Safari 15.4+ / Chrome 105+. */
+body:has(.import-overlay.show) main { overflow: hidden; }
+
+/* Interactive elements: kill the 300ms iOS tap delay. */
+.nav-item, .hamburger, .btn, .theme-toggle button,
+.entry-type-btn, .stat-card, button, a, label {
+  touch-action: manipulation;
+}
+

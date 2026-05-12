@@ -1,0 +1,255 @@
+/* ═══════════════════════════════════════
+   TOPBAR (Liquid Glass)
+═══════════════════════════════════════ */
+header {
+  height: var(--header);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s-6);
+  gap: var(--s-3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* ── HAMBURGER ── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.hamburger:hover { background: var(--bg-muted); }
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.28s ease, opacity 0.2s ease;
+}
+body.nav-open .hamburger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+body.nav-open .hamburger span:nth-child(2) { opacity: 0; transform: scaleX(0.1); }
+body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+}
+
+.logo-icon {
+  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), var(--night));
+  display: grid; place-items: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(46, 99, 216, 0.3);
+  line-height: 1;
+}
+
+.logo-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.logo-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.header-pilot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.pilot-name {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.pilot-hours {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Theme toggle (pill in topbar) ── */
+.theme-toggle {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.theme-toggle button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.theme-toggle button:hover { color: var(--text-secondary); }
+.theme-toggle button.active {
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── MOBILE NAV OVERLAY ── */
+.nav-overlay {
+  display: none;          /* block on mobile via media query */
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 98;            /* under nav (99), above everything else */
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+  overscroll-behavior: contain;
+}
+/* Make overlay clickable and visible when nav is open */
+body.nav-open .nav-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ═══════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════ */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;          /* allow children to set their own scroll context */
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════
+   SIDEBAR (Liquid Glass)
+═══════════════════════════════════════ */
+nav {
+  width: var(--sidebar);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border-right: 1px solid var(--glass-border);
+  padding: var(--s-4) var(--s-3);
+  height: 100%;
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Hide sidebar scrollbar entirely — sidebar should fit at full height. */
+  scrollbar-width: none;
+}
+nav::-webkit-scrollbar { width: 0; display: none; }
+
+.nav-group { margin-bottom: 2px; display: flex; flex-direction: column; gap: 2px; }
+
+.nav-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: var(--s-3) var(--s-3) var(--s-1);
+  font-weight: 500;
+}
+
+.nav-item {
+  /* Reset <button> defaults so it looks identical to the old <div> */
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all var(--t-micro) var(--ease-out);
+  border-radius: var(--r-sm);
+  position: relative;
+  /* Disable iOS tap highlight; manipulation kills 300ms delay */
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-item:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+.nav-item.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; opacity: 0.9; }
+
+.nav-divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--s-3) var(--s-2);
+  border: none;
+}
+
+.nav-spacer { flex: 1; }
+
+.nav-version {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: var(--s-3);
+  letter-spacing: 0.04em;
+}
+
