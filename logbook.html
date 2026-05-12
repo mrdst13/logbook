@@ -2666,7 +2666,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     <div class="page-header">
       <div>
         <div class="page-title">Q&A</div>
-        <div class="page-sub">Aviation & logbook questions — powered by AI</div>
+        <div class="page-sub">Common aviation & logbook questions</div>
       </div>
     </div>
 
@@ -2676,24 +2676,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div id="faqList"></div>
     </div>
 
-    <!-- Ask a question -->
-    <div class="form-card">
-      <div class="form-card-title">💬 Ask a Question</div>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;font-family:var(--font-mono);line-height:1.5">
-        Ask anything about Canadian logbook regulations, TC requirements, or aviation currency rules.
-      </p>
-      <div class="form-group" style="margin-bottom:12px">
-        <textarea id="qaInput" placeholder="e.g. How long is my IFR currency valid?" style="min-height:80px"></textarea>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn btn-primary" onclick="askQuestion()">✈ Ask AI</button>
-        <div class="ai-spinner" id="qaSpinner" style="display:none;width:22px;height:22px;border-width:2px;margin:0"></div>
-      </div>
-      <div id="qaAnswer" style="display:none;margin-top:16px;padding:14px;background:var(--off-white);border-radius:8px;border-left:3px solid var(--accent);font-size:13px;line-height:1.7"></div>
-    </div>
-
-    <!-- Saved Q&A history -->
-    <div id="qaHistory" style="margin-top:18px"></div>
+    <!-- AI "Ask a Question" form removed — to be re-introduced as a premium feature
+         once Cumulo has authentication and bilingual support. See git history at
+         commit aedca46 for the previous implementation. -->
   </div>
 
   <!-- ── GLOSSARY ── -->
@@ -6297,10 +6282,13 @@ const FAQS = [
   },
 ];
 
-let qaHistory = [];
+// AI "Ask a Question" feature removed — askQuestion() and renderQAHistory()
+// previously lived here. See git history at commit aedca46 for the implementation.
+// Re-introduce as a premium / authenticated feature once Cumulo has Supabase auth
+// and bilingual EN/FR support.
 
 function renderQA() {
-  // FAQ accordion
+  // FAQ accordion (static, no AI)
   const faqList = document.getElementById('faqList');
   if (faqList && !faqList.children.length) {
     faqList.innerHTML = FAQS.map((f, i) => `
@@ -6312,69 +6300,11 @@ function renderQA() {
         <div class="faq-a">${f.a}</div>
       </div>`).join('');
   }
-
-  // Load saved Q&A history
-  try { qaHistory = JSON.parse(localStorage.getItem('logbook_qa') || '[]'); } catch { qaHistory = []; }
-  renderQAHistory();
 }
 
 function toggleFaq(i) {
   const el = document.getElementById('faq-' + i);
   if (el) el.classList.toggle('open');
-}
-
-async function askQuestion() {
-  const input = document.getElementById('qaInput');
-  const q = input.value.trim();
-  if (!q) { showToast('Enter a question first', 'error'); return; }
-
-  const spinner = document.getElementById('qaSpinner');
-  const answerDiv = document.getElementById('qaAnswer');
-  spinner.style.display = 'block';
-  answerDiv.style.display = 'none';
-
-  try {
-    const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        system: 'You are an expert on Canadian aviation regulations (CARs), Transport Canada requirements, and pilot logbook rules. Give clear, accurate, concise answers. Reference specific CAR sections when relevant. Respond in 3-5 sentences maximum.',
-        messages: [{ role: 'user', content: q }]
-      })
-    });
-
-    const data = await resp.json();
-    const answer = data.content?.map(c => c.text || '').join('') || 'No answer received.';
-    spinner.style.display = 'none';
-    answerDiv.style.display = 'block';
-    answerDiv.textContent = answer;
-
-    // Save to history
-    qaHistory.unshift({ q, a: answer, date: new Date().toLocaleDateString('en-CA') });
-    if (qaHistory.length > 20) qaHistory.length = 20;
-    localStorage.setItem('logbook_qa', JSON.stringify(qaHistory));
-    renderQAHistory();
-    input.value = '';
-  } catch(e) {
-    spinner.style.display = 'none';
-    showToast('Could not get an answer — check your connection', 'error');
-    console.error(e);
-  }
-}
-
-function renderQAHistory() {
-  const el = document.getElementById('qaHistory');
-  if (!el) return;
-  if (!qaHistory.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Previous Questions</div>
-    ${qaHistory.map(item => `
-      <div class="qa-history-item">
-        <div class="qa-history-q">Q: ${item.q} <span style="font-family:var(--font-mono);font-weight:400;font-size:10px;color:var(--text-muted);margin-left:8px">${item.date}</span></div>
-        <div class="qa-history-a">${item.a}</div>
-      </div>`).join('')}`;
 }
 
 // ═══════════════════════════════════════════
