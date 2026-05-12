@@ -280,16 +280,17 @@ body { position: relative; }
 /* Make sure all layout sits above the blobs */
 header, .app-body, main, nav { position: relative; z-index: 1; }
 
-/* Prevent body scroll when mobile nav is open */
-/* Mobile drawer scroll lock (iOS Safari compatible).
-   body already has overflow:hidden since page load, so the real scroller
-   is <main>. Lock IT, plus prevent touchmove scroll-chaining through overlay. */
+/* Prevent body scroll when mobile nav is open.
+   IMPORTANT: Do NOT set `touch-action: none` on <main> — on iOS Safari that
+   property bleeds during an in-progress gesture and kills taps on the
+   fixed-position drawer that sits visually on top of <main>. Instead, the
+   nav itself contains its own scroll (overflow-y:auto + overscroll-behavior),
+   and the overlay swallows touchmove events to prevent scroll chaining. */
 body.nav-open { overflow: hidden; }
-body.nav-open main { overflow: hidden; touch-action: none; }
+body.nav-open main { overflow: hidden; }
 
-/* Any open modal locks <main> via :has() — avoids touching every show/hide
-   call site. Supported on Safari 15.4+ / Chrome 105+ / Firefox 121+. */
-body:has(.import-overlay.show) main { overflow: hidden; touch-action: none; }
+/* Any open modal locks <main>. Supported on Safari 15.4+ / Chrome 105+. */
+body:has(.import-overlay.show) main { overflow: hidden; }
 
 /* Interactive elements: kill the 300ms iOS tap delay. */
 .nav-item, .hamburger, .btn, .theme-toggle button,
@@ -436,18 +437,16 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
-  z-index: 98;
+  z-index: 98;            /* under nav (99), above everything else */
   opacity: 0;
   transition: opacity 0.28s ease;
   pointer-events: none;
-  /* Block touchmove scroll-chaining to <main> on iOS Safari */
-  touch-action: none;
   overscroll-behavior: contain;
 }
 /* Make overlay clickable and visible when nav is open */
 body.nav-open .nav-overlay {
   opacity: 1;
-  pointer-events: all;
+  pointer-events: auto;
 }
 
 /* ═══════════════════════════════════════
@@ -494,6 +493,16 @@ nav::-webkit-scrollbar { width: 0; display: none; }
 }
 
 .nav-item {
+  /* Reset <button> defaults so it looks identical to the old <div> */
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+
   display: flex;
   align-items: center;
   gap: var(--s-3);
@@ -505,6 +514,8 @@ nav::-webkit-scrollbar { width: 0; display: none; }
   transition: all var(--t-micro) var(--ease-out);
   border-radius: var(--r-sm);
   position: relative;
+  /* Disable iOS tap highlight; manipulation kills 300ms delay */
+  -webkit-tap-highlight-color: transparent;
 }
 .nav-item:hover {
   color: var(--text);
@@ -1839,17 +1850,22 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     width: 260px;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    z-index: 99;
+    z-index: 99;            /* above overlay (98), above header? no — header is 100 but doesn't overlap drawer area */
     padding-top: calc(var(--header) + var(--s-3));
     background: var(--bg-surface);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     border-right: 1px solid var(--border);
     transform: translateX(-100%);
+    /* Drawer is hidden until open — no taps reach offscreen items */
+    visibility: hidden;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
   }
   body.nav-open nav {
     transform: translateX(0);
     box-shadow: 8px 0 32px rgba(0,0,0,0.25);
+    visibility: visible;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
   }
 
   /* Topbar tightening: hide pilot text on mobile, keep brand + toggle */
@@ -1917,13 +1933,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 </head>
 <body>
 
-<!-- MOBILE NAV OVERLAY — click to close -->
-<div class="nav-overlay" id="navOverlay" onclick="closeMobileNav()"></div>
+<!-- MOBILE NAV OVERLAY — click to close. Wired in JS at init. -->
+<div class="nav-overlay" id="navOverlay"></div>
 
 <!-- HEADER -->
 <header>
-  <!-- Hamburger: only visible on mobile -->
-  <button class="hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Toggle navigation">
+  <!-- Hamburger: only visible on mobile. Wired in JS at init. -->
+  <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
     <span></span>
     <span></span>
     <span></span>
@@ -1954,49 +1970,49 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
 <div class="app-body">
 
-<!-- SIDEBAR -->
+<!-- SIDEBAR. Nav items are real <button>s with data-page; wired once at init. -->
 <nav id="sidebar">
   <div class="nav-group">
     <div class="nav-label">Main</div>
-    <div class="nav-item active" onclick="showPage('dashboard')">
+    <button type="button" class="nav-item active" data-page="dashboard">
       <span class="nav-icon">📊</span> Dashboard
-    </div>
-    <div class="nav-item" onclick="showPage('logbook')">
+    </button>
+    <button type="button" class="nav-item" data-page="logbook">
       <span class="nav-icon">📋</span> Logbook
-    </div>
-    <div class="nav-item" onclick="showPage('add')">
+    </button>
+    <button type="button" class="nav-item" data-page="add">
       <span class="nav-icon">➕</span> Add Flight
-    </div>
+    </button>
   </div>
   <div class="nav-divider"></div>
   <div class="nav-group">
     <div class="nav-label">Import</div>
-    <div class="nav-item" onclick="showPage('import')">
+    <button type="button" class="nav-item" data-page="import">
       <span class="nav-icon">📸</span> Photo / PDF
-    </div>
+    </button>
   </div>
   <div class="nav-divider"></div>
   <div class="nav-group">
     <div class="nav-label">Reports</div>
-    <div class="nav-item" onclick="showPage('recap')">
+    <button type="button" class="nav-item" data-page="recap">
       <span class="nav-icon">🗓</span> Year Recap
-    </div>
-    <div class="nav-item" onclick="showPage('glossary')">
+    </button>
+    <button type="button" class="nav-item" data-page="glossary">
       <span class="nav-icon">📖</span> Glossary
-    </div>
-    <div class="nav-item" onclick="showPage('qa')">
+    </button>
+    <button type="button" class="nav-item" data-page="qa">
       <span class="nav-icon">💬</span> Q&A
-    </div>
+    </button>
   </div>
   <div class="nav-divider"></div>
   <div class="nav-group">
     <div class="nav-label">Settings</div>
-    <div class="nav-item" onclick="showPage('profile')">
+    <button type="button" class="nav-item" data-page="profile">
       <span class="nav-icon">👤</span> Profile
-    </div>
-    <div class="nav-item" onclick="showPage('backup')">
+    </button>
+    <button type="button" class="nav-item" data-page="backup">
       <span class="nav-icon">⚙</span> Settings
-    </div>
+    </button>
   </div>
   <div class="nav-spacer"></div>
   <div class="nav-version">v2.0 · My Logbook</div>
@@ -3058,71 +3074,71 @@ let pendingImport = [];
 let editingId = null;
 
 // ═══════════════════════════════════════════
-// MOBILE NAVIGATION (Feature 1)
-// iOS Safari scroll lock is handled in CSS via
-//   body.nav-open main { overflow: hidden; touch-action: none; }
+// MOBILE NAVIGATION
+// Pattern: shadcn/ui Sheet / Material-UI Drawer style.
 //
-// iOS Safari has a long-standing bug where `<div onclick="...">` may not
-// fire reliably, especially after a parent transform/transition. We rebind
-// every .nav-item via addEventListener at init — which IS reliable on iOS.
+//   - Real <button> elements with data-page attributes (no <div role=button>)
+//   - Single delegated 'click' listener on <nav> (no touchend, no
+//     belt-and-suspenders; click fires reliably on <button> in iOS Safari)
+//   - Scroll lock via body.nav-open { overflow:hidden } — no touch-action
+//     fiddling with <main> (that was breaking taps on the drawer)
+//   - Overlay swallows touchmove to prevent scroll-chaining into <main>
+//   - aria-expanded on hamburger reflects state for a11y
 // ═══════════════════════════════════════════
-function toggleMobileNav() {
-  document.body.classList.toggle('nav-open');
+function openMobileNav() {
+  document.body.classList.add('nav-open');
+  const hb = document.getElementById('hamburger');
+  if (hb) hb.setAttribute('aria-expanded', 'true');
 }
 
 function closeMobileNav() {
   document.body.classList.remove('nav-open');
+  const hb = document.getElementById('hamburger');
+  if (hb) hb.setAttribute('aria-expanded', 'false');
 }
 
-function wireNavItems() {
-  let count = 0;
-  document.querySelectorAll('.nav-item').forEach(item => {
-    const onclick = item.getAttribute('onclick');
-    if (!onclick) return;
-    const m = onclick.match(/showPage\(['"]([^'"]+)['"]\)/);
-    if (!m) return;
-    const pageId = m[1];
-    item.removeAttribute('onclick');
-    item.setAttribute('role', 'button');
-    item.setAttribute('tabindex', '0');
-    // Use both click AND touchend listeners. The click handler is reliable on
-    // desktop and most mobile browsers; the touchend handler is a fallback for
-    // iOS Safari edge cases where click events don't fire on <div role=button>.
-    let handled = false;
-    item.addEventListener('click', () => {
-      if (handled) { handled = false; return; }
-      try { showToast('click→ ' + pageId, 'success'); } catch {}
-      showPage(pageId);
-    });
-    item.addEventListener('touchend', (e) => {
-      handled = true;
-      e.preventDefault();
-      try { showToast('touchend→ ' + pageId, 'success'); } catch {}
-      showPage(pageId);
-      setTimeout(() => { handled = false; }, 500);
-    });
-    item.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPage(pageId); }
-    });
-    count++;
-  });
-  // Diagnostic toast so the user (and I) can see whether wireNavItems
-  // actually found and bound the nav items at init time.
-  try { showToast('wireNavItems bound ' + count + ' items', 'success'); } catch {}
+function toggleMobileNav() {
+  if (document.body.classList.contains('nav-open')) {
+    closeMobileNav();
+  } else {
+    openMobileNav();
+  }
+}
 
-  // Same for the hamburger button (defense in depth — inline onclick on
-  // <button> normally works, but rebinding makes it 100% reliable).
+function wireNav() {
+  // Hamburger
   const hb = document.getElementById('hamburger');
-  if (hb && hb.getAttribute('onclick')) {
-    hb.removeAttribute('onclick');
-    hb.addEventListener('click', toggleMobileNav);
-  }
-  // And the overlay click-to-close
+  if (hb) hb.addEventListener('click', toggleMobileNav);
+
+  // Overlay click-to-close
   const ov = document.getElementById('navOverlay');
-  if (ov && ov.getAttribute('onclick')) {
-    ov.removeAttribute('onclick');
+  if (ov) {
     ov.addEventListener('click', closeMobileNav);
+    // Prevent touchmove on overlay from scroll-chaining to <main>.
+    // passive:false so preventDefault() is honoured on iOS.
+    ov.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
   }
+
+  // Delegated nav-item clicks. One listener on <nav> covers every item.
+  // Survives re-renders (not that we have any) and is the most reliable
+  // mechanism on iOS Safari for <button> children.
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.nav-item');
+      if (!btn || !sidebar.contains(btn)) return;
+      const page = btn.dataset.page;
+      if (!page) return;
+      showPage(page);
+    });
+  }
+
+  // ESC closes drawer (desktop / iPad keyboard users)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) {
+      closeMobileNav();
+    }
+  });
 }
 
 // ═══════════════════════════════════════════
@@ -3131,11 +3147,10 @@ function wireNavItems() {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
+  const target = document.getElementById('page-' + id);
+  if (target) target.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + id + "'")) {
-      n.classList.add('active');
-    }
+    if (n.dataset.page === id) n.classList.add('active');
   });
 
   // Close mobile nav whenever a page is selected
@@ -6753,7 +6768,7 @@ function showToast(msg, type='') {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-11-diag1';
+const BUILD_VERSION = 'v3a-2026-05-11-drawer-rewrite';
 
 (function init() {
   applyDarkMode();
@@ -6763,8 +6778,8 @@ const BUILD_VERSION = 'v3a-2026-05-11-diag1';
   vBadge.textContent = BUILD_VERSION;
   vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
   document.body.appendChild(vBadge);
-  // Rebind nav-items via addEventListener (iOS Safari reliability)
-  wireNavItems();
+  // Wire hamburger, overlay, and delegated nav-item clicks
+  wireNav();
   const p = DB.loadProfile();
   if (p.fname) updateProfileDisplay(p);
   renderDashboard();
