@@ -2372,11 +2372,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         </div>
         <div class="form-group">
           <label data-i18n="flight.aircraftReg">Registration</label>
-          <input type="text" id="f-reg" placeholder="C-GKQC" oninput="this.value=this.value.toUpperCase()">
+          <input type="text" id="f-reg" placeholder="e.g. C-GKQC, N123AB" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div class="form-group">
           <label data-i18n="flight.typeRating">Type Rating</label>
-          <input type="text" id="f-rating" placeholder="E195">
+          <input type="text" id="f-rating" placeholder="Type rating">
         </div>
         <div class="form-group">
           <label data-i18n="flight.aircraftConfig">Aircraft Configuration</label>
@@ -2614,11 +2614,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="form-grid">
         <div class="form-group">
           <label data-i18n="profile.fname">First Name</label>
-          <input type="text" id="p-fname" placeholder="Martin">
+          <input type="text" id="p-fname" placeholder="First name">
         </div>
         <div class="form-group">
           <label data-i18n="profile.lname">Last Name</label>
-          <input type="text" id="p-lname" placeholder="Daoust">
+          <input type="text" id="p-lname" placeholder="Last name">
         </div>
         <div class="form-group">
           <label data-i18n="profile.rank">Title / Rank</label>
@@ -2684,11 +2684,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         </div>
         <div class="form-group">
           <label data-i18n="profile.base">Base</label>
-          <input type="text" id="p-base" placeholder="YOW">
+          <input type="text" id="p-base" placeholder="e.g. CYOW, CYUL, KJFK">
         </div>
         <div class="form-group">
           <label data-i18n="profile.fleet">Primary Fleet</label>
-          <input type="text" id="p-fleet" placeholder="E195-E2">
+          <input type="text" id="p-fleet" placeholder="e.g. C172, B737, E190">
         </div>
         <div class="form-group col-span-2">
           <label data-i18n="profile.codes">Operator Codes (for flight number recognition)</label>
@@ -5494,15 +5494,43 @@ function onboardingBack() {
   if (onbStep > 1) { onbStep--; renderOnboardingStep(); }
 }
 
+// Show/hide the custom airline text field based on dropdown choice.
+function onOnbAirlineChange() {
+  const sel = document.getElementById('onb-airline-select');
+  const custom = document.getElementById('onb-airline-custom');
+  if (!sel || !custom) return;
+  custom.style.display = sel.value === 'other' ? 'block' : 'none';
+  // If user picks a known airline, auto-fill the operator codes field.
+  if (sel.value && sel.value !== 'other' && sel.value !== 'none') {
+    const [, code] = sel.value.split('|');
+    const codesEl = document.getElementById('onb-codes');
+    if (codesEl && !codesEl.value.trim() && code) codesEl.value = code;
+  }
+}
+
 function onboardingNext() {
   // Capture current step inputs
   if (onbStep === 1) {
     onbData.fname = document.getElementById('onb-fname')?.value?.trim() || '';
     onbData.lname = document.getElementById('onb-lname')?.value?.trim() || '';
     onbData.rank = document.getElementById('onb-rank')?.value || 'F/O';
-    onbData.airline = document.getElementById('onb-airline')?.value?.trim() || '';
+    // Airline: read from dropdown; "other" → fall back to custom text field.
+    const airSel = document.getElementById('onb-airline-select');
+    const airVal = airSel?.value || '';
+    if (airVal === 'other') {
+      onbData.airline = document.getElementById('onb-airline-custom')?.value?.trim() || '';
+      onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+    } else if (airVal && airVal !== 'none') {
+      const [name, code] = airVal.split('|');
+      onbData.airline = name || '';
+      // Auto-fill operator codes from the airline if user left blank.
+      const typedCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+      onbData.operatorCodes = typedCodes || code || '';
+    } else {
+      onbData.airline = '';
+      onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+    }
     onbData.base = document.getElementById('onb-base')?.value?.trim() || '';
-    onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || 'PD';
     if (!onbData.fname || !onbData.lname) {
       showToast(t('onb.nameRequired'), 'error');
       return;
@@ -5575,11 +5603,11 @@ function renderOnboardingStep() {
       <div class="form-grid" style="gap:var(--s-3);">
         <div class="form-group">
           <label>${esc(t('onb.step1.fname'))}</label>
-          <input type="text" id="onb-fname" placeholder="Martin" autofocus />
+          <input type="text" id="onb-fname" placeholder="${esc(t('onb.step1.fname'))}" autofocus />
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step1.lname'))}</label>
-          <input type="text" id="onb-lname" placeholder="Daoust" />
+          <input type="text" id="onb-lname" placeholder="${esc(t('onb.step1.lname'))}" />
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step1.rank'))}</label>
@@ -5594,27 +5622,74 @@ function renderOnboardingStep() {
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step1.base'))}</label>
-          <input type="text" id="onb-base" placeholder="YOW" maxlength="4" style="text-transform:uppercase;" />
+          <input type="text" id="onb-base" placeholder="e.g. CYOW, CYUL, KJFK" maxlength="4" style="text-transform:uppercase;" />
         </div>
         <div class="form-group col-span-2">
           <label>${esc(t('onb.step1.airline'))}</label>
-          <input type="text" id="onb-airline" placeholder="Porter Airlines" />
+          <select id="onb-airline-select" onchange="onOnbAirlineChange()">
+            <option value="">— ${esc(t('profile.airline.select'))} —</option>
+            <optgroup label="705 — Airline Operations">
+              <option value="Air Canada|AC">Air Canada (AC)</option>
+              <option value="Air Canada Express / Jazz|QK">Air Canada Express / Jazz (QK)</option>
+              <option value="WestJet|WS">WestJet (WS)</option>
+              <option value="WestJet Encore|WR">WestJet Encore (WR)</option>
+              <option value="Air Transat|TS">Air Transat (TS)</option>
+              <option value="Porter Airlines|PD">Porter Airlines (PD)</option>
+              <option value="Flair Airlines|F8">Flair Airlines (F8)</option>
+              <option value="Canadian North|5T">Canadian North (5T)</option>
+            </optgroup>
+            <optgroup label="704 — Commuter Operations">
+              <option value="PAL Airlines|PB">PAL Airlines (PB)</option>
+              <option value="Pacific Coastal Airlines|8P">Pacific Coastal Airlines (8P)</option>
+              <option value="Bearskin Airlines|JV">Bearskin Airlines (JV)</option>
+              <option value="Air Inuit|3H">Air Inuit (3H)</option>
+              <option value="Calm Air|MO">Calm Air (MO)</option>
+              <option value="Central Mountain Air|9M">Central Mountain Air (9M)</option>
+              <option value="North Star Air|NSA">North Star Air (NSA)</option>
+              <option value="Air Tindi|8T">Air Tindi (8T)</option>
+              <option value="Kenn Borek Air|KBA">Kenn Borek Air (KBA)</option>
+              <option value="Air Creebec|YN">Air Creebec (YN)</option>
+            </optgroup>
+            <optgroup label="703 — Air Taxi Operations">
+              <option value="Buffalo Airways|BFL">Buffalo Airways</option>
+              <option value="Wasaya Airways|WT">Wasaya Airways (WT)</option>
+              <option value="Summit Air|SUT">Summit Air</option>
+              <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="other">— ${esc(t('profile.airline.other'))} —</option>
+              <option value="none">${esc(t('profile.airline.none'))}</option>
+            </optgroup>
+          </select>
+          <input type="text" id="onb-airline-custom" placeholder="Type airline name" style="display:none;margin-top:6px;" />
         </div>
         <div class="form-group col-span-2">
           <label>${esc(t('onb.step1.codes'))}</label>
-          <input type="text" id="onb-codes" placeholder="PD" value="PD" style="font-family:var(--font-mono);text-transform:uppercase;" />
+          <input type="text" id="onb-codes" placeholder="e.g. AC, PD, WS" style="font-family:var(--font-mono);text-transform:uppercase;" />
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
             ${t('onb.step1.codesHintHtml')}
           </div>
         </div>
       </div>
     `;
-    // Pre-fill if user came back
+    // Pre-fill ONLY if the user has already filled this wizard once (back-navigation).
     if (onbData.fname) document.getElementById('onb-fname').value = onbData.fname;
     if (onbData.lname) document.getElementById('onb-lname').value = onbData.lname;
     if (onbData.rank) document.getElementById('onb-rank').value = onbData.rank;
     if (onbData.base) document.getElementById('onb-base').value = onbData.base;
-    if (onbData.airline) document.getElementById('onb-airline').value = onbData.airline;
+    if (onbData.airline) {
+      const sel = document.getElementById('onb-airline-select');
+      const lower = onbData.airline.toLowerCase();
+      const match = [...sel.options].find(o => o.value && o.value !== 'other' && o.value !== 'none' && o.value.split('|')[0].toLowerCase() === lower);
+      if (match) {
+        sel.value = match.value;
+      } else {
+        sel.value = 'other';
+        const custom = document.getElementById('onb-airline-custom');
+        custom.style.display = 'block';
+        custom.value = onbData.airline;
+      }
+    }
     if (onbData.operatorCodes) document.getElementById('onb-codes').value = onbData.operatorCodes;
   } else if (onbStep === 2) {
     body.innerHTML = `
@@ -5624,7 +5699,7 @@ function renderOnboardingStep() {
       <div class="form-grid" style="gap:var(--s-3);">
         <div class="form-group col-span-2">
           <label>${esc(t('onb.step2.license'))}</label>
-          <input type="text" id="onb-license" placeholder="A123456" style="font-family:var(--font-mono);" />
+          <input type="text" id="onb-license" placeholder="License number" style="font-family:var(--font-mono);" />
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step2.medical'))}</label>
@@ -5632,7 +5707,7 @@ function renderOnboardingStep() {
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step2.fleet'))}</label>
-          <input type="text" id="onb-fleet" placeholder="E195-E2" />
+          <input type="text" id="onb-fleet" placeholder="e.g. C172, B737, E190" />
         </div>
       </div>
       <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
@@ -9260,7 +9335,7 @@ function applyTranslations() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-13-ios-safe-area';
+const BUILD_VERSION = 'v3a-2026-05-13-onboarding-cleanup';
 
 (function init() {
   applyDarkMode();

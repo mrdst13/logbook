@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-13-ios-safe-area';
+const BUILD_VERSION = 'v3a-2026-05-13-onboarding-cleanup';
 
 (function init() {
   applyDarkMode();
