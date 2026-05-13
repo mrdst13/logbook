@@ -25,6 +25,10 @@
     <div class="pilot-hours" id="headerHours">0.0 hrs total</div>
   </div>
 
+  <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
+       Stays empty in skeleton mode (Supabase keys not yet configured). -->
+  <div class="auth-status-slot" id="authStatusSlot"></div>
+
   <!-- Theme toggle (v3a) — small sun/moon switch -->
   <div class="theme-toggle" role="group" aria-label="Theme">
     <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
@@ -1148,6 +1152,16 @@
       <button class="btn btn-ghost" onclick="cancelImport()" data-i18n="preview.cancel.btn">Cancel</button>
       <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" data-i18n="preview.confirm.btn">✅ Import</button>
     </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL — populated dynamically by AuthUI.render() in 18-supabase.js.
+     Hidden by default; .show class displays it (see 08-auth.css). -->
+<div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+  <div class="auth-modal-backdrop" onclick="AuthUI.close()"></div>
+  <div class="auth-modal-card">
+    <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close">×</button>
+    <div class="auth-modal-body" id="authModalBody"></div>
   </div>
 </div>
 

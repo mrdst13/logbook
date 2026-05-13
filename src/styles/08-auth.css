@@ -1,0 +1,186 @@
+/* ═══════════════════════════════════════════════════════════════════
+   AUTH — Sign-in / sign-up / MFA modal + header auth status slot
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Header auth status (signed-in email + sign out, or sign-in CTA) ── */
+.auth-status-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  padding: 0 var(--s-3);
+  font-size: 13px;
+}
+.auth-status-slot .auth-email {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Modal shell ───────────────────────────────────────────────────── */
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-3);
+}
+.auth-modal.show { display: flex; }
+
+.auth-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.auth-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--s-5) var(--s-4);
+  max-height: calc(100dvh - 2 * var(--s-3));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-secondary);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.auth-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.auth-modal-body { display: flex; flex-direction: column; }
+
+/* ── Typography inside the modal ──────────────────────────────────── */
+.auth-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 22px;
+  margin: 0 0 var(--s-1) 0;
+  color: var(--text-primary);
+}
+.auth-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 var(--s-4) 0;
+  line-height: 1.45;
+}
+
+/* ── Form ─────────────────────────────────────────────────────────── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.auth-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.auth-input {
+  font-family: var(--font-sans);
+  font-size: 16px;       /* 16px = no iOS zoom */
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-input, var(--bg-elev));
+  color: var(--text-primary);
+  width: 100%;
+  box-sizing: border-box;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 132, 255, 0.15));
+}
+.auth-input-otp {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+.auth-help {
+  font-size: 12px;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin-top: 2px;
+}
+.auth-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.auth-err {
+  min-height: 1.2em;
+  font-size: 13px;
+  color: var(--danger, #d22);
+}
+.auth-submit { width: 100%; padding: 12px 16px; font-size: 15px; }
+
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  font-size: 13px;
+  margin-top: var(--s-2);
+}
+.auth-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.auth-links a:hover { text-decoration: underline; }
+
+/* ── MFA enrollment QR ────────────────────────────────────────────── */
+.auth-qr {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-3);
+  background: white;
+  border-radius: var(--r-md);
+  margin: var(--s-2) 0;
+}
+.auth-qr img { display: block; }
+
+/* ── Responsive: full-screen sheet on phones ──────────────────────── */
+@media (max-width: 480px) {
+  .auth-modal { padding: 0; }
+  .auth-modal-card {
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    padding-top: max(var(--s-5), env(safe-area-inset-top));
+    padding-bottom: max(var(--s-5), env(safe-area-inset-bottom));
+  }
+}

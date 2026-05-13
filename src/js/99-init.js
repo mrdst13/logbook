@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-13-onboarding-cleanup';
+const BUILD_VERSION = 'v3a-2026-05-14-supabase-skeleton';
 
 (function init() {
   applyDarkMode();
@@ -27,5 +27,30 @@ const BUILD_VERSION = 'v3a-2026-05-13-onboarding-cleanup';
   // First-launch onboarding (only if no profile name set)
   if (shouldShowOnboarding()) {
     setTimeout(startOnboarding, 400);
+  }
+
+  // ── Supabase bootstrap (skeleton-safe: no-ops if keys missing) ─────
+  // Auth.init() awaits getSession() so we do it async without blocking
+  // the rest of init. Any errors are logged inside Auth.init itself.
+  if (typeof Auth !== 'undefined' && Auth.init) {
+    Auth.init().then(() => {
+      if (typeof renderAuthStateUI === 'function') renderAuthStateUI();
+      if (typeof wireSyncEvents === 'function') wireSyncEvents();
+      // GC pre-migration backup if it's older than 90 days.
+      if (typeof Sync !== 'undefined' && Sync.gcPremigrationBackup) Sync.gcPremigrationBackup();
+      // If user is already authenticated (session restored from storage),
+      // attempt to drain the offline queue and pull remote flights.
+      if (Auth.isAuthenticated()) {
+        if (typeof Sync !== 'undefined') {
+          Sync.drainQueue();
+          Sync.pullFlights();
+        }
+      }
+      // Subscribe to auth state changes so the header updates after
+      // signin/signout from any code path.
+      Auth.onAuthChange(() => {
+        if (typeof renderAuthStateUI === 'function') renderAuthStateUI();
+      });
+    });
   }
 })();
