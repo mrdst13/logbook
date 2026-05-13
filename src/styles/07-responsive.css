@@ -23,7 +23,7 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     z-index: 99;            /* above overlay (98), above header? no — header is 100 but doesn't overlap drawer area */
-    padding-top: calc(var(--header) + var(--s-3));
+    padding-top: calc(var(--header) + env(safe-area-inset-top, 0px) + var(--s-3));
     background: var(--bg-surface);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -40,8 +40,10 @@
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
   }
 
-  /* Topbar tightening: hide pilot text on mobile, keep brand + toggle */
-  header { padding: 0 var(--s-3); gap: var(--s-2); }
+  /* Topbar tightening: hide pilot text on mobile, keep brand + toggle.
+     padding-top stays as env(safe-area-inset-top) from base header rule
+     so the iPhone status bar / notch doesn't hide the hamburger. */
+  header { padding-left: var(--s-3); padding-right: var(--s-3); gap: var(--s-2); }
   .header-pilot { display: none; }
   .logo-icon { width: 28px; height: 28px; font-size: 12px; }
   .logo-title { font-size: 14px; }
