@@ -105,7 +105,7 @@ function saveSignature() {
   const data = sigCanvas.toDataURL('image/png');
   localStorage.setItem('logbook_signature', data);
   document.getElementById('sigStatus').textContent = '✓ Saved';
-  showToast('Signature saved ✓', 'success');
+  showToast(t('toast.signatureSaved'), 'success');
 }
 
 // ═══════════════════════════════════════════

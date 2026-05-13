@@ -70,9 +70,12 @@ const LOGBOOK_COLUMNS = [
   { key: 'simRegistration', label: 'Sim Device ID',    short: 'Device',   group: 'Simulator',      width: 14, align: 'left',   default: false },
 
   // Other
-  { key: 'picus',        label: 'PICUS',               short: 'PICUS',    group: 'Other',          width: 10, align: 'right', decimal: true, default: false },
-  { key: 'multiCrew',    label: 'Multi-Crew',          short: 'MC',       group: 'Other',          width: 9,  align: 'center', default: false },
-  { key: 'remarks',      label: 'Remarks',             short: 'Remarks',  group: 'Other',          width: 24, align: 'left',  default: false },
+  { key: 'picus',         label: 'PICUS',              short: 'PICUS',    group: 'Other',          width: 10, align: 'right', decimal: true, default: false },
+  { key: 'dualGivenDay',  label: 'Dual Given Day',     short: 'DG Day',   group: 'Other',          width: 11, align: 'right', decimal: true, default: false },
+  { key: 'dualGivenNight',label: 'Dual Given Night',   short: 'DG Ngt',   group: 'Other',          width: 11, align: 'right', decimal: true, default: false },
+  { key: 'multiCrew',     label: 'Multi-Crew',         short: 'MC',       group: 'Other',          width: 9,  align: 'center', default: false },
+  { key: 'acConfig',      label: 'AC Config',          short: 'Config',   group: 'Other',          width: 12, align: 'left',  default: false },
+  { key: 'remarks',       label: 'Remarks',            short: 'Remarks',  group: 'Other',          width: 24, align: 'left',  default: false },
 
   // Computed total (always shown)
   { key: 'total',        label: 'Total',               short: 'Total',    group: 'Times',          width: 12, align: 'right', decimal: true, default: true }
@@ -95,13 +98,28 @@ function saveColumnPrefs(prefs) {
 function getVisibleColumns(context = 'table') {
   // context: 'table' (logbook page) or 'pdf' (export)
   const prefs = loadColumnPrefs() || {};
-  const visible = LOGBOOK_COLUMNS.filter(c => {
+  let visible = LOGBOOK_COLUMNS.filter(c => {
     const pref = prefs[c.key];
     return pref === undefined ? c.default : pref === true;
   });
   // Always include 'total' as final column
   if (!visible.find(c => c.key === 'total')) {
     visible.push(LOGBOOK_COLUMNS.find(c => c.key === 'total'));
+  }
+  // Screen-only auto-hide of empty numeric columns (profile.hideZeroColumns).
+  // The TC PDF export (context='pdf') always keeps the full 38 columns for
+  // ramp-check compliance — this branch never runs there.
+  if (context === 'table' && typeof flights !== 'undefined' && flights.length > 0 && typeof DB !== 'undefined') {
+    const prof = DB.loadProfile();
+    if (prof && prof.hideZeroColumns) {
+      const numericIntKeys = new Set(['ldgDay','ldgNight','approaches','toDay','toNight']);
+      visible = visible.filter(c => {
+        if (c.key === 'total') return true;                         // total always shown
+        if (!c.decimal && !numericIntKeys.has(c.key)) return true;  // text/boolean columns always shown
+        const sum = flights.reduce((s, f) => s + (+computeCellValue(f, c.key) || 0), 0);
+        return sum > 0;
+      });
+    }
   }
   return visible;
 }
@@ -531,27 +549,27 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
 function saveNavblueUrl() {
   const input = document.getElementById('navblueUrl');
   let url = (input.value || '').trim();
-  if (!url) { showToast('Enter a Navblue iCal URL first', 'error'); return; }
+  if (!url) { showToast(t('toast.enterNavblueUrl'), 'error'); return; }
   // Normalize webcal:// → https://
   url = url.replace(/^webcal:\/\//i, 'https://');
   if (!/^https:\/\/[^/]*navblue\.cloud\//i.test(url)) {
-    showToast('URL must be a Navblue domain (navblue.cloud)', 'error');
+    showToast(t('toast.invalidNavblueDomain'), 'error');
     return;
   }
   localStorage.setItem(NAVBLUE_URL_KEY, url);
   input.value = url;
-  showToast('Navblue URL saved ✓', 'success');
+  showToast(t('toast.urlSaved'), 'success');
   updateNavblueStatus();
 }
 
 function clearNavblueUrl() {
-  if (!confirm('Remove the saved Navblue URL?')) return;
+  if (!confirm(t('confirm.removeNavblue'))) return;
   localStorage.removeItem(NAVBLUE_URL_KEY);
   localStorage.removeItem(NAVBLUE_LAST_SYNC_KEY);
   document.getElementById('navblueUrl').value = '';
   document.getElementById('navblueDetails').style.display = 'none';
   updateNavblueStatus();
-  showToast('Navblue URL cleared');
+  showToast(t('toast.urlCleared'));
 }
 
 function updateNavblueStatus() {
@@ -570,7 +588,7 @@ function updateNavblueStatus() {
 
 async function syncNavblueNow() {
   const url = localStorage.getItem(NAVBLUE_URL_KEY);
-  if (!url) { showToast('Save a Navblue URL first', 'error'); return; }
+  if (!url) { showToast(t('toast.saveUrlFirst'), 'error'); return; }
 
   const btn = document.getElementById('syncNowBtn');
   const details = document.getElementById('navblueDetails');
@@ -686,11 +704,11 @@ async function syncNavblueNow() {
 
     if (fresh.length > 0) {
       showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
-      showToast(`${fresh.length} new + ${mergedCount} enriched`);
+      showToast(t('toast.syncFreshEnriched', { fresh: fresh.length, merged: mergedCount }));
     } else if (mergedCount > 0) {
-      showToast(`${mergedCount} existing flights enriched + ${recalcStats.updated} recalculated ✓`, 'success');
+      showToast(t('toast.syncEnrichedRecalc', { merged: mergedCount, updated: recalcStats.updated }), 'success');
     } else {
-      showToast('Already up to date');
+      showToast(t('toast.alreadyUpToDate'));
     }
 
   } catch(e) {

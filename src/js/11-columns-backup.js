@@ -75,11 +75,11 @@ function closeColumnMenuOnOutside(e) {
 }
 
 function resetColumnPrefs() {
-  if (!confirm('Reset all column visibility to defaults? Your data is not affected.')) return;
+  if (!confirm(t('confirm.resetCols'))) return;
   localStorage.removeItem(COLUMN_PREFS_KEY);
   renderColumnPicker();
   if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
-  showToast('Column visibility reset to defaults');
+  showToast(t('toast.columnsReset'));
 }
 
 function applyColumnPreset(preset) {
@@ -103,7 +103,7 @@ function applyColumnPreset(preset) {
   saveColumnPrefs(prefs);
   renderColumnPicker();
   if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
-  showToast(`Preset "${preset}" applied`);
+  showToast(t('toast.presetApplied', { name: preset }));
 }
 
 // ═══════════════════════════════════════════
@@ -116,7 +116,7 @@ function backupData() {
   a.href = URL.createObjectURL(blob);
   a.download = 'logbook_backup_' + new Date().toISOString().split('T')[0] + '.json';
   a.click();
-  showToast('Backup downloaded ✓', 'success');
+  showToast(t('toast.backupDownloaded'), 'success');
 }
 
 function restoreData(input) {
@@ -127,19 +127,19 @@ function restoreData(input) {
       const data = JSON.parse(e.target.result);
       if (data.flights) { flights = data.flights; DB.save(flights); }
       if (data.profile) { DB.saveProfile(data.profile); }
-      showToast(flights.length + ' flights restored ✓', 'success');
+      showToast(t('toast.flightsRestored', { n: flights.length }), 'success');
       renderDashboard();
-    } catch { showToast('Invalid backup file', 'error'); }
+    } catch { showToast(t('toast.invalidBackup'), 'error'); }
   };
   r.readAsText(file);
   input.value = '';
 }
 
 function clearAll() {
-  if (!confirm('Delete ALL flights? This cannot be undone.')) return;
+  if (!confirm(t('confirm.deleteAll'))) return;
   flights = [];
   DB.save(flights);
-  showToast('All data cleared', 'error');
+  showToast(t('toast.allCleared'), 'error');
   renderDashboard();
 }
 

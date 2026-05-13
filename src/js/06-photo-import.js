@@ -47,7 +47,7 @@ Use 0 for empty fields. Infer year from context if not explicit.` }
     showImportPreview(extracted, `${extracted.length} flight${extracted.length !== 1 ? 's' : ''} extracted from photo — review before import`);
   } catch(e) {
     box.classList.remove('show');
-    showToast('Could not parse image — try a clearer photo', 'error');
+    showToast(t('toast.photoParseFailed'), 'error');
     console.error(e);
   }
 }
@@ -265,7 +265,7 @@ function confirmImport() {
   const toImport = pendingImport.filter(f => f.selected);
   const count = toImport.length;
   if (count === 0) {
-    showToast('Nothing selected to import', 'error');
+    showToast(t('toast.nothingSelected'), 'error');
     return;
   }
   // PIPEDA: read consent toggle once for the whole batch so the rule
@@ -284,7 +284,7 @@ function confirmImport() {
   DB.save(flights);
   pendingImport = [];
   closeImportOverlay();
-  showToast(count + ' flight' + (count !== 1 ? 's' : '') + ' imported ✓', 'success');
+  showToast(t(count === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count }), 'success');
   showPage('logbook');
 }
 

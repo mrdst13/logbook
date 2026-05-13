@@ -74,7 +74,7 @@ function setEntryType(type) {
 
 function saveFlight() {
   const date = gv('f-date');
-  if (!date) { showToast('Date is required', 'error'); return; }
+  if (!date) { showToast(t('toast.dateRequired'), 'error'); return; }
 
   const isSim = currentEntryType === 'sim';
 
@@ -125,7 +125,7 @@ function saveFlight() {
   }
 
   DB.save(flights);
-  showToast('Flight saved ✓', 'success');
+  showToast(t('toast.flightSaved'), 'success');
   showPage('logbook');
 }
 
@@ -158,10 +158,10 @@ function editFlight(id) {
 }
 
 function deleteFlight(id) {
-  if (!confirm('Delete this flight entry?')) return;
+  if (!confirm(t('confirm.deleteFlightShort'))) return;
   flights = flights.filter(f => f.id !== id);
   DB.save(flights);
-  showToast('Flight deleted', 'error');
+  showToast(t('toast.flightDeleted'), 'error');
   renderLogbook(filterVal);
 }
 

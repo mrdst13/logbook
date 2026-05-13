@@ -15,10 +15,11 @@ function renderAlerts() {
   if (p.medical) {
     const exp = new Date(p.medical); exp.setHours(0,0,0,0);
     const days = Math.round((exp - today) / 86400000);
+    const absDays = Math.abs(days);
     if (days < 0) {
-      alerts.push({ level:'red', icon:'🏥', title:'Medical EXPIRED', sub:`Expired ${Math.abs(days)} day${Math.abs(days)!==1?'s':''} ago` });
+      alerts.push({ level:'red', icon:'🏥', title: t('alert.medicalExpired'), sub: t(absDays === 1 ? 'alert.medicalExpiredSub' : 'alert.medicalExpiredSubPl', { n: absDays }) });
     } else if (days <= 60) {
-      alerts.push({ level:'yellow', icon:'🏥', title:`Medical expires in ${days} day${days!==1?'s':''}`, sub:`Expiry: ${exp.toLocaleDateString('en-CA')}` });
+      alerts.push({ level:'yellow', icon:'🏥', title: t(days === 1 ? 'alert.medicalSoon2' : 'alert.medicalSoon2Pl', { n: days }), sub: t('alert.medicalExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
     }
     // > 60 days = current = no alert shown
   }
@@ -30,7 +31,7 @@ function renderAlerts() {
     .filter(f => f.date >= cut90str)
     .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
   if (recentLdg < 3) {
-    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title:`Landing currency: ${recentLdg}/3 landings in last 90 days`, sub:'3 landings required within 90 days — CAR 401.05' });
+    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title: t('alert.landingCurrency', { n: recentLdg }), sub: t('alert.landingCurrencySub') });
   }
 
   // IFR currency — only show if NOT current (<6 approaches in 6 months).
@@ -42,7 +43,7 @@ function renderAlerts() {
     .filter(f => f.date >= cut6mStr)
     .reduce((sum, f) => sum + (+f.approaches||0), 0);
   if (appCount < 6) {
-    alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title:`IFR currency: ${appCount}/6 approaches in last 6 months`, sub:'6 approaches required within 6 months — CAR 401.05' });
+    alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
   }
 
   if (!alerts.length) { section.style.display = 'none'; return; }
@@ -76,21 +77,21 @@ function renderCurrencyCard() {
     const el = document.getElementById(elId);
     if (!el) return;
     el.classList.remove('ok','low','bad');
-    if (ok)       { el.classList.add('ok');  el.textContent = 'Current'; }
-    else if (low) { el.classList.add('low'); el.textContent = 'Low';     }
-    else          { el.classList.add('bad'); el.textContent = 'Expired'; }
+    if (ok)       { el.classList.add('ok');  el.textContent = t('curr.statusCurrent'); }
+    else if (low) { el.classList.add('low'); el.textContent = t('curr.statusLow');     }
+    else          { el.classList.add('bad'); el.textContent = t('curr.statusExpired'); }
   };
 
   document.getElementById('cur-app-count').textContent = approachCount;
   setStatus('cur-app-status', approachCount >= 6, approachCount > 0);
   document.getElementById('cur-app-sub').textContent =
     recent6m.length === 0
-      ? 'No flights logged in last 6 months'
-      : `Across ${recent6m.length} flight${recent6m.length !== 1 ? 's' : ''}. Toggle auto-count in Profile → IFR Approach Auto-Count.`;
+      ? t('curr.noFlights6mo')
+      : t(recent6m.length === 1 ? 'curr.acrossFlights' : 'curr.acrossFlightsPl', { n: recent6m.length });
 
   document.getElementById('cur-hrs-count').textContent = instHours.toFixed(1);
   setStatus('cur-hrs-status', instHours >= 6, instHours > 0);
-  document.getElementById('cur-hrs-sub').textContent = 'Actual + hood + approved sim';
+  document.getElementById('cur-hrs-sub').textContent = t('curr.instTimeSub');
 }
 
 // ═══════════════════════════════════════════

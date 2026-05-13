@@ -22,7 +22,7 @@ function startOnboarding() {
 }
 
 function skipOnboarding() {
-  if (!confirm('Skip the setup wizard? You can always access these settings later from the Settings page.')) return;
+  if (!confirm(t('onb.skipConfirm'))) return;
   localStorage.setItem(ONBOARDING_KEY, 'skipped');
   document.getElementById('onboardingOverlay').classList.remove('show');
   document.body.style.overflow = '';
@@ -33,7 +33,7 @@ function finishOnboarding() {
   document.getElementById('onboardingOverlay').classList.remove('show');
   document.body.style.overflow = '';
   renderDashboard();
-  showToast('Setup complete — welcome aboard ✈', 'success');
+  showToast(t('onb.complete'), 'success');
 }
 
 function onboardingBack() {
@@ -50,7 +50,7 @@ function onboardingNext() {
     onbData.base = document.getElementById('onb-base')?.value?.trim() || '';
     onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || 'PD';
     if (!onbData.fname || !onbData.lname) {
-      showToast('Please enter your first and last name', 'error');
+      showToast(t('onb.nameRequired'), 'error');
       return;
     }
   } else if (onbStep === 2) {
@@ -98,58 +98,59 @@ function onboardingNext() {
 
 function renderOnboardingStep() {
   document.getElementById('onbStepNum').textContent = onbStep;
-  const titles = {
-    1: 'Welcome — tell us about you',
-    2: 'License & aircraft',
-    3: 'Connect Navblue (optional)',
-    4: 'Choose your default view'
+  const titleKeys = {
+    1: 'onb.step1.title',
+    2: 'onb.step2.title',
+    3: 'onb.step3.title',
+    4: 'onb.step4.title'
   };
-  document.getElementById('onbStepTitle').textContent = titles[onbStep];
+  document.getElementById('onbStepTitle').textContent = t(titleKeys[onbStep]);
 
   const body = document.getElementById('onbBody');
   const backBtn = document.getElementById('onbBackBtn');
   const nextBtn = document.getElementById('onbNextBtn');
   backBtn.style.display = onbStep > 1 ? 'inline-flex' : 'none';
-  nextBtn.textContent = onbStep < 4 ? 'Continue →' : '✓ Finish setup';
+  backBtn.textContent = t('onb.back');
+  nextBtn.textContent = onbStep < 4 ? t('onb.continue') : t('onb.finish');
 
   if (onbStep === 1) {
     body.innerHTML = `
       <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
-        Cumulo is your personal pilot logbook. Let's set up your profile (you can change everything later).
+        ${esc(t('onb.step1.intro'))}
       </p>
       <div class="form-grid" style="gap:var(--s-3);">
         <div class="form-group">
-          <label>First name</label>
+          <label>${esc(t('onb.step1.fname'))}</label>
           <input type="text" id="onb-fname" placeholder="Martin" autofocus />
         </div>
         <div class="form-group">
-          <label>Last name</label>
+          <label>${esc(t('onb.step1.lname'))}</label>
           <input type="text" id="onb-lname" placeholder="Daoust" />
         </div>
         <div class="form-group">
-          <label>Rank</label>
+          <label>${esc(t('onb.step1.rank'))}</label>
           <select id="onb-rank">
-            <option value="F/O">First Officer (F/O)</option>
-            <option value="Capt">Captain</option>
-            <option value="SIC">Second-in-Command (SIC)</option>
-            <option value="PIC">Pilot-in-Command (PIC)</option>
-            <option value="Student">Student Pilot</option>
-            <option value="Instructor">Instructor</option>
+            <option value="F/O">${esc(t('onb.rank.fo'))}</option>
+            <option value="Capt">${esc(t('onb.rank.capt'))}</option>
+            <option value="SIC">${esc(t('onb.rank.sic'))}</option>
+            <option value="PIC">${esc(t('onb.rank.pic'))}</option>
+            <option value="Student">${esc(t('onb.rank.student'))}</option>
+            <option value="Instructor">${esc(t('onb.rank.instructor'))}</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Base (ICAO or IATA)</label>
+          <label>${esc(t('onb.step1.base'))}</label>
           <input type="text" id="onb-base" placeholder="YOW" maxlength="4" style="text-transform:uppercase;" />
         </div>
         <div class="form-group col-span-2">
-          <label>Airline / Operator</label>
+          <label>${esc(t('onb.step1.airline'))}</label>
           <input type="text" id="onb-airline" placeholder="Porter Airlines" />
         </div>
         <div class="form-group col-span-2">
-          <label>Operator codes (comma-separated)</label>
+          <label>${esc(t('onb.step1.codes'))}</label>
           <input type="text" id="onb-codes" placeholder="PD" value="PD" style="font-family:var(--font-mono);text-transform:uppercase;" />
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-            IATA codes for the airlines you fly with. <strong>PD</strong>=Porter · <strong>AC</strong>=Air Canada · <strong>QK</strong>=Jazz · <strong>WS</strong>=WestJet · <strong>WR</strong>=WestJet Encore · <strong>TS</strong>=Transat · <strong>F8</strong>=Flair · <strong>5T</strong>=Canadian North · <strong>PB</strong>=PAL · <strong>8P</strong>=Pacific Coastal
+            ${t('onb.step1.codesHintHtml')}
           </div>
         </div>
       </div>
@@ -164,24 +165,24 @@ function renderOnboardingStep() {
   } else if (onbStep === 2) {
     body.innerHTML = `
       <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
-        These appear on your printed logbook PDF and help track currency.
+        ${esc(t('onb.step2.intro'))}
       </p>
       <div class="form-grid" style="gap:var(--s-3);">
         <div class="form-group col-span-2">
-          <label>Transport Canada license number</label>
+          <label>${esc(t('onb.step2.license'))}</label>
           <input type="text" id="onb-license" placeholder="A123456" style="font-family:var(--font-mono);" />
         </div>
         <div class="form-group">
-          <label>Medical expiry date</label>
+          <label>${esc(t('onb.step2.medical'))}</label>
           <input type="date" id="onb-medical" />
         </div>
         <div class="form-group">
-          <label>Primary aircraft type</label>
+          <label>${esc(t('onb.step2.fleet'))}</label>
           <input type="text" id="onb-fleet" placeholder="E195-E2" />
         </div>
       </div>
       <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
-        All fields are optional. Cumulo will show alerts if your medical is expiring soon.
+        ${esc(t('onb.step2.optional'))}
       </p>
     `;
     if (onbData.license) document.getElementById('onb-license').value = onbData.license;
@@ -190,51 +191,47 @@ function renderOnboardingStep() {
   } else if (onbStep === 3) {
     body.innerHTML = `
       <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
-        If your airline uses <strong>Navblue N-OC</strong> (Porter, WestJet Encore, Jazz, etc.), paste your roster subscription URL.
-        Cumulo will fetch your flights automatically.
+        ${t('onb.step3.introHtml')}
       </p>
       <div class="form-group">
-        <label>Navblue iCal URL (optional)</label>
+        <label>${esc(t('onb.step3.url'))}</label>
         <input type="url" id="onb-navblue"
                placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
                style="font-family:var(--font-mono); font-size:11px;" />
       </div>
       <div style="margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.6;">
-        <strong>How to get this URL :</strong><br>
-        1. Log into Navblue → Roster → Subscribe to calendar<br>
-        2. Copy the <code>webcal://</code> link<br>
-        3. Paste it above (or skip and add it later in Settings)
+        ${t('onb.step3.howtoHtml')}
       </div>
     `;
     if (onbData.navblueUrl) document.getElementById('onb-navblue').value = onbData.navblueUrl;
   } else if (onbStep === 4) {
     body.innerHTML = `
       <p style="font-size:14px; color:var(--text-secondary); margin-bottom:var(--s-4); line-height:1.55;">
-        Choose which columns appear by default in your logbook table and PDF export. You can change this anytime in Settings.
+        ${esc(t('onb.step4.intro'))}
       </p>
       <div style="display:flex; flex-direction:column; gap:var(--s-2);">
         <label class="col-option is-on" style="padding:var(--s-4); display:flex; gap:var(--s-3); align-items:flex-start;">
           <input type="radio" name="onb-preset" value="compact" checked
                  style="appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid var(--accent);border-radius:50%;flex-shrink:0;margin-top:2px;background:radial-gradient(circle, var(--accent) 0% 50%, transparent 50%);" />
           <div>
-            <div style="font-weight:600; font-size:14px;">Compact (F/O airline 705)</div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">8 essential columns: Date, Aircraft, Reg, Route, PIC, Night, Flight Time. Recommended for daily use.</div>
+            <div style="font-weight:600; font-size:14px;">${esc(t('onb.step4.compact'))}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(t('onb.step4.compactDesc'))}</div>
           </div>
         </label>
         <label class="col-option" style="padding:var(--s-4); display:flex; gap:var(--s-3); align-items:flex-start;">
           <input type="radio" name="onb-preset" value="atpl"
                  style="appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid var(--border-strong);border-radius:50%;flex-shrink:0;margin-top:2px;" />
           <div>
-            <div style="font-weight:600; font-size:14px;">ATPL preparation</div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">~22 columns covering all Standard 421 experience categories. For pilots preparing their ATPL application.</div>
+            <div style="font-weight:600; font-size:14px;">${esc(t('onb.step4.atpl'))}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(t('onb.step4.atplDesc'))}</div>
           </div>
         </label>
         <label class="col-option" style="padding:var(--s-4); display:flex; gap:var(--s-3); align-items:flex-start;">
           <input type="radio" name="onb-preset" value="all"
                  style="appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid var(--border-strong);border-radius:50%;flex-shrink:0;margin-top:2px;" />
           <div>
-            <div style="font-weight:600; font-size:14px;">All columns (38)</div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Show everything. Best for detailed audit or recurrent training.</div>
+            <div style="font-weight:600; font-size:14px;">${esc(t('onb.step4.all'))}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(t('onb.step4.allDesc'))}</div>
           </div>
         </label>
       </div>

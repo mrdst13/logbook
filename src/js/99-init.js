@@ -6,6 +6,8 @@ const BUILD_VERSION = 'v3a-2026-05-11-stacking-fix';
 
 (function init() {
   applyDarkMode();
+  // Apply i18n translations (must happen before anything reads textContent)
+  if (typeof applyTranslations === 'function') applyTranslations();
   // Visible version badge bottom-right — verifies fresh page load on iOS
   const vBadge = document.createElement('div');
   vBadge.id = 'buildVersion';

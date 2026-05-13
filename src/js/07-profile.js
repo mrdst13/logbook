@@ -6,7 +6,7 @@ function setProfileType(type) {
   p.pilotType = type;
   DB.saveProfile(p);
   highlightProfileTypeCard(type);
-  showToast('Profile type saved ✓', 'success');
+  showToast(t('toast.profileTypeSaved'), 'success');
 }
 
 function highlightProfileTypeCard(type) {
@@ -122,6 +122,20 @@ function loadProfile() {
     consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
     consentCb.onchange = () => consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
   }
+  // Hide-empty-columns toggle: screen-only filtering. Persists + re-renders live.
+  // Never affects the TC PDF export (always 38 columns for ramp-check compliance).
+  const hideZeroCb = document.getElementById('p-hideZeroColumns');
+  if (hideZeroCb) {
+    hideZeroCb.checked = !!p.hideZeroColumns;
+    hideZeroCb.closest('label').classList.toggle('is-on', hideZeroCb.checked);
+    hideZeroCb.onchange = () => {
+      hideZeroCb.closest('label').classList.toggle('is-on', hideZeroCb.checked);
+      const prof = DB.loadProfile();
+      prof.hideZeroColumns = !!hideZeroCb.checked;
+      DB.saveProfile(prof);
+      if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
+    };
+  }
   // Aircraft configurations checkboxes
   const acConfigs = p.acConfigs || ['wheels'];
   document.querySelectorAll('#p-acConfigs input[type=checkbox]').forEach(cb => {
@@ -192,12 +206,13 @@ function saveProfile() {
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
     autoCountIFR: !!document.getElementById('p-autoCountIFR')?.checked,
     consentCaptainNames: !!document.getElementById('p-consentCaptainNames')?.checked,
+    hideZeroColumns: !!document.getElementById('p-hideZeroColumns')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
-  showToast('Profile saved ✓', 'success');
+  showToast(t('toast.profileSaved'), 'success');
 }
 
 function updateProfileDisplay(p) {

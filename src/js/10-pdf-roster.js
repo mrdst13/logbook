@@ -17,7 +17,7 @@ function handleRosterDrop(event) {
 async function handleRosterFile(file) {
   if (!file) return;
   if (typeof pdfjsLib === 'undefined') {
-    showToast('PDF parser library not loaded yet — refresh the page and retry.', 'error');
+    showToast(t('toast.pdfLibNotLoaded'), 'error');
     return;
   }
   const details = document.getElementById('rosterDetails');
@@ -48,7 +48,7 @@ async function handleRosterFile(file) {
 
     if (extracted.length === 0) {
       details.innerHTML = `<span style="color:var(--danger);">No flight legs detected in this PDF. Make sure it's a Navblue HrRosterReport (not a different report).</span>`;
-      showToast('No flights found in this PDF', 'error');
+      showToast(t('toast.noFlightsInPdf'), 'error');
       return;
     }
 
@@ -97,16 +97,16 @@ async function handleRosterFile(file) {
     details.innerHTML = detailLines.join('<br>');
 
     if (matched > 0) {
-      showToast(`✓ ${matched} captain name${matched !== 1 ? 's' : ''} added`, 'success');
+      showToast(t(matched === 1 ? 'toast.captainsAdded' : 'toast.captainsAddedPl', { n: matched }), 'success');
     } else if (alreadyHad === extracted.length) {
-      showToast('All flights already had a PIC');
+      showToast(t('toast.allHadPic'));
     } else {
-      showToast('No new captains added — check console for details', 'error');
+      showToast(t('toast.noCaptainsAdded'), 'error');
     }
   } catch (e) {
     console.error('[Roster] Parse error:', e);
     details.innerHTML = `<span style="color:var(--danger);">Error: ${e.message}</span>`;
-    showToast('Failed to parse PDF: ' + e.message, 'error');
+    showToast(t('toast.pdfParseFailed', { err: e.message }), 'error');
   }
 }
 

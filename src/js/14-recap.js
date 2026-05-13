@@ -24,10 +24,10 @@ function renderRecap() {
   const ldg   = yFlights.reduce((s,f) => s + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
   const night = yFlights.reduce((s,f) => s + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0), 0);
   document.getElementById('recapStats').innerHTML = [
-    ['Total Hours', fmt(total), 'hours'],
-    ['Block Hours', fmt(block), 'hours'],
-    ['Night Time',  fmt(night), 'hours'],
-    ['Landings',    ldg,        'total'],
+    [t('recap.totalHoursLbl'), fmt(total), t('recap.hoursUnit')],
+    [t('recap.blockHoursLbl'), fmt(block), t('recap.hoursUnit')],
+    [t('recap.nightTimeLbl'),  fmt(night), t('recap.hoursUnit')],
+    [t('recap.landingsLbl'),   ldg,        t('recap.totalUnit')],
   ].map(([lbl,val,unit]) => `
     <div class="stat-card">
       <div class="stat-label">${lbl}</div>
@@ -36,11 +36,12 @@ function renderRecap() {
     </div>`).join('');
 
   // Monthly chart
+  const locale = (typeof getLang === 'function' && getLang() === 'fr') ? 'fr-CA' : 'en-CA';
   const months = Array.from({length:12}, (_,i) => {
     const key = `${year}-${String(i+1).padStart(2,'0')}`;
     const d = new Date(+year, i, 1);
     return {
-      label: d.toLocaleDateString('en-CA',{month:'short'}),
+      label: d.toLocaleDateString(locale,{month:'short'}),
       val: parseFloat(yFlights.filter(f=>f.date&&f.date.startsWith(key)).reduce((s,f)=>s+(+f.block||0),0).toFixed(1))
     };
   });
@@ -77,10 +78,10 @@ function renderRecap() {
   const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('recapAirports').innerHTML = topAirports.length
     ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-family:var(--font-mono);font-weight:600;color:var(--navy)">${a}</span>
-        <span style="color:var(--text-muted);font-size:12px">${n} visit${n!==1?'s':''}</span>
+        <span style="font-family:var(--font-mono);font-weight:600;color:var(--navy)">${esc(a)}</span>
+        <span style="color:var(--text-muted);font-size:12px">${esc(t(n === 1 ? 'recap.visit' : 'recap.visitPl', { n }))}</span>
       </div>`).join('')
-    : '<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No data for this year.</p>';
+    : `<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">${esc(t('recap.noAirports'))}</p>`;
 
   // Top routes
   const routes = {};
@@ -92,8 +93,8 @@ function renderRecap() {
   document.getElementById('recapRoutes').innerHTML = topRoutes.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${topRoutes.map(([r,n]) =>
         `<div style="background:var(--bg-subtle);border-radius:6px;padding:5px 12px;font-family:var(--font-mono);font-size:11px;color:var(--navy)">
-          ${r} <span style="color:var(--accent);margin-left:4px">×${n}</span>
+          ${esc(r)} <span style="color:var(--accent);margin-left:4px">×${n}</span>
         </div>`).join('')}</div>`
-    : '<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No routes for this year.</p>';
+    : `<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">${esc(t('recap.noRoutes'))}</p>`;
 }
 

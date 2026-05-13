@@ -159,7 +159,7 @@ function ageString(ms) {
 function undoLastOperation() {
   const history = loadSnapshots();
   if (history.length === 0) {
-    showToast('No snapshot to restore — Cumulo only saves snapshots before bulk operations.', 'error');
+    showToast(t('toast.noSnapshot'), 'error');
     return;
   }
   // If multiple snapshots, let the user pick one
@@ -173,10 +173,10 @@ function undoLastOperation() {
 
 function restoreSnapshot(index) {
   const history = loadSnapshots();
-  if (!history[index]) { showToast('Snapshot not found', 'error'); return; }
+  if (!history[index]) { showToast(t('toast.snapshotNotFound'), 'error'); return; }
   const snap = history[index];
 
-  if (!confirm(`Restore logbook to state before "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})?\n\nCurrent: ${flights.length} flights\nSnapshot: ${snap.flightCount} flights\n\nThe current state will be saved as a new snapshot — you can always undo again.`)) return;
+  if (!confirm(t('confirm.restoreSnapshot', { op: snap.operation, age: ageString(Date.now() - snap.timestamp), curN: flights.length, snapN: snap.flightCount }))) return;
 
   // Push current state as new snapshot (so user can undo this undo)
   const currentSnap = {
@@ -194,7 +194,7 @@ function restoreSnapshot(index) {
   DB.save(flights);
   renderDashboard();
   updateUndoButton();
-  showToast(`Restored ${snap.flightCount} flights from ${ageString(Date.now() - snap.timestamp)} state`, 'success');
+  showToast(t('toast.snapshotRestored', { n: snap.flightCount, age: ageString(Date.now() - snap.timestamp) }), 'success');
 }
 
 function showSnapshotHistoryModal() {
@@ -287,7 +287,7 @@ function findMatchingExistingFlight(incoming) {
 
 // Re-process ALL existing flights and persist. Reports skips with reasons.
 function recalculateAllFlights() {
-  if (!confirm('Recalculate night-time and cross-country for all imported flights?\n\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.\n\nA snapshot will be saved automatically — you can undo this from Settings if needed.')) return;
+  if (!confirm(t('confirm.recalc'))) return;
   snapshotBeforeOperation('Recalculate Night & XC');
   updateUndoButton();
   const result = recalculateAllFlightsInternal();
