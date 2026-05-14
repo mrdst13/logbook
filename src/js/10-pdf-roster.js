@@ -42,9 +42,17 @@ async function handleRosterFile(file) {
 
     console.log('[Roster] First 1500 chars of extracted text:\n' + allText.substring(0, 1500));
 
-    // Parse the text to extract flight legs with their crew
+    // Detect TimeMode header (Navblue PDFs can be downloaded in Local or UTC).
+    // We extract ATD/ATA verbatim; if Local mode, the user should re-download
+    // the PDF in UTC to avoid timezone conversion. We refuse to silently
+    // approximate (cf. feedback_never_approximate_certifiable_data.md).
+    const timeModeMatch = allText.match(/TimeMode\s+(Local time|UTC|Zulu)/i);
+    const pdfTimeMode = timeModeMatch ? timeModeMatch[1].toLowerCase() : 'unknown';
+    const isLocalTime = pdfTimeMode.includes('local');
+
+    // Parse the text to extract flight legs with their crew AND ATD/ATA actuals
     const extracted = parseNavblueRosterText(allText);
-    console.log(`[Roster] Extracted ${extracted.length} flights from PDF`);
+    console.log(`[Roster] Extracted ${extracted.length} flights from PDF (TimeMode: ${pdfTimeMode})`);
 
     if (extracted.length === 0) {
       details.innerHTML = `<span style="color:var(--danger);">No flight legs detected in this PDF. Make sure it's a Navblue HrRosterReport (not a different report).</span>`;
@@ -60,8 +68,11 @@ async function handleRosterFile(file) {
     // to every captain name in this import batch.
     const rosterProfile = DB.loadProfile();
 
-    // Merge captain names into existing flights — match by date + flight number
-    let matched = 0, alreadyHad = 0, noMatch = 0;
+    // Merge crew names + ATD/ATA actuals into existing flights.
+    // Strict rule (2026-05-14): only write atd_utc/ata_utc when (a) the PDF
+    // is in UTC TimeMode and (b) the values are non-zero. Local-time PDFs
+    // are NOT silently converted — we refuse to approximate.
+    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0;
     const stillMissing = [];
     extracted.forEach(item => {
       // Find existing flight : exact match on date + flightNum
@@ -71,18 +82,31 @@ async function handleRosterFile(file) {
       );
       if (idx === -1) { noMatch++; stillMissing.push(item); return; }
       const existing = flights[idx];
-      if (existing.pic && existing.pic.trim() && existing.pic !== '—') {
-        // Don't overwrite an existing PIC name
+      const merged = { ...existing };
+      let changed = false;
+      // Captain name — don't overwrite if user already has one
+      if (item.pic && (!existing.pic || !existing.pic.trim() || existing.pic === '—')) {
+        merged.pic = item.pic;
+        changed = true;
+        matched++;
+      } else if (item.pic) {
         alreadyHad++;
-        return;
       }
-      // PIPEDA model (2026-05-13): store full name locally. Anonymization
-      // happens at egress (cloud sync, shareable PDF export), never at import.
-      flights[idx] = { ...existing, pic: item.pic };
-      matched++;
+      // ATD/ATA — only if PDF is in UTC mode AND values are non-zero AND
+      // the flight doesn't already have manually-entered actuals.
+      if (!isLocalTime && item.atd_utc && item.atd_utc !== '0000' && !existing.atd_utc) {
+        merged.atd_utc = item.atd_utc;
+        changed = true;
+        atdAdded++;
+      }
+      if (!isLocalTime && item.ata_utc && item.ata_utc !== '0000' && !existing.ata_utc) {
+        merged.ata_utc = item.ata_utc;
+        changed = true;
+      }
+      if (changed) flights[idx] = merged;
     });
 
-    if (matched > 0) {
+    if (matched > 0 || atdAdded > 0) {
       DB.save(flights);
       renderDashboard();
     }
@@ -91,6 +115,14 @@ async function handleRosterFile(file) {
       `<strong>${extracted.length}</strong> flight legs extracted from PDF`,
       `<strong style="color:var(--success);">${matched}</strong> captain name${matched !== 1 ? 's' : ''} added to existing flights`,
     ];
+    if (atdAdded > 0) {
+      detailLines.push(`<strong style="color:var(--success);">${atdAdded}</strong> ATD/ATA actual time${atdAdded !== 1 ? 's' : ''} captured from PDF`);
+    }
+    if (isLocalTime) {
+      detailLines.push(`<span style="color:var(--warning);">⚠ PDF is in <strong>Local time</strong> mode — ATD/ATA were NOT imported to avoid timezone-conversion approximation. Re-download in <strong>UTC / Zulu</strong> TimeMode for actual times.</span>`);
+    } else if (pdfTimeMode === 'unknown') {
+      detailLines.push(`<span style="color:var(--text-muted);">PDF TimeMode not detected — ATD/ATA captured as-is.</span>`);
+    }
     if (alreadyHad > 0) detailLines.push(`<span>${alreadyHad} flights already had a PIC (not overwritten)</span>`);
     if (noMatch > 0) detailLines.push(`<span style="color:var(--warning);">${noMatch} legs not found in your logbook (older than iCal window?)</span>`);
     details.innerHTML = detailLines.join('<br>');
@@ -125,10 +157,17 @@ function groupTextByLines(items) {
     .map(y => lines[y].sort((a, b) => a.x - b.x).map(i => i.text).join(' '));
 }
 
-// Parse the extracted text to find flight legs + crew names.
-// Navblue HrRosterReport format varies but generally each flight leg row contains:
-//   FLIGHT_NUMBER  DATE  STD_TIME  STA_TIME  DEP_AIRPORT  ARR_AIRPORT  A/C  CAPT_NAME  FO_NAME ...
-// We look for : PD\d+ pattern (Porter mainline) and surrounding date + crew section.
+// Parse the extracted text to find flight legs, crew names, AND actual times.
+// Navblue HrRosterReport format (confirmed against Porter sample 2026-05-14):
+//   Header: Date  Des. Code Req LE  CI   Dep STD  Arr STA  CO   AC  WA Func Rank ATD   ATA   BLH   Credit Pairing
+//   Row:    01 Fri        PD448         1055 YYJ 1155 YOW 1933 2002 295               FO   12:07 19:47 04:40 04:40 O3049
+//
+// Key observations:
+//   - CI/STD/STA/CO use HHMM format (no separator) — these are schedule
+//   - ATD/ATA use HH:MM format (colon separator) — these are ACTUAL times
+//   - 4 HH:MM values appear after rank (FO/CA): ATD, ATA, BLH, Credit
+//   - "00:00" in ATD/ATA = not flown yet (future flight) — skip
+//   - TimeMode is in the PDF header (Local or UTC); caller decides import policy
 function parseNavblueRosterText(text) {
   const flights = [];
   const lines = text.split(/\r?\n/);
@@ -186,8 +225,24 @@ function parseNavblueRosterText(text) {
         pic = pic.replace(/([A-Z])([A-Z]+)/, (_, h, t) => h + t.toLowerCase());
       }
 
-      if (pic) {
-        flights.push({ date, flightNum, route, pic });
+      // Extract ATD/ATA actual times from the same row. Pattern: after
+      // the rank token (FO / CA / CP) there are 4 HH:MM values =
+      // ATD, ATA, BLH, Credit. The schedule times before (CI/STD/STA/CO)
+      // are HHMM-no-colon, so the colon-separated values are unambiguous.
+      let atd_utc = '', ata_utc = '';
+      const timeMatches = [...line.matchAll(/(\d{2}):(\d{2})/g)];
+      // We expect at least 2 HH:MM matches (ATD then ATA); BLH/Credit follow.
+      if (timeMatches.length >= 2) {
+        const atdRaw = timeMatches[0][1] + timeMatches[0][2]; // HHMM
+        const ataRaw = timeMatches[1][1] + timeMatches[1][2];
+        // "0000" = not flown yet (future flight) — skip rather than store zeros.
+        // STRICT: never write a value that's not a real actual time.
+        if (atdRaw !== '0000') atd_utc = atdRaw;
+        if (ataRaw !== '0000') ata_utc = ataRaw;
+      }
+
+      if (pic || atd_utc || ata_utc) {
+        flights.push({ date, flightNum, route, pic, atd_utc, ata_utc });
       }
     });
   }

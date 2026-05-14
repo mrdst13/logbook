@@ -92,12 +92,11 @@ function saveFlight() {
     block: isSim ? 0 : gv('f-block'),     // sim has no block time (not actual flight)
     duty: gv('f-duty'),
     total: gv('f-total'),
-    // UTC times. ATD/ATA = actual (preferred for night/XC recalc).
-    // STD/STA = scheduled (from Navblue roster sync). User can override either.
+    // UTC times. Only actual times exist in Cumulo — schedule times are
+    // irrelevant for a logbook. Navblue iCal pre-fills atd_utc / ata_utc
+    // with the roster time as a starting point; user edits if delayed.
     atd_utc: (gv('f-atd-utc') || '').trim(),
     ata_utc: (gv('f-ata-utc') || '').trim(),
-    std_utc: (gv('f-std-utc') || '').trim(),
-    sta_utc: (gv('f-sta-utc') || '').trim(),
     meDayDual: gv('f-me-day-dual'),
     meDayPic: gv('f-me-day-pic'),
     meDayCop: gv('f-me-day-cop'),
@@ -147,8 +146,12 @@ function editFlight(id) {
   sv('f-pic', f.pic); sv('f-copilot', f.copilot);
   sv('f-route', f.route); sv('f-remarks', f.remarks);
   sv('f-block', f.block); sv('f-duty', f.duty); sv('f-total', f.total);
-  sv('f-atd-utc', f.atd_utc || ''); sv('f-ata-utc', f.ata_utc || '');
-  sv('f-std-utc', f.std_utc || ''); sv('f-sta-utc', f.sta_utc || '');
+  // ATD/ATA are the only UTC time concept. Never auto-fill from std_utc
+  // (schedule) — that's an approximation in a certifiable logbook.
+  // If atd_utc is empty, the form shows empty. User must enter manually
+  // or import from the PDF roster which has the actuals.
+  sv('f-atd-utc', f.atd_utc || '');
+  sv('f-ata-utc', f.ata_utc || '');
   sv('f-me-day-dual', f.meDayDual); sv('f-me-day-pic', f.meDayPic); sv('f-me-day-cop', f.meDayCop);
   sv('f-me-night-dual', f.meNightDual); sv('f-me-night-pic', f.meNightPic); sv('f-me-night-cop', f.meNightCop);
   sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic);

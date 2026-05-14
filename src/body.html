@@ -493,30 +493,22 @@
           <input type="number" id="f-total" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
-      <!-- UTC times — ATD/ATA are the ACTUAL times (preferred for night/XC
-           recalc). STD/STA stay visible as a reference but are the SCHEDULE
-           from Navblue/roster sync and shouldn't drive math when the actual
-           is available. -->
-      <div class="form-grid form-grid-4" style="margin-top:var(--s-3);">
+      <!-- Actual UTC times. The only time concept in Cumulo. Schedule
+           times are irrelevant for a logbook — only what actually
+           happened goes in here. Used to drive Night (RAC 101.01) and
+           Cross-Country (CAR 401.34) recalculation. -->
+      <div class="form-grid form-grid-2" style="margin-top:var(--s-3);">
         <div class="form-group">
-          <label data-i18n="flight.atd">ATD (UTC) — actual takeoff</label>
+          <label data-i18n="flight.atd">ATD (UTC) — actual departure</label>
           <input type="text" id="f-atd-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
         </div>
         <div class="form-group">
-          <label data-i18n="flight.ata">ATA (UTC) — actual landing</label>
+          <label data-i18n="flight.ata">ATA (UTC) — actual arrival</label>
           <input type="text" id="f-ata-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.std">STD (UTC) — scheduled</label>
-          <input type="text" id="f-std-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em; opacity:0.7;">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.sta">STA (UTC) — scheduled</label>
-          <input type="text" id="f-sta-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em; opacity:0.7;">
         </div>
       </div>
       <div style="font-size:11px; color:var(--text-muted); margin-top:6px; line-height:1.5;" data-i18n-html="flight.atdHelpHtml">
-        ATD/ATA are the <strong>actual</strong> wheels-off / wheels-on times (or block-off / block-on if you log that way). STD/STA are the <strong>scheduled</strong> times from your roster. Cumulo prefers ATD for Night and Cross-Country calculations — fill it in for accuracy.
+        Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
       </div>
     </div>
 

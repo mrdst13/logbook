@@ -613,10 +613,20 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
     route: `${depIATA}-${arrIATA}`,
     dep_icao: depICAO,
     arr_icao: arrICAO,
-    // dtstart_utc = full ISO timestamp (source of truth for all time math)
+    // dtstart_utc = full ISO timestamp from the iCal VEVENT. This is the
+    // SCHEDULED block-off — used internally for night/XC math ONLY when
+    // the user hasn't provided actual times. NEVER displayed to the user
+    // as if it were an actual time.
     dtstart_utc: blockOffUTC ? blockOffUTC.toISOString() : '',
-    std_utc: stdMatch ? stdMatch[1] : '',
-    sta_utc: staMatch ? staMatch[1] : '',
+    // Cumulo only tracks ACTUAL times in atd_utc / ata_utc. Navblue iCal
+    // publishes the SCHEDULE only — putting STD into atd_utc would be
+    // labelling a schedule as actual, which is falsification of a
+    // certifiable logbook. STRICT rule: leave atd_utc/ata_utc empty when
+    // the source is schedule-only. The user fills them in manually OR
+    // imports the monthly PDF roster (which contains the actuals).
+    // See: feedback_never_approximate_certifiable_data.md (2026-05-14).
+    atd_utc: '',
+    ata_utc: '',
     co_utc:  coMatch  ? coMatch[1]  : '',
     ci_utc:  ciMatch  ? ciMatch[1]  : '',
     block,
@@ -758,7 +768,7 @@ async function syncNavblueNow() {
     // Added 2026-05-14: pic / copilot / crewPosition are now eligible for merge
     // because the iCal extractor pulls them. The if-empty guard below still
     // protects any value the user typed manually — we only fill blanks.
-    const mergeFields = ['dtstart_utc','std_utc','sta_utc','co_utc','ci_utc',
+    const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
                          'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
                          'pic','copilot','crewPosition'];
     mapped.forEach(f => {

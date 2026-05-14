@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-atd-ata-actual-times';
+const BUILD_VERSION = 'v3a-2026-05-14-actual-only';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -27,6 +27,12 @@ function injectDemoBanner() {
 (function init() {
   applyDarkMode();
   injectDemoBanner();
+  // NOTE (2026-05-14): a previous version of init() ran a "migration"
+  // that copied legacy std_utc → atd_utc. That was an approximation —
+  // labelling a schedule as actual. REMOVED. Legacy std_utc values are
+  // left untouched in old flights; the user must re-import their PDF
+  // roster (which has the actuals) or manually edit per flight to
+  // populate atd_utc / ata_utc. Cf. feedback_never_approximate_certifiable_data.md.
   // Apply i18n translations (must happen before anything reads textContent)
   if (typeof applyTranslations === 'function') applyTranslations();
   // Visible version badge bottom-right — verifies fresh page load on iOS
