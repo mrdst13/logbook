@@ -23,16 +23,17 @@ function renderLogbook(filter='') {
   const thead = document.getElementById('logbookThead');
   const cols = getVisibleColumns('table');
 
-  // Render thead dynamically based on user column preferences
+  // Render thead dynamically based on user column preferences.
+  // The trailing "actions" column was removed — clicking a row opens the
+  // detail panel which already exposes Edit + Delete. Less visual noise.
   if (thead) {
     thead.innerHTML = '<tr>' +
       cols.map(c => `<th style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
-      '<th style="text-align:right; width:80px;"></th>' +
     '</tr>';
   }
 
   if (!list.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length + 1}">No flights found ✈</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">No flights found ✈</td></tr>`;
     return;
   }
 
@@ -68,10 +69,6 @@ function renderLogbook(filter='') {
     return `
     <tr onclick="openFlightDetail('${fid}')" class="row-clickable">
       ${cells}
-      <td data-label="" class="row-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="editFlight('${fid}')" title="Edit">✏</button>
-        <button class="btn btn-sm" style="background:var(--danger-soft);color:var(--danger);margin-left:4px" onclick="deleteFlight('${fid}')" title="Delete">🗑</button>
-      </td>
     </tr>`;
   }).join('');
 
@@ -98,7 +95,7 @@ function renderLogbook(filter='') {
       return `<td class="totals-cell" style="text-align:${c.align||'left'};">${display}</td>`;
     }).join('');
 
-    tfoot.innerHTML = `<tr class="totals-row">${totalCells}<td class="totals-cell"></td></tr>`;
+    tfoot.innerHTML = `<tr class="totals-row">${totalCells}</tr>`;
   }
 }
 

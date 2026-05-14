@@ -1,7 +1,11 @@
 // ═══════════════════════════════════════════
 // FEATURE 12 — Q&A SECTION
 // ═══════════════════════════════════════════
+// Static FAQ list. Each entry is a real question a Canadian pilot might
+// have about logbook compliance / currency / TC regulations. Grouped
+// loosely by topic; rendered in order.
 const FAQS = [
+  // ── Currency & recency ────────────────────────────────────────────
   {
     q: 'How many landings do I need to stay current as PIC?',
     a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(3), you need 5 take-offs and 5 landings at night within the preceding 6 months.'
@@ -11,21 +15,75 @@ const FAQS = [
     a: 'Under CAR 401.05(5), to act as PIC under IFR you must have completed at least 6 instrument approaches in the preceding 6 months, either in an aircraft or approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.'
   },
   {
-    q: 'What is PICUS and when can I log it?',
-    a: 'PICUS (Pilot in Command Under Supervision) is time logged by a co-pilot (F/O) when acting in the role of PIC under the supervision of a qualified captain. In Canada, this is recognized under CAR 401.08 and can be credited toward ATPL minimums. You may log PICUS only when you are the actual decision-maker for the flight under direct supervision.'
+    q: 'What are the currency rules for helicopter pilots?',
+    a: 'Helicopter currency under CAR 401.05 mirrors fixed-wing: 5 take-offs and 5 landings in the preceding 6 months in the same category and class to carry passengers, plus 5 night TO/LDG in 6 months for night currency. Helicopter operations may also require additional currency for external load (CAR 702.21) and autorotation training, depending on operator and class of operation.'
   },
+  {
+    q: 'How often do I need to recur on type (PPC / IPC)?',
+    a: 'Under CAR 705.106, a Pilot Proficiency Check (PPC) is required every 12 months for air carrier operations, with an Instrument Proficiency Check (IPC) also normally on a 12-month cycle. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.'
+  },
+
+  // ── Logging conventions ───────────────────────────────────────────
   {
     q: 'How do I count block time vs. flight time?',
     a: 'Block time (BLH) starts when the aircraft moves under its own power (chocks out / brakes released) and ends when it comes to rest at the gate (chocks in). Flight time starts at first movement for takeoff and ends at landing rollout. For airline operations, Transport Canada generally accepts block time for logbook purposes under CAR 401.08.'
   },
   {
+    q: 'What is PICUS and when can I log it?',
+    a: 'PICUS (Pilot in Command Under Supervision) is time logged by a co-pilot (F/O) when acting in the role of PIC under the supervision of a qualified captain. In Canada, this is recognized under CAR 401.08 and can be credited toward ATPL minimums. You may log PICUS only when you are the actual decision-maker for the flight under direct supervision.'
+  },
+  {
+    q: 'What counts as "cross-country" time?',
+    a: 'CAR 401.34 defines cross-country (XC) as a flight to a point more than 25 nautical miles from the departure aerodrome. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance exceeds 25 NM. Short hops (< 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.'
+  },
+  {
+    q: 'How do I log Multi-Crew time (MCC) for ATPL submission?',
+    a: 'Multi-Crew time is flight time on aircraft that are certified for and operated with a minimum crew of two pilots (Q400, E195, A320, B737, etc.). For ATPL submission under CAR 421.34, MCC time is a separate credit. Cumulo automatically flags multi_crew = true on any flight where you logged both PIC and SIC hours on the same leg, or imported from a 705-operator roster.'
+  },
+  {
+    q: 'How is Dual Given time credited for an instructor ATPL?',
+    a: 'CAR 421.34(b) lets a flight instructor count dual-given time toward the 1,500 hours required for the ATPL — up to 1,200 of those hours can be flight-instruction time. Cumulo tracks Dual Given Day + Dual Given Night separately; the PDF cover page now shows a cumulative Dual Given total when you have any hours in those columns.'
+  },
+
+  // ── Medical & licensing ────────────────────────────────────────────
+  {
     q: 'What medical class do airline pilots need and how often must I renew?',
     a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. For pilots under 40, it is valid for 12 months. For pilots 40 and older, it must be renewed every 6 months. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).'
   },
   {
+    q: 'When do I need an ECG for my medical?',
+    a: 'Per the TC Category 1 medical standard, an ECG is required at the initial issuance of a Category 1 medical for pilots under 40, then every 24 months between the ages of 40 and 65, and annually once you turn 65. Cumulo lets you record your next ECG due date in Profile and will alert you in the dashboard 60 days before it expires.'
+  },
+
+  // ── Simulator ──────────────────────────────────────────────────────
+  {
     q: 'Can I count simulator time toward my ATPL hours?',
     a: 'Yes, but with limits. Under CAR 401.73, a maximum of 25 hours of approved flight simulator time may be credited toward the 1,500-hour ATPL requirement (200 hours for multi-engine helicopter). The simulator must be approved by Transport Canada. All simulator time should be logged under the Simulator (SIM) column, not as flight time.'
   },
+  {
+    q: 'What are FFS, FTD, FNPT, and BITD?',
+    a: 'These are simulator levels. FFS (Full Flight Simulator) is the highest fidelity — full motion, full cockpit. FTD (Flight Training Device) has no motion but a high-fidelity cockpit. FNPT (Flight & Navigation Procedures Trainer) is generic flight controls with realistic instruments. BITD (Basic Instrument Training Device) is the lowest level, often used for PPL/CPL instrument training. CAR 401.73 credit rules differ by device level — check with TC and your operator.'
+  },
+
+  // ── Privacy & compliance ──────────────────────────────────────────
+  {
+    q: 'Why are captain names showing as initials in my logbook?',
+    a: 'Under PIPEDA Principle 4.3 (consent), third parties (your captains) have a right to control how their personal information is stored. By default, Cumulo anonymizes captain names to initials (e.g. "M.D." for Martin Daoust) when imported from Navblue / CrewTrac / Sabre rosters. The full name is never stored. If your crew explicitly consents — or if you only use your logbook for your own regulatory record-keeping (TC ramp check, ATPL submission) — you can toggle "I have my crew\'s consent" in Profile to keep full names.'
+  },
+  {
+    q: 'How long must I keep my logbook records?',
+    a: 'CAR 401.08(5) requires that a personal logbook be retained for at least 5 years after the date of the last entry. For ATPL holders submitting an experience claim, all relevant entries must be available to TC inspectors on request. Cumulo backs up your data in localStorage and (once Supabase is wired) in the cloud — but a periodic PDF export to your own files is still recommended as a paper trail.'
+  },
+  {
+    q: 'What will a TC ramp inspector want to see in my logbook?',
+    a: 'A TC inspector will check that your logbook is current, complete, and matches the format described in CAR 401.08 + TP 14052. Specifically: chronological entries with date, aircraft type, registration, departure/arrival, flight time, PIC/SIC time, night time, IFR time, simulator time clearly separated, cumulative totals, and pilot signature. Cumulo\'s PDF export is designed to match this format exactly, with a cover page that includes your name, license number, medical expiry, and a signature line.'
+  },
+
+  // ── Importing from other airlines ─────────────────────────────────
+  {
+    q: 'I don\'t fly for Porter — can I still import my roster?',
+    a: 'Yes. Cumulo\'s automatic iCal sync is set up for Navblue (used by Porter), but pilots at other carriers can import via PDF roster (the PDF parser is multi-airline, supporting Jazz CrewTrac, WestJet Sabre, Air Canada AIMS, regional ops, etc.) or via CSV from your previous logbook software (5 native importers: ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog — plus a generic CSV column-mapper). Open the Import menu and pick whichever matches your source.'
+  }
 ];
 
 // AI "Ask a Question" feature removed — askQuestion() and renderQAHistory()

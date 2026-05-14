@@ -128,13 +128,13 @@ th {
   padding: var(--s-3) var(--s-4);
   text-align: left;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 500;
+  color: var(--text);              /* full contrast, no longer muted */
+  font-weight: 700;
   white-space: nowrap;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border-strong);
   background: var(--bg-subtle);  /* needed because sticky thead loses bg in some browsers */
 }
 td {
@@ -146,7 +146,9 @@ td {
 }
 tr:last-child td { border-bottom: none; }
 tbody tr { cursor: pointer; }
-tbody tr:hover td { background: var(--bg-subtle); }
+/* Zebra striping for readability — every other row gets a subtle tint. */
+tbody tr:nth-child(even) td { background: var(--bg-subtle); }
+tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132, 255, 0.08))); }
 
 .empty-row td {
   text-align: center;
