@@ -439,6 +439,63 @@ function getOperatorFlightRegex() {
   return new RegExp(`^(?:${pattern})\\d+\\s`, 'i');
 }
 
+// Extract captain + co-pilot names from a Navblue iCal VEVENT
+// DESCRIPTION field. Different Navblue tenants format crew lines slightly
+// differently — we try multiple patterns and fall back to '' if nothing
+// matches. When extraction fails for a flight that HAS crew text, we log
+// the raw DESCRIPTION to console so the regex can be refined.
+function extractNavblueCrew(desc) {
+  if (!desc) return { pic: '', copilot: '' };
+  const out = { pic: '', copilot: '' };
+  const clean = desc.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
+
+  // Helper: pull the value after a role keyword. Accepts "Smith, John",
+  // "John Smith", "M. Daoust", "SMITH J" etc. — anything up to newline,
+  // pipe, slash, or another role keyword.
+  const captureAfter = (re) => {
+    const m = clean.match(re);
+    if (!m) return '';
+    return m[1].trim().replace(/\s+/g, ' ').replace(/[|/]+.*$/, '').trim();
+  };
+
+  // Pattern set: each tries to find a captain (PIC). Order = most specific first.
+  const cptPatterns = [
+    /(?:^|\n)\s*(?:CAPT|CPT|Captain|Capitaine|Cmdt)[:\s.]+([^\n|/]+)/i,
+    /\b(?:CAPT|CPT|Captain|Capitaine|Cmdt)[:\s.]+([A-Z][^\n|/,]{1,40}(?:,\s*[A-Z][^\n|/]{0,20})?)/i,
+    /(?:^|\n)\s*PIC[:\s.]+([^\n|/]+)/i,
+    /\bPIC[:\s.]+([A-Z][^\n|/,]{1,40}(?:,\s*[A-Z][^\n|/]{0,20})?)/i,
+  ];
+  for (const re of cptPatterns) {
+    const v = captureAfter(re);
+    if (v) { out.pic = v; break; }
+  }
+
+  // Co-pilot / F/O patterns
+  const foPatterns = [
+    /(?:^|\n)\s*(?:F\/O|FO|First Officer|Co[- ]?pilot|Copilote|OPL)[:\s.]+([^\n|/]+)/i,
+    /\b(?:F\/O|FO|First Officer|Co[- ]?pilot|Copilote|OPL)[:\s.]+([A-Z][^\n|/,]{1,40}(?:,\s*[A-Z][^\n|/]{0,20})?)/i,
+    /(?:^|\n)\s*SIC[:\s.]+([^\n|/]+)/i,
+  ];
+  for (const re of foPatterns) {
+    const v = captureAfter(re);
+    if (v) { out.copilot = v; break; }
+  }
+
+  // Generic "Crew:" line, e.g. "Crew: CPT Smith / FO Daoust"
+  if (!out.pic && !out.copilot) {
+    const crewLine = clean.match(/(?:^|\n)\s*Crew[:\s.]+([^\n]+)/i);
+    if (crewLine) {
+      const inline = crewLine[1];
+      const cptM = inline.match(/(?:CAPT|CPT|Captain|Capitaine|Cmdt|PIC)[:\s.]+([A-Z][^/,]{1,40}(?:,\s*[A-Z][^/]{0,20})?)/i);
+      if (cptM) out.pic = cptM[1].trim().replace(/\s+/g, ' ').replace(/[|/]+.*$/, '').trim();
+      const foM = inline.match(/(?:F\/O|FO|First Officer|Co[- ]?pilot|Copilote|OPL|SIC)[:\s.]+([A-Z][^/,]{1,40}(?:,\s*[A-Z][^/]{0,20})?)/i);
+      if (foM) out.copilot = foM[1].trim().replace(/\s+/g, ' ').replace(/[|/]+.*$/, '').trim();
+    }
+  }
+
+  return out;
+}
+
 // Convert one Navblue VEVENT into a Cumulo flight object.
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
@@ -523,13 +580,36 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const xcDayCop    = isXC && role === 'cop' ? dayHours   : 0;
   const xcNightCop  = isXC && role === 'cop' ? nightHours : 0;
 
+  // Extract crew names from iCal DESCRIPTION — zero-click captain capture.
+  // The user (Porter F/O Martin) does NOT want to upload a PDF roster
+  // every month; the iCal feed is the source of truth and should expose
+  // captain names if Navblue includes them. Some Navblue tenants do,
+  // some don't. We log misses to console so the regex can be refined
+  // against real samples without breaking anything.
+  const navblueCrew = extractNavblueCrew(desc);
+  if (!navblueCrew.pic && !navblueCrew.copilot && desc.length > 0) {
+    console.log('[Navblue] No crew extracted from DESCRIPTION for', summary, '— sample:', desc.substring(0, 300));
+  }
+
+  // Map crew to logbook fields based on the user's seat.
+  // - User is F/O (Porter Martin default): pic = the captain pulled from
+  //   the iCal; copilot = user's own name ("self"-style — see
+  //   resolveSelfReferences for downstream handling).
+  // - User is PIC: copilot = the F/O pulled from the iCal; pic = user's name.
+  const profileForNav = DB.loadProfile();
+  const selfFullName  = `${profileForNav.fname || 'Martin'} ${profileForNav.lname || 'Daoust'}`.trim();
+  const ownerWritesSelfAs = selfFullName || 'self';
+  const picField     = isFO ? navblueCrew.pic    : ownerWritesSelfAs;
+  const copilotField = isFO ? ownerWritesSelfAs  : navblueCrew.copilot;
+
   return {
     date: dateStr,
     flightNum,
     type: acftType,
     reg: regMatch ? regMatch[1] : '',
-    pic: '',
-    copilot: 'M. Daoust',
+    pic: picField,
+    copilot: copilotField,
+    crewPosition: isFO ? 'SIC' : 'PIC',
     route: `${depIATA}-${arrIATA}`,
     dep_icao: depICAO,
     arr_icao: arrICAO,

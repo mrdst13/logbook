@@ -3448,7 +3448,10 @@ function anonymizeCaptainName(name) {
   return `${fi}.${li}.`;
 }
 
-// Context-aware captain-name resolution.
+// Context-aware crew-name resolution.
+// Applies equally to PIC (captain) and copilot (F/O) names — both can be
+// third-party PII depending on the user's seat that day. Caller decides
+// which field is being gated.
 // `context` values:
 //   'display'    → owner viewing their own logbook (always full)
 //   'tc-pdf'     → TC regulatory export (always full — s.7(3)(c.1)(i))
@@ -3457,6 +3460,9 @@ function anonymizeCaptainName(name) {
 function captainNameForContext(name, profile, context) {
   if (!name) return '';
   if (context === 'display' || context === 'tc-pdf') return name;
+  // Self-references (the user's own name, "self", "moi", etc.) are NOT
+  // third-party PII and never require anonymization regardless of consent.
+  if (_isSelfReference(name, profile)) return name;
   // Outbound contexts: anonymize unless the user has explicitly opted in.
   const consented = profile && profile.consentCaptainNames === true;
   return consented ? name : anonymizeCaptainName(name);
@@ -3514,17 +3520,16 @@ function resolveSelfReferences(flight, profile) {
   const out = { ...flight };
   const picIsSelf = _isSelfReference(out.pic, profile);
   const copIsSelf = _isSelfReference(out.copilot, profile);
+  // PRESERVE what the pilot wrote (TC TP 14052 accepts "SELF" in the PIC
+  // column — the retired inspector on the 2026-05-13 panel confirmed). The
+  // resolver's job is ONLY to record the user's seat in crewPosition; we
+  // never overwrite the text the pilot recorded in their paper logbook.
   if (picIsSelf) {
-    // User was PIC on this flight; drop the self-reference, lock crewPosition
-    out.pic = '';
-    out.crewPosition = 'PIC';
+    if (!out.crewPosition) out.crewPosition = 'PIC';
   } else if (out.pic) {
-    // A real third-party captain → user was SIC unless already set
     if (!out.crewPosition) out.crewPosition = 'SIC';
   }
   if (copIsSelf) {
-    // User was SIC on this flight; drop the self-reference
-    out.copilot = '';
     if (!out.crewPosition) out.crewPosition = 'SIC';
   }
   return out;
@@ -5574,6 +5579,63 @@ function getOperatorFlightRegex() {
   return new RegExp(`^(?:${pattern})\\d+\\s`, 'i');
 }
 
+// Extract captain + co-pilot names from a Navblue iCal VEVENT
+// DESCRIPTION field. Different Navblue tenants format crew lines slightly
+// differently — we try multiple patterns and fall back to '' if nothing
+// matches. When extraction fails for a flight that HAS crew text, we log
+// the raw DESCRIPTION to console so the regex can be refined.
+function extractNavblueCrew(desc) {
+  if (!desc) return { pic: '', copilot: '' };
+  const out = { pic: '', copilot: '' };
+  const clean = desc.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
+
+  // Helper: pull the value after a role keyword. Accepts "Smith, John",
+  // "John Smith", "M. Daoust", "SMITH J" etc. — anything up to newline,
+  // pipe, slash, or another role keyword.
+  const captureAfter = (re) => {
+    const m = clean.match(re);
+    if (!m) return '';
+    return m[1].trim().replace(/\s+/g, ' ').replace(/[|/]+.*$/, '').trim();
+  };
+
+  // Pattern set: each tries to find a captain (PIC). Order = most specific first.
+  const cptPatterns = [
+    /(?:^|\n)\s*(?:CAPT|CPT|Captain|Capitaine|Cmdt)[:\s.]+([^\n|/]+)/i,
+    /\b(?:CAPT|CPT|Captain|Capitaine|Cmdt)[:\s.]+([A-Z][^\n|/,]{1,40}(?:,\s*[A-Z][^\n|/]{0,20})?)/i,
+    /(?:^|\n)\s*PIC[:\s.]+([^\n|/]+)/i,
+    /\bPIC[:\s.]+([A-Z][^\n|/,]{1,40}(?:,\s*[A-Z][^\n|/]{0,20})?)/i,
+  ];
+  for (const re of cptPatterns) {
+    const v = captureAfter(re);
+    if (v) { out.pic = v; break; }
+  }
+
+  // Co-pilot / F/O patterns
+  const foPatterns = [
+    /(?:^|\n)\s*(?:F\/O|FO|First Officer|Co[- ]?pilot|Copilote|OPL)[:\s.]+([^\n|/]+)/i,
+    /\b(?:F\/O|FO|First Officer|Co[- ]?pilot|Copilote|OPL)[:\s.]+([A-Z][^\n|/,]{1,40}(?:,\s*[A-Z][^\n|/]{0,20})?)/i,
+    /(?:^|\n)\s*SIC[:\s.]+([^\n|/]+)/i,
+  ];
+  for (const re of foPatterns) {
+    const v = captureAfter(re);
+    if (v) { out.copilot = v; break; }
+  }
+
+  // Generic "Crew:" line, e.g. "Crew: CPT Smith / FO Daoust"
+  if (!out.pic && !out.copilot) {
+    const crewLine = clean.match(/(?:^|\n)\s*Crew[:\s.]+([^\n]+)/i);
+    if (crewLine) {
+      const inline = crewLine[1];
+      const cptM = inline.match(/(?:CAPT|CPT|Captain|Capitaine|Cmdt|PIC)[:\s.]+([A-Z][^/,]{1,40}(?:,\s*[A-Z][^/]{0,20})?)/i);
+      if (cptM) out.pic = cptM[1].trim().replace(/\s+/g, ' ').replace(/[|/]+.*$/, '').trim();
+      const foM = inline.match(/(?:F\/O|FO|First Officer|Co[- ]?pilot|Copilote|OPL|SIC)[:\s.]+([A-Z][^/,]{1,40}(?:,\s*[A-Z][^/]{0,20})?)/i);
+      if (foM) out.copilot = foM[1].trim().replace(/\s+/g, ' ').replace(/[|/]+.*$/, '').trim();
+    }
+  }
+
+  return out;
+}
+
 // Convert one Navblue VEVENT into a Cumulo flight object.
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
@@ -5658,13 +5720,36 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const xcDayCop    = isXC && role === 'cop' ? dayHours   : 0;
   const xcNightCop  = isXC && role === 'cop' ? nightHours : 0;
 
+  // Extract crew names from iCal DESCRIPTION — zero-click captain capture.
+  // The user (Porter F/O Martin) does NOT want to upload a PDF roster
+  // every month; the iCal feed is the source of truth and should expose
+  // captain names if Navblue includes them. Some Navblue tenants do,
+  // some don't. We log misses to console so the regex can be refined
+  // against real samples without breaking anything.
+  const navblueCrew = extractNavblueCrew(desc);
+  if (!navblueCrew.pic && !navblueCrew.copilot && desc.length > 0) {
+    console.log('[Navblue] No crew extracted from DESCRIPTION for', summary, '— sample:', desc.substring(0, 300));
+  }
+
+  // Map crew to logbook fields based on the user's seat.
+  // - User is F/O (Porter Martin default): pic = the captain pulled from
+  //   the iCal; copilot = user's own name ("self"-style — see
+  //   resolveSelfReferences for downstream handling).
+  // - User is PIC: copilot = the F/O pulled from the iCal; pic = user's name.
+  const profileForNav = DB.loadProfile();
+  const selfFullName  = `${profileForNav.fname || 'Martin'} ${profileForNav.lname || 'Daoust'}`.trim();
+  const ownerWritesSelfAs = selfFullName || 'self';
+  const picField     = isFO ? navblueCrew.pic    : ownerWritesSelfAs;
+  const copilotField = isFO ? ownerWritesSelfAs  : navblueCrew.copilot;
+
   return {
     date: dateStr,
     flightNum,
     type: acftType,
     reg: regMatch ? regMatch[1] : '',
-    pic: '',
-    copilot: 'M. Daoust',
+    pic: picField,
+    copilot: copilotField,
+    crewPosition: isFO ? 'SIC' : 'PIC',
     route: `${depIATA}-${arrIATA}`,
     dep_icao: depICAO,
     arr_icao: arrICAO,
@@ -7283,8 +7368,12 @@ const FAQS = [
 
   // ── Privacy & compliance ──────────────────────────────────────────
   {
-    q: 'How does Cumulo handle captain names from my roster?',
-    a: 'Cumulo stores full captain names locally on your device — your logbook works exactly like a paper logbook (you see who you flew with). This is permitted under PIPEDA s.4(2)(b) and Loi 25 art. 1 (personal-use exception). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i) (regulatory disclosure). You control whether full names go to the cloud via Profile → "Keep full captain names when syncing or sharing" (default OFF = anonymize at egress). This was validated by a 4-expert panel (PIPEDA lawyer + Loi 25 lawyer + retired TC inspector + UX designer) on 2026-05-13.'
+    q: 'How does Cumulo handle the OTHER pilot\'s name (captain or F/O)?',
+    a: 'The rule is symmetric — whether you\'re F/O (the captain is the third party) or you\'re PIC (the F/O is the third party), the OTHER pilot is treated identically. Cumulo stores full names locally on your device — your logbook works exactly like a paper logbook (PIPEDA s.4(2)(b) and Loi 25 art. 1 personal-use exceptions). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i). Self-references (your own name, or the literal text "self" / "moi" — which TP 14052 explicitly accepts) are NEVER anonymized: they are not third-party data. Control via Profile → "Keep full crew names when syncing or sharing" (default OFF). Validated by a 4-expert panel on 2026-05-13.'
+  },
+  {
+    q: 'Does the Navblue auto-sync capture captain names, or do I have to upload a PDF?',
+    a: 'As of the 2026-05-14 update, the Navblue iCal sync attempts to extract crew names (captain + F/O) directly from the DESCRIPTION field of each VEVENT — no separate PDF upload required. Whether crew names actually appear depends on what your airline\'s Navblue tenant includes in the iCal feed: some carriers include "CAPT Smith, John / F/O Daoust, Martin" in the description, others ship the iCal stripped down. After the first sync, check your Logbook page: if the PIC column shows captain names for recent flights, the iCal feed contains them. If the PIC column is still empty, fall back to the monthly PDF roster import (Import → Photo / PDF). The dev console logs raw DESCRIPTION samples on any sync where crew extraction failed — paste one of those lines into a feedback ticket and the regex will be refined.'
   },
   {
     q: 'How long must I keep my logbook records?',
@@ -9042,9 +9131,9 @@ const STRINGS = {
     'profile.ifr.title':         'IFR Approach Auto-Count',
     'profile.ifr.label':         'Count 1 IFR approach per flight on sync (705 line operations)',
     'profile.ifr.descHtml':      'Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.',
-    'profile.captain.title':     'Captain Name Privacy (PIPEDA / Loi 25)',
-    'profile.captain.label':     'Keep full captain names when syncing or sharing (I have crew consent)',
-    'profile.captain.descHtml':  '<strong>How Cumulo handles your crew names — validated by federal + Quebec privacy lawyers + a retired TC inspector + a UX expert (2026-05-13):</strong><br><br>• <strong>On your device:</strong> Cumulo always stores full names. You see who you flew with — your logbook works like a paper logbook.<br>• <strong>TC PDF export:</strong> always full names. Required for ramp checks and ATPL submissions under CAR 401.08 + PIPEDA s.7(3)(c.1)(i) (regulatory disclosure).<br>• <strong>Cloud sync (when Supabase is wired):</strong> anonymized to initials by default. Toggle this ON only if you\'ve obtained crew consent OR you accept responsibility for the third-party data leaving your device. Default OFF protects your crew under PIPEDA Principle 4.3.<br>• <strong>Shareable exports / backups:</strong> same as cloud sync — anonymized by default.<br><br><em>Note: rows already imported before 2026-05-14 may already be anonymized — re-import a roster to recover full names.</em>',
+    'profile.captain.title':     'Crew Name Privacy (PIPEDA / Loi 25)',
+    'profile.captain.label':     'Keep full crew names when syncing or sharing (I have crew consent)',
+    'profile.captain.descHtml':  '<strong>How Cumulo handles your crew names — applies equally to the captain (when you are F/O) AND the F/O (when you are captain). Validated 2026-05-13 by a 4-expert panel: PIPEDA federal lawyer, Loi 25 Quebec lawyer, retired TC inspector, UX designer.</strong><br><br>• <strong>On your device:</strong> always full names. You see exactly what you wrote in your paper logbook.<br>• <strong>TC PDF export:</strong> always full names — or "SELF" if that\'s what you wrote (TC Standard 421 / TP 14052 explicitly accepts SELF for the pilot\'s own entries).<br>• <strong>Cloud sync / shareable exports:</strong> third-party crew names (the OTHER pilot) anonymize to initials by default. Your own name (or "self") is never anonymized — it\'s not third-party data.<br>• <strong>Toggle ON</strong> only if you\'ve obtained the other pilot\'s consent OR you accept responsibility for the third-party data leaving your device.<br><br><em>Note: rows imported before 2026-05-14 may already be in initials form — re-import the roster (or use the Navblue auto-sync, which now extracts crew names) to recover full names.</em>',
     'profile.display.title':     'Display preferences',
     'profile.display.label':     'Hide empty columns on screen (sum = 0 across all flights)',
     'profile.display.descHtml':  'Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. Useful when you\'ve imported a CSV that doesn\'t have the full TC granularity (e.g. ForeFlight imports leave SE Day, IFR Hood, etc. empty). <strong>The PDF export for Transport Canada always keeps all 38 columns</strong> for ramp-check compliance, regardless of this setting.',
@@ -9586,9 +9675,9 @@ const STRINGS = {
     'profile.ifr.title':         'Comptage auto des approches IFR',
     'profile.ifr.label':         'Compter 1 approche IFR par vol à la synchro (opérations 705 en ligne)',
     'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro Navblue inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
-    'profile.captain.title':     'Confidentialité des noms de commandants (LPRPDE / Loi 25)',
-    'profile.captain.label':     'Conserver les noms complets en synchronisation et partage (j\'ai le consentement de l\'équipage)',
-    'profile.captain.descHtml':  '<strong>Comment Cumulo traite les noms d\'équipage — validé par avocats LPRPDE fédérale + Loi 25 Québec + un inspecteur TC retraité + un expert UX (13 mai 2026) :</strong><br><br>• <strong>Sur votre appareil :</strong> Cumulo conserve toujours les noms complets. Vous voyez avec qui vous avez volé — votre carnet fonctionne comme un carnet papier.<br>• <strong>Export PDF pour TC :</strong> noms complets, toujours. Exigé pour les ramp checks et les soumissions ATPL en vertu du RAC 401.08 + LPRPDE art. 7(3)c.1)(i) (divulgation réglementaire).<br>• <strong>Synchronisation infonuagique (lorsque Supabase sera branché) :</strong> anonymisé en initiales par défaut. Activez cette option seulement si vous avez obtenu le consentement de l\'équipage OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil. Le défaut DÉSACTIVÉ protège votre équipage selon le principe 4.3 de la LPRPDE.<br>• <strong>Exports partageables / sauvegardes :</strong> mêmes règles que la synchronisation — anonymisé par défaut.<br><br><em>Note : les lignes importées avant le 14 mai 2026 peuvent déjà être anonymisées — réimportez votre horaire pour récupérer les noms complets.</em>',
+    'profile.captain.title':     'Confidentialité des noms d\'équipage (LPRPDE / Loi 25)',
+    'profile.captain.label':     'Conserver les noms complets d\'équipage en synchronisation et partage (j\'ai le consentement)',
+    'profile.captain.descHtml':  '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant). Validé le 13 mai 2026 par un panel de 4 experts : avocat LPRPDE fédéral, avocate Loi 25 Québec, inspecteur TC retraité, expert UX.</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Note : les lignes importées avant le 14 mai 2026 peuvent déjà être en initiales — réimportez votre horaire (ou utilisez la sync automatique Navblue, qui extrait maintenant les noms d\'équipage) pour récupérer les noms complets.</em>',
     'profile.display.title':     'Préférences d’affichage',
     'profile.display.label':     'Masquer les colonnes vides à l’écran (somme = 0 sur tous les vols)',
     'profile.display.descHtml':  'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR Capot, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
@@ -11200,7 +11289,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-self-resolver';
+const BUILD_VERSION = 'v3a-2026-05-14-navblue-crew-extract';
 
 (function init() {
   applyDarkMode();

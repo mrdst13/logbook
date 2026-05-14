@@ -71,7 +71,10 @@ function anonymizeCaptainName(name) {
   return `${fi}.${li}.`;
 }
 
-// Context-aware captain-name resolution.
+// Context-aware crew-name resolution.
+// Applies equally to PIC (captain) and copilot (F/O) names — both can be
+// third-party PII depending on the user's seat that day. Caller decides
+// which field is being gated.
 // `context` values:
 //   'display'    → owner viewing their own logbook (always full)
 //   'tc-pdf'     → TC regulatory export (always full — s.7(3)(c.1)(i))
@@ -80,6 +83,9 @@ function anonymizeCaptainName(name) {
 function captainNameForContext(name, profile, context) {
   if (!name) return '';
   if (context === 'display' || context === 'tc-pdf') return name;
+  // Self-references (the user's own name, "self", "moi", etc.) are NOT
+  // third-party PII and never require anonymization regardless of consent.
+  if (_isSelfReference(name, profile)) return name;
   // Outbound contexts: anonymize unless the user has explicitly opted in.
   const consented = profile && profile.consentCaptainNames === true;
   return consented ? name : anonymizeCaptainName(name);
@@ -137,17 +143,16 @@ function resolveSelfReferences(flight, profile) {
   const out = { ...flight };
   const picIsSelf = _isSelfReference(out.pic, profile);
   const copIsSelf = _isSelfReference(out.copilot, profile);
+  // PRESERVE what the pilot wrote (TC TP 14052 accepts "SELF" in the PIC
+  // column — the retired inspector on the 2026-05-13 panel confirmed). The
+  // resolver's job is ONLY to record the user's seat in crewPosition; we
+  // never overwrite the text the pilot recorded in their paper logbook.
   if (picIsSelf) {
-    // User was PIC on this flight; drop the self-reference, lock crewPosition
-    out.pic = '';
-    out.crewPosition = 'PIC';
+    if (!out.crewPosition) out.crewPosition = 'PIC';
   } else if (out.pic) {
-    // A real third-party captain → user was SIC unless already set
     if (!out.crewPosition) out.crewPosition = 'SIC';
   }
   if (copIsSelf) {
-    // User was SIC on this flight; drop the self-reference
-    out.copilot = '';
     if (!out.crewPosition) out.crewPosition = 'SIC';
   }
   return out;

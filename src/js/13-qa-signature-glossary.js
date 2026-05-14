@@ -67,8 +67,12 @@ const FAQS = [
 
   // ── Privacy & compliance ──────────────────────────────────────────
   {
-    q: 'How does Cumulo handle captain names from my roster?',
-    a: 'Cumulo stores full captain names locally on your device — your logbook works exactly like a paper logbook (you see who you flew with). This is permitted under PIPEDA s.4(2)(b) and Loi 25 art. 1 (personal-use exception). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i) (regulatory disclosure). You control whether full names go to the cloud via Profile → "Keep full captain names when syncing or sharing" (default OFF = anonymize at egress). This was validated by a 4-expert panel (PIPEDA lawyer + Loi 25 lawyer + retired TC inspector + UX designer) on 2026-05-13.'
+    q: 'How does Cumulo handle the OTHER pilot\'s name (captain or F/O)?',
+    a: 'The rule is symmetric — whether you\'re F/O (the captain is the third party) or you\'re PIC (the F/O is the third party), the OTHER pilot is treated identically. Cumulo stores full names locally on your device — your logbook works exactly like a paper logbook (PIPEDA s.4(2)(b) and Loi 25 art. 1 personal-use exceptions). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i). Self-references (your own name, or the literal text "self" / "moi" — which TP 14052 explicitly accepts) are NEVER anonymized: they are not third-party data. Control via Profile → "Keep full crew names when syncing or sharing" (default OFF). Validated by a 4-expert panel on 2026-05-13.'
+  },
+  {
+    q: 'Does the Navblue auto-sync capture captain names, or do I have to upload a PDF?',
+    a: 'As of the 2026-05-14 update, the Navblue iCal sync attempts to extract crew names (captain + F/O) directly from the DESCRIPTION field of each VEVENT — no separate PDF upload required. Whether crew names actually appear depends on what your airline\'s Navblue tenant includes in the iCal feed: some carriers include "CAPT Smith, John / F/O Daoust, Martin" in the description, others ship the iCal stripped down. After the first sync, check your Logbook page: if the PIC column shows captain names for recent flights, the iCal feed contains them. If the PIC column is still empty, fall back to the monthly PDF roster import (Import → Photo / PDF). The dev console logs raw DESCRIPTION samples on any sync where crew extraction failed — paste one of those lines into a feedback ticket and the regex will be refined.'
   },
   {
     q: 'How long must I keep my logbook records?',
