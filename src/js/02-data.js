@@ -42,12 +42,23 @@ function recalculateFlightDayNightXC(f) {
   const arrCoords = AIRPORT_COORDS[arrICAO];
   if (!depCoords || !arrCoords) return f;  // unknown airports
 
-  // SOURCE OF TRUTH for the UTC instant of block-off:
-  //   1. dtstart_utc (full ISO, never ambiguous) — preferred
-  //   2. buildUTCDateTime(date, std_utc) — only as a fallback when dtstart_utc absent
-  // Reconstruction can drift across UTC midnight for late-local departures.
+  // SOURCE OF TRUTH for the UTC instant of block-off, in priority order:
+  //   1. atd_utc (Actual Time of Departure — preferred when the pilot has
+  //      filled it in; reflects reality, not the roster schedule)
+  //   2. dtstart_utc (full ISO, never ambiguous — Navblue iCal source-of-truth
+  //      when ATD not user-provided; matches scheduled departure)
+  //   3. buildUTCDateTime(date, std_utc) — last-resort fallback when neither
+  //      ATD nor dtstart_utc available. Reconstruction can drift across UTC
+  //      midnight for late-local departures.
+  //
+  // Note (2026-05-14): the previous version of this function only used STD
+  // (scheduled time). That violated the project's "use ATD/ATA, not STD/STA"
+  // convention documented in CLAUDE.md. Now ATD wins when present.
   let blockOff = null;
-  if (f.dtstart_utc) {
+  if (f.atd_utc && f.atd_utc.length === 4) {
+    blockOff = buildUTCDateTime(f.date, f.atd_utc);
+  }
+  if (!blockOff && f.dtstart_utc) {
     blockOff = new Date(f.dtstart_utc);
     if (isNaN(blockOff.getTime())) blockOff = null;
   }
@@ -320,7 +331,12 @@ function recalculateAllFlightsInternal() {
     const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
     const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
     if (!AIRPORT_COORDS[depICAO] || !AIRPORT_COORDS[arrICAO]) { skippedNoCoords++; return f; }
-    if (!f.std_utc || f.std_utc.length !== 4) { skippedNoUTC++; return f; }
+    // Need at least one usable UTC anchor: ATD, dtstart, or STD (in that
+    // priority order, matching recalculateFlightDayNightXC).
+    const hasUTCAnchor = (f.atd_utc && f.atd_utc.length === 4)
+                     || f.dtstart_utc
+                     || (f.std_utc && f.std_utc.length === 4);
+    if (!hasUTCAnchor) { skippedNoUTC++; return f; }
     const recalc = recalculateFlightDayNightXC(f);
     if (recalc !== f) updated++;
     return recalc;

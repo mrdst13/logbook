@@ -89,6 +89,8 @@ const FLIGHT_FIELD_MAP = {
   meNightDual: 'me_night_dual',
   seDay: 'se_day',
   seNight: 'se_night',
+  atd_utc: 'atd_utc',
+  ata_utc: 'ata_utc',
   heliDayPic: 'heli_day_pic',
   heliNightPic: 'heli_night_pic',
   heliDayCop: 'heli_day_cop',

@@ -127,6 +127,12 @@ create table if not exists public.flights (
   se_day numeric(5,2) default 0,
   se_night numeric(5,2) default 0,
 
+  -- Actual UTC times (preferred for recalc; user-fillable).
+  -- STD/STA stored in std_utc / sta_utc remain available as the schedule
+  -- reference (set by Navblue iCal sync). Recalc prefers ATD if present.
+  atd_utc text,
+  ata_utc text,
+
   -- Helicopter (own engine class; rotorcraft hours never contaminate SE/ME totals)
   heli_day_pic numeric(5,2) default 0,
   heli_night_pic numeric(5,2) default 0,

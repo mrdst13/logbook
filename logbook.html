@@ -2755,6 +2755,31 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <input type="number" id="f-total" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
+      <!-- UTC times — ATD/ATA are the ACTUAL times (preferred for night/XC
+           recalc). STD/STA stay visible as a reference but are the SCHEDULE
+           from Navblue/roster sync and shouldn't drive math when the actual
+           is available. -->
+      <div class="form-grid form-grid-4" style="margin-top:var(--s-3);">
+        <div class="form-group">
+          <label data-i18n="flight.atd">ATD (UTC) — actual takeoff</label>
+          <input type="text" id="f-atd-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
+        </div>
+        <div class="form-group">
+          <label data-i18n="flight.ata">ATA (UTC) — actual landing</label>
+          <input type="text" id="f-ata-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
+        </div>
+        <div class="form-group">
+          <label data-i18n="flight.std">STD (UTC) — scheduled</label>
+          <input type="text" id="f-std-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em; opacity:0.7;">
+        </div>
+        <div class="form-group">
+          <label data-i18n="flight.sta">STA (UTC) — scheduled</label>
+          <input type="text" id="f-sta-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em; opacity:0.7;">
+        </div>
+      </div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:6px; line-height:1.5;" data-i18n-html="flight.atdHelpHtml">
+        ATD/ATA are the <strong>actual</strong> wheels-off / wheels-on times (or block-off / block-on if you log that way). STD/STA are the <strong>scheduled</strong> times from your roster. Cumulo prefers ATD for Night and Cross-Country calculations — fill it in for accuracy.
+      </div>
     </div>
 
     <div class="form-card">
@@ -3946,12 +3971,23 @@ function recalculateFlightDayNightXC(f) {
   const arrCoords = AIRPORT_COORDS[arrICAO];
   if (!depCoords || !arrCoords) return f;  // unknown airports
 
-  // SOURCE OF TRUTH for the UTC instant of block-off:
-  //   1. dtstart_utc (full ISO, never ambiguous) — preferred
-  //   2. buildUTCDateTime(date, std_utc) — only as a fallback when dtstart_utc absent
-  // Reconstruction can drift across UTC midnight for late-local departures.
+  // SOURCE OF TRUTH for the UTC instant of block-off, in priority order:
+  //   1. atd_utc (Actual Time of Departure — preferred when the pilot has
+  //      filled it in; reflects reality, not the roster schedule)
+  //   2. dtstart_utc (full ISO, never ambiguous — Navblue iCal source-of-truth
+  //      when ATD not user-provided; matches scheduled departure)
+  //   3. buildUTCDateTime(date, std_utc) — last-resort fallback when neither
+  //      ATD nor dtstart_utc available. Reconstruction can drift across UTC
+  //      midnight for late-local departures.
+  //
+  // Note (2026-05-14): the previous version of this function only used STD
+  // (scheduled time). That violated the project's "use ATD/ATA, not STD/STA"
+  // convention documented in CLAUDE.md. Now ATD wins when present.
   let blockOff = null;
-  if (f.dtstart_utc) {
+  if (f.atd_utc && f.atd_utc.length === 4) {
+    blockOff = buildUTCDateTime(f.date, f.atd_utc);
+  }
+  if (!blockOff && f.dtstart_utc) {
     blockOff = new Date(f.dtstart_utc);
     if (isNaN(blockOff.getTime())) blockOff = null;
   }
@@ -4224,7 +4260,12 @@ function recalculateAllFlightsInternal() {
     const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
     const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
     if (!AIRPORT_COORDS[depICAO] || !AIRPORT_COORDS[arrICAO]) { skippedNoCoords++; return f; }
-    if (!f.std_utc || f.std_utc.length !== 4) { skippedNoUTC++; return f; }
+    // Need at least one usable UTC anchor: ATD, dtstart, or STD (in that
+    // priority order, matching recalculateFlightDayNightXC).
+    const hasUTCAnchor = (f.atd_utc && f.atd_utc.length === 4)
+                     || f.dtstart_utc
+                     || (f.std_utc && f.std_utc.length === 4);
+    if (!hasUTCAnchor) { skippedNoUTC++; return f; }
     const recalc = recalculateFlightDayNightXC(f);
     if (recalc !== f) updated++;
     return recalc;
@@ -4570,8 +4611,11 @@ function openFlightDetail(id) {
     ['Crew Position', f.pic ? 'SIC (PIC: ' + f.pic + ')' : 'PIC'],
     ['Pilot in Command', f.pic],
     ['Co-pilot', f.copilot],
-    ['STD UTC', f.std_utc],
-    ['STA UTC', f.sta_utc],
+    ['ATD UTC (actual)', f.atd_utc],
+    ['ATA UTC (actual)', f.ata_utc],
+    ['STD UTC (scheduled)', f.std_utc],
+    ['STA UTC (scheduled)', f.sta_utc],
+    ['Check-In UTC', f.ci_utc],
     ['Check-Out UTC', f.co_utc],
     [],
     ['Flight Time (decimal)', fmtCell(+f.total || +f.block)],
@@ -4709,6 +4753,12 @@ function saveFlight() {
     block: isSim ? 0 : gv('f-block'),     // sim has no block time (not actual flight)
     duty: gv('f-duty'),
     total: gv('f-total'),
+    // UTC times. ATD/ATA = actual (preferred for night/XC recalc).
+    // STD/STA = scheduled (from Navblue roster sync). User can override either.
+    atd_utc: (gv('f-atd-utc') || '').trim(),
+    ata_utc: (gv('f-ata-utc') || '').trim(),
+    std_utc: (gv('f-std-utc') || '').trim(),
+    sta_utc: (gv('f-sta-utc') || '').trim(),
     meDayDual: gv('f-me-day-dual'),
     meDayPic: gv('f-me-day-pic'),
     meDayCop: gv('f-me-day-cop'),
@@ -4758,6 +4808,8 @@ function editFlight(id) {
   sv('f-pic', f.pic); sv('f-copilot', f.copilot);
   sv('f-route', f.route); sv('f-remarks', f.remarks);
   sv('f-block', f.block); sv('f-duty', f.duty); sv('f-total', f.total);
+  sv('f-atd-utc', f.atd_utc || ''); sv('f-ata-utc', f.ata_utc || '');
+  sv('f-std-utc', f.std_utc || ''); sv('f-sta-utc', f.sta_utc || '');
   sv('f-me-day-dual', f.meDayDual); sv('f-me-day-pic', f.meDayPic); sv('f-me-day-cop', f.meDayCop);
   sv('f-me-night-dual', f.meNightDual); sv('f-me-night-pic', f.meNightPic); sv('f-me-night-cop', f.meNightCop);
   sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic);
@@ -9971,6 +10023,11 @@ const STRINGS = {
     'trust.delete.title':        'Delete my data + purge',
     'trust.delete.desc':         'Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days.',
     'trust.delete.btn':          'Delete + Purge',
+    'flight.atd':                'ATD (UTC) — actual takeoff',
+    'flight.ata':                'ATA (UTC) — actual landing',
+    'flight.std':                'STD (UTC) — scheduled',
+    'flight.sta':                'STA (UTC) — scheduled',
+    'flight.atdHelpHtml':        'ATD/ATA are the <strong>actual</strong> wheels-off / wheels-on times (or block-off / block-on if you log that way). STD/STA are the <strong>scheduled</strong> times from your roster. Cumulo prefers ATD for Night and Cross-Country calculations — fill it in for accuracy.',
     'profile.type.helicopter':     'Helicopter',
     'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
     'profile.type.instructor':     'Instructor / CFI',
@@ -10532,6 +10589,11 @@ const STRINGS = {
     'trust.delete.title':        'Supprimer mes données + purger',
     'trust.delete.desc':         'Supprimez de manière permanente chaque vol, votre profil et votre historique de synchronisation de cet appareil. Lorsque la synchronisation Supabase est activée, ceci effacera aussi votre copie infonuagique en moins de 30 jours.',
     'trust.delete.btn':          'Supprimer + purger',
+    'flight.atd':                'ATD (UTC) — décollage réel',
+    'flight.ata':                'ATA (UTC) — atterrissage réel',
+    'flight.std':                'STD (UTC) — prévu',
+    'flight.sta':                'STA (UTC) — prévu',
+    'flight.atdHelpHtml':        'ATD/ATA sont les heures <strong>réelles</strong> de décollage / atterrissage (ou block-off / block-on selon votre convention). STD/STA sont les heures <strong>prévues</strong> selon votre horaire. Cumulo préfère ATD pour les calculs Nuit et Voyage — remplissez-le pour la précision.',
     'profile.type.helicopter':     'Hélicoptère',
     'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
     'profile.type.instructor':     'Instructeur / CFI',
@@ -11235,6 +11297,8 @@ const FLIGHT_FIELD_MAP = {
   meNightDual: 'me_night_dual',
   seDay: 'se_day',
   seNight: 'se_night',
+  atd_utc: 'atd_utc',
+  ata_utc: 'ata_utc',
   heliDayPic: 'heli_day_pic',
   heliNightPic: 'heli_night_pic',
   heliDayCop: 'heli_day_cop',
@@ -11744,7 +11808,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-trust-landing-demo-v2';
+const BUILD_VERSION = 'v3a-2026-05-14-atd-ata-actual-times';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
