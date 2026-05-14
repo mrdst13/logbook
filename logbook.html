@@ -2838,6 +2838,16 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <div class="pt-name" data-i18n="profile.type.student">Student / CPL</div>
           <div class="pt-desc" data-i18n="profile.type.studentDesc">Flight training · Dual &amp; solo focus</div>
         </div>
+        <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')">
+          <div class="pt-icon">🎓</div>
+          <div class="pt-name" data-i18n="profile.type.instructor">Instructor / CFI</div>
+          <div class="pt-desc" data-i18n="profile.type.instructorDesc">Dual given · ATPL credit focus</div>
+        </div>
+        <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
+          <div class="pt-icon">🚁</div>
+          <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
+          <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · CAR 401.05 currency</div>
+        </div>
       </div>
     </div>
 
@@ -2895,6 +2905,24 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
               <option value="Summit Air|SUT">Summit Air</option>
               <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
               <option value="Missinippi Airways|MWT">Missinippi Airways</option>
+            </optgroup>
+            <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
+              <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
+              <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
+              <option value="Helijet International|HEJ">Helijet International</option>
+              <option value="Ascent Helicopters|ASC">Ascent Helicopters</option>
+              <option value="Yellowhead Helicopters|YHL">Yellowhead Helicopters</option>
+              <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
+              <option value="Heli-One|HO">Heli-One</option>
+            </optgroup>
+            <optgroup label="FTO — Flight Training Organization">
+              <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
+              <option value="Confederation College Aviation|CCA">Confederation College</option>
+              <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
+              <option value="Moncton Flight College|MFC">Moncton Flight College</option>
+              <option value="Seneca Aviation|SEN">Seneca Aviation</option>
+              <option value="Cargair|CGR">Cargair</option>
+              <option value="Other FTO|FTO">Other FTO — flight school</option>
             </optgroup>
             <optgroup label="Other">
               <option value="other" data-i18n="profile.airline.other">— Other / Custom (enter manually) —</option>
@@ -3553,21 +3581,27 @@ function showPage(id) {
 // ═══════════════════════════════════════════
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
+  let heli=0, hover=0, dualGiven=0;
   const now = new Date();
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
     total += +f.total || 0;
-    pic += (+f.meDayPic||0) + (+f.meNightPic||0);
-    sic += (+f.meDayCop||0) + (+f.meNightCop||0);
-    night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0);
+    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0);
+    sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
+    night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
+           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0);
     ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
     me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
+    heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
+          + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
+    hover += +f.hoverTime || 0;
+    dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
     xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
         + (+f.xcDayCop||0)+(+f.xcNightCop||0);
     block += +f.block || 0;
     if (f.date && new Date(f.date) >= cutoff30) block30 += +f.block || 0;
   });
-  return {total,pic,sic,night,ldg,me,xc,block,block30,entries:flights.length};
+  return {total,pic,sic,night,ldg,me,heli,hover,dualGiven,xc,block,block30,entries:flights.length};
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -4756,7 +4790,7 @@ function setProfileType(type) {
 }
 
 function highlightProfileTypeCard(type) {
-  ['airline705', 'private', 'student'].forEach(t => {
+  ['airline705', 'private', 'student', 'helicopter', 'instructor'].forEach(t => {
     const card = document.getElementById('pt-' + t);
     if (card) card.classList.toggle('active', t === type);
   });
@@ -4798,6 +4832,26 @@ function adaptFormToProfile(type) {
     setLbl('f-me-night-pic', 'ME Night — Solo');
     setLbl('f-me-day-dual',  'ME Day — Dual (Instruction)');
     setLbl('f-me-night-dual','ME Night — Dual (Instruction)');
+  } else if (type === 'instructor') {
+    // CFI / flight instructor mode: dual-given is the primary credit
+    // (CAR 421.34 ATPL submission). Hide airline columns; relabel.
+    hide('fg-duty');
+    hide('fg-me-day-cop');
+    hide('fg-me-night-cop');
+    hide('fg-picus');
+    setLbl('f-pic',          'Instructor (you)');
+    setLbl('f-copilot',      'Student Name');
+    setLbl('f-me-day-pic',   'ME Day — PIC (solo evals)');
+    setLbl('f-me-night-pic', 'ME Night — PIC (solo evals)');
+    setLbl('f-me-day-dual',  'ME Day — Dual Received');
+    setLbl('f-me-night-dual','ME Night — Dual Received');
+  } else if (type === 'helicopter') {
+    // Heli ops: hide ME airline labels which contaminate stats; rotorcraft
+    // hours live in the dedicated Heli columns (heliDayPic/heliNightPic
+    // etc.) which the table picker exposes by default for this type.
+    hide('fg-me-day-cop');
+    hide('fg-me-night-cop');
+    hide('fg-picus');
   }
 }
 
@@ -5046,6 +5100,17 @@ const LOGBOOK_COLUMNS = [
   { key: 'meDayDual',    label: 'ME Day Dual',         short: 'MED Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
   { key: 'meNightDual',  label: 'ME Night Dual',       short: 'MEN Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
 
+  // Helicopter (own engine class — separate currency rules under CAR 401.05).
+  // Routed here when acConfig='helicopter' so heli hours don't contaminate
+  // SE/ME totals. Schema-additive — backward compatible with existing rows.
+  { key: 'heliDayPic',   label: 'Heli Day PIC',        short: 'HD PIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliNightPic', label: 'Heli Night PIC',      short: 'HN PIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliDayCop',   label: 'Heli Day SIC',        short: 'HD SIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliNightCop', label: 'Heli Night SIC',      short: 'HN SIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliDayDual',  label: 'Heli Day Dual',       short: 'HD Dual',  group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliNightDual',label: 'Heli Night Dual',     short: 'HN Dual',  group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'hoverTime',    label: 'Hover Time',          short: 'Hover',    group: 'Helicopter',     width: 10, align: 'right', decimal: true, default: false },
+
   // Cross-country (Standard 421, CAR 401.34)
   { key: 'xcDay',        label: 'XC Day',              short: 'XC Day',   group: 'Cross-country',  width: 10, align: 'right', decimal: true, default: false },
   { key: 'xcNight',      label: 'XC Night',            short: 'XC Ngt',   group: 'Cross-country',  width: 10, align: 'right', decimal: true, default: false },
@@ -5068,10 +5133,14 @@ const LOGBOOK_COLUMNS = [
   { key: 'simSession',   label: 'Session Type',        short: 'Session',  group: 'Simulator',      width: 16, align: 'left',   default: false },
   { key: 'simRegistration', label: 'Sim Device ID',    short: 'Device',   group: 'Simulator',      width: 14, align: 'left',   default: false },
 
+  // Dual Given (CFI / instructor instruction time — CAR 421.34 ATPL credit).
+  // Promoted from "Other" to its own group so it surfaces clearly for
+  // instructors. The PDF cover totals now include a Dual Given line.
+  { key: 'dualGivenDay',  label: 'Dual Given Day',     short: 'DG Day',   group: 'Dual Given',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'dualGivenNight',label: 'Dual Given Night',   short: 'DG Ngt',   group: 'Dual Given',     width: 11, align: 'right', decimal: true, default: false },
+
   // Other
   { key: 'picus',         label: 'PICUS',              short: 'PICUS',    group: 'Other',          width: 10, align: 'right', decimal: true, default: false },
-  { key: 'dualGivenDay',  label: 'Dual Given Day',     short: 'DG Day',   group: 'Other',          width: 11, align: 'right', decimal: true, default: false },
-  { key: 'dualGivenNight',label: 'Dual Given Night',   short: 'DG Ngt',   group: 'Other',          width: 11, align: 'right', decimal: true, default: false },
   { key: 'multiCrew',     label: 'Multi-Crew',         short: 'MC',       group: 'Other',          width: 9,  align: 'center', default: false },
   { key: 'acConfig',      label: 'AC Config',          short: 'Config',   group: 'Other',          width: 12, align: 'left',  default: false },
   { key: 'remarks',       label: 'Remarks',            short: 'Remarks',  group: 'Other',          width: 24, align: 'left',  default: false },
@@ -5925,6 +5994,24 @@ function renderOnboardingStep() {
               <option value="Summit Air|SUT">Summit Air</option>
               <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
             </optgroup>
+            <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
+              <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
+              <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
+              <option value="Helijet International|HEJ">Helijet International</option>
+              <option value="Ascent Helicopters|ASC">Ascent Helicopters</option>
+              <option value="Yellowhead Helicopters|YHL">Yellowhead Helicopters</option>
+              <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
+              <option value="Heli-One|HO">Heli-One</option>
+            </optgroup>
+            <optgroup label="FTO — Flight Training Organization">
+              <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
+              <option value="Confederation College Aviation|CCA">Confederation College</option>
+              <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
+              <option value="Moncton Flight College|MFC">Moncton Flight College</option>
+              <option value="Seneca Aviation|SEN">Seneca Aviation</option>
+              <option value="Cargair|CGR">Cargair</option>
+              <option value="Other FTO|FTO">Other FTO — flight school</option>
+            </optgroup>
             <optgroup label="Other">
               <option value="other">— ${esc(t('profile.airline.other'))} —</option>
               <option value="none">${esc(t('profile.airline.none'))}</option>
@@ -6669,15 +6756,20 @@ function _generatePDF() {
     doc.setFontSize(9);
     doc.text('CAREER TOTALS (as of ' + new Date().toLocaleDateString('en-CA') + ')', cardX + 5, sumY + 6);
 
+    // Cover totals — show only categories the pilot actually has hours in
+    // (otherwise the heli/dual-given columns dilute visible space for line
+    // pilots). Heli + Dual Given appear iff > 0; otherwise omitted.
     const headlineCols = [
       ['Flight Time',     fmt(totals.total)],
       ['PIC',             fmt(totals.pic)],
       ['SIC',             fmt(totals.sic)],
       ['Night',           fmt(totals.night)],
       ['Multi-Engine',    fmt(totals.me)],
-      ['Cross-Country',   fmt(totals.xc)],
-      ['Landings',        String(totals.ldg)],
     ];
+    if ((totals.heli || 0) > 0)      headlineCols.push(['Helicopter',  fmt(totals.heli)]);
+    if ((totals.dualGiven || 0) > 0) headlineCols.push(['Dual Given',  fmt(totals.dualGiven)]);
+    headlineCols.push(['Cross-Country',   fmt(totals.xc)]);
+    headlineCols.push(['Landings',        String(totals.ldg)]);
     const slotW = cardW / headlineCols.length;
     headlineCols.forEach((h, i) => {
       const x = cardX + i * slotW;
@@ -7587,10 +7679,23 @@ function detectCsvFormat(text) {
 // with `acConfig: 'helicopter'` and a remark flag, so totals are preserved
 // and the user is alerted.)
 const HELI_PATTERNS = [
-  /^r-?22\b/i, /^r-?44\b/i, /^r-?66\b/i, /^bell ?\d{3}/i, /^206[lb]?$/i,
-  /^407\b/i, /^as ?350/i, /a-?star/i, /^ec-?\d{3}/i, /^md-?5\d{2}/i,
-  /^h-?125/i, /^h-?130/i, /^h-?135/i, /^h-?145/i, /^h-?155/i,
-  /^aw-?\d{3}/i, /^uh-?\d/i, /helicopt/i
+  // Robinson family
+  /^r-?22\b/i, /^r-?44\b/i, /^r-?66\b/i,
+  // Bell — explicit + bare-number variants (206B3, 407GXi, 412EP, 429)
+  /^bell ?\d{3}/i, /^206[a-z]{0,2}\d?$/i, /^407[a-z]{0,2}\d?$/i,
+  /^412[a-z]{0,2}\d?$/i, /^429[a-z]{0,2}\d?$/i, /^505[a-z]{0,2}\d?$/i,
+  /^222[a-z]?$/i, /^230[a-z]?$/i, /^230 ?utility/i,
+  // Airbus / Eurocopter — AS350, AS355, EC120/130/135/145/155/225, H-series
+  /^as ?3[0-9]{2}[a-z]?\d?/i, /a-?star/i, /^ec-?\d{3}[a-z]?\d?/i,
+  /^h-?12[05][a-z]?/i, /^h-?13[05][a-z]?/i, /^h-?14[05][a-z]?/i, /^h-?15[5][a-z]?/i,
+  // MD Helicopters
+  /^md-?\d{2,3}[a-z]?/i, /^500e?$/i, /^520n$/i, /^600n$/i, /^900nota?r?$/i,
+  // Sikorsky
+  /^s-?7[06]\b/i, /^s-?9[2-7]/i, /^s-?6[14]/i, /^uh-?\d/i, /sikorsky/i,
+  // Leonardo / AgustaWestland
+  /^aw-?\d{3}[a-z]?/i, /^a[bw]?-?109/i, /^a[bw]?-?119/i, /^a[bw]?-?139/i, /^a[bw]?-?169/i, /^a[bw]?-?189/i,
+  // Generic catch-all
+  /helicopt/i, /\bheli\b/i, /rotorcraft/i, /rotor[- ]?wing/i
 ];
 
 // Single-engine fixed wing patterns (covers GA + bush mainstays).
@@ -9176,7 +9281,11 @@ const STRINGS = {
     'sync.migration.failed':     'Migration failed:',
     'sync.migration.partial':    'Migration partial — some flights may not have synced. Local data is intact.',
     'sync.pulled':               '☁ Sync: +{added} new, {updated} updated',
-    'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)'
+    'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)',
+    'profile.type.helicopter':     'Helicopter',
+    'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
+    'profile.type.instructor':     'Instructor / CFI',
+    'profile.type.instructorDesc': 'Dual given · ATPL credit focus'
   },
 
   fr: {
@@ -9708,7 +9817,11 @@ const STRINGS = {
     'sync.migration.failed':     'Échec de la migration :',
     'sync.migration.partial':    'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
     'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour',
-    'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)'
+    'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)',
+    'profile.type.helicopter':     'Hélicoptère',
+    'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
+    'profile.type.instructor':     'Instructeur / CFI',
+    'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire'
   }
 };
 
@@ -10400,6 +10513,13 @@ const FLIGHT_FIELD_MAP = {
   meNightDual: 'me_night_dual',
   seDay: 'se_day',
   seNight: 'se_night',
+  heliDayPic: 'heli_day_pic',
+  heliNightPic: 'heli_night_pic',
+  heliDayCop: 'heli_day_cop',
+  heliNightCop: 'heli_night_cop',
+  heliDayDual: 'heli_day_dual',
+  heliNightDual: 'heli_night_dual',
+  hoverTime: 'hover_time',
   xcDayPic: 'xc_day_pic',
   xcNightPic: 'xc_night_pic',
   xcDayCop: 'xc_day_cop',
@@ -10901,7 +11021,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-panel-fixes';
+const BUILD_VERSION = 'v3a-2026-05-14-heli-cfi';
 
 (function init() {
   applyDarkMode();

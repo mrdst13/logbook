@@ -202,6 +202,24 @@ function renderOnboardingStep() {
               <option value="Summit Air|SUT">Summit Air</option>
               <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
             </optgroup>
+            <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
+              <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
+              <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
+              <option value="Helijet International|HEJ">Helijet International</option>
+              <option value="Ascent Helicopters|ASC">Ascent Helicopters</option>
+              <option value="Yellowhead Helicopters|YHL">Yellowhead Helicopters</option>
+              <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
+              <option value="Heli-One|HO">Heli-One</option>
+            </optgroup>
+            <optgroup label="FTO — Flight Training Organization">
+              <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
+              <option value="Confederation College Aviation|CCA">Confederation College</option>
+              <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
+              <option value="Moncton Flight College|MFC">Moncton Flight College</option>
+              <option value="Seneca Aviation|SEN">Seneca Aviation</option>
+              <option value="Cargair|CGR">Cargair</option>
+              <option value="Other FTO|FTO">Other FTO — flight school</option>
+            </optgroup>
             <optgroup label="Other">
               <option value="other">— ${esc(t('profile.airline.other'))} —</option>
               <option value="none">${esc(t('profile.airline.none'))}</option>

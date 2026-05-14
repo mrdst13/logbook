@@ -3,21 +3,27 @@
 // ═══════════════════════════════════════════
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
+  let heli=0, hover=0, dualGiven=0;
   const now = new Date();
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
     total += +f.total || 0;
-    pic += (+f.meDayPic||0) + (+f.meNightPic||0);
-    sic += (+f.meDayCop||0) + (+f.meNightCop||0);
-    night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0);
+    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0);
+    sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
+    night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
+           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0);
     ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
     me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
+    heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
+          + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
+    hover += +f.hoverTime || 0;
+    dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
     xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
         + (+f.xcDayCop||0)+(+f.xcNightCop||0);
     block += +f.block || 0;
     if (f.date && new Date(f.date) >= cutoff30) block30 += +f.block || 0;
   });
-  return {total,pic,sic,night,ldg,me,xc,block,block30,entries:flights.length};
+  return {total,pic,sic,night,ldg,me,heli,hover,dualGiven,xc,block,block30,entries:flights.length};
 }
 
 // ─────────────────────────────────────────────────────────────────

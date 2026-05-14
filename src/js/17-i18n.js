@@ -546,7 +546,11 @@ const STRINGS = {
     'sync.migration.failed':     'Migration failed:',
     'sync.migration.partial':    'Migration partial — some flights may not have synced. Local data is intact.',
     'sync.pulled':               '☁ Sync: +{added} new, {updated} updated',
-    'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)'
+    'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)',
+    'profile.type.helicopter':     'Helicopter',
+    'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
+    'profile.type.instructor':     'Instructor / CFI',
+    'profile.type.instructorDesc': 'Dual given · ATPL credit focus'
   },
 
   fr: {
@@ -1078,7 +1082,11 @@ const STRINGS = {
     'sync.migration.failed':     'Échec de la migration :',
     'sync.migration.partial':    'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
     'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour',
-    'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)'
+    'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)',
+    'profile.type.helicopter':     'Hélicoptère',
+    'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
+    'profile.type.instructor':     'Instructeur / CFI',
+    'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire'
   }
 };
 

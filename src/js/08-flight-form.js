@@ -47,6 +47,17 @@ const LOGBOOK_COLUMNS = [
   { key: 'meDayDual',    label: 'ME Day Dual',         short: 'MED Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
   { key: 'meNightDual',  label: 'ME Night Dual',       short: 'MEN Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
 
+  // Helicopter (own engine class — separate currency rules under CAR 401.05).
+  // Routed here when acConfig='helicopter' so heli hours don't contaminate
+  // SE/ME totals. Schema-additive — backward compatible with existing rows.
+  { key: 'heliDayPic',   label: 'Heli Day PIC',        short: 'HD PIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliNightPic', label: 'Heli Night PIC',      short: 'HN PIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliDayCop',   label: 'Heli Day SIC',        short: 'HD SIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliNightCop', label: 'Heli Night SIC',      short: 'HN SIC',   group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliDayDual',  label: 'Heli Day Dual',       short: 'HD Dual',  group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'heliNightDual',label: 'Heli Night Dual',     short: 'HN Dual',  group: 'Helicopter',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'hoverTime',    label: 'Hover Time',          short: 'Hover',    group: 'Helicopter',     width: 10, align: 'right', decimal: true, default: false },
+
   // Cross-country (Standard 421, CAR 401.34)
   { key: 'xcDay',        label: 'XC Day',              short: 'XC Day',   group: 'Cross-country',  width: 10, align: 'right', decimal: true, default: false },
   { key: 'xcNight',      label: 'XC Night',            short: 'XC Ngt',   group: 'Cross-country',  width: 10, align: 'right', decimal: true, default: false },
@@ -69,10 +80,14 @@ const LOGBOOK_COLUMNS = [
   { key: 'simSession',   label: 'Session Type',        short: 'Session',  group: 'Simulator',      width: 16, align: 'left',   default: false },
   { key: 'simRegistration', label: 'Sim Device ID',    short: 'Device',   group: 'Simulator',      width: 14, align: 'left',   default: false },
 
+  // Dual Given (CFI / instructor instruction time — CAR 421.34 ATPL credit).
+  // Promoted from "Other" to its own group so it surfaces clearly for
+  // instructors. The PDF cover totals now include a Dual Given line.
+  { key: 'dualGivenDay',  label: 'Dual Given Day',     short: 'DG Day',   group: 'Dual Given',     width: 11, align: 'right', decimal: true, default: false },
+  { key: 'dualGivenNight',label: 'Dual Given Night',   short: 'DG Ngt',   group: 'Dual Given',     width: 11, align: 'right', decimal: true, default: false },
+
   // Other
   { key: 'picus',         label: 'PICUS',              short: 'PICUS',    group: 'Other',          width: 10, align: 'right', decimal: true, default: false },
-  { key: 'dualGivenDay',  label: 'Dual Given Day',     short: 'DG Day',   group: 'Other',          width: 11, align: 'right', decimal: true, default: false },
-  { key: 'dualGivenNight',label: 'Dual Given Night',   short: 'DG Ngt',   group: 'Other',          width: 11, align: 'right', decimal: true, default: false },
   { key: 'multiCrew',     label: 'Multi-Crew',         short: 'MC',       group: 'Other',          width: 9,  align: 'center', default: false },
   { key: 'acConfig',      label: 'AC Config',          short: 'Config',   group: 'Other',          width: 12, align: 'left',  default: false },
   { key: 'remarks',       label: 'Remarks',            short: 'Remarks',  group: 'Other',          width: 24, align: 'left',  default: false },

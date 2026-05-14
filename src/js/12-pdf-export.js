@@ -156,15 +156,20 @@ function _generatePDF() {
     doc.setFontSize(9);
     doc.text('CAREER TOTALS (as of ' + new Date().toLocaleDateString('en-CA') + ')', cardX + 5, sumY + 6);
 
+    // Cover totals — show only categories the pilot actually has hours in
+    // (otherwise the heli/dual-given columns dilute visible space for line
+    // pilots). Heli + Dual Given appear iff > 0; otherwise omitted.
     const headlineCols = [
       ['Flight Time',     fmt(totals.total)],
       ['PIC',             fmt(totals.pic)],
       ['SIC',             fmt(totals.sic)],
       ['Night',           fmt(totals.night)],
       ['Multi-Engine',    fmt(totals.me)],
-      ['Cross-Country',   fmt(totals.xc)],
-      ['Landings',        String(totals.ldg)],
     ];
+    if ((totals.heli || 0) > 0)      headlineCols.push(['Helicopter',  fmt(totals.heli)]);
+    if ((totals.dualGiven || 0) > 0) headlineCols.push(['Dual Given',  fmt(totals.dualGiven)]);
+    headlineCols.push(['Cross-Country',   fmt(totals.xc)]);
+    headlineCols.push(['Landings',        String(totals.ldg)]);
     const slotW = cardW / headlineCols.length;
     headlineCols.forEach((h, i) => {
       const x = cardX + i * slotW;

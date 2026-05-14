@@ -191,10 +191,23 @@ function detectCsvFormat(text) {
 // with `acConfig: 'helicopter'` and a remark flag, so totals are preserved
 // and the user is alerted.)
 const HELI_PATTERNS = [
-  /^r-?22\b/i, /^r-?44\b/i, /^r-?66\b/i, /^bell ?\d{3}/i, /^206[lb]?$/i,
-  /^407\b/i, /^as ?350/i, /a-?star/i, /^ec-?\d{3}/i, /^md-?5\d{2}/i,
-  /^h-?125/i, /^h-?130/i, /^h-?135/i, /^h-?145/i, /^h-?155/i,
-  /^aw-?\d{3}/i, /^uh-?\d/i, /helicopt/i
+  // Robinson family
+  /^r-?22\b/i, /^r-?44\b/i, /^r-?66\b/i,
+  // Bell — explicit + bare-number variants (206B3, 407GXi, 412EP, 429)
+  /^bell ?\d{3}/i, /^206[a-z]{0,2}\d?$/i, /^407[a-z]{0,2}\d?$/i,
+  /^412[a-z]{0,2}\d?$/i, /^429[a-z]{0,2}\d?$/i, /^505[a-z]{0,2}\d?$/i,
+  /^222[a-z]?$/i, /^230[a-z]?$/i, /^230 ?utility/i,
+  // Airbus / Eurocopter — AS350, AS355, EC120/130/135/145/155/225, H-series
+  /^as ?3[0-9]{2}[a-z]?\d?/i, /a-?star/i, /^ec-?\d{3}[a-z]?\d?/i,
+  /^h-?12[05][a-z]?/i, /^h-?13[05][a-z]?/i, /^h-?14[05][a-z]?/i, /^h-?15[5][a-z]?/i,
+  // MD Helicopters
+  /^md-?\d{2,3}[a-z]?/i, /^500e?$/i, /^520n$/i, /^600n$/i, /^900nota?r?$/i,
+  // Sikorsky
+  /^s-?7[06]\b/i, /^s-?9[2-7]/i, /^s-?6[14]/i, /^uh-?\d/i, /sikorsky/i,
+  // Leonardo / AgustaWestland
+  /^aw-?\d{3}[a-z]?/i, /^a[bw]?-?109/i, /^a[bw]?-?119/i, /^a[bw]?-?139/i, /^a[bw]?-?169/i, /^a[bw]?-?189/i,
+  // Generic catch-all
+  /helicopt/i, /\bheli\b/i, /rotorcraft/i, /rotor[- ]?wing/i
 ];
 
 // Single-engine fixed wing patterns (covers GA + bush mainstays).

@@ -674,6 +674,16 @@
           <div class="pt-name" data-i18n="profile.type.student">Student / CPL</div>
           <div class="pt-desc" data-i18n="profile.type.studentDesc">Flight training · Dual &amp; solo focus</div>
         </div>
+        <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')">
+          <div class="pt-icon">🎓</div>
+          <div class="pt-name" data-i18n="profile.type.instructor">Instructor / CFI</div>
+          <div class="pt-desc" data-i18n="profile.type.instructorDesc">Dual given · ATPL credit focus</div>
+        </div>
+        <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
+          <div class="pt-icon">🚁</div>
+          <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
+          <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · CAR 401.05 currency</div>
+        </div>
       </div>
     </div>
 
@@ -731,6 +741,24 @@
               <option value="Summit Air|SUT">Summit Air</option>
               <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
               <option value="Missinippi Airways|MWT">Missinippi Airways</option>
+            </optgroup>
+            <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
+              <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
+              <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
+              <option value="Helijet International|HEJ">Helijet International</option>
+              <option value="Ascent Helicopters|ASC">Ascent Helicopters</option>
+              <option value="Yellowhead Helicopters|YHL">Yellowhead Helicopters</option>
+              <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
+              <option value="Heli-One|HO">Heli-One</option>
+            </optgroup>
+            <optgroup label="FTO — Flight Training Organization">
+              <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
+              <option value="Confederation College Aviation|CCA">Confederation College</option>
+              <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
+              <option value="Moncton Flight College|MFC">Moncton Flight College</option>
+              <option value="Seneca Aviation|SEN">Seneca Aviation</option>
+              <option value="Cargair|CGR">Cargair</option>
+              <option value="Other FTO|FTO">Other FTO — flight school</option>
             </optgroup>
             <optgroup label="Other">
               <option value="other" data-i18n="profile.airline.other">— Other / Custom (enter manually) —</option>

@@ -10,7 +10,7 @@ function setProfileType(type) {
 }
 
 function highlightProfileTypeCard(type) {
-  ['airline705', 'private', 'student'].forEach(t => {
+  ['airline705', 'private', 'student', 'helicopter', 'instructor'].forEach(t => {
     const card = document.getElementById('pt-' + t);
     if (card) card.classList.toggle('active', t === type);
   });
@@ -52,6 +52,26 @@ function adaptFormToProfile(type) {
     setLbl('f-me-night-pic', 'ME Night — Solo');
     setLbl('f-me-day-dual',  'ME Day — Dual (Instruction)');
     setLbl('f-me-night-dual','ME Night — Dual (Instruction)');
+  } else if (type === 'instructor') {
+    // CFI / flight instructor mode: dual-given is the primary credit
+    // (CAR 421.34 ATPL submission). Hide airline columns; relabel.
+    hide('fg-duty');
+    hide('fg-me-day-cop');
+    hide('fg-me-night-cop');
+    hide('fg-picus');
+    setLbl('f-pic',          'Instructor (you)');
+    setLbl('f-copilot',      'Student Name');
+    setLbl('f-me-day-pic',   'ME Day — PIC (solo evals)');
+    setLbl('f-me-night-pic', 'ME Night — PIC (solo evals)');
+    setLbl('f-me-day-dual',  'ME Day — Dual Received');
+    setLbl('f-me-night-dual','ME Night — Dual Received');
+  } else if (type === 'helicopter') {
+    // Heli ops: hide ME airline labels which contaminate stats; rotorcraft
+    // hours live in the dedicated Heli columns (heliDayPic/heliNightPic
+    // etc.) which the table picker exposes by default for this type.
+    hide('fg-me-day-cop');
+    hide('fg-me-night-cop');
+    hide('fg-picus');
   }
 }
 

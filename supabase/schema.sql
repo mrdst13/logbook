@@ -126,6 +126,15 @@ create table if not exists public.flights (
   se_day numeric(5,2) default 0,
   se_night numeric(5,2) default 0,
 
+  -- Helicopter (own engine class; rotorcraft hours never contaminate SE/ME totals)
+  heli_day_pic numeric(5,2) default 0,
+  heli_night_pic numeric(5,2) default 0,
+  heli_day_cop numeric(5,2) default 0,
+  heli_night_cop numeric(5,2) default 0,
+  heli_day_dual numeric(5,2) default 0,
+  heli_night_dual numeric(5,2) default 0,
+  hover_time numeric(5,2) default 0,
+
   xc_day_pic numeric(5,2) default 0,
   xc_night_pic numeric(5,2) default 0,
   xc_day_cop numeric(5,2) default 0,
