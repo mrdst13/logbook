@@ -3469,6 +3469,67 @@ function gateCaptainName(name, profile) {
   return captainNameForContext(name, profile, 'cloud-sync');
 }
 
+// ───────────────────────────────────────────────────────────────────
+// "Self" reference resolver for imports.
+//
+// In paper logbooks, pilots conventionally write either the other pilot's
+// name OR "self" / "moi" / their own name in the PIC field — depending
+// on which seat they were in that day. Cumulo's data model needs two
+// fields kept consistent:
+//   - pic      → the actual captain of the flight (always the captain)
+//   - crewPosition → the USER's role on that flight: 'PIC' | 'SIC' | 'Dual'
+//
+// When the OCR extractor returns `pic="self"` (or the user's own name),
+// it means the user was the captain. We translate that to:
+//   pic = ''           (no third-party name to store; user was PIC)
+//   crewPosition = 'PIC'
+//
+// When `pic` is a real third-party name, we leave it and set
+//   crewPosition = 'SIC' (the user was the co-pilot)
+//
+// Same logic mirrored for `copilot`: "self" there means the user was the
+// SIC, and the named captain was actual PIC.
+// ───────────────────────────────────────────────────────────────────
+function _isSelfReference(token, profile) {
+  if (!token || typeof token !== 'string') return false;
+  const norm = token.trim().toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ');
+  if (!norm) return false;
+  // Universal self markers
+  if (['self', 'moi', 'me', 'myself', 'soi', 'soi-meme', 'moi-meme'].includes(norm)) return true;
+  if (!profile) return false;
+  const fn = (profile.fname || '').trim().toLowerCase();
+  const ln = (profile.lname || '').trim().toLowerCase();
+  if (!fn && !ln) return false;
+  // Match against various spellings of the user's own name:
+  //   "Martin Daoust", "Daoust", "M Daoust", "Daoust M", "M.Daoust", "M. Daoust"
+  if (ln && norm === ln) return true;
+  if (fn && ln && (norm === `${fn} ${ln}` || norm === `${ln} ${fn}`)) return true;
+  if (fn && ln && (norm === `${fn.charAt(0)} ${ln}` || norm === `${ln} ${fn.charAt(0)}`)) return true;
+  if (fn && ln && norm === `${fn.charAt(0)}${ln}`) return true;
+  return false;
+}
+
+function resolveSelfReferences(flight, profile) {
+  if (!flight || typeof flight !== 'object') return flight;
+  const out = { ...flight };
+  const picIsSelf = _isSelfReference(out.pic, profile);
+  const copIsSelf = _isSelfReference(out.copilot, profile);
+  if (picIsSelf) {
+    // User was PIC on this flight; drop the self-reference, lock crewPosition
+    out.pic = '';
+    out.crewPosition = 'PIC';
+  } else if (out.pic) {
+    // A real third-party captain → user was SIC unless already set
+    if (!out.crewPosition) out.crewPosition = 'SIC';
+  }
+  if (copIsSelf) {
+    // User was SIC on this flight; drop the self-reference
+    out.copilot = '';
+    if (!out.crewPosition) out.crewPosition = 'SIC';
+  }
+  return out;
+}
+
 // ═══════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════
@@ -4537,7 +4598,8 @@ async function handlePhotoImport(input) {
             { type: 'text', text: `This is a page from a Canadian ICAO pilot logbook. Extract ALL flight entries visible.
 RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ].
 [{"date":"YYYY-MM-DD","type":"","reg":"","pic":"","copilot":"","route":"","total":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"meDayCop":0,"meNightCop":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":0,"ldgNight":0,"instActual":0,"picus":0,"block":0}]
-Use 0 for empty fields. Infer year from context if not explicit.` }
+Use 0 for empty fields. Infer year from context if not explicit.
+For the "pic" field: copy verbatim what is written in the Pilot-in-Command column. If the pilot wrote "self" / "moi" / "me" / their own name, copy that token literally — the app will resolve self-references after extraction. Do NOT substitute or translate. If the column is blank, output "".` }
           ]
         }]
       })
@@ -4777,9 +4839,19 @@ function confirmImport() {
   // import. The user retains the ability to see who they flew with in
   // their own logbook — personal-use exception under PIPEDA s.4(2)(b)
   // and Loi 25 art. 1.
+  //
+  // ALSO (2026-05-13 soir 5): resolve self-references. Paper logbooks
+  // write "self" / "moi" / the pilot's own name in the PIC field when
+  // the user was the captain — we translate that into crewPosition='PIC'
+  // and clear the redundant self-reference. A real third-party name
+  // remains untouched and crewPosition defaults to 'SIC'.
+  const importProfile = DB.loadProfile();
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
-    flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
+    const resolved = (typeof resolveSelfReferences === 'function')
+      ? resolveSelfReferences(flightData, importProfile)
+      : flightData;
+    flights.push({ ...resolved, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);
   pendingImport = [];
@@ -8684,8 +8756,16 @@ function commitCsvImport() {
   snapshotBeforeOperation(`Import from ${csvImportState.parsed.source}`);
   updateUndoButton();
 
+  // Resolve self-references in the PIC / copilot fields. Pilots commonly
+  // write "self" / "moi" / their own name in their source logbook when
+  // they were PIC. We translate that into crewPosition + clear the field
+  // so the user's own name never sits in their own logbook's PIC column.
+  const csvImportProfile = DB.loadProfile();
   let added = 0, merged = 0;
-  flightsToImport.forEach(incoming => {
+  flightsToImport.forEach(raw => {
+    const incoming = (typeof resolveSelfReferences === 'function')
+      ? resolveSelfReferences(raw, csvImportProfile)
+      : raw;
     incoming.signedBy = att.name.trim();
     incoming.signedAt = new Date().toISOString();
     const match = findMatchingExistingFlight(incoming);
@@ -11120,7 +11200,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-captain-names-final';
+const BUILD_VERSION = 'v3a-2026-05-14-self-resolver';
 
 (function init() {
   applyDarkMode();

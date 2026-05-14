@@ -92,6 +92,67 @@ function gateCaptainName(name, profile) {
   return captainNameForContext(name, profile, 'cloud-sync');
 }
 
+// ───────────────────────────────────────────────────────────────────
+// "Self" reference resolver for imports.
+//
+// In paper logbooks, pilots conventionally write either the other pilot's
+// name OR "self" / "moi" / their own name in the PIC field — depending
+// on which seat they were in that day. Cumulo's data model needs two
+// fields kept consistent:
+//   - pic      → the actual captain of the flight (always the captain)
+//   - crewPosition → the USER's role on that flight: 'PIC' | 'SIC' | 'Dual'
+//
+// When the OCR extractor returns `pic="self"` (or the user's own name),
+// it means the user was the captain. We translate that to:
+//   pic = ''           (no third-party name to store; user was PIC)
+//   crewPosition = 'PIC'
+//
+// When `pic` is a real third-party name, we leave it and set
+//   crewPosition = 'SIC' (the user was the co-pilot)
+//
+// Same logic mirrored for `copilot`: "self" there means the user was the
+// SIC, and the named captain was actual PIC.
+// ───────────────────────────────────────────────────────────────────
+function _isSelfReference(token, profile) {
+  if (!token || typeof token !== 'string') return false;
+  const norm = token.trim().toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ');
+  if (!norm) return false;
+  // Universal self markers
+  if (['self', 'moi', 'me', 'myself', 'soi', 'soi-meme', 'moi-meme'].includes(norm)) return true;
+  if (!profile) return false;
+  const fn = (profile.fname || '').trim().toLowerCase();
+  const ln = (profile.lname || '').trim().toLowerCase();
+  if (!fn && !ln) return false;
+  // Match against various spellings of the user's own name:
+  //   "Martin Daoust", "Daoust", "M Daoust", "Daoust M", "M.Daoust", "M. Daoust"
+  if (ln && norm === ln) return true;
+  if (fn && ln && (norm === `${fn} ${ln}` || norm === `${ln} ${fn}`)) return true;
+  if (fn && ln && (norm === `${fn.charAt(0)} ${ln}` || norm === `${ln} ${fn.charAt(0)}`)) return true;
+  if (fn && ln && norm === `${fn.charAt(0)}${ln}`) return true;
+  return false;
+}
+
+function resolveSelfReferences(flight, profile) {
+  if (!flight || typeof flight !== 'object') return flight;
+  const out = { ...flight };
+  const picIsSelf = _isSelfReference(out.pic, profile);
+  const copIsSelf = _isSelfReference(out.copilot, profile);
+  if (picIsSelf) {
+    // User was PIC on this flight; drop the self-reference, lock crewPosition
+    out.pic = '';
+    out.crewPosition = 'PIC';
+  } else if (out.pic) {
+    // A real third-party captain → user was SIC unless already set
+    if (!out.crewPosition) out.crewPosition = 'SIC';
+  }
+  if (copIsSelf) {
+    // User was SIC on this flight; drop the self-reference
+    out.copilot = '';
+    if (!out.crewPosition) out.crewPosition = 'SIC';
+  }
+  return out;
+}
+
 // ═══════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════

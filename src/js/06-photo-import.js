@@ -33,7 +33,8 @@ async function handlePhotoImport(input) {
             { type: 'text', text: `This is a page from a Canadian ICAO pilot logbook. Extract ALL flight entries visible.
 RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ].
 [{"date":"YYYY-MM-DD","type":"","reg":"","pic":"","copilot":"","route":"","total":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"meDayCop":0,"meNightCop":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":0,"ldgNight":0,"instActual":0,"picus":0,"block":0}]
-Use 0 for empty fields. Infer year from context if not explicit.` }
+Use 0 for empty fields. Infer year from context if not explicit.
+For the "pic" field: copy verbatim what is written in the Pilot-in-Command column. If the pilot wrote "self" / "moi" / "me" / their own name, copy that token literally — the app will resolve self-references after extraction. Do NOT substitute or translate. If the column is blank, output "".` }
           ]
         }]
       })
@@ -273,9 +274,19 @@ function confirmImport() {
   // import. The user retains the ability to see who they flew with in
   // their own logbook — personal-use exception under PIPEDA s.4(2)(b)
   // and Loi 25 art. 1.
+  //
+  // ALSO (2026-05-13 soir 5): resolve self-references. Paper logbooks
+  // write "self" / "moi" / the pilot's own name in the PIC field when
+  // the user was the captain — we translate that into crewPosition='PIC'
+  // and clear the redundant self-reference. A real third-party name
+  // remains untouched and crewPosition defaults to 'SIC'.
+  const importProfile = DB.loadProfile();
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
-    flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
+    const resolved = (typeof resolveSelfReferences === 'function')
+      ? resolveSelfReferences(flightData, importProfile)
+      : flightData;
+    flights.push({ ...resolved, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);
   pendingImport = [];

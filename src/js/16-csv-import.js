@@ -1113,8 +1113,16 @@ function commitCsvImport() {
   snapshotBeforeOperation(`Import from ${csvImportState.parsed.source}`);
   updateUndoButton();
 
+  // Resolve self-references in the PIC / copilot fields. Pilots commonly
+  // write "self" / "moi" / their own name in their source logbook when
+  // they were PIC. We translate that into crewPosition + clear the field
+  // so the user's own name never sits in their own logbook's PIC column.
+  const csvImportProfile = DB.loadProfile();
   let added = 0, merged = 0;
-  flightsToImport.forEach(incoming => {
+  flightsToImport.forEach(raw => {
+    const incoming = (typeof resolveSelfReferences === 'function')
+      ? resolveSelfReferences(raw, csvImportProfile)
+      : raw;
     incoming.signedBy = att.name.trim();
     incoming.signedAt = new Date().toISOString();
     const match = findMatchingExistingFlight(incoming);
