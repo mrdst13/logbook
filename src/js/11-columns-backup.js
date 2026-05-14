@@ -6,7 +6,9 @@ function renderColumnPicker() {
   if (!container) return;
   const prefs = loadColumnPrefs() || {};
 
-  // Group columns by section
+  // Render every column as a small toggle pill — much denser than the
+  // previous grouped-grid layout (~3x more columns visible per line).
+  // Group is preserved as a subtle separator label between sections.
   const groups = {};
   LOGBOOK_COLUMNS.forEach(c => {
     if (c.key === 'total') return;  // always shown, no toggle
@@ -14,40 +16,32 @@ function renderColumnPicker() {
     groups[c.group].push(c);
   });
 
-  const html = Object.keys(groups).map(group => `
-    <div class="col-group">
-      <div class="col-group-title">${group}</div>
-      <div class="col-group-grid">
-        ${groups[group].map(c => {
-          const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
-          return `
-          <label class="col-option ${checked ? 'is-on' : ''}">
-            <input type="checkbox" ${checked ? 'checked' : ''}
-                   onchange="toggleColumn('${c.key}', this.checked)" />
-            <span class="col-option-label">${c.label}</span>
-          </label>`;
-        }).join('')}
-      </div>
-    </div>
+  const pillsHtml = Object.keys(groups).map(group => `
+    <span class="col-pill-group-label">${group}</span>
+    ${groups[group].map(c => {
+      const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
+      return `<button type="button" class="col-pill ${checked ? 'on' : 'off'}"
+                       onclick="toggleColumn('${c.key}', ${!checked})"
+                       title="${c.label}">${checked ? '✓ ' : ''}${c.short || c.label}</button>`;
+    }).join('')}
   `).join('');
 
   container.innerHTML = `
-    <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')" type="button">✓ All</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('none')" type="button">✗ None</button>
+    <div class="col-toolbar">
+      <span class="eyebrow">Persona:</span>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O">✈ F/O</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain">✈ Capt</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="Bush ops">🚤 Bush</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft">🚁 Heli</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">🎓 Instr</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">🛩 Priv</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">📚 Stu</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">📋 ATPL</button>
+      <span class="col-toolbar-sep"></span>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">All</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">None</button>
     </div>
-    <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
-      <span class="eyebrow" style="margin-right:var(--s-2);">Persona presets:</span>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O — Porter, Jazz, Encore, etc.">✈ Airline F/O</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain — PIC ratio focus">✈ Airline Captain</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('bush')" type="button" title="Bush ops — floats/skis, charter PoB, 703/704">🚤 Bush</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft — heli columns + hover">🚁 Helicopter</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('instructor')" type="button" title="CFI — Dual Given primary, student names">🎓 Instructor</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('private')" type="button" title="PPL / GA private — simplified currency view">🛩 Private GA</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('student')" type="button" title="Student pilot — solo vs dual instruction">📚 Student</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission — exhaustive cumulative view">📋 ATPL prep</button>
-    </div>
-    ${html}
+    <div class="col-pills">${pillsHtml}</div>
   `;
 }
 

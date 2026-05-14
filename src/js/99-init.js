@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-columns-inline';
+const BUILD_VERSION = 'v3a-2026-05-14-columns-pills';
 
 (function init() {
   applyDarkMode();

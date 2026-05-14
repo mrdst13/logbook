@@ -1144,35 +1144,103 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 
 /* ─── Column menu popover (Logbook table header) ─── */
 /* Inline expanding column picker — sits BETWEEN the card-header and
-   the table so the table stays fully visible below while the user
-   toggles columns and sees the effect in real time.
-   No overlay, no fixed positioning, no drawer that hides content. */
+   the table so the table stays fully visible below. */
 .column-menu {
   display: none;
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--border);
-  padding: var(--s-4) var(--s-5);
-  max-height: 320px;     /* keeps the table visible below */
+  padding: var(--s-3) var(--s-4);
+  max-height: 220px;     /* tight — pill layout fits 38 cols in ~3 rows */
   overflow-y: auto;
   animation: expandDown 0.22s var(--ease-emphasis);
 }
 @keyframes expandDown {
   from { max-height: 0;     opacity: 0; padding-top: 0; padding-bottom: 0; }
-  to   { max-height: 320px; opacity: 1; }
+  to   { max-height: 220px; opacity: 1; }
 }
 .column-menu.show { display: block; }
 .column-menu-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--s-3);
+  margin-bottom: var(--s-2);
   padding-bottom: var(--s-2);
   border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: -1px;
-  background: var(--bg-subtle);
-  z-index: 1;
+  font-size: 12px;
 }
+
+/* Compact toolbar row: persona presets + All/None. Uses btn-xs sizing. */
+.col-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--s-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px dashed var(--border);
+}
+.col-toolbar .eyebrow {
+  font-size: 10px;
+  margin-right: var(--s-1);
+  color: var(--text-muted);
+}
+.col-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.btn-xs {
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  border-radius: 6px !important;
+  min-height: 0 !important;
+}
+
+/* Pill grid: every column as a small toggleable chip. */
+.col-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.col-pill-group-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 var(--s-1) 0 var(--s-2);
+  margin-left: 4px;
+  border-left: 2px solid var(--border-strong);
+}
+.col-pill-group-label:first-child { margin-left: 0; }
+.col-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--t-micro) var(--ease-out);
+  white-space: nowrap;
+}
+.col-pill:hover { border-color: var(--border-strong); color: var(--text); }
+.col-pill.on {
+  background: var(--accent-soft, rgba(56, 132, 255, 0.12));
+  border-color: var(--accent, #3884ff);
+  color: var(--accent, #3884ff);
+  font-weight: 600;
+}
+.col-pill.off { opacity: 0.7; }
 
 /* ─── Column picker (Settings) ─── */
 .col-group {
@@ -6645,7 +6713,9 @@ function renderColumnPicker() {
   if (!container) return;
   const prefs = loadColumnPrefs() || {};
 
-  // Group columns by section
+  // Render every column as a small toggle pill — much denser than the
+  // previous grouped-grid layout (~3x more columns visible per line).
+  // Group is preserved as a subtle separator label between sections.
   const groups = {};
   LOGBOOK_COLUMNS.forEach(c => {
     if (c.key === 'total') return;  // always shown, no toggle
@@ -6653,40 +6723,32 @@ function renderColumnPicker() {
     groups[c.group].push(c);
   });
 
-  const html = Object.keys(groups).map(group => `
-    <div class="col-group">
-      <div class="col-group-title">${group}</div>
-      <div class="col-group-grid">
-        ${groups[group].map(c => {
-          const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
-          return `
-          <label class="col-option ${checked ? 'is-on' : ''}">
-            <input type="checkbox" ${checked ? 'checked' : ''}
-                   onchange="toggleColumn('${c.key}', this.checked)" />
-            <span class="col-option-label">${c.label}</span>
-          </label>`;
-        }).join('')}
-      </div>
-    </div>
+  const pillsHtml = Object.keys(groups).map(group => `
+    <span class="col-pill-group-label">${group}</span>
+    ${groups[group].map(c => {
+      const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
+      return `<button type="button" class="col-pill ${checked ? 'on' : 'off'}"
+                       onclick="toggleColumn('${c.key}', ${!checked})"
+                       title="${c.label}">${checked ? '✓ ' : ''}${c.short || c.label}</button>`;
+    }).join('')}
   `).join('');
 
   container.innerHTML = `
-    <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')" type="button">✓ All</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('none')" type="button">✗ None</button>
+    <div class="col-toolbar">
+      <span class="eyebrow">Persona:</span>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O">✈ F/O</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain">✈ Capt</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="Bush ops">🚤 Bush</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft">🚁 Heli</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">🎓 Instr</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">🛩 Priv</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">📚 Stu</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">📋 ATPL</button>
+      <span class="col-toolbar-sep"></span>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">All</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">None</button>
     </div>
-    <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
-      <span class="eyebrow" style="margin-right:var(--s-2);">Persona presets:</span>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O — Porter, Jazz, Encore, etc.">✈ Airline F/O</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain — PIC ratio focus">✈ Airline Captain</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('bush')" type="button" title="Bush ops — floats/skis, charter PoB, 703/704">🚤 Bush</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft — heli columns + hover">🚁 Helicopter</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('instructor')" type="button" title="CFI — Dual Given primary, student names">🎓 Instructor</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('private')" type="button" title="PPL / GA private — simplified currency view">🛩 Private GA</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('student')" type="button" title="Student pilot — solo vs dual instruction">📚 Student</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission — exhaustive cumulative view">📋 ATPL prep</button>
-    </div>
-    ${html}
+    <div class="col-pills">${pillsHtml}</div>
   `;
 }
 
@@ -11436,7 +11498,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-columns-inline';
+const BUILD_VERSION = 'v3a-2026-05-14-columns-pills';
 
 (function init() {
   applyDarkMode();

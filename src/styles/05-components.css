@@ -342,35 +342,103 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 
 /* ─── Column menu popover (Logbook table header) ─── */
 /* Inline expanding column picker — sits BETWEEN the card-header and
-   the table so the table stays fully visible below while the user
-   toggles columns and sees the effect in real time.
-   No overlay, no fixed positioning, no drawer that hides content. */
+   the table so the table stays fully visible below. */
 .column-menu {
   display: none;
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--border);
-  padding: var(--s-4) var(--s-5);
-  max-height: 320px;     /* keeps the table visible below */
+  padding: var(--s-3) var(--s-4);
+  max-height: 220px;     /* tight — pill layout fits 38 cols in ~3 rows */
   overflow-y: auto;
   animation: expandDown 0.22s var(--ease-emphasis);
 }
 @keyframes expandDown {
   from { max-height: 0;     opacity: 0; padding-top: 0; padding-bottom: 0; }
-  to   { max-height: 320px; opacity: 1; }
+  to   { max-height: 220px; opacity: 1; }
 }
 .column-menu.show { display: block; }
 .column-menu-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--s-3);
+  margin-bottom: var(--s-2);
   padding-bottom: var(--s-2);
   border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: -1px;
-  background: var(--bg-subtle);
-  z-index: 1;
+  font-size: 12px;
 }
+
+/* Compact toolbar row: persona presets + All/None. Uses btn-xs sizing. */
+.col-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--s-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px dashed var(--border);
+}
+.col-toolbar .eyebrow {
+  font-size: 10px;
+  margin-right: var(--s-1);
+  color: var(--text-muted);
+}
+.col-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.btn-xs {
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  border-radius: 6px !important;
+  min-height: 0 !important;
+}
+
+/* Pill grid: every column as a small toggleable chip. */
+.col-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.col-pill-group-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 var(--s-1) 0 var(--s-2);
+  margin-left: 4px;
+  border-left: 2px solid var(--border-strong);
+}
+.col-pill-group-label:first-child { margin-left: 0; }
+.col-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--t-micro) var(--ease-out);
+  white-space: nowrap;
+}
+.col-pill:hover { border-color: var(--border-strong); color: var(--text); }
+.col-pill.on {
+  background: var(--accent-soft, rgba(56, 132, 255, 0.12));
+  border-color: var(--accent, #3884ff);
+  color: var(--accent, #3884ff);
+  font-weight: 600;
+}
+.col-pill.off { opacity: 0.7; }
 
 /* ─── Column picker (Settings) ─── */
 .col-group {
