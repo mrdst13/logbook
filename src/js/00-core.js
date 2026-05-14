@@ -159,6 +159,91 @@ function resolveSelfReferences(flight, profile) {
 }
 
 // ═══════════════════════════════════════════
+// DEMO MODE — public sandbox (URL param ?demo=1)
+//
+// When the URL contains ?demo=1, the entire app runs in a read-only
+// sandbox: persistent storage is disabled, fake demo data is pre-loaded,
+// and a sticky banner warns the visitor that changes won't persist.
+// Lets curious pilots try Cumulo without signup — zero friction, zero
+// lock-in. The "killer feature anti-IA" identified by the trust panel.
+// ═══════════════════════════════════════════
+const DEMO_MODE = (() => {
+  try {
+    return typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('demo');
+  } catch { return false; }
+})();
+
+const DEMO_FLIGHTS = [
+  {
+    id: 'demo-1', date: '2026-05-01', flightNum: 'PD150', type: 'E195-E2', reg: 'C-GZQW',
+    route: 'YYZ-YOW', dep_icao: 'CYYZ', arr_icao: 'CYOW',
+    pic: 'M. Tremblay', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 1.1, duty: 2.2, total: 1.1,
+    meDayCop: 1.1, meNightCop: 0, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 1.1, xcNightCop: 0,
+    ldgDay: 1, ldgNight: 0, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-2', date: '2026-04-28', flightNum: 'PD274', type: 'E195-E2', reg: 'C-GKYN',
+    route: 'YYC-YOW', dep_icao: 'CYYC', arr_icao: 'CYOW',
+    pic: 'J. Bouchard', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 3.9, duty: 5.1, total: 3.9,
+    meDayCop: 2.3, meNightCop: 1.6, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 2.3, xcNightCop: 1.6,
+    ldgDay: 0, ldgNight: 1, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-3', date: '2026-04-22', flightNum: 'PD448', type: 'E195-E2', reg: 'C-GKQO',
+    route: 'YYJ-YOW', dep_icao: 'CYYJ', arr_icao: 'CYOW',
+    pic: 'A. Pelletier', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 4.6, duty: 5.8, total: 4.6,
+    meDayCop: 4.6, meNightCop: 0, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 4.6, xcNightCop: 0,
+    ldgDay: 1, ldgNight: 0, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-4', date: '2026-04-15', flightNum: 'PD235', type: 'E195-E2', reg: 'C-GKXV',
+    route: 'YYZ-YYT', dep_icao: 'CYYZ', arr_icao: 'CYYT',
+    pic: 'D. Lavallée', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 3.1, duty: 4.4, total: 3.1,
+    meDayCop: 3.1, meNightCop: 0, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 3.1, xcNightCop: 0,
+    ldgDay: 1, ldgNight: 0, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-5', date: '2026-04-10', flightNum: 'PD447', type: 'E195-E2', reg: 'C-GKXR',
+    route: 'YOW-YYJ', dep_icao: 'CYOW', arr_icao: 'CYYJ',
+    pic: 'L. Bélanger', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 5.3, duty: 7.0, total: 5.3,
+    meDayCop: 4.0, meNightCop: 1.3, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 4.0, xcNightCop: 1.3,
+    ldgDay: 0, ldgNight: 1, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  }
+];
+
+const DEMO_PROFILE = {
+  fname: 'Demo',
+  lname: 'Pilot',
+  rank: 'F/O',
+  airline: 'Demo Airlines',
+  base: 'CYOW',
+  license: 'XXX-XXXXX',
+  medical: '2027-03-15',
+  ecg: '',
+  fleet: 'E195-E2',
+  operatorCodes: 'PD',
+  autoCountIFR: true,
+  consentCaptainNames: false,
+  hideZeroColumns: false,
+  pilotType: 'airline705'
+};
+
+// ═══════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════
 const DB = {
@@ -166,17 +251,24 @@ const DB = {
   profileKey: 'logbook_profile_v1',
 
   load() {
+    if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO_FLIGHTS));
     try { return JSON.parse(localStorage.getItem(this.key) || '[]'); }
     catch { return []; }
   },
   save(flights) {
+    // In demo mode, changes don't persist — silently swallow. The user's
+    // in-memory `flights[]` still updates so the UI feels responsive
+    // during the demo, but a reload resets to the canned data.
+    if (DEMO_MODE) return;
     localStorage.setItem(this.key, JSON.stringify(flights));
   },
   loadProfile() {
+    if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO_PROFILE));
     try { return JSON.parse(localStorage.getItem(this.profileKey) || '{}'); }
     catch { return {}; }
   },
   saveProfile(p) {
+    if (DEMO_MODE) return;
     localStorage.setItem(this.profileKey, JSON.stringify(p));
   }
 };

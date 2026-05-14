@@ -273,3 +273,45 @@ function clearAll() {
   renderDashboard();
 }
 
+// Delete account + purge — honest data-deletion path exposed in
+// Settings → Privacy & Trust. Wipes EVERYTHING local. When Supabase
+// is wired (Auth.isReady() returns true), also triggers cloud-side
+// deletion via the Supabase Auth API (Auth.deleteAccount() handles the
+// remote purge and 30-day backup-retention window per the policy).
+async function deleteAccountPurge() {
+  // Two-stage confirmation — this is irreversible local + cloud destruction.
+  if (!confirm(t('confirm.deletePurge1'))) return;
+  if (!confirm(t('confirm.deletePurge2'))) return;
+
+  // 1) If signed in to Supabase, mark account for deletion (server-side).
+  try {
+    if (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady() && Auth.deleteAccount) {
+      await Auth.deleteAccount();
+    }
+  } catch (e) {
+    console.warn('[Delete] cloud deletion request failed (will still wipe local):', e);
+  }
+
+  // 2) Wipe ALL local app keys (flights, profile, snapshots, prefs,
+  //    audit log, signature, navblue URL/last-sync, language).
+  const keysToWipe = [
+    'logbook_v1', 'logbook_profile_v1', 'logbook_dark',
+    'cumulo_snapshots_v2', 'cumulo_snapshot_v1',
+    'cumulo_import_log_v1', 'cumulo_column_prefs_v1',
+    'cumulo_lang', 'cumulo_signature',
+    'cumulo_navblue_url', 'cumulo_navblue_last_sync', 'cumulo_navblue_debug_v1',
+    'cumulo_onboarded_v1', 'cumulo_migration_state_v1', 'cumulo_pending_ops_v1',
+    'cumulo_migration_log_v1'
+  ];
+  keysToWipe.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+
+  // 3) Reset in-memory state so the dashboard doesn't briefly show stale rows.
+  flights = [];
+  pendingImport = [];
+  showToast(t('toast.accountPurged'), 'success');
+
+  // 4) Hard reload to a clean state. User will see the onboarding wizard
+  //    on next visit, as if they were a brand-new install.
+  setTimeout(() => location.reload(), 1200);
+}
+

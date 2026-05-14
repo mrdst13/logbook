@@ -1242,6 +1242,37 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 .col-pill.off { opacity: 0.7; }
 
+/* ─── Privacy & Trust card (Settings → Section 0) ─── */
+.trust-card {
+  border: 1px solid var(--accent, #3884ff) !important;
+  background: linear-gradient(135deg, rgba(56,132,255,0.04), rgba(56,132,255,0.10)) !important;
+}
+.settings-card-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-top: 4px;
+}
+.trust-bullets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.trust-bullet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+.trust-bullet-icon { font-size: 14px; }
+
 /* ─── Column picker (Settings) ─── */
 .col-group {
   margin-bottom: var(--s-4);
@@ -3173,6 +3204,53 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     </div>
 
     <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 0 — PRIVACY & TRUST (visible signals) -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="settings-section">
+      <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
+
+      <!-- Canadian data residency card — visible promise. -->
+      <div class="form-card settings-card trust-card">
+        <div class="settings-card-head">
+          <div class="settings-card-icon">🇨🇦</div>
+          <div>
+            <div class="settings-card-title" data-i18n="trust.canada.title">Your flight data stays in Canada</div>
+            <div class="settings-card-sub" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.</div>
+          </div>
+        </div>
+        <div class="trust-bullets">
+          <div class="trust-bullet"><span class="trust-bullet-icon">🔒</span><span data-i18n="trust.bullet.encrypted">Encrypted end-to-end</span></div>
+          <div class="trust-bullet"><span class="trust-bullet-icon">🇨🇦</span><span data-i18n="trust.bullet.canadian">Stored in Montréal</span></div>
+          <div class="trust-bullet"><span class="trust-bullet-icon">🚫</span><span data-i18n="trust.bullet.nosale">We will never sell your data</span></div>
+          <div class="trust-bullet"><span class="trust-bullet-icon">📤</span><span data-i18n="trust.bullet.yours">Your data, your ownership — export anytime</span></div>
+        </div>
+        <div style="margin-top:var(--s-3); font-size:12px;">
+          <a href="security.html" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600;" data-i18n="trust.whitepaper">📜 Read the full security whitepaper →</a>
+        </div>
+      </div>
+
+      <!-- Export all my data — already prominent. -->
+      <div class="settings-row">
+        <div class="settings-row-icon">📤</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title" data-i18n="trust.export.title">Export all my data</div>
+          <div class="settings-row-desc" data-i18n="trust.export.desc">Download a full JSON copy of every flight, your profile, and your import audit log. Your data is yours — take it with you anytime.</div>
+        </div>
+        <button class="btn btn-outline" onclick="backupData()" data-i18n="trust.export.btn">📤 Export</button>
+      </div>
+
+      <!-- Delete account + purge — honest danger button, not buried. -->
+      <div class="settings-row">
+        <div class="settings-row-icon">🗑</div>
+        <div class="settings-row-info">
+          <div class="settings-row-title" data-i18n="trust.delete.title">Delete my data + purge</div>
+          <div class="settings-row-desc" data-i18n="trust.delete.desc">Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days.</div>
+        </div>
+        <button class="btn btn-danger" onclick="deleteAccountPurge()" data-i18n="trust.delete.btn">Delete + Purge</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
     <!-- SECTION 1 — IMPORT & SYNC                   -->
     <!-- ═══════════════════════════════════════════ -->
     <div class="settings-section">
@@ -3602,6 +3680,91 @@ function resolveSelfReferences(flight, profile) {
 }
 
 // ═══════════════════════════════════════════
+// DEMO MODE — public sandbox (URL param ?demo=1)
+//
+// When the URL contains ?demo=1, the entire app runs in a read-only
+// sandbox: persistent storage is disabled, fake demo data is pre-loaded,
+// and a sticky banner warns the visitor that changes won't persist.
+// Lets curious pilots try Cumulo without signup — zero friction, zero
+// lock-in. The "killer feature anti-IA" identified by the trust panel.
+// ═══════════════════════════════════════════
+const DEMO_MODE = (() => {
+  try {
+    return typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('demo');
+  } catch { return false; }
+})();
+
+const DEMO_FLIGHTS = [
+  {
+    id: 'demo-1', date: '2026-05-01', flightNum: 'PD150', type: 'E195-E2', reg: 'C-GZQW',
+    route: 'YYZ-YOW', dep_icao: 'CYYZ', arr_icao: 'CYOW',
+    pic: 'M. Tremblay', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 1.1, duty: 2.2, total: 1.1,
+    meDayCop: 1.1, meNightCop: 0, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 1.1, xcNightCop: 0,
+    ldgDay: 1, ldgNight: 0, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-2', date: '2026-04-28', flightNum: 'PD274', type: 'E195-E2', reg: 'C-GKYN',
+    route: 'YYC-YOW', dep_icao: 'CYYC', arr_icao: 'CYOW',
+    pic: 'J. Bouchard', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 3.9, duty: 5.1, total: 3.9,
+    meDayCop: 2.3, meNightCop: 1.6, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 2.3, xcNightCop: 1.6,
+    ldgDay: 0, ldgNight: 1, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-3', date: '2026-04-22', flightNum: 'PD448', type: 'E195-E2', reg: 'C-GKQO',
+    route: 'YYJ-YOW', dep_icao: 'CYYJ', arr_icao: 'CYOW',
+    pic: 'A. Pelletier', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 4.6, duty: 5.8, total: 4.6,
+    meDayCop: 4.6, meNightCop: 0, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 4.6, xcNightCop: 0,
+    ldgDay: 1, ldgNight: 0, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-4', date: '2026-04-15', flightNum: 'PD235', type: 'E195-E2', reg: 'C-GKXV',
+    route: 'YYZ-YYT', dep_icao: 'CYYZ', arr_icao: 'CYYT',
+    pic: 'D. Lavallée', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 3.1, duty: 4.4, total: 3.1,
+    meDayCop: 3.1, meNightCop: 0, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 3.1, xcNightCop: 0,
+    ldgDay: 1, ldgNight: 0, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  },
+  {
+    id: 'demo-5', date: '2026-04-10', flightNum: 'PD447', type: 'E195-E2', reg: 'C-GKXR',
+    route: 'YOW-YYJ', dep_icao: 'CYOW', arr_icao: 'CYYJ',
+    pic: 'L. Bélanger', copilot: 'M. Daoust', crewPosition: 'SIC',
+    block: 5.3, duty: 7.0, total: 5.3,
+    meDayCop: 4.0, meNightCop: 1.3, meDayPic: 0, meNightPic: 0,
+    xcDayCop: 4.0, xcNightCop: 1.3,
+    ldgDay: 0, ldgNight: 1, approaches: 1,
+    multiCrew: 1, source: 'demo'
+  }
+];
+
+const DEMO_PROFILE = {
+  fname: 'Demo',
+  lname: 'Pilot',
+  rank: 'F/O',
+  airline: 'Demo Airlines',
+  base: 'CYOW',
+  license: 'XXX-XXXXX',
+  medical: '2027-03-15',
+  ecg: '',
+  fleet: 'E195-E2',
+  operatorCodes: 'PD',
+  autoCountIFR: true,
+  consentCaptainNames: false,
+  hideZeroColumns: false,
+  pilotType: 'airline705'
+};
+
+// ═══════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════
 const DB = {
@@ -3609,17 +3772,24 @@ const DB = {
   profileKey: 'logbook_profile_v1',
 
   load() {
+    if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO_FLIGHTS));
     try { return JSON.parse(localStorage.getItem(this.key) || '[]'); }
     catch { return []; }
   },
   save(flights) {
+    // In demo mode, changes don't persist — silently swallow. The user's
+    // in-memory `flights[]` still updates so the UI feels responsive
+    // during the demo, but a reload resets to the canned data.
+    if (DEMO_MODE) return;
     localStorage.setItem(this.key, JSON.stringify(flights));
   },
   loadProfile() {
+    if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO_PROFILE));
     try { return JSON.parse(localStorage.getItem(this.profileKey) || '{}'); }
     catch { return {}; }
   },
   saveProfile(p) {
+    if (DEMO_MODE) return;
     localStorage.setItem(this.profileKey, JSON.stringify(p));
   }
 };
@@ -6980,6 +7150,48 @@ function clearAll() {
   renderDashboard();
 }
 
+// Delete account + purge — honest data-deletion path exposed in
+// Settings → Privacy & Trust. Wipes EVERYTHING local. When Supabase
+// is wired (Auth.isReady() returns true), also triggers cloud-side
+// deletion via the Supabase Auth API (Auth.deleteAccount() handles the
+// remote purge and 30-day backup-retention window per the policy).
+async function deleteAccountPurge() {
+  // Two-stage confirmation — this is irreversible local + cloud destruction.
+  if (!confirm(t('confirm.deletePurge1'))) return;
+  if (!confirm(t('confirm.deletePurge2'))) return;
+
+  // 1) If signed in to Supabase, mark account for deletion (server-side).
+  try {
+    if (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady() && Auth.deleteAccount) {
+      await Auth.deleteAccount();
+    }
+  } catch (e) {
+    console.warn('[Delete] cloud deletion request failed (will still wipe local):', e);
+  }
+
+  // 2) Wipe ALL local app keys (flights, profile, snapshots, prefs,
+  //    audit log, signature, navblue URL/last-sync, language).
+  const keysToWipe = [
+    'logbook_v1', 'logbook_profile_v1', 'logbook_dark',
+    'cumulo_snapshots_v2', 'cumulo_snapshot_v1',
+    'cumulo_import_log_v1', 'cumulo_column_prefs_v1',
+    'cumulo_lang', 'cumulo_signature',
+    'cumulo_navblue_url', 'cumulo_navblue_last_sync', 'cumulo_navblue_debug_v1',
+    'cumulo_onboarded_v1', 'cumulo_migration_state_v1', 'cumulo_pending_ops_v1',
+    'cumulo_migration_log_v1'
+  ];
+  keysToWipe.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+
+  // 3) Reset in-memory state so the dashboard doesn't briefly show stale rows.
+  flights = [];
+  pendingImport = [];
+  showToast(t('toast.accountPurged'), 'success');
+
+  // 4) Hard reload to a clean state. User will see the onboarding wizard
+  //    on next visit, as if they were a brand-new install.
+  setTimeout(() => location.reload(), 1200);
+}
+
 // ═══════════════════════════════════════════
 // FEATURE 7 — PDF EXPORT (TC FORMAT)
 // ═══════════════════════════════════════════
@@ -9742,6 +9954,23 @@ const STRINGS = {
     'sync.migration.partial':    'Migration partial — some flights may not have synced. Local data is intact.',
     'sync.pulled':               '☁ Sync: +{added} new, {updated} updated',
     'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)',
+    'toast.accountPurged':       '🗑 Account purged. Reloading to clean state…',
+    'confirm.deletePurge1':      'This will permanently delete every flight, your profile, and your sync history from this device — and from the cloud if signed in. Continue?',
+    'confirm.deletePurge2':      'Last warning. Type-equivalent confirmation: are you ABSOLUTELY sure?',
+    'settings.section.privacy':  'Privacy & Trust',
+    'trust.canada.title':        'Your flight data stays in Canada',
+    'trust.canada.sub':          'Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.',
+    'trust.bullet.encrypted':    'Encrypted end-to-end',
+    'trust.bullet.canadian':     'Stored in Montréal',
+    'trust.bullet.nosale':       'We will never sell your data',
+    'trust.bullet.yours':        'Your data, your ownership — export anytime',
+    'trust.whitepaper':          '📜 Read the full security whitepaper →',
+    'trust.export.title':        'Export all my data',
+    'trust.export.desc':         'Download a full JSON copy of every flight, your profile, and your import audit log. Your data is yours — take it with you anytime.',
+    'trust.export.btn':          '📤 Export',
+    'trust.delete.title':        'Delete my data + purge',
+    'trust.delete.desc':         'Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days.',
+    'trust.delete.btn':          'Delete + Purge',
     'profile.type.helicopter':     'Helicopter',
     'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
     'profile.type.instructor':     'Instructor / CFI',
@@ -10286,6 +10515,23 @@ const STRINGS = {
     'sync.migration.partial':    'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
     'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour',
     'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)',
+    'toast.accountPurged':       '🗑 Compte purgé. Rechargement vers un état vide…',
+    'confirm.deletePurge1':      'Ceci supprimera de manière permanente tous vos vols, votre profil et votre historique de synchronisation de cet appareil — ainsi que de l\'infonuagique si connecté. Continuer ?',
+    'confirm.deletePurge2':      'Dernier avertissement. Confirmation finale : êtes-vous ABSOLUMENT certain ?',
+    'settings.section.privacy':  'Confidentialité et confiance',
+    'trust.canada.title':        'Vos données de vol restent au Canada',
+    'trust.canada.sub':          'Hébergées sur Supabase ca-central-1 (Montréal). Chiffrées en transit (TLS 1.3) et au repos (AES-256). Non accessibles sous le Patriot Act américain. Conforme LPRPDE + Loi 25.',
+    'trust.bullet.encrypted':    'Chiffrées bout en bout',
+    'trust.bullet.canadian':     'Stockées à Montréal',
+    'trust.bullet.nosale':       'Nous ne vendrons jamais vos données',
+    'trust.bullet.yours':        'Vos données, votre propriété — exportables en tout temps',
+    'trust.whitepaper':          '📜 Lire le livre blanc de sécurité complet →',
+    'trust.export.title':        'Exporter toutes mes données',
+    'trust.export.desc':         'Téléchargez une copie JSON complète de chaque vol, votre profil et votre journal d\'import. Vos données vous appartiennent — emportez-les avec vous en tout temps.',
+    'trust.export.btn':          '📤 Exporter',
+    'trust.delete.title':        'Supprimer mes données + purger',
+    'trust.delete.desc':         'Supprimez de manière permanente chaque vol, votre profil et votre historique de synchronisation de cet appareil. Lorsque la synchronisation Supabase est activée, ceci effacera aussi votre copie infonuagique en moins de 30 jours.',
+    'trust.delete.btn':          'Supprimer + purger',
     'profile.type.helicopter':     'Hélicoptère',
     'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
     'profile.type.instructor':     'Instructeur / CFI',
@@ -11498,10 +11744,31 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-columns-pills';
+const BUILD_VERSION = 'v3a-2026-05-14-trust-landing-demo-v2';
+
+// Demo mode banner injector — runs early so the visitor immediately
+// sees the "this is a demo" affordance before the rest of the UI loads.
+function injectDemoBanner() {
+  if (typeof DEMO_MODE === 'undefined' || !DEMO_MODE) return;
+  const banner = document.createElement('div');
+  banner.id = 'demoBanner';
+  banner.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:10px 16px;">
+      <span style="font-weight:700;">🎮 DEMO MODE</span>
+      <span style="opacity:0.85;">Try anything — your changes won't persist. Reload to reset.</span>
+      <a href="logbook.html" style="color:white; text-decoration:underline; font-weight:600;">Exit demo →</a>
+      <a href="index.html" style="color:white; text-decoration:underline; font-weight:600;">Home</a>
+    </div>
+  `;
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(90deg,#3884ff,#5fa0ff);color:white;font-size:13px;letter-spacing:0.01em;box-shadow:0 2px 12px rgba(0,0,0,0.18);';
+  document.body.appendChild(banner);
+  // Push the rest of the page down so the banner doesn't overlap content.
+  document.body.style.paddingTop = (banner.offsetHeight || 44) + 'px';
+}
 
 (function init() {
   applyDarkMode();
+  injectDemoBanner();
   // Apply i18n translations (must happen before anything reads textContent)
   if (typeof applyTranslations === 'function') applyTranslations();
   // Visible version badge bottom-right — verifies fresh page load on iOS

@@ -2,10 +2,31 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-columns-pills';
+const BUILD_VERSION = 'v3a-2026-05-14-trust-landing-demo-v2';
+
+// Demo mode banner injector — runs early so the visitor immediately
+// sees the "this is a demo" affordance before the rest of the UI loads.
+function injectDemoBanner() {
+  if (typeof DEMO_MODE === 'undefined' || !DEMO_MODE) return;
+  const banner = document.createElement('div');
+  banner.id = 'demoBanner';
+  banner.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:10px 16px;">
+      <span style="font-weight:700;">🎮 DEMO MODE</span>
+      <span style="opacity:0.85;">Try anything — your changes won't persist. Reload to reset.</span>
+      <a href="logbook.html" style="color:white; text-decoration:underline; font-weight:600;">Exit demo →</a>
+      <a href="index.html" style="color:white; text-decoration:underline; font-weight:600;">Home</a>
+    </div>
+  `;
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(90deg,#3884ff,#5fa0ff);color:white;font-size:13px;letter-spacing:0.01em;box-shadow:0 2px 12px rgba(0,0,0,0.18);';
+  document.body.appendChild(banner);
+  // Push the rest of the page down so the banner doesn't overlap content.
+  document.body.style.paddingTop = (banner.offsetHeight || 44) + 'px';
+}
 
 (function init() {
   applyDarkMode();
+  injectDemoBanner();
   // Apply i18n translations (must happen before anything reads textContent)
   if (typeof applyTranslations === 'function') applyTranslations();
   // Visible version badge bottom-right — verifies fresh page load on iOS

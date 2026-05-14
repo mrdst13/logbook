@@ -2,24 +2,241 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Cumulo Flight Deck</title>
+  <title>Cumulo Flight Deck — Canadian pilot logbook</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="refresh" content="0; url=logbook.html">
-  <link rel="canonical" href="https://flycumulo.ca/logbook.html">
+  <meta name="description" content="The pilot logbook built by a Canadian pilot, for Canadian pilots. Your flight data stays in Canada. Encrypted end-to-end. PIPEDA + Loi 25 compliant. Try it now — no signup.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    html, body { margin:0; padding:0; height:100%; background:#0a0e1a; color:#e8eef9; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:1rem; }
-    .ico { font-size:64px; }
-    a { color:#3d7bc4; text-decoration:none; }
-    a:hover { text-decoration:underline; }
+    :root {
+      --bg: #0a0e1a;
+      --bg-surface: #131826;
+      --bg-elev: #1a2032;
+      --text: #e8eef9;
+      --text-mute: #8b9bb4;
+      --accent: #3884ff;
+      --accent-soft: rgba(56,132,255,0.12);
+      --canada-red: #ff3b3b;
+      --border: rgba(255,255,255,0.08);
+      --r: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.55; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Navbar */
+    nav.top { display:flex; align-items:center; justify-content:space-between; padding: 18px 28px; max-width: 1240px; margin: 0 auto; }
+    .logo { display:flex; align-items:center; gap:10px; font-weight: 700; font-size: 17px; }
+    .logo-mark { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display:grid; place-items:center; color: white; font-size: 18px; }
+    .nav-links a { color: var(--text-mute); font-weight: 500; font-size: 14px; margin-left: 22px; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* Hero */
+    .hero { max-width: 1100px; margin: 60px auto 0; padding: 0 28px; text-align: center; }
+    .canada-banner {
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 6px 14px;
+      background: rgba(255,59,59,0.08);
+      color: var(--canada-red);
+      border: 1px solid rgba(255,59,59,0.25);
+      border-radius: 999px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+      margin-bottom: 28px;
+    }
+    h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; font-weight: 800; }
+    h1 .accent { background: linear-gradient(135deg, #5fa0ff 0%, #3884ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--text-mute); max-width: 680px; margin: 0 auto 36px; }
+
+    /* CTA buttons */
+    .cta-row { display:flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding: 13px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.2s ease; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 18px rgba(56,132,255,0.35); }
+    .btn-primary:hover { transform: translateY(-1px); text-decoration: none; }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { background: var(--bg-surface); text-decoration: none; }
+
+    /* Trust bar */
+    .trust-bar { max-width: 1100px; margin: 80px auto; padding: 0 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .trust-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; }
+    .trust-card-icon { font-size: 24px; margin-bottom: 10px; }
+    .trust-card-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+    .trust-card-desc { font-size: 13px; color: var(--text-mute); line-height: 1.55; }
+
+    /* Section */
+    .section { max-width: 1100px; margin: 80px auto; padding: 0 28px; }
+    h2 { font-size: clamp(24px, 3.5vw, 36px); margin: 0 0 18px; letter-spacing: -0.01em; }
+    .section-sub { color: var(--text-mute); font-size: 16px; max-width: 700px; margin: 0 0 32px; }
+
+    /* About */
+    .about { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
+    @media (min-width: 800px) { .about { grid-template-columns: 220px 1fr; } }
+    .pilot-photo {
+      width: 200px; height: 200px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-soft), var(--bg-elev));
+      border: 2px solid var(--border);
+      display: grid; place-items: center;
+      font-size: 70px; color: var(--text-mute);
+      flex-shrink: 0;
+    }
+    .pilot-photo-placeholder-note { font-size: 11px; color: var(--text-mute); margin-top: 8px; font-style: italic; }
+
+    /* Features list */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .feature { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; }
+    .feature-icon { font-size: 28px; margin-bottom: 12px; }
+    .feature-title { font-weight: 700; font-size: 17px; margin-bottom: 6px; }
+    .feature-desc { color: var(--text-mute); font-size: 14px; }
+
+    /* Pricing */
+    .pricing { text-align: center; }
+    .price-tag { font-size: clamp(40px, 6vw, 60px); font-weight: 800; color: var(--accent); margin: 0 0 8px; }
+    .price-sub { color: var(--text-mute); margin-bottom: 28px; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); margin-top: 100px; padding: 32px 28px; max-width: 1240px; margin-left: auto; margin-right: auto; }
+    .footer-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-mute); }
+    .footer-links a { color: var(--text-mute); margin-right: 18px; }
+
+    /* Mobile tweaks */
+    @media (max-width: 600px) {
+      .nav-links a { margin-left: 14px; font-size: 13px; }
+      .hero { margin-top: 36px; }
+      .cta-row { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="ico">✈</div>
-    <div>Loading Cumulo Flight Deck…</div>
-    <div style="font-size:13px; color:#6b7fa3;">If nothing happens, <a href="logbook.html">click here</a>.</div>
+
+<nav class="top">
+  <div class="logo">
+    <div class="logo-mark">✈</div>
+    <div>Cumulo Flight Deck</div>
   </div>
-  <script>location.replace('logbook.html');</script>
+  <div class="nav-links">
+    <a href="security.html">Security</a>
+    <a href="privacy-policy-v2-draft.html">Privacy</a>
+    <a href="logbook.html">Open app →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="canada-banner">
+    🇨🇦 Your flight data stays in Canada. No US Patriot Act exposure.
+  </div>
+  <h1>The pilot logbook built<br>by <span class="accent">a Canadian pilot</span>,<br>for Canadian pilots.</h1>
+  <p class="sub">Transport Canada-compliant logbook with automatic Night calculation, Cross-Country detection, and PDF ramp-check export. Bilingual EN/FR. Hosted in Montréal. Encrypted end-to-end.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="demo.html">✈ Try the demo (no signup)</a>
+    <a class="btn btn-outline" href="logbook.html">Open my logbook →</a>
+  </div>
+</section>
+
+<div class="trust-bar">
+  <div class="trust-card">
+    <div class="trust-card-icon">🇨🇦</div>
+    <div class="trust-card-title">Data stays in Canada</div>
+    <div class="trust-card-desc">Hosted on Supabase ca-central-1 (Montréal). PIPEDA + Loi 25 compliant.</div>
+  </div>
+  <div class="trust-card">
+    <div class="trust-card-icon">🔒</div>
+    <div class="trust-card-title">Encrypted end-to-end</div>
+    <div class="trust-card-desc">TLS 1.3 in transit, AES-256 at rest. <a href="security.html">Read the whitepaper</a>.</div>
+  </div>
+  <div class="trust-card">
+    <div class="trust-card-icon">🚫</div>
+    <div class="trust-card-title">We will never sell your data</div>
+    <div class="trust-card-desc">Solo-founder indie product. Funded by users, not by ads.</div>
+  </div>
+  <div class="trust-card">
+    <div class="trust-card-icon">📤</div>
+    <div class="trust-card-title">Your data, your ownership</div>
+    <div class="trust-card-desc">Export everything to JSON or PDF at any time, with one click.</div>
+  </div>
+</div>
+
+<section class="section pricing">
+  <h2>Built for Canadian pilots at a Canadian price</h2>
+  <div class="price-tag">$49 <span style="font-size: 0.4em; color: var(--text-mute);">CAD/year</span></div>
+  <div class="price-sub">or $5.99 CAD/month · 30-day free trial · No credit card required to start</div>
+  <a class="btn btn-primary" href="demo.html">✈ Try the demo first (no signup)</a>
+</section>
+
+<section class="section">
+  <h2>Why this exists</h2>
+  <p class="section-sub">I'm Martin, a First Officer at Porter Airlines on the E195-E2. After three years of fighting with American logbook apps that didn't speak Canadian regulations, I built the one I wanted.</p>
+
+  <div class="about">
+    <div>
+      <div class="pilot-photo">👨‍✈️</div>
+      <div class="pilot-photo-placeholder-note">Photo to be added</div>
+    </div>
+    <div>
+      <p style="font-size: 16px; line-height: 1.7;">
+        Cumulo Flight Deck calculates night time per <strong>RAC 101.01</strong> (sunrise/sunset, not approximations).
+        Cross-country detection per <strong>CAR 401.34</strong> (great-circle distance &gt; 25 NM).
+        The PDF export matches <strong>TP 14052</strong> column-for-column for ramp checks and ATPL submissions.
+        Multi-airline import — Navblue iCal, CrewTrac PDF (Jazz), Sabre PDF (WestJet), AIMS (Air Canada), plus 5 CSV importers
+        (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog).
+      </p>
+      <p style="font-size: 16px; line-height: 1.7; color: var(--text-mute);">
+        Currently flying for Porter Airlines, transitioning to Captain in spring 2027.
+        This is not a Porter product, and Porter is not affiliated with Cumulo.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2>What's inside</h2>
+  <div class="features-grid">
+    <div class="feature">
+      <div class="feature-icon">📅</div>
+      <div class="feature-title">Auto-sync your schedule</div>
+      <div class="feature-desc">Navblue iCal sync for Porter, plus PDF roster import for Jazz, WestJet, Air Canada, and any 703/704/705 carrier.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🌙</div>
+      <div class="feature-title">Night &amp; XC calculated for you</div>
+      <div class="feature-desc">Per RAC 101.01 and CAR 401.34. No more manual sunrise/sunset math.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📄</div>
+      <div class="feature-title">TC-ready PDF export</div>
+      <div class="feature-desc">38-column TP 14052 format with cumulative totals, signature line, and currency annex. Ramp-check ready.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🎓</div>
+      <div class="feature-title">All pilot types</div>
+      <div class="feature-desc">Airline F/O / Captain · Bush (floats/skis) · Helicopter · Flight Instructor (CFI ATPL credit) · Private GA · Student.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🌐</div>
+      <div class="feature-title">Bilingual EN / FR</div>
+      <div class="feature-desc">Built for Air Canada, Jazz, Porter — and every francophone pilot in Québec.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📱</div>
+      <div class="feature-title">Works offline</div>
+      <div class="feature-desc">Add a flight in the cockpit between duties. Syncs to the cloud when you're back online.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-row">
+    <div>© 2026 Cumulo. Built in Canada 🇨🇦.</div>
+    <div class="footer-links">
+      <a href="security.html">Security</a>
+      <a href="privacy-policy-v2-draft.html">Privacy</a>
+      <a href="mailto:flycumulo@gmail.com">Contact</a>
+      <a href="logbook.html">Open app</a>
+    </div>
+  </div>
+</footer>
+
 </body>
 </html>

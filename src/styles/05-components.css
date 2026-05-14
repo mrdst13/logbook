@@ -440,6 +440,37 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 .col-pill.off { opacity: 0.7; }
 
+/* ─── Privacy & Trust card (Settings → Section 0) ─── */
+.trust-card {
+  border: 1px solid var(--accent, #3884ff) !important;
+  background: linear-gradient(135deg, rgba(56,132,255,0.04), rgba(56,132,255,0.10)) !important;
+}
+.settings-card-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-top: 4px;
+}
+.trust-bullets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.trust-bullet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+.trust-bullet-icon { font-size: 14px; }
+
 /* ─── Column picker (Settings) ─── */
 .col-group {
   margin-bottom: var(--s-4);
