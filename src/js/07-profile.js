@@ -3,9 +3,18 @@
 // ═══════════════════════════════════════════
 function setProfileType(type) {
   const p = DB.loadProfile();
+  const previousType = p.pilotType;
   p.pilotType = type;
   DB.saveProfile(p);
   highlightProfileTypeCard(type);
+  // Auto-apply matching column preset on type change (or first save) so the
+  // table immediately reflects what this persona scans for. User can still
+  // override via the Columns picker afterward. Non-destructive if they had
+  // a custom set — they re-toggle in the picker.
+  if (previousType !== type && typeof presetForPilotType === 'function' && typeof applyColumnPreset === 'function') {
+    applyColumnPreset(presetForPilotType(type));
+  }
+  if (typeof adaptFormToProfile === 'function') adaptFormToProfile(type);
   showToast(t('toast.profileTypeSaved'), 'success');
 }
 

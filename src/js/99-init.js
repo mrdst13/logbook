@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-navblue-diagnostic';
+const BUILD_VERSION = 'v3a-2026-05-14-persona-presets';
 
 (function init() {
   applyDarkMode();

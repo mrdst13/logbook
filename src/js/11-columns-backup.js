@@ -33,12 +33,19 @@ function renderColumnPicker() {
 
   container.innerHTML = `
     <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')" type="button">✓ Select all</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('none')" type="button">✗ Deselect all</button>
-      <span style="width:1px; height:20px; background:var(--border);"></span>
-      <span class="eyebrow">Presets:</span>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('compact')" type="button">Compact F/O 705</button>
-      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')" type="button">ATPL prep</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('all')" type="button">✓ All</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('none')" type="button">✗ None</button>
+    </div>
+    <div style="display:flex; gap:var(--s-2); flex-wrap:wrap; align-items:center; margin-bottom:var(--s-3); padding-bottom:var(--s-3); border-bottom:1px solid var(--border);">
+      <span class="eyebrow" style="margin-right:var(--s-2);">Persona presets:</span>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O — Porter, Jazz, Encore, etc.">✈ Airline F/O</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain — PIC ratio focus">✈ Airline Captain</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('bush')" type="button" title="Bush ops — floats/skis, charter PoB, 703/704">🚤 Bush</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft — heli columns + hover">🚁 Helicopter</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('instructor')" type="button" title="CFI — Dual Given primary, student names">🎓 Instructor</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('private')" type="button" title="PPL / GA private — simplified currency view">🛩 Private GA</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('student')" type="button" title="Student pilot — solo vs dual instruction">📚 Student</button>
+      <button class="btn btn-ghost btn-sm" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission — exhaustive cumulative view">📋 ATPL prep</button>
     </div>
     ${html}
   `;
@@ -82,23 +89,72 @@ function resetColumnPrefs() {
   showToast(t('toast.columnsReset'));
 }
 
+// Per-pilot-type column presets. Each preset is hand-tuned for what the
+// matching persona actually scans for daily. Validated by the 2026-05-13
+// pilot panel (SE private, bush, helicopter, regional 704, major 705, CFI).
+// User can still override any preset via the Columns picker — these are
+// just smart defaults that turn the table from "generic" to "made for me".
+const COLUMN_PRESETS = {
+  // F/O 705 — Airline First Officer (Porter, Jazz, Encore, etc.)
+  'airline-fo': ['date','flightNum','type','reg','route','crewPosition','ldgDay','ldgNight','night','block','total'],
+
+  // Captain 705 — Airline Captain (same shape but PIC ratio matters)
+  'airline-cpt': ['date','flightNum','type','reg','route','crewPosition','meDayPic','meNightPic','ldgDay','ldgNight','block','total'],
+
+  // Bush — floats/skis ops, 703/704, charter PoB
+  'bush': ['date','flightNum','type','reg','acConfig','route','copilot','block','total'],
+
+  // Helicopter — rotorcraft ops (CAR 401.05 currency, hover, autorotation)
+  'helicopter': ['date','flightNum','type','reg','route','heliDayPic','heliNightPic','heliDayCop','heliNightCop','hoverTime','toDay','toNight','ldgDay','ldgNight','total'],
+
+  // Instructor / CFI — dual-given primary, student-name field
+  'instructor': ['date','type','reg','route','copilot','dualGivenDay','dualGivenNight','ldgDay','ldgNight','block','total'],
+
+  // Private GA / PPL — recreational, fewer fields, currency-focused
+  'private': ['date','type','reg','route','day','night','ldgDay','ldgNight','block','total'],
+
+  // Student — solo vs dual instruction, instructor name
+  'student': ['date','type','reg','route','pic','meDayDual','meNightDual','meDayPic','meNightPic','ldgDay','block','total'],
+
+  // Compact F/O 705 — kept for backward compatibility (this was the only
+  // option before 2026-05-14; aliased to 'airline-fo').
+  'compact': null,  // will fall through to airline-fo
+
+  // ATPL prep — exhaustive cumulative view for license submission
+  'atpl': ['date','type','reg','route','pic','crewPosition','block','duty',
+           'day','night','meDayPic','meNightPic','meDayCop','meNightCop',
+           'xcDay','xcNight','instActual','instSim','approaches',
+           'ldgDay','ldgNight','picus','dualGivenDay','dualGivenNight','total'],
+};
+
+// Map a profile.pilotType to the matching preset name. Falls back to
+// the airline-fo preset (the original compact view) if unrecognized.
+function presetForPilotType(pilotType) {
+  switch ((pilotType || '').toLowerCase()) {
+    case 'airline705':  return 'airline-fo';
+    case 'helicopter':  return 'helicopter';
+    case 'instructor':  return 'instructor';
+    case 'private':     return 'private';
+    case 'student':     return 'student';
+    default:            return 'airline-fo';
+  }
+}
+
 function applyColumnPreset(preset) {
   const prefs = {};
-  if (preset === 'compact') {
-    // F/O 705 essentials
-    ['date','type','reg','route','pic','night','block','total'].forEach(k => prefs[k] = true);
-    LOGBOOK_COLUMNS.forEach(c => { if (prefs[c.key] === undefined) prefs[c.key] = false; });
-  } else if (preset === 'atpl') {
-    // ATPL preparation: all categories needed for the experience demo
-    ['date','type','reg','route','pic','crewPosition','block','duty',
-     'day','night','meDayPic','meNightPic','meDayCop','meNightCop',
-     'xcDay','xcNight','instActual','instSim','approaches',
-     'ldgDay','ldgNight','picus','total'].forEach(k => prefs[k] = true);
-    LOGBOOK_COLUMNS.forEach(c => { if (prefs[c.key] === undefined) prefs[c.key] = false; });
-  } else if (preset === 'all') {
+  // Aliases / shortcuts
+  if (preset === 'compact') preset = 'airline-fo';
+  // Special "all" / "none" presets
+  if (preset === 'all') {
     LOGBOOK_COLUMNS.forEach(c => { prefs[c.key] = true; });
   } else if (preset === 'none') {
     LOGBOOK_COLUMNS.forEach(c => { prefs[c.key] = false; });
+  } else if (COLUMN_PRESETS[preset]) {
+    COLUMN_PRESETS[preset].forEach(k => prefs[k] = true);
+    LOGBOOK_COLUMNS.forEach(c => { if (prefs[c.key] === undefined) prefs[c.key] = false; });
+  } else {
+    console.warn('[Columns] Unknown preset:', preset);
+    return;
   }
   saveColumnPrefs(prefs);
   renderColumnPicker();
