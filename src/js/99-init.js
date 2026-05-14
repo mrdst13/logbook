@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-ui-qa-multicarrier';
+const BUILD_VERSION = 'v3a-2026-05-14-captain-names-final';
 
 (function init() {
   applyDarkMode();

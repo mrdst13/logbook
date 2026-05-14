@@ -373,12 +373,11 @@ function applyTimeBucket(flight, category, role, day, night, xc) {
   }
 }
 
-// PIPEDA gate wrapper — falls back to anonymize if helpers missing.
+// Captain-name read helper for CSV imports.
+// PIPEDA model (2026-05-13): store full names locally; anonymize at egress only.
+// This wrapper exists so each parser's call site is readable; no transformation.
 function readPipedaName(name, profile) {
-  if (!name) return '';
-  if (typeof gateCaptainName === 'function') return gateCaptainName(name, profile);
-  if (typeof anonymizeCaptainName === 'function') return anonymizeCaptainName(name);
-  return '';  // safe default: drop the name if no helper exists
+  return name || '';
 }
 
 // ═══════════════════════════════════════════════════════════════════

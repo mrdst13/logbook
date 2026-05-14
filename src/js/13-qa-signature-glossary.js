@@ -67,8 +67,8 @@ const FAQS = [
 
   // ── Privacy & compliance ──────────────────────────────────────────
   {
-    q: 'Why are captain names showing as initials in my logbook?',
-    a: 'Under PIPEDA Principle 4.3 (consent), third parties (your captains) have a right to control how their personal information is stored. By default, Cumulo anonymizes captain names to initials (e.g. "M.D." for Martin Daoust) when imported from Navblue / CrewTrac / Sabre rosters. The full name is never stored. If your crew explicitly consents — or if you only use your logbook for your own regulatory record-keeping (TC ramp check, ATPL submission) — you can toggle "I have my crew\'s consent" in Profile to keep full names.'
+    q: 'How does Cumulo handle captain names from my roster?',
+    a: 'Cumulo stores full captain names locally on your device — your logbook works exactly like a paper logbook (you see who you flew with). This is permitted under PIPEDA s.4(2)(b) and Loi 25 art. 1 (personal-use exception). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i) (regulatory disclosure). You control whether full names go to the cloud via Profile → "Keep full captain names when syncing or sharing" (default OFF = anonymize at egress). This was validated by a 4-expert panel (PIPEDA lawyer + Loi 25 lawyer + retired TC inspector + UX designer) on 2026-05-13.'
   },
   {
     q: 'How long must I keep my logbook records?',

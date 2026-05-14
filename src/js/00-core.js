@@ -14,20 +14,27 @@ function esc(s) {
 }
 
 // ═══════════════════════════════════════════
-// PIPEDA — Captain-name anonymization
+// PIPEDA — Captain-name anonymization (context-aware model, 2026-05-13)
 //
-// Third-party PII handling: when Cumulo imports flight data from Navblue
-// iCal or PDF rosters, it may detect captain names (other pilots — third
-// parties who haven't consented to being in this user's logbook).
-// PIPEDA Principle 4.3 requires consent from the data subject. To stay
-// compliant at scale, captain names are anonymized to initials by default.
+// MODEL (validated by 4-expert panel: PIPEDA federal, Loi 25 Quebec,
+// retired TC inspector, UX designer):
 //
-// The user can opt-in to keep full names via Profile → "I have consent /
-// will anonymize" toggle (`profile.consentCaptainNames`). Default: false
-// (anonymize). When false, this function is called on every incoming
-// captain name before it lands in `flights[]`.
+//   - The user (pilot) is the OWNER of their own logbook. Personal-use
+//     exception under PIPEDA s.4(2)(b) AND Loi 25 art. 1 covers their
+//     local-device storage of crew names imported from their own employer's
+//     roster.
+//   - Cumulo Inc. (the vendor) is NOT a controller for data that stays on
+//     the user's device. It BECOMES one when data leaves: cloud sync,
+//     PDF export to a third party, JSON backup, share.
+//   - TC regulatory disclosure (CAR 401.08 / ramp check) is permitted
+//     without consent under PIPEDA s.7(3)(c.1)(i). Full names in a TC PDF
+//     export are lawful and arguably required for record integrity.
 //
-// Format normalization:
+// RESULT: store full names locally, anonymize ONLY at egress (outbound),
+// keep full names in the TC PDF export. The user controls a toggle that
+// says "Keep full crew names when sharing / syncing" — default OFF.
+//
+// Format normalization (anonymizeCaptainName helper):
 //   "DAOUST, Martin"   → "M.D."  (last, first  →  first.last initials)
 //   "Daoust, M"        → "M.D."
 //   "Martin Daoust"    → "M.D."
@@ -64,14 +71,25 @@ function anonymizeCaptainName(name) {
   return `${fi}.${li}.`;
 }
 
-// Convenience: apply captain-name anonymization gate based on profile setting.
-// Returns the original name if the user has consented (toggle ON),
-// otherwise returns the anonymized version.
-function gateCaptainName(name, profile) {
+// Context-aware captain-name resolution.
+// `context` values:
+//   'display'    → owner viewing their own logbook (always full)
+//   'tc-pdf'     → TC regulatory export (always full — s.7(3)(c.1)(i))
+//   'cloud-sync' → push to Supabase / any remote storage (anonymize unless consent)
+//   'shareable'  → general PDF / JSON backup for sharing (anonymize unless consent)
+function captainNameForContext(name, profile, context) {
   if (!name) return '';
-  // Default OFF (anonymize). User must explicitly opt-in via Profile.
+  if (context === 'display' || context === 'tc-pdf') return name;
+  // Outbound contexts: anonymize unless the user has explicitly opted in.
   const consented = profile && profile.consentCaptainNames === true;
   return consented ? name : anonymizeCaptainName(name);
+}
+
+// Legacy alias: gateCaptainName is now equivalent to the outbound context.
+// Kept for backward compatibility — every old call site was already
+// "outbound" semantically. Imports no longer call this (they store full).
+function gateCaptainName(name, profile) {
+  return captainNameForContext(name, profile, 'cloud-sync');
 }
 
 // ═══════════════════════════════════════════

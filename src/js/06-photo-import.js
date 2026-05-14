@@ -268,17 +268,13 @@ function confirmImport() {
     showToast(t('toast.nothingSelected'), 'error');
     return;
   }
-  // PIPEDA: read consent toggle once for the whole batch so the rule
-  // applies uniformly to every captain name in this import.
-  const importProfile = DB.loadProfile();
+  // PIPEDA model (2026-05-13 panel decision): store full names locally.
+  // Anonymization happens at egress (cloud sync, shareable PDF), not at
+  // import. The user retains the ability to see who they flew with in
+  // their own logbook — personal-use exception under PIPEDA s.4(2)(b)
+  // and Loi 25 art. 1.
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
-    // Anonymize captain name unless user has consented via Profile toggle.
-    // Catches photo OCR (Anthropic returns `pic`) and any other path that
-    // flows through the import preview modal.
-    if (flightData.pic) {
-      flightData.pic = gateCaptainName(flightData.pic, importProfile);
-    }
     flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);

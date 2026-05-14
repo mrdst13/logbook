@@ -234,33 +234,10 @@ function saveProfile() {
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
-
-  // PIPEDA sweep: if the user just flipped consentCaptainNames from ON
-  // to OFF, walk every stored flight and re-anonymize captain/copilot
-  // names that are still in full form. Without this, old rows continued
-  // to expose 3rd-party PII even after consent was withdrawn — flagged
-  // by the 2026-05-13 security panel as a P0.
-  const wasOn = !!(existing && existing.consentCaptainNames);
-  const isOff = !p.consentCaptainNames;
-  if (wasOn && isOff && Array.isArray(flights) && flights.length) {
-    let changed = 0;
-    flights.forEach(f => {
-      if (typeof f.pic === 'string') {
-        const a = anonymizeCaptainName(f.pic);
-        if (a !== f.pic) { f.pic = a; changed++; }
-      }
-      if (typeof f.copilot === 'string') {
-        const a = anonymizeCaptainName(f.copilot);
-        if (a !== f.copilot) { f.copilot = a; changed++; }
-      }
-    });
-    if (changed) {
-      DB.save(flights);
-      if (typeof renderDashboard === 'function') renderDashboard();
-      showToast(t('toast.captainSweepDone', { n: changed }), 'success');
-      console.log(`[Privacy] re-anonymized ${changed} captain/copilot names after consent flip ON→OFF`);
-    }
-  }
+  // Note (2026-05-13 panel decision): we no longer sweep+anonymize local
+  // flights when the toggle flips ON→OFF. Under the new model, full names
+  // ALWAYS stay on the user's device — anonymization only happens at egress
+  // (cloud sync, shareable PDF export). Flipping the toggle is non-destructive.
   showToast(t('toast.profileSaved'), 'success');
 }
 

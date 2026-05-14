@@ -76,10 +76,9 @@ async function handleRosterFile(file) {
         alreadyHad++;
         return;
       }
-      // PIPEDA gate: anonymize to initials unless user has explicitly consented
-      // via Profile → Captain Name Privacy toggle (default OFF).
-      const picValue = gateCaptainName(item.pic, rosterProfile);
-      flights[idx] = { ...existing, pic: picValue };
+      // PIPEDA model (2026-05-13): store full name locally. Anonymization
+      // happens at egress (cloud sync, shareable PDF export), never at import.
+      flights[idx] = { ...existing, pic: item.pic };
       matched++;
     });
 

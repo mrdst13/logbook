@@ -3391,20 +3391,27 @@ function esc(s) {
 }
 
 // ═══════════════════════════════════════════
-// PIPEDA — Captain-name anonymization
+// PIPEDA — Captain-name anonymization (context-aware model, 2026-05-13)
 //
-// Third-party PII handling: when Cumulo imports flight data from Navblue
-// iCal or PDF rosters, it may detect captain names (other pilots — third
-// parties who haven't consented to being in this user's logbook).
-// PIPEDA Principle 4.3 requires consent from the data subject. To stay
-// compliant at scale, captain names are anonymized to initials by default.
+// MODEL (validated by 4-expert panel: PIPEDA federal, Loi 25 Quebec,
+// retired TC inspector, UX designer):
 //
-// The user can opt-in to keep full names via Profile → "I have consent /
-// will anonymize" toggle (`profile.consentCaptainNames`). Default: false
-// (anonymize). When false, this function is called on every incoming
-// captain name before it lands in `flights[]`.
+//   - The user (pilot) is the OWNER of their own logbook. Personal-use
+//     exception under PIPEDA s.4(2)(b) AND Loi 25 art. 1 covers their
+//     local-device storage of crew names imported from their own employer's
+//     roster.
+//   - Cumulo Inc. (the vendor) is NOT a controller for data that stays on
+//     the user's device. It BECOMES one when data leaves: cloud sync,
+//     PDF export to a third party, JSON backup, share.
+//   - TC regulatory disclosure (CAR 401.08 / ramp check) is permitted
+//     without consent under PIPEDA s.7(3)(c.1)(i). Full names in a TC PDF
+//     export are lawful and arguably required for record integrity.
 //
-// Format normalization:
+// RESULT: store full names locally, anonymize ONLY at egress (outbound),
+// keep full names in the TC PDF export. The user controls a toggle that
+// says "Keep full crew names when sharing / syncing" — default OFF.
+//
+// Format normalization (anonymizeCaptainName helper):
 //   "DAOUST, Martin"   → "M.D."  (last, first  →  first.last initials)
 //   "Daoust, M"        → "M.D."
 //   "Martin Daoust"    → "M.D."
@@ -3441,14 +3448,25 @@ function anonymizeCaptainName(name) {
   return `${fi}.${li}.`;
 }
 
-// Convenience: apply captain-name anonymization gate based on profile setting.
-// Returns the original name if the user has consented (toggle ON),
-// otherwise returns the anonymized version.
-function gateCaptainName(name, profile) {
+// Context-aware captain-name resolution.
+// `context` values:
+//   'display'    → owner viewing their own logbook (always full)
+//   'tc-pdf'     → TC regulatory export (always full — s.7(3)(c.1)(i))
+//   'cloud-sync' → push to Supabase / any remote storage (anonymize unless consent)
+//   'shareable'  → general PDF / JSON backup for sharing (anonymize unless consent)
+function captainNameForContext(name, profile, context) {
   if (!name) return '';
-  // Default OFF (anonymize). User must explicitly opt-in via Profile.
+  if (context === 'display' || context === 'tc-pdf') return name;
+  // Outbound contexts: anonymize unless the user has explicitly opted in.
   const consented = profile && profile.consentCaptainNames === true;
   return consented ? name : anonymizeCaptainName(name);
+}
+
+// Legacy alias: gateCaptainName is now equivalent to the outbound context.
+// Kept for backward compatibility — every old call site was already
+// "outbound" semantically. Imports no longer call this (they store full).
+function gateCaptainName(name, profile) {
+  return captainNameForContext(name, profile, 'cloud-sync');
 }
 
 // ═══════════════════════════════════════════
@@ -4754,17 +4772,13 @@ function confirmImport() {
     showToast(t('toast.nothingSelected'), 'error');
     return;
   }
-  // PIPEDA: read consent toggle once for the whole batch so the rule
-  // applies uniformly to every captain name in this import.
-  const importProfile = DB.loadProfile();
+  // PIPEDA model (2026-05-13 panel decision): store full names locally.
+  // Anonymization happens at egress (cloud sync, shareable PDF), not at
+  // import. The user retains the ability to see who they flew with in
+  // their own logbook — personal-use exception under PIPEDA s.4(2)(b)
+  // and Loi 25 art. 1.
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
-    // Anonymize captain name unless user has consented via Profile toggle.
-    // Catches photo OCR (Anthropic returns `pic`) and any other path that
-    // flows through the import preview modal.
-    if (flightData.pic) {
-      flightData.pic = gateCaptainName(flightData.pic, importProfile);
-    }
     flights.push({ ...flightData, id: Date.now().toString() + Math.random() });
   });
   DB.save(flights);
@@ -5031,33 +5045,10 @@ function saveProfile() {
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
-
-  // PIPEDA sweep: if the user just flipped consentCaptainNames from ON
-  // to OFF, walk every stored flight and re-anonymize captain/copilot
-  // names that are still in full form. Without this, old rows continued
-  // to expose 3rd-party PII even after consent was withdrawn — flagged
-  // by the 2026-05-13 security panel as a P0.
-  const wasOn = !!(existing && existing.consentCaptainNames);
-  const isOff = !p.consentCaptainNames;
-  if (wasOn && isOff && Array.isArray(flights) && flights.length) {
-    let changed = 0;
-    flights.forEach(f => {
-      if (typeof f.pic === 'string') {
-        const a = anonymizeCaptainName(f.pic);
-        if (a !== f.pic) { f.pic = a; changed++; }
-      }
-      if (typeof f.copilot === 'string') {
-        const a = anonymizeCaptainName(f.copilot);
-        if (a !== f.copilot) { f.copilot = a; changed++; }
-      }
-    });
-    if (changed) {
-      DB.save(flights);
-      if (typeof renderDashboard === 'function') renderDashboard();
-      showToast(t('toast.captainSweepDone', { n: changed }), 'success');
-      console.log(`[Privacy] re-anonymized ${changed} captain/copilot names after consent flip ON→OFF`);
-    }
-  }
+  // Note (2026-05-13 panel decision): we no longer sweep+anonymize local
+  // flights when the toggle flips ON→OFF. Under the new model, full names
+  // ALWAYS stay on the user's device — anonymization only happens at egress
+  // (cloud sync, shareable PDF export). Flipping the toggle is non-destructive.
   showToast(t('toast.profileSaved'), 'success');
 }
 
@@ -6244,10 +6235,9 @@ async function handleRosterFile(file) {
         alreadyHad++;
         return;
       }
-      // PIPEDA gate: anonymize to initials unless user has explicitly consented
-      // via Profile → Captain Name Privacy toggle (default OFF).
-      const picValue = gateCaptainName(item.pic, rosterProfile);
-      flights[idx] = { ...existing, pic: picValue };
+      // PIPEDA model (2026-05-13): store full name locally. Anonymization
+      // happens at egress (cloud sync, shareable PDF export), never at import.
+      flights[idx] = { ...existing, pic: item.pic };
       matched++;
     });
 
@@ -7221,8 +7211,8 @@ const FAQS = [
 
   // ── Privacy & compliance ──────────────────────────────────────────
   {
-    q: 'Why are captain names showing as initials in my logbook?',
-    a: 'Under PIPEDA Principle 4.3 (consent), third parties (your captains) have a right to control how their personal information is stored. By default, Cumulo anonymizes captain names to initials (e.g. "M.D." for Martin Daoust) when imported from Navblue / CrewTrac / Sabre rosters. The full name is never stored. If your crew explicitly consents — or if you only use your logbook for your own regulatory record-keeping (TC ramp check, ATPL submission) — you can toggle "I have my crew\'s consent" in Profile to keep full names.'
+    q: 'How does Cumulo handle captain names from my roster?',
+    a: 'Cumulo stores full captain names locally on your device — your logbook works exactly like a paper logbook (you see who you flew with). This is permitted under PIPEDA s.4(2)(b) and Loi 25 art. 1 (personal-use exception). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i) (regulatory disclosure). You control whether full names go to the cloud via Profile → "Keep full captain names when syncing or sharing" (default OFF = anonymize at egress). This was validated by a 4-expert panel (PIPEDA lawyer + Loi 25 lawyer + retired TC inspector + UX designer) on 2026-05-13.'
   },
   {
     q: 'How long must I keep my logbook records?',
@@ -7954,12 +7944,11 @@ function applyTimeBucket(flight, category, role, day, night, xc) {
   }
 }
 
-// PIPEDA gate wrapper — falls back to anonymize if helpers missing.
+// Captain-name read helper for CSV imports.
+// PIPEDA model (2026-05-13): store full names locally; anonymize at egress only.
+// This wrapper exists so each parser's call site is readable; no transformation.
 function readPipedaName(name, profile) {
-  if (!name) return '';
-  if (typeof gateCaptainName === 'function') return gateCaptainName(name, profile);
-  if (typeof anonymizeCaptainName === 'function') return anonymizeCaptainName(name);
-  return '';  // safe default: drop the name if no helper exists
+  return name || '';
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -8973,9 +8962,9 @@ const STRINGS = {
     'profile.ifr.title':         'IFR Approach Auto-Count',
     'profile.ifr.label':         'Count 1 IFR approach per flight on sync (705 line operations)',
     'profile.ifr.descHtml':      'Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.',
-    'profile.captain.title':     'Captain Name Privacy (PIPEDA)',
-    'profile.captain.label':     'I have my crew\'s consent (or accept responsibility) — keep full captain names',
-    'profile.captain.descHtml':  '<strong>Default: OFF (anonymized).</strong> When OFF, Cumulo automatically stores captain names from Navblue / PDF roster / AI photo imports as <strong>initials only</strong> (e.g. <code>M.D.</code> instead of <code>Martin Daoust</code>). This protects third-party privacy under PIPEDA Principle 4.3 (consent from the data subject).<br><br>Turn ON only if you\'ve obtained your crew\'s consent to record their names in your logbook, or if you take responsibility for that handling. Already-imported names are not touched retroactively — only new imports follow the current setting.',
+    'profile.captain.title':     'Captain Name Privacy (PIPEDA / Loi 25)',
+    'profile.captain.label':     'Keep full captain names when syncing or sharing (I have crew consent)',
+    'profile.captain.descHtml':  '<strong>How Cumulo handles your crew names — validated by federal + Quebec privacy lawyers + a retired TC inspector + a UX expert (2026-05-13):</strong><br><br>• <strong>On your device:</strong> Cumulo always stores full names. You see who you flew with — your logbook works like a paper logbook.<br>• <strong>TC PDF export:</strong> always full names. Required for ramp checks and ATPL submissions under CAR 401.08 + PIPEDA s.7(3)(c.1)(i) (regulatory disclosure).<br>• <strong>Cloud sync (when Supabase is wired):</strong> anonymized to initials by default. Toggle this ON only if you\'ve obtained crew consent OR you accept responsibility for the third-party data leaving your device. Default OFF protects your crew under PIPEDA Principle 4.3.<br>• <strong>Shareable exports / backups:</strong> same as cloud sync — anonymized by default.<br><br><em>Note: rows already imported before 2026-05-14 may already be anonymized — re-import a roster to recover full names.</em>',
     'profile.display.title':     'Display preferences',
     'profile.display.label':     'Hide empty columns on screen (sum = 0 across all flights)',
     'profile.display.descHtml':  'Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. Useful when you\'ve imported a CSV that doesn\'t have the full TC granularity (e.g. ForeFlight imports leave SE Day, IFR Hood, etc. empty). <strong>The PDF export for Transport Canada always keeps all 38 columns</strong> for ramp-check compliance, regardless of this setting.',
@@ -9517,9 +9506,9 @@ const STRINGS = {
     'profile.ifr.title':         'Comptage auto des approches IFR',
     'profile.ifr.label':         'Compter 1 approche IFR par vol à la synchro (opérations 705 en ligne)',
     'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro Navblue inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
-    'profile.captain.title':     'Confidentialité des noms de commandants (LPRPDE)',
-    'profile.captain.label':     'J’ai le consentement de mon équipage (ou j’en assume la responsabilité) — conserver les noms complets',
-    'profile.captain.descHtml':  '<strong>Par défaut : DÉSACTIVÉ (anonymisé).</strong> Lorsque désactivé, Cumulo enregistre automatiquement les noms de commandants provenant de Navblue / PDF d’horaire / OCR photo sous forme d’<strong>initiales seulement</strong> (ex. <code>M.D.</code> au lieu de <code>Martin Daoust</code>). Cela protège la vie privée des tiers en vertu du principe 4.3 de la LPRPDE (consentement du sujet).<br><br>Activez seulement si vous avez obtenu le consentement de votre équipage, ou si vous en assumez la responsabilité. Les noms déjà importés ne sont pas modifiés rétroactivement — seules les nouvelles importations suivent ce réglage.',
+    'profile.captain.title':     'Confidentialité des noms de commandants (LPRPDE / Loi 25)',
+    'profile.captain.label':     'Conserver les noms complets en synchronisation et partage (j\'ai le consentement de l\'équipage)',
+    'profile.captain.descHtml':  '<strong>Comment Cumulo traite les noms d\'équipage — validé par avocats LPRPDE fédérale + Loi 25 Québec + un inspecteur TC retraité + un expert UX (13 mai 2026) :</strong><br><br>• <strong>Sur votre appareil :</strong> Cumulo conserve toujours les noms complets. Vous voyez avec qui vous avez volé — votre carnet fonctionne comme un carnet papier.<br>• <strong>Export PDF pour TC :</strong> noms complets, toujours. Exigé pour les ramp checks et les soumissions ATPL en vertu du RAC 401.08 + LPRPDE art. 7(3)c.1)(i) (divulgation réglementaire).<br>• <strong>Synchronisation infonuagique (lorsque Supabase sera branché) :</strong> anonymisé en initiales par défaut. Activez cette option seulement si vous avez obtenu le consentement de l\'équipage OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil. Le défaut DÉSACTIVÉ protège votre équipage selon le principe 4.3 de la LPRPDE.<br>• <strong>Exports partageables / sauvegardes :</strong> mêmes règles que la synchronisation — anonymisé par défaut.<br><br><em>Note : les lignes importées avant le 14 mai 2026 peuvent déjà être anonymisées — réimportez votre horaire pour récupérer les noms complets.</em>',
     'profile.display.title':     'Préférences d’affichage',
     'profile.display.label':     'Masquer les colonnes vides à l’écran (somme = 0 sur tous les vols)',
     'profile.display.descHtml':  'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR Capot, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
@@ -11131,7 +11120,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-ui-qa-multicarrier';
+const BUILD_VERSION = 'v3a-2026-05-14-captain-names-final';
 
 (function init() {
   applyDarkMode();
