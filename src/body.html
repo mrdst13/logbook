@@ -269,19 +269,19 @@
     <div class="card">
       <div class="card-header">
         <input type="text" class="search-input" data-i18n-placeholder="lb.searchPlaceholder" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
-        <div class="column-menu-wrap">
-          <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
-            📊 Columns
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
-            <div class="column-menu-head">
-              <div class="t-headline">Visible columns</div>
-              <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
-            </div>
-            <div id="columnPicker"></div>
-          </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
+          📊 Columns
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+      <!-- Inline expanding column picker — sits BETWEEN header and table so
+           the table stays fully visible below while toggling columns. -->
+      <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
+        <div class="column-menu-head">
+          <div class="t-headline">Visible columns</div>
+          <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
         </div>
+        <div id="columnPicker"></div>
       </div>
       <div class="table-wrap logbook-compact">
         <table>

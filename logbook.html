@@ -1143,34 +1143,22 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 .detail-sep { height: 12px; }
 
 /* ─── Column menu popover (Logbook table header) ─── */
-.column-menu-wrap { position: relative; }
-/* Bottom drawer pattern (Linear / Notion / GitHub Projects).
-   Slides up from the bottom of the viewport so the table stays visible
-   above — user toggles a column and immediately sees the table re-render
-   without the picker covering the data. */
+/* Inline expanding column picker — sits BETWEEN the card-header and
+   the table so the table stays fully visible below while the user
+   toggles columns and sees the effect in real time.
+   No overlay, no fixed positioning, no drawer that hides content. */
 .column-menu {
   display: none;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  max-width: 100%;
-  max-height: 55vh;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border-strong);
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.18);
-  z-index: 60;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
   padding: var(--s-4) var(--s-5);
+  max-height: 320px;     /* keeps the table visible below */
   overflow-y: auto;
-  animation: drawerSlideUp 0.28s var(--ease-emphasis);
-  /* Avoid covering the iPhone home indicator on standalone PWA. */
-  padding-bottom: calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+  animation: expandDown 0.22s var(--ease-emphasis);
 }
-@keyframes drawerSlideUp {
-  from { transform: translateY(100%); opacity: 0.6; }
-  to   { transform: translateY(0);    opacity: 1; }
+@keyframes expandDown {
+  from { max-height: 0;     opacity: 0; padding-top: 0; padding-bottom: 0; }
+  to   { max-height: 320px; opacity: 1; }
 }
 .column-menu.show { display: block; }
 .column-menu-head {
@@ -1181,33 +1169,9 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   padding-bottom: var(--s-2);
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 0;
-  background: var(--bg-surface);
+  top: -1px;
+  background: var(--bg-subtle);
   z-index: 1;
-}
-/* Drag-handle visual cue at the top of the drawer (also helps mobile). */
-.column-menu::before {
-  content: '';
-  display: block;
-  width: 44px;
-  height: 4px;
-  margin: -6px auto var(--s-3);
-  background: var(--border-strong);
-  border-radius: 2px;
-}
-@media (min-width: 1024px) {
-  /* Cap width on wide desktop so the drawer doesn't span 2000px. */
-  .column-menu {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: min(960px, 90vw);
-    border-radius: 16px 16px 0 0;
-  }
-  @keyframes drawerSlideUp {
-    from { transform: translate(-50%, 100%); opacity: 0.6; }
-    to   { transform: translate(-50%, 0);    opacity: 1; }
-  }
 }
 
 /* ─── Column picker (Settings) ─── */
@@ -2468,19 +2432,19 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
     <div class="card">
       <div class="card-header">
         <input type="text" class="search-input" data-i18n-placeholder="lb.searchPlaceholder" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
-        <div class="column-menu-wrap">
-          <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
-            📊 Columns
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
-            <div class="column-menu-head">
-              <div class="t-headline">Visible columns</div>
-              <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
-            </div>
-            <div id="columnPicker"></div>
-          </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
+          📊 Columns
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+      <!-- Inline expanding column picker — sits BETWEEN header and table so
+           the table stays fully visible below while toggling columns. -->
+      <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
+        <div class="column-menu-head">
+          <div class="t-headline">Visible columns</div>
+          <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
         </div>
+        <div id="columnPicker"></div>
       </div>
       <div class="table-wrap logbook-compact">
         <table>
@@ -11472,7 +11436,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-columns-drawer';
+const BUILD_VERSION = 'v3a-2026-05-14-columns-inline';
 
 (function init() {
   applyDarkMode();
