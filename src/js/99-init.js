@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-persona-presets';
+const BUILD_VERSION = 'v3a-2026-05-14-columns-drawer';
 
 (function init() {
   applyDarkMode();
