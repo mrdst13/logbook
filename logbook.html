@@ -2943,6 +2943,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
           <input type="date" id="p-medical">
         </div>
         <div class="form-group">
+          <label data-i18n="profile.ecg">ECG Due Date</label>
+          <input type="date" id="p-ecg">
+        </div>
+        <div class="form-group">
           <label data-i18n="profile.base">Base</label>
           <input type="text" id="p-base" placeholder="e.g. CYOW, CYUL, KJFK">
         </div>
@@ -3987,6 +3991,20 @@ function renderAlerts() {
     // > 60 days = current = no alert shown
   }
 
+  // ECG due date — TC Cat 1 standard: at first issuance under 40, then every
+  // 24 months between 40-65, annual at 65+. We let the pilot enter the next
+  // due date manually and just alert when it approaches/passes.
+  if (p.ecg) {
+    const exp = new Date(p.ecg); exp.setHours(0,0,0,0);
+    const days = Math.round((exp - today) / 86400000);
+    const absDays = Math.abs(days);
+    if (days < 0) {
+      alerts.push({ level:'red', icon:'❤️', title: t('alert.ecgExpired'), sub: t(absDays === 1 ? 'alert.ecgExpiredSub' : 'alert.ecgExpiredSubPl', { n: absDays }) });
+    } else if (days <= 60) {
+      alerts.push({ level:'yellow', icon:'❤️', title: t(days === 1 ? 'alert.ecgSoon' : 'alert.ecgSoonPl', { n: days }), sub: t('alert.ecgExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
+    }
+  }
+
   // Landing currency — only show if NOT current (<3 in 90 days)
   const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
   const cut90str = cutoff90.toISOString().split('T')[0];
@@ -4902,6 +4920,7 @@ function loadProfile() {
   }
   sv('p-license', p.license);
   sv('p-medical', p.medical);
+  sv('p-ecg', p.ecg);
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
@@ -5001,6 +5020,7 @@ function saveProfile() {
     airline: airline,
     license: gv('p-license'),
     medical: gv('p-medical'),
+    ecg: gv('p-ecg'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
@@ -5876,6 +5896,7 @@ function onboardingNext() {
   } else if (onbStep === 2) {
     onbData.license = document.getElementById('onb-license')?.value?.trim() || '';
     onbData.medical = document.getElementById('onb-medical')?.value || '';
+    onbData.ecg = document.getElementById('onb-ecg')?.value || '';
     onbData.fleet = document.getElementById('onb-fleet')?.value?.trim() || '';
   } else if (onbStep === 3) {
     onbData.navblueUrl = document.getElementById('onb-navblue')?.value?.trim() || '';
@@ -5898,6 +5919,7 @@ function onboardingNext() {
     base: onbData.base,
     license: onbData.license,
     medical: onbData.medical,
+    ecg: onbData.ecg,
     fleet: onbData.fleet,
     operatorCodes: onbData.operatorCodes || 'PD',
     pilotType: 'airline705'
@@ -6062,6 +6084,10 @@ function renderOnboardingStep() {
           <input type="date" id="onb-medical" />
         </div>
         <div class="form-group">
+          <label>${esc(t('onb.step2.ecg'))}</label>
+          <input type="date" id="onb-ecg" />
+        </div>
+        <div class="form-group">
           <label>${esc(t('onb.step2.fleet'))}</label>
           <input type="text" id="onb-fleet" placeholder="e.g. C172, B737, E190" />
         </div>
@@ -6072,6 +6098,7 @@ function renderOnboardingStep() {
     `;
     if (onbData.license) document.getElementById('onb-license').value = onbData.license;
     if (onbData.medical) document.getElementById('onb-medical').value = onbData.medical;
+    if (onbData.ecg) document.getElementById('onb-ecg').value = onbData.ecg;
     if (onbData.fleet) document.getElementById('onb-fleet').value = onbData.fleet;
   } else if (onbStep === 3) {
     body.innerHTML = `
@@ -6686,6 +6713,7 @@ function _generatePDF() {
   const airline = p.airline || 'Porter Airlines';
   const base = p.base || 'YOW';
   const medical = p.medical || '—';
+  const ecg = p.ecg || '—';
   const fleet = p.fleet || '—';
 
   const cols = getVisibleColumns('pdf');
@@ -6730,8 +6758,9 @@ function _generatePDF() {
     const fields = [
       ['License Number', license],
       ['Medical Expiry', medical],
+      ['ECG Due',        ecg],
       ['Type Rating(s)', fleet],
-      ['Total Entries', String(flights.length)],
+      ['Total Entries',  String(flights.length)],
     ];
     fields.forEach((row, i) => {
       const x = cardX + 15 + (i % 2) * ((cardW - 30) / 2);
@@ -7046,6 +7075,13 @@ function _generatePDF() {
         requirement: 'Valid Category 1 or 3 medical for commercial operations',
         current: p.medical ? `Expires ${new Date(p.medical).toLocaleDateString('en-CA')}` : 'Not set in profile',
         ok: p.medical ? (new Date(p.medical) >= today) : null
+      },
+      {
+        title: 'ECG due date',
+        reg: 'TC Cat 1 standard',
+        requirement: 'Under 40: at first issuance · 40-65: every 24 months · 65+: annual',
+        current: p.ecg ? `Next due ${new Date(p.ecg).toLocaleDateString('en-CA')}` : 'Not set in profile',
+        ok: p.ecg ? (new Date(p.ecg) >= today) : null
       },
       {
         title: '90-day recency',
@@ -9285,7 +9321,15 @@ const STRINGS = {
     'profile.type.helicopter':     'Helicopter',
     'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
     'profile.type.instructor':     'Instructor / CFI',
-    'profile.type.instructorDesc': 'Dual given · ATPL credit focus'
+    'profile.type.instructorDesc': 'Dual given · ATPL credit focus',
+    'profile.ecg':                 'ECG Due Date',
+    'onb.step2.ecg':               'ECG Due Date (optional)',
+    'alert.ecgExpired':            'ECG OVERDUE',
+    'alert.ecgExpiredSub':         'Overdue by {n} day',
+    'alert.ecgExpiredSubPl':       'Overdue by {n} days',
+    'alert.ecgSoon':               'ECG due in {n} day',
+    'alert.ecgSoonPl':             'ECG due in {n} days',
+    'alert.ecgExpiry':             'Due {date}'
   },
 
   fr: {
@@ -9821,7 +9865,15 @@ const STRINGS = {
     'profile.type.helicopter':     'Hélicoptère',
     'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
     'profile.type.instructor':     'Instructeur / CFI',
-    'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire'
+    'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire',
+    'profile.ecg':                 'Date prochain ECG',
+    'onb.step2.ecg':               'Date prochain ECG (optionnel)',
+    'alert.ecgExpired':            'ECG EN RETARD',
+    'alert.ecgExpiredSub':         'En retard de {n} jour',
+    'alert.ecgExpiredSubPl':       'En retard de {n} jours',
+    'alert.ecgSoon':               'ECG dans {n} jour',
+    'alert.ecgSoonPl':             'ECG dans {n} jours',
+    'alert.ecgExpiry':             'Dû le {date}'
   }
 };
 
@@ -10706,6 +10758,7 @@ const Sync = {
       airline: profile.airline || null,
       license: profile.license || null,
       medical: profile.medical || null,
+      ecg: profile.ecg || null,
       base: profile.base || null,
       fleet: profile.fleet || null,
       operator_codes: profile.operatorCodes || null,
@@ -11021,7 +11074,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-heli-cfi';
+const BUILD_VERSION = 'v3a-2026-05-14-ecg-tracking';
 
 (function init() {
   applyDarkMode();

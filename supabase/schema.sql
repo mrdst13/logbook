@@ -36,6 +36,7 @@ create table if not exists public.profiles (
   airline text,
   license text,
   medical date,
+  ecg date,
   base text,
   fleet text,
   operator_codes text,

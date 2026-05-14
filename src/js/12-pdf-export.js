@@ -86,6 +86,7 @@ function _generatePDF() {
   const airline = p.airline || 'Porter Airlines';
   const base = p.base || 'YOW';
   const medical = p.medical || '—';
+  const ecg = p.ecg || '—';
   const fleet = p.fleet || '—';
 
   const cols = getVisibleColumns('pdf');
@@ -130,8 +131,9 @@ function _generatePDF() {
     const fields = [
       ['License Number', license],
       ['Medical Expiry', medical],
+      ['ECG Due',        ecg],
       ['Type Rating(s)', fleet],
-      ['Total Entries', String(flights.length)],
+      ['Total Entries',  String(flights.length)],
     ];
     fields.forEach((row, i) => {
       const x = cardX + 15 + (i % 2) * ((cardW - 30) / 2);
@@ -446,6 +448,13 @@ function _generatePDF() {
         requirement: 'Valid Category 1 or 3 medical for commercial operations',
         current: p.medical ? `Expires ${new Date(p.medical).toLocaleDateString('en-CA')}` : 'Not set in profile',
         ok: p.medical ? (new Date(p.medical) >= today) : null
+      },
+      {
+        title: 'ECG due date',
+        reg: 'TC Cat 1 standard',
+        requirement: 'Under 40: at first issuance · 40-65: every 24 months · 65+: annual',
+        current: p.ecg ? `Next due ${new Date(p.ecg).toLocaleDateString('en-CA')}` : 'Not set in profile',
+        ok: p.ecg ? (new Date(p.ecg) >= today) : null
       },
       {
         title: '90-day recency',

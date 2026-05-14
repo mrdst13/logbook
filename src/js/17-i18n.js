@@ -550,7 +550,15 @@ const STRINGS = {
     'profile.type.helicopter':     'Helicopter',
     'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
     'profile.type.instructor':     'Instructor / CFI',
-    'profile.type.instructorDesc': 'Dual given · ATPL credit focus'
+    'profile.type.instructorDesc': 'Dual given · ATPL credit focus',
+    'profile.ecg':                 'ECG Due Date',
+    'onb.step2.ecg':               'ECG Due Date (optional)',
+    'alert.ecgExpired':            'ECG OVERDUE',
+    'alert.ecgExpiredSub':         'Overdue by {n} day',
+    'alert.ecgExpiredSubPl':       'Overdue by {n} days',
+    'alert.ecgSoon':               'ECG due in {n} day',
+    'alert.ecgSoonPl':             'ECG due in {n} days',
+    'alert.ecgExpiry':             'Due {date}'
   },
 
   fr: {
@@ -1086,7 +1094,15 @@ const STRINGS = {
     'profile.type.helicopter':     'Hélicoptère',
     'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
     'profile.type.instructor':     'Instructeur / CFI',
-    'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire'
+    'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire',
+    'profile.ecg':                 'Date prochain ECG',
+    'onb.step2.ecg':               'Date prochain ECG (optionnel)',
+    'alert.ecgExpired':            'ECG EN RETARD',
+    'alert.ecgExpiredSub':         'En retard de {n} jour',
+    'alert.ecgExpiredSubPl':       'En retard de {n} jours',
+    'alert.ecgSoon':               'ECG dans {n} jour',
+    'alert.ecgSoonPl':             'ECG dans {n} jours',
+    'alert.ecgExpiry':             'Dû le {date}'
   }
 };
 

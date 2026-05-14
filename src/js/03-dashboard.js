@@ -24,6 +24,20 @@ function renderAlerts() {
     // > 60 days = current = no alert shown
   }
 
+  // ECG due date — TC Cat 1 standard: at first issuance under 40, then every
+  // 24 months between 40-65, annual at 65+. We let the pilot enter the next
+  // due date manually and just alert when it approaches/passes.
+  if (p.ecg) {
+    const exp = new Date(p.ecg); exp.setHours(0,0,0,0);
+    const days = Math.round((exp - today) / 86400000);
+    const absDays = Math.abs(days);
+    if (days < 0) {
+      alerts.push({ level:'red', icon:'❤️', title: t('alert.ecgExpired'), sub: t(absDays === 1 ? 'alert.ecgExpiredSub' : 'alert.ecgExpiredSubPl', { n: absDays }) });
+    } else if (days <= 60) {
+      alerts.push({ level:'yellow', icon:'❤️', title: t(days === 1 ? 'alert.ecgSoon' : 'alert.ecgSoonPl', { n: days }), sub: t('alert.ecgExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
+    }
+  }
+
   // Landing currency — only show if NOT current (<3 in 90 days)
   const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
   const cut90str = cutoff90.toISOString().split('T')[0];

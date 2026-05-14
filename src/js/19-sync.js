@@ -282,6 +282,7 @@ const Sync = {
       airline: profile.airline || null,
       license: profile.license || null,
       medical: profile.medical || null,
+      ecg: profile.ecg || null,
       base: profile.base || null,
       fleet: profile.fleet || null,
       operator_codes: profile.operatorCodes || null,

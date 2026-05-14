@@ -122,6 +122,7 @@ function loadProfile() {
   }
   sv('p-license', p.license);
   sv('p-medical', p.medical);
+  sv('p-ecg', p.ecg);
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
@@ -221,6 +222,7 @@ function saveProfile() {
     airline: airline,
     license: gv('p-license'),
     medical: gv('p-medical'),
+    ecg: gv('p-ecg'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),

@@ -84,6 +84,7 @@ function onboardingNext() {
   } else if (onbStep === 2) {
     onbData.license = document.getElementById('onb-license')?.value?.trim() || '';
     onbData.medical = document.getElementById('onb-medical')?.value || '';
+    onbData.ecg = document.getElementById('onb-ecg')?.value || '';
     onbData.fleet = document.getElementById('onb-fleet')?.value?.trim() || '';
   } else if (onbStep === 3) {
     onbData.navblueUrl = document.getElementById('onb-navblue')?.value?.trim() || '';
@@ -106,6 +107,7 @@ function onboardingNext() {
     base: onbData.base,
     license: onbData.license,
     medical: onbData.medical,
+    ecg: onbData.ecg,
     fleet: onbData.fleet,
     operatorCodes: onbData.operatorCodes || 'PD',
     pilotType: 'airline705'
@@ -270,6 +272,10 @@ function renderOnboardingStep() {
           <input type="date" id="onb-medical" />
         </div>
         <div class="form-group">
+          <label>${esc(t('onb.step2.ecg'))}</label>
+          <input type="date" id="onb-ecg" />
+        </div>
+        <div class="form-group">
           <label>${esc(t('onb.step2.fleet'))}</label>
           <input type="text" id="onb-fleet" placeholder="e.g. C172, B737, E190" />
         </div>
@@ -280,6 +286,7 @@ function renderOnboardingStep() {
     `;
     if (onbData.license) document.getElementById('onb-license').value = onbData.license;
     if (onbData.medical) document.getElementById('onb-medical').value = onbData.medical;
+    if (onbData.ecg) document.getElementById('onb-ecg').value = onbData.ecg;
     if (onbData.fleet) document.getElementById('onb-fleet').value = onbData.fleet;
   } else if (onbStep === 3) {
     body.innerHTML = `
