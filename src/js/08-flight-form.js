@@ -711,6 +711,22 @@ async function syncNavblueNow() {
     const events = parseICS(icsText);
     console.log(`[Navblue Sync] Parsed ${events.length} VEVENTs from iCal`);
 
+    // Diagnostic dump: stash the first three DESCRIPTION strings + a SUMMARY
+    // sample so Martin can inspect via the "Navblue iCal diagnostic" button
+    // in Settings — no dev-console required. Useful when the regex doesn't
+    // pick up crew names from a new airline's tenant.
+    try {
+      const dump = {
+        ts: Date.now(),
+        totalEvents: events.length,
+        samples: events.slice(0, 3).map(e => ({
+          summary: (e.SUMMARY || '').substring(0, 200),
+          description: (e.DESCRIPTION || '').substring(0, 1200)
+        }))
+      };
+      localStorage.setItem('cumulo_navblue_debug_v1', JSON.stringify(dump));
+    } catch (e) { /* non-fatal */ }
+
     const syncProfile = DB.loadProfile();
     const isFO = (syncProfile.role || '').toLowerCase().includes('officer')
               || (syncProfile.role || '').toLowerCase().includes('fo')
@@ -739,8 +755,12 @@ async function syncNavblueNow() {
     // Goal: NEVER duplicate a flight that already exists, even when imported via PDF.
     const fresh = [];
     let mergedCount = 0;
+    // Added 2026-05-14: pic / copilot / crewPosition are now eligible for merge
+    // because the iCal extractor pulls them. The if-empty guard below still
+    // protects any value the user typed manually — we only fill blanks.
     const mergeFields = ['dtstart_utc','std_utc','sta_utc','co_utc','ci_utc',
-                         'dep_icao','arr_icao','reg','type','flightNum','multiCrew'];
+                         'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
+                         'pic','copilot','crewPosition'];
     mapped.forEach(f => {
       const match = findMatchingExistingFlight(f);
       if (!match) {
@@ -809,11 +829,75 @@ async function syncNavblueNow() {
   } catch(e) {
     console.error('[Navblue Sync] Error:', e);
     details.style.display = 'block';
-    details.innerHTML = `<span style="color:var(--danger);">Error: ${e.message}</span>`;
+    details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
     showToast(e.message || 'Sync failed', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = '🔄 Sync now';
   }
+}
+
+// Diagnostic view for the Navblue iCal feed. Reads the dump stashed by
+// syncNavblueNow into localStorage and renders it in a modal with a
+// "Copy all" button. No browser dev-tools required — Martin can copy
+// the raw DESCRIPTION sample and paste it in chat so the crew-extraction
+// regex can be refined against the real Porter format.
+function showNavblueDiagnostic() {
+  const raw = localStorage.getItem('cumulo_navblue_debug_v1');
+  if (!raw) {
+    showToast('No diagnostic data yet — run a Navblue sync first, then click Diagnostic again.', 'error');
+    return;
+  }
+  let dump;
+  try { dump = JSON.parse(raw); }
+  catch { showToast('Diagnostic data corrupted — run a fresh sync.', 'error'); return; }
+
+  const ageMin = Math.round((Date.now() - dump.ts) / 60000);
+  const samplesHtml = (dump.samples || []).map((s, i) => `
+    <div style="margin-bottom:var(--s-4);">
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">— Sample ${i + 1} —</div>
+      <div style="font-family:var(--font-mono); font-size:11px;"><strong>SUMMARY:</strong> ${esc(s.summary || '(empty)')}</div>
+      <div style="margin-top:6px;"><strong style="font-family:var(--font-mono); font-size:11px;">DESCRIPTION:</strong></div>
+      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; margin-top:4px; max-height:240px; overflow:auto;">${esc(s.description || '(empty)')}</pre>
+    </div>
+  `).join('');
+
+  const copyPayload = JSON.stringify(dump, null, 2);
+  const overlay = document.getElementById('importPreview');
+  if (!overlay) {
+    // Fallback: dump to console + alert
+    console.log('[Navblue diagnostic]', dump);
+    alert('Diagnostic data printed to console. Press Ctrl+Shift+J to view.');
+    return;
+  }
+  document.getElementById('importSubtitle').textContent =
+    `Navblue iCal diagnostic · synced ${ageMin} min ago · ${dump.totalEvents || 0} events`;
+  document.getElementById('extractedList').innerHTML = `
+    <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
+      Below are the first ${dump.samples ? dump.samples.length : 0} flight entries Porter's Navblue iCal sent us, raw.
+      If you see captain names in the DESCRIPTION blocks but they aren't showing up in your Logbook PIC column,
+      paste this whole block in chat with Claude and the extraction regex will be tuned to match Porter's format.
+    </p>
+    ${samplesHtml}
+    <details style="margin-top:var(--s-3);">
+      <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Full JSON (advanced)</summary>
+      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:10px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow:auto;">${esc(copyPayload)}</pre>
+    </details>
+  `;
+  const confirmBtn = document.getElementById('importConfirmBtn');
+  confirmBtn.textContent = '📋 Copy all';
+  confirmBtn.disabled = false;
+  confirmBtn.onclick = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(copyPayload).then(
+        () => showToast('Diagnostic data copied to clipboard — paste it in chat.', 'success'),
+        () => showToast('Copy failed — select the JSON block and copy manually.', 'error')
+      );
+    } else {
+      showToast('Clipboard not available — select the JSON block manually.', 'error');
+    }
+  };
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
