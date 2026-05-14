@@ -89,15 +89,15 @@ async function parseNavbluePDF(input) {
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-            { type: 'text', text: `This is a Porter Airlines Navblue HrRosterReport PDF. Extract ONLY real flight legs Martin Daoust operated as F/O.
+            { type: 'text', text: `This is a Navblue HrRosterReport PDF for an airline pilot. Extract ONLY real flight legs the pilot operated.
 
-SKIP these activity codes (NOT flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, RDG, P32### (P followed by 5 digits = deadhead positioning).
+SKIP these activity codes (NOT flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, RDG, P##### (P followed by 5 digits = deadhead positioning).
 
-KEEP only PD### flights (Porter mainline) where Martin was crew operating.
+KEEP only revenue flights (typically airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) where the pilot was operating as crew.
 
 Output a JSON array. If nothing to extract, output [].
 Format per flight:
-{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain Name","copilot":"M. Daoust","route":"YOW-YYZ","block":1.10,"duty":1.50,"total":1.10,"meDayCop":1.10,"meNightCop":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":1,"ldgNight":0,"instActual":0,"picus":0}
+{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain Name","copilot":"","route":"YOW-YYZ","block":1.10,"duty":1.50,"total":1.10,"meDayCop":1.10,"meNightCop":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":1,"ldgNight":0,"instActual":0,"picus":0}
 
 RULES:
 - Only completed flights (date <= today)

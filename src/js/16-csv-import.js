@@ -307,7 +307,7 @@ function makeEmptyFlight(extra) {
     date: '', flightNum: '', type: '', reg: '',
     dep_icao: '', arr_icao: '', via: '', route: '',
     pic: '', copilot: '',
-    std_utc: '', sta_utc: '',
+    atd_utc: '', ata_utc: '',
     block: 0, total: 0, duty: 0,
     seDay: 0, seNight: 0,
     meDayPic: 0, meNightPic: 0, meDayCop: 0, meNightCop: 0,
@@ -458,8 +458,8 @@ function extractForeFlightRow(r, h, aircraftLookup, dateLocale, profile) {
     flightNum: (getCol(r, h, 'FlightNumber') || '').trim(),
     from, to, route: routeRaw, via: '',
     captainRaw, copilotRaw,
-    std_utc: extractHHMM(getCol(r, h, 'TimeOut')),
-    sta_utc: extractHHMM(getCol(r, h, 'TimeIn')),
+    atd_utc: extractHHMM(getCol(r, h, 'TimeOut')),
+    ata_utc: extractHHMM(getCol(r, h, 'TimeIn')),
     block: total, total,
     duty: Math.max(0, num(getCol(r, h, 'OffDuty')) - num(getCol(r, h, 'OnDuty'))),
     pic, sic, dualRcvd, dualGiven, picus: picusTime, night, xc,
@@ -507,8 +507,8 @@ function parseLogTen(text, dateLocale, profile, hash) {
       flightNum: (getCol(r, h, 'flight: flight number', 'flight number') || '').trim(),
       from, to, route: '', via: '',
       captainRaw, copilotRaw,
-      std_utc: extractHHMM(getCol(r, h, 'flight: out', 'out time', 'time out')),
-      sta_utc: extractHHMM(getCol(r, h, 'flight: in', 'in time', 'time in')),
+      atd_utc: extractHHMM(getCol(r, h, 'flight: out', 'out time', 'time out')),
+      ata_utc: extractHHMM(getCol(r, h, 'flight: in', 'in time', 'time in')),
       block: total, total,
       duty: num(getCol(r, h, 'flight: duty', 'duty time')),
       pic, sic, dualRcvd, dualGiven, picus, night, xc,
@@ -561,8 +561,8 @@ function parseMyFlightbook(text, dateLocale, profile, hash) {
       flightNum: (getCol(r, h, 'flight number', 'flightnum') || '').trim(),
       from, to, route: parts.join('-'), via,
       captainRaw, copilotRaw,
-      std_utc: extractHHMM(getCol(r, h, 'engine start', 'block out')),
-      sta_utc: extractHHMM(getCol(r, h, 'engine end', 'block in')),
+      atd_utc: extractHHMM(getCol(r, h, 'engine start', 'block out')),
+      ata_utc: extractHHMM(getCol(r, h, 'engine end', 'block in')),
       block: total, total, duty: 0,
       pic, sic, dualRcvd, dualGiven, picus, night, xc,
       instActual: imc, instHood: sim,
@@ -612,8 +612,8 @@ function parseLogbookPro(text, dateLocale, profile, hash) {
       from, to, route: parts.join('-'), via,
       captainRaw: (getCol(r, h, 'pic name', 'captain') || '').trim(),
       copilotRaw: (getCol(r, h, 'sic name', 'co-pilot') || '').trim(),
-      std_utc: extractHHMM(getCol(r, h, 'time out', 'block out')),
-      sta_utc: extractHHMM(getCol(r, h, 'time in', 'block in')),
+      atd_utc: extractHHMM(getCol(r, h, 'time out', 'block out')),
+      ata_utc: extractHHMM(getCol(r, h, 'time in', 'block in')),
       block: total, total, duty: 0,
       pic, sic, dualRcvd, dualGiven, picus, night: nightSrc, xc,
       instActual: actual, instHood: simulated,
@@ -660,8 +660,8 @@ function parseSafelog(text, dateLocale, profile, hash) {
       from, to, route: '', via: '',
       captainRaw: (getCol(r, h, 'pic name', 'captain') || '').trim(),
       copilotRaw: (getCol(r, h, 'sic name', 'co-pilot') || '').trim(),
-      std_utc: extractHHMM(getCol(r, h, 'out', 'time out')),
-      sta_utc: extractHHMM(getCol(r, h, 'in', 'time in')),
+      atd_utc: extractHHMM(getCol(r, h, 'out', 'time out')),
+      ata_utc: extractHHMM(getCol(r, h, 'in', 'time in')),
       block: total, total, duty: 0,
       pic, sic, dualRcvd, dualGiven, picus, night, xc,
       instActual: actual, instHood: simulated,
@@ -692,8 +692,8 @@ const WIZARD_TARGETS = [
   { key: 'from',       label: 'From (departure)',    required: false },
   { key: 'to',         label: 'To (arrival)',        required: false },
   { key: 'via',        label: 'Via (intermediate)',  required: false },
-  { key: 'std_utc',    label: 'Time Out (UTC)',      required: false },
-  { key: 'sta_utc',    label: 'Time In (UTC)',       required: false },
+  { key: 'atd_utc',    label: 'ATD UTC (actual departure)', required: false },
+  { key: 'ata_utc',    label: 'ATA UTC (actual arrival)',   required: false },
   { key: 'total',      label: 'Total / Flight Time', required: true },
   { key: 'pic',        label: 'PIC Time',            required: false },
   { key: 'sic',        label: 'SIC Time',            required: false },
@@ -721,8 +721,8 @@ function guessHeaderForTarget(key) {
     case 'from':       return ['from', 'departure', 'dep', 'origin'];
     case 'to':         return ['to', 'arrival', 'arr', 'destination', 'dest'];
     case 'via':        return ['via', 'intermediate', 'stops'];
-    case 'std_utc':    return ['time out', 'timeout', 'out', 'block out', 'departure time'];
-    case 'sta_utc':    return ['time in', 'timein', 'in', 'block in', 'arrival time'];
+    case 'atd_utc':    return ['time out', 'timeout', 'out', 'block out', 'departure time', 'atd', 'actual departure'];
+    case 'ata_utc':    return ['time in', 'timein', 'in', 'block in', 'arrival time', 'ata', 'actual arrival'];
     case 'total':      return ['total time', 'totaltime', 'total flight time', 'totalflighttime', 'flight time', 'duration', 'total', 'block time', 'block'];
     case 'pic':        return ['pic', 'pic time', 'pilot in command'];
     case 'sic':        return ['sic', 'sic time', 'second in command'];
@@ -824,8 +824,8 @@ function applyWizardMapping() {
       route: '',
       captainRaw: String(get(r, 'captain') || '').trim(),
       copilotRaw: String(get(r, 'copilot') || '').trim(),
-      std_utc: extractHHMM(get(r, 'std_utc')),
-      sta_utc: extractHHMM(get(r, 'sta_utc')),
+      atd_utc: extractHHMM(get(r, 'atd_utc')),
+      ata_utc: extractHHMM(get(r, 'ata_utc')),
       block: total, total, duty: 0,
       pic, sic, dualRcvd, dualGiven, picus: picusTime, night, xc,
       instActual: num(get(r, 'instActual')),
@@ -954,8 +954,8 @@ function materializeFlights() {
     f.route = row.route || (row.from && row.to ? `${row.from}${row.via ? '-' + row.via : ''}-${row.to}` : '');
     f.pic = readPipedaName(row.captainRaw, profile);
     f.copilot = readPipedaName(row.copilotRaw, profile);
-    f.std_utc = row.std_utc;
-    f.sta_utc = row.sta_utc;
+    f.atd_utc = row.atd_utc;
+    f.ata_utc = row.ata_utc;
     f.block = row.block;
     f.total = row.total;
     f.duty = row.duty;

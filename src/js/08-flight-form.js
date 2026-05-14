@@ -597,7 +597,7 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   //   resolveSelfReferences for downstream handling).
   // - User is PIC: copilot = the F/O pulled from the iCal; pic = user's name.
   const profileForNav = DB.loadProfile();
-  const selfFullName  = `${profileForNav.fname || 'Martin'} ${profileForNav.lname || 'Daoust'}`.trim();
+  const selfFullName  = `${profileForNav.fname || ''} ${profileForNav.lname || ''}`.trim();
   const ownerWritesSelfAs = selfFullName || 'self';
   const picField     = isFO ? navblueCrew.pic    : ownerWritesSelfAs;
   const copilotField = isFO ? ownerWritesSelfAs  : navblueCrew.copilot;

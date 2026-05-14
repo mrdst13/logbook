@@ -106,12 +106,12 @@ function isAirline705(airlineName) {
 
 function loadProfile() {
   const p = DB.loadProfile();
-  sv('p-fname', p.fname || 'Martin');
-  sv('p-lname', p.lname || 'Daoust');
+  sv('p-fname', p.fname || '');
+  sv('p-lname', p.lname || '');
   document.getElementById('p-rank').value = p.rank || 'F/O';
   // Airline: try to pre-select the dropdown if the saved value matches a known option.
   // Case-insensitive matching + partial (e.g. "Porter" matches "Porter Airlines|PD").
-  const airlineName = (p.airline || 'Porter Airlines').trim();
+  const airlineName = (p.airline || '').trim();
   const sel = document.getElementById('p-airlineSelect');
   if (sel) {
     const lower = airlineName.toLowerCase();

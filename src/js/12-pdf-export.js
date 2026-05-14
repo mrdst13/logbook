@@ -80,7 +80,7 @@ function _generatePDF() {
         white = [255, 255, 255], light = [248, 249, 252], border = [200, 208, 220],
         textPrimary = [10, 14, 26];
 
-  const name = `${p.fname||'Martin'} ${p.lname||'Daoust'}`.trim();
+  const name = `${p.fname||''} ${p.lname||''}`.trim() || 'Pilot';
   const fullTitle = `${p.rank||'F/O'} ${name}`.trim();
   const license = p.license || '—';
   const airline = p.airline || 'Porter Airlines';

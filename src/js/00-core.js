@@ -177,7 +177,7 @@ const DEMO_FLIGHTS = [
   {
     id: 'demo-1', date: '2026-05-01', flightNum: 'PD150', type: 'E195-E2', reg: 'C-GZQW',
     route: 'YYZ-YOW', dep_icao: 'CYYZ', arr_icao: 'CYOW',
-    pic: 'M. Tremblay', copilot: 'M. Daoust', crewPosition: 'SIC',
+    pic: 'M. Tremblay', copilot: '', crewPosition: 'SIC',
     block: 1.1, duty: 2.2, total: 1.1,
     meDayCop: 1.1, meNightCop: 0, meDayPic: 0, meNightPic: 0,
     xcDayCop: 1.1, xcNightCop: 0,
@@ -187,7 +187,7 @@ const DEMO_FLIGHTS = [
   {
     id: 'demo-2', date: '2026-04-28', flightNum: 'PD274', type: 'E195-E2', reg: 'C-GKYN',
     route: 'YYC-YOW', dep_icao: 'CYYC', arr_icao: 'CYOW',
-    pic: 'J. Bouchard', copilot: 'M. Daoust', crewPosition: 'SIC',
+    pic: 'J. Bouchard', copilot: '', crewPosition: 'SIC',
     block: 3.9, duty: 5.1, total: 3.9,
     meDayCop: 2.3, meNightCop: 1.6, meDayPic: 0, meNightPic: 0,
     xcDayCop: 2.3, xcNightCop: 1.6,
@@ -197,7 +197,7 @@ const DEMO_FLIGHTS = [
   {
     id: 'demo-3', date: '2026-04-22', flightNum: 'PD448', type: 'E195-E2', reg: 'C-GKQO',
     route: 'YYJ-YOW', dep_icao: 'CYYJ', arr_icao: 'CYOW',
-    pic: 'A. Pelletier', copilot: 'M. Daoust', crewPosition: 'SIC',
+    pic: 'A. Pelletier', copilot: '', crewPosition: 'SIC',
     block: 4.6, duty: 5.8, total: 4.6,
     meDayCop: 4.6, meNightCop: 0, meDayPic: 0, meNightPic: 0,
     xcDayCop: 4.6, xcNightCop: 0,
@@ -207,7 +207,7 @@ const DEMO_FLIGHTS = [
   {
     id: 'demo-4', date: '2026-04-15', flightNum: 'PD235', type: 'E195-E2', reg: 'C-GKXV',
     route: 'YYZ-YYT', dep_icao: 'CYYZ', arr_icao: 'CYYT',
-    pic: 'D. Lavallée', copilot: 'M. Daoust', crewPosition: 'SIC',
+    pic: 'D. Lavallée', copilot: '', crewPosition: 'SIC',
     block: 3.1, duty: 4.4, total: 3.1,
     meDayCop: 3.1, meNightCop: 0, meDayPic: 0, meNightPic: 0,
     xcDayCop: 3.1, xcNightCop: 0,
@@ -217,7 +217,7 @@ const DEMO_FLIGHTS = [
   {
     id: 'demo-5', date: '2026-04-10', flightNum: 'PD447', type: 'E195-E2', reg: 'C-GKXR',
     route: 'YOW-YYJ', dep_icao: 'CYOW', arr_icao: 'CYYJ',
-    pic: 'L. Bélanger', copilot: 'M. Daoust', crewPosition: 'SIC',
+    pic: 'L. Bélanger', copilot: '', crewPosition: 'SIC',
     block: 5.3, duty: 7.0, total: 5.3,
     meDayCop: 4.0, meNightCop: 1.3, meDayPic: 0, meNightPic: 0,
     xcDayCop: 4.0, xcNightCop: 1.3,

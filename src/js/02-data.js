@@ -42,18 +42,13 @@ function recalculateFlightDayNightXC(f) {
   const arrCoords = AIRPORT_COORDS[arrICAO];
   if (!depCoords || !arrCoords) return f;  // unknown airports
 
-  // SOURCE OF TRUTH for the UTC instant of block-off, in priority order:
-  //   1. atd_utc (Actual Time of Departure — preferred when the pilot has
-  //      filled it in; reflects reality, not the roster schedule)
-  //   2. dtstart_utc (full ISO, never ambiguous — Navblue iCal source-of-truth
-  //      when ATD not user-provided; matches scheduled departure)
-  //   3. buildUTCDateTime(date, std_utc) — last-resort fallback when neither
-  //      ATD nor dtstart_utc available. Reconstruction can drift across UTC
-  //      midnight for late-local departures.
-  //
-  // Note (2026-05-14): the previous version of this function only used STD
-  // (scheduled time). That violated the project's "use ATD/ATA, not STD/STA"
-  // convention documented in CLAUDE.md. Now ATD wins when present.
+  // SOURCE OF TRUTH for the UTC instant of block-off:
+  //   1. atd_utc (Actual Time of Departure — Cumulo's only time concept)
+  //   2. dtstart_utc (full ISO from Navblue iCal — fallback when ATD empty)
+  //   3. legacy std_utc (pre-2026-05-14 imports — migrated to atd_utc at
+  //      app init but kept as a final fallback for stale in-memory copies)
+  // Scheduled times are not a Cumulo concept — they only appear as
+  // legacy data being read in for migration.
   let blockOff = null;
   if (f.atd_utc && f.atd_utc.length === 4) {
     blockOff = buildUTCDateTime(f.date, f.atd_utc);
@@ -331,11 +326,11 @@ function recalculateAllFlightsInternal() {
     const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
     const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
     if (!AIRPORT_COORDS[depICAO] || !AIRPORT_COORDS[arrICAO]) { skippedNoCoords++; return f; }
-    // Need at least one usable UTC anchor: ATD, dtstart, or STD (in that
-    // priority order, matching recalculateFlightDayNightXC).
+    // Need at least one usable UTC anchor: ATD or dtstart (legacy STD only
+    // counted via the migration which runs at app init).
     const hasUTCAnchor = (f.atd_utc && f.atd_utc.length === 4)
                      || f.dtstart_utc
-                     || (f.std_utc && f.std_utc.length === 4);
+                     || (f.std_utc && f.std_utc.length === 4); // legacy fallback
     if (!hasUTCAnchor) { skippedNoUTC++; return f; }
     const recalc = recalculateFlightDayNightXC(f);
     if (recalc !== f) updated++;

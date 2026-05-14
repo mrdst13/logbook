@@ -6,1268 +6,1268 @@
 
 <!-- HEADER -->
 <header>
-  <!-- Hamburger: only visible on mobile. Wired in JS at init. -->
-  <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-    <span></span>
-    <span></span>
-    <span></span>
-  </button>
+ <!-- Hamburger: only visible on mobile. Wired in JS at init. -->
+ <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+ <span></span>
+ <span></span>
+ <span></span>
+ </button>
 
-  <div class="logo">
-    <div class="logo-icon">✈</div>
-    <div class="logo-texts">
-      <div class="logo-title" data-i18n="logo.title">My Logbook</div>
-      <div class="logo-sub" data-i18n="logo.sub">Flight Record</div>
-    </div>
-  </div>
-  <div class="header-pilot">
-    <div class="pilot-name">F/O M. Daoust</div>
-    <div class="pilot-hours" id="headerHours">0.0 hrs total</div>
-  </div>
+ <div class="logo">
+ <div class="logo-icon">✈</div>
+ <div class="logo-texts">
+ <div class="logo-title" data-i18n="logo.title">My Logbook</div>
+ <div class="logo-sub" data-i18n="logo.sub">Flight Record</div>
+ </div>
+ </div>
+ <div class="header-pilot">
+ <div class="pilot-name">Pilot</div>
+ <div class="pilot-hours" id="headerHours">0.0 hrs total</div>
+ </div>
 
-  <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
-       Stays empty in skeleton mode (Supabase keys not yet configured). -->
-  <div class="auth-status-slot" id="authStatusSlot"></div>
+ <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
+ Stays empty in skeleton mode (Supabase keys not yet configured). -->
+ <div class="auth-status-slot" id="authStatusSlot"></div>
 
-  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
-       pilots aren't stranded in English on first visit. Wired to setLang()
-       which re-renders dashboard/logbook/etc. -->
-  <div class="lang-toggle" role="group" aria-label="Language">
-    <button type="button" id="langBtnEn" onclick="setLang('en')" title="English" aria-label="English">EN</button>
-    <button type="button" id="langBtnFr" onclick="setLang('fr')" title="Français" aria-label="Français">FR</button>
-  </div>
+ <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
+ pilots aren't stranded in English on first visit. Wired to setLang()
+ which re-renders dashboard/logbook/etc. -->
+ <div class="lang-toggle" role="group" aria-label="Language">
+ <button type="button" id="langBtnEn" onclick="setLang('en')" title="English" aria-label="English">EN</button>
+ <button type="button" id="langBtnFr" onclick="setLang('fr')" title="Français" aria-label="Français">FR</button>
+ </div>
 
-  <!-- Theme toggle (v3a) — small sun/moon switch -->
-  <div class="theme-toggle" role="group" aria-label="Theme">
-    <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
+ <!-- Theme toggle (v3a) — small sun/moon switch -->
+ <div class="theme-toggle" role="group" aria-label="Theme">
+ <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41"/></svg>
-    </button>
-    <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode">
+ </button>
+ <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-    </button>
-  </div>
+ </button>
+ </div>
 </header>
 
 <div class="app-body">
 
 <!-- SIDEBAR. Nav items are real <button>s with data-page; wired once at init. -->
 <nav id="sidebar">
-  <div class="nav-group">
-    <div class="nav-label" data-i18n="nav.main">Main</div>
-    <button type="button" class="nav-item active" data-page="dashboard">
-      <span class="nav-icon">📊</span> <span data-i18n="nav.dashboard">Dashboard</span>
-    </button>
-    <button type="button" class="nav-item" data-page="logbook">
-      <span class="nav-icon">📋</span> <span data-i18n="nav.logbook">Logbook</span>
-    </button>
-    <button type="button" class="nav-item" data-page="add">
-      <span class="nav-icon">➕</span> <span data-i18n="nav.add">Add Flight</span>
-    </button>
-  </div>
-  <div class="nav-divider"></div>
-  <div class="nav-group">
-    <div class="nav-label" data-i18n="nav.import">Import</div>
-    <button type="button" class="nav-item" data-page="import">
-      <span class="nav-icon">📸</span> <span data-i18n="nav.photoPdf">Photo / PDF</span>
-    </button>
-  </div>
-  <div class="nav-divider"></div>
-  <div class="nav-group">
-    <div class="nav-label" data-i18n="nav.reports">Reports</div>
-    <button type="button" class="nav-item" data-page="recap">
-      <span class="nav-icon">🗓</span> <span data-i18n="nav.recap">Year Recap</span>
-    </button>
-    <button type="button" class="nav-item" data-page="glossary">
-      <span class="nav-icon">📖</span> <span data-i18n="nav.glossary">Glossary</span>
-    </button>
-    <button type="button" class="nav-item" data-page="qa">
-      <span class="nav-icon">💬</span> <span data-i18n="nav.qa">Q&A</span>
-    </button>
-  </div>
-  <div class="nav-divider"></div>
-  <div class="nav-group">
-    <div class="nav-label" data-i18n="nav.settings">Settings</div>
-    <button type="button" class="nav-item" data-page="profile">
-      <span class="nav-icon">👤</span> <span data-i18n="nav.profile">Profile</span>
-    </button>
-    <button type="button" class="nav-item" data-page="backup">
-      <span class="nav-icon">⚙</span> <span data-i18n="nav.settings">Settings</span>
-    </button>
-  </div>
-  <div class="nav-spacer"></div>
-  <div class="nav-version" data-i18n="nav.versionLabel">v2.0 · My Logbook</div>
+ <div class="nav-group">
+ <div class="nav-label" data-i18n="nav.main">Main</div>
+ <button type="button" class="nav-item active" data-page="dashboard">
+ <span class="nav-icon"></span> <span data-i18n="nav.dashboard">Dashboard</span>
+ </button>
+ <button type="button" class="nav-item" data-page="logbook">
+ <span class="nav-icon"></span> <span data-i18n="nav.logbook">Logbook</span>
+ </button>
+ <button type="button" class="nav-item" data-page="add">
+ <span class="nav-icon"></span> <span data-i18n="nav.add">Add Flight</span>
+ </button>
+ </div>
+ <div class="nav-divider"></div>
+ <div class="nav-group">
+ <div class="nav-label" data-i18n="nav.import">Import</div>
+ <button type="button" class="nav-item" data-page="import">
+ <span class="nav-icon"></span> <span data-i18n="nav.photoPdf">Photo / PDF</span>
+ </button>
+ </div>
+ <div class="nav-divider"></div>
+ <div class="nav-group">
+ <div class="nav-label" data-i18n="nav.reports">Reports</div>
+ <button type="button" class="nav-item" data-page="recap">
+ <span class="nav-icon">🗓</span> <span data-i18n="nav.recap">Year Recap</span>
+ </button>
+ <button type="button" class="nav-item" data-page="glossary">
+ <span class="nav-icon"></span> <span data-i18n="nav.glossary">Glossary</span>
+ </button>
+ <button type="button" class="nav-item" data-page="qa">
+ <span class="nav-icon"></span> <span data-i18n="nav.qa">Q&A</span>
+ </button>
+ </div>
+ <div class="nav-divider"></div>
+ <div class="nav-group">
+ <div class="nav-label" data-i18n="nav.settings">Settings</div>
+ <button type="button" class="nav-item" data-page="profile">
+ <span class="nav-icon"></span> <span data-i18n="nav.profile">Profile</span>
+ </button>
+ <button type="button" class="nav-item" data-page="backup">
+ <span class="nav-icon"></span> <span data-i18n="nav.settings">Settings</span>
+ </button>
+ </div>
+ <div class="nav-spacer"></div>
+ <div class="nav-version" data-i18n="nav.versionLabel">v2.0 · My Logbook</div>
 </nav>
 
 <!-- MAIN -->
 <main>
 
-  <!-- ── DASHBOARD ── -->
-  <div id="page-dashboard" class="page active">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.dashboard.title">Dashboard</div>
-        <div class="page-sub" id="dashDate"></div>
-      </div>
-      <div class="page-actions">
-        <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">✈ Log Flight</button>
-      </div>
-    </div>
+ <!-- ── DASHBOARD ── -->
+ <div id="page-dashboard" class="page active">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.dashboard.title">Dashboard</div>
+ <div class="page-sub" id="dashDate"></div>
+ </div>
+ <div class="page-actions">
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">✈ Log Flight</button>
+ </div>
+ </div>
 
-    <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
+ <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
 
-    <!-- HERO CARD (v3a signature element) -->
-    <div class="hero">
-      <div class="hero-content">
-        <div class="hero-label" data-i18n="hero.totalBlock">Total Block Hours</div>
-        <div>
-          <span class="hero-value" id="hero-total">0.0</span>
-          <span class="hero-unit">hrs</span>
-        </div>
-        <div class="hero-delta" id="hero-delta">
+ <!-- HERO CARD (v3a signature element) -->
+ <div class="hero">
+ <div class="hero-content">
+ <div class="hero-label" data-i18n="hero.totalBlock">Total Block Hours</div>
+ <div>
+ <span class="hero-value" id="hero-total">0.0</span>
+ <span class="hero-unit">hrs</span>
+ </div>
+ <div class="hero-delta" id="hero-delta">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17l10-10 M17 17V7H7"/></svg>
-          <span id="hero-delta-value">0.0</span> hrs <span class="hero-delta-muted" data-i18n="hero.last30">last 30 days</span>
-        </div>
-      </div>
-      <div class="hero-mini">
-        <div class="mini-stat">
-          <div class="mini-stat-label" data-i18n="hero.pic">PIC</div>
-          <div class="mini-stat-value" id="hero-pic">0.0</div>
-        </div>
-        <div class="mini-stat">
-          <div class="mini-stat-label" data-i18n="hero.sic">SIC</div>
-          <div class="mini-stat-value" id="hero-sic">0.0</div>
-        </div>
-        <div class="mini-stat">
-          <div class="mini-stat-label" data-i18n="hero.night">Night</div>
-          <div class="mini-stat-value" id="hero-night">0.0</div>
-        </div>
-      </div>
-    </div>
+ <span id="hero-delta-value">0.0</span> hrs <span class="hero-delta-muted" data-i18n="hero.last30">last 30 days</span>
+ </div>
+ </div>
+ <div class="hero-mini">
+ <div class="mini-stat">
+ <div class="mini-stat-label" data-i18n="hero.pic">PIC</div>
+ <div class="mini-stat-value" id="hero-pic">0.0</div>
+ </div>
+ <div class="mini-stat">
+ <div class="mini-stat-label" data-i18n="hero.sic">SIC</div>
+ <div class="mini-stat-value" id="hero-sic">0.0</div>
+ </div>
+ <div class="mini-stat">
+ <div class="mini-stat-label" data-i18n="hero.night">Night</div>
+ <div class="mini-stat-value" id="hero-night">0.0</div>
+ </div>
+ </div>
+ </div>
 
-    <div class="stats-grid">
-      <div class="stat-card accent">
-        <div class="stat-label" data-i18n="stats.totalTime">Total Time</div>
-        <div class="stat-value" id="s-total">0.0</div>
-        <div class="stat-unit" data-i18n="stats.hours">hours</div>
-      </div>
-      <div class="stat-card success">
-        <div class="stat-label" data-i18n="stats.picTime">PIC Time</div>
-        <div class="stat-value" id="s-pic">0.0</div>
-        <div class="stat-unit" data-i18n="stats.hours">hours</div>
-      </div>
-      <div class="stat-card night">
-        <div class="stat-label" data-i18n="stats.nightTime">Night Time</div>
-        <div class="stat-value" id="s-night">0.0</div>
-        <div class="stat-unit" data-i18n="stats.hours">hours</div>
-      </div>
-      <div class="stat-card warn">
-        <div class="stat-label" data-i18n="stats.landings">Landings</div>
-        <div class="stat-value" id="s-ldg">0</div>
-        <div class="stat-unit" data-i18n="stats.totalUnit">total</div>
-      </div>
-    </div>
+ <div class="stats-grid">
+ <div class="stat-card accent">
+ <div class="stat-label" data-i18n="stats.totalTime">Total Time</div>
+ <div class="stat-value" id="s-total">0.0</div>
+ <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ </div>
+ <div class="stat-card success">
+ <div class="stat-label" data-i18n="stats.picTime">PIC Time</div>
+ <div class="stat-value" id="s-pic">0.0</div>
+ <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ </div>
+ <div class="stat-card night">
+ <div class="stat-label" data-i18n="stats.nightTime">Night Time</div>
+ <div class="stat-value" id="s-night">0.0</div>
+ <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ </div>
+ <div class="stat-card warn">
+ <div class="stat-label" data-i18n="stats.landings">Landings</div>
+ <div class="stat-value" id="s-ldg">0</div>
+ <div class="stat-unit" data-i18n="stats.totalUnit">total</div>
+ </div>
+ </div>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stats.me">Multi-Engine</div>
-        <div class="stat-value" id="s-me">0.0</div>
-        <div class="stat-unit" data-i18n="stats.hours">hours</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stats.xc">Cross Country</div>
-        <div class="stat-value" id="s-xc">0.0</div>
-        <div class="stat-unit" data-i18n="stats.hours">hours</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stats.blockTime">Block Time</div>
-        <div class="stat-value" id="s-block">0.0</div>
-        <div class="stat-unit" data-i18n="stats.hours">hours</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stats.entries">Entries</div>
-        <div class="stat-value" id="s-entries">0</div>
-        <div class="stat-unit" data-i18n="stats.flightsLogged">flights logged</div>
-      </div>
-    </div>
+ <div class="stats-grid">
+ <div class="stat-card">
+ <div class="stat-label" data-i18n="stats.me">Multi-Engine</div>
+ <div class="stat-value" id="s-me">0.0</div>
+ <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ </div>
+ <div class="stat-card">
+ <div class="stat-label" data-i18n="stats.xc">Cross Country</div>
+ <div class="stat-value" id="s-xc">0.0</div>
+ <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ </div>
+ <div class="stat-card">
+ <div class="stat-label" data-i18n="stats.blockTime">Block Time</div>
+ <div class="stat-value" id="s-block">0.0</div>
+ <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ </div>
+ <div class="stat-card">
+ <div class="stat-label" data-i18n="stats.entries">Entries</div>
+ <div class="stat-value" id="s-entries">0</div>
+ <div class="stat-unit" data-i18n="stats.flightsLogged">flights logged</div>
+ </div>
+ </div>
 
-    <!-- ── IFR CURRENCY STATUS (CAR 401.05 — last 6 months) ── -->
-    <div class="card" id="currencyCard" style="margin-bottom:24px">
-      <div class="card-header">
-        <div class="card-title" data-i18n="curr.ifrTitle">IFR Currency — Last 6 Months</div>
-        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px">CAR 401.05</span>
-      </div>
-      <div style="padding:14px 18px; display:grid; grid-template-columns:1fr 1fr; gap:18px;" id="currencyGrid">
-        <div class="cur-item" id="cur-approaches">
-          <div class="cur-label" data-i18n="curr.approaches">Instrument Approaches</div>
-          <div class="cur-value-row">
-            <span class="cur-value" id="cur-app-count">0</span>
-            <span class="cur-unit" data-i18n="curr.approachesUnit">/ 6 required</span>
-            <span class="cur-status" id="cur-app-status">—</span>
-          </div>
-          <div class="cur-sub" id="cur-app-sub" data-i18n="curr.approachesSub">No flights in last 6 months</div>
-        </div>
-        <div class="cur-item" id="cur-instHrs">
-          <div class="cur-label" data-i18n="curr.instTime">Instrument Time</div>
-          <div class="cur-value-row">
-            <span class="cur-value" id="cur-hrs-count">0.0</span>
-            <span class="cur-unit" data-i18n="curr.instTimeUnit">/ 6.0 hrs required</span>
-            <span class="cur-status" id="cur-hrs-status">—</span>
-          </div>
-          <div class="cur-sub" id="cur-hrs-sub" data-i18n="curr.instTimeSub">Actual + hood + approved sim</div>
-        </div>
-      </div>
-    </div>
+ <!-- ── IFR CURRENCY STATUS (CAR 401.05 — last 6 months) ── -->
+ <div class="card" id="currencyCard" style="margin-bottom:24px">
+ <div class="card-header">
+ <div class="card-title" data-i18n="curr.ifrTitle">IFR Currency — Last 6 Months</div>
+ <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px">CAR 401.05</span>
+ </div>
+ <div style="padding:14px 18px; display:grid; grid-template-columns:1fr 1fr; gap:18px;" id="currencyGrid">
+ <div class="cur-item" id="cur-approaches">
+ <div class="cur-label" data-i18n="curr.approaches">Instrument Approaches</div>
+ <div class="cur-value-row">
+ <span class="cur-value" id="cur-app-count">0</span>
+ <span class="cur-unit" data-i18n="curr.approachesUnit">/ 6 required</span>
+ <span class="cur-status" id="cur-app-status">—</span>
+ </div>
+ <div class="cur-sub" id="cur-app-sub" data-i18n="curr.approachesSub">No flights in last 6 months</div>
+ </div>
+ <div class="cur-item" id="cur-instHrs">
+ <div class="cur-label" data-i18n="curr.instTime">Instrument Time</div>
+ <div class="cur-value-row">
+ <span class="cur-value" id="cur-hrs-count">0.0</span>
+ <span class="cur-unit" data-i18n="curr.instTimeUnit">/ 6.0 hrs required</span>
+ <span class="cur-status" id="cur-hrs-status">—</span>
+ </div>
+ <div class="cur-sub" id="cur-hrs-sub" data-i18n="curr.instTimeSub">Actual + hood + approved sim</div>
+ </div>
+ </div>
+ </div>
 
-    <div class="card" style="margin-bottom:24px">
-      <div class="card-header">
-        <div class="card-title" data-i18n="chart.monthlyTitle">Monthly Block Hours</div>
-        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px" data-i18n="chart.last12mo">LAST 12 MONTHS</span>
-      </div>
-      <div style="padding:16px 18px 12px">
-        <canvas id="monthlyChart" height="75"></canvas>
-      </div>
-    </div>
+ <div class="card" style="margin-bottom:24px">
+ <div class="card-header">
+ <div class="card-title" data-i18n="chart.monthlyTitle">Monthly Block Hours</div>
+ <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px" data-i18n="chart.last12mo">LAST 12 MONTHS</span>
+ </div>
+ <div style="padding:16px 18px 12px">
+ <canvas id="monthlyChart" height="75"></canvas>
+ </div>
+ </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title" data-i18n="dash.recentTitle">Recent Flights</div>
-        <button class="btn btn-ghost btn-sm" onclick="showPage('logbook')" data-i18n="dash.viewAllBtn">View All</button>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th data-i18n="rec.date">Date</th>
-              <th data-i18n="rec.reg">Registration</th>
-              <th data-i18n="rec.route">Route</th>
-              <th data-i18n="rec.block">Block</th>
-              <th data-i18n="rec.total">Total</th>
-              <th data-i18n="rec.ldg">Ldg</th>
-            </tr>
-          </thead>
-          <tbody id="recentTbody">
-            <tr class="empty-row"><td colspan="6" data-i18n="misc.noFlightsYet">No flights yet — add your first entry above ✈</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+ <div class="card">
+ <div class="card-header">
+ <div class="card-title" data-i18n="dash.recentTitle">Recent Flights</div>
+ <button class="btn btn-ghost btn-sm" onclick="showPage('logbook')" data-i18n="dash.viewAllBtn">View All</button>
+ </div>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th data-i18n="rec.date">Date</th>
+ <th data-i18n="rec.reg">Registration</th>
+ <th data-i18n="rec.route">Route</th>
+ <th data-i18n="rec.block">Block</th>
+ <th data-i18n="rec.total">Total</th>
+ <th data-i18n="rec.ldg">Ldg</th>
+ </tr>
+ </thead>
+ <tbody id="recentTbody">
+ <tr class="empty-row"><td colspan="6" data-i18n="misc.noFlightsYet">No flights yet — add your first entry above ✈</td></tr>
+ </tbody>
+ </table>
+ </div>
+ </div>
+ </div>
 
-  <!-- ── LOGBOOK ── -->
-  <div id="page-logbook" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.logbook.title">Logbook</div>
-        <div class="page-sub" id="logbookSub">0 entries</div>
-      </div>
-      <div class="page-actions">
-        <button class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn">📄 Export PDF</button>
-        <button class="btn btn-primary" onclick="showPage('add')" data-i18n="lb.addFlight">➕ Add Flight</button>
-      </div>
-    </div>
+ <!-- ── LOGBOOK ── -->
+ <div id="page-logbook" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.logbook.title">Logbook</div>
+ <div class="page-sub" id="logbookSub">0 entries</div>
+ </div>
+ <div class="page-actions">
+ <button class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn"> Export PDF</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="lb.addFlight"> Add Flight</button>
+ </div>
+ </div>
 
-    <div class="card">
-      <div class="card-header">
-        <input type="text" class="search-input" data-i18n-placeholder="lb.searchPlaceholder" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
-        <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
-          📊 Columns
+ <div class="card">
+ <div class="card-header">
+ <input type="text" class="search-input" data-i18n-placeholder="lb.searchPlaceholder" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
+ <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
+ Columns
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-      </div>
-      <!-- Inline expanding column picker — sits BETWEEN header and table so
-           the table stays fully visible below while toggling columns. -->
-      <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
-        <div class="column-menu-head">
-          <div class="t-headline">Visible columns</div>
-          <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
-        </div>
-        <div id="columnPicker"></div>
-      </div>
-      <div class="table-wrap logbook-compact">
-        <table>
-          <thead id="logbookThead"></thead>
-          <tbody id="logbookTbody">
-            <tr class="empty-row"><td>No flights logged yet ✈</td></tr>
-          </tbody>
-          <tfoot id="logbookTfoot"></tfoot>
-        </table>
-      </div>
-    </div>
-  </div>
+ </button>
+ </div>
+ <!-- Inline expanding column picker — sits BETWEEN header and table so
+ the table stays fully visible below while toggling columns. -->
+ <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
+ <div class="column-menu-head">
+ <div class="t-headline">Visible columns</div>
+ <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
+ </div>
+ <div id="columnPicker"></div>
+ </div>
+ <div class="table-wrap logbook-compact">
+ <table>
+ <thead id="logbookThead"></thead>
+ <tbody id="logbookTbody">
+ <tr class="empty-row"><td>No flights logged yet ✈</td></tr>
+ </tbody>
+ <tfoot id="logbookTfoot"></tfoot>
+ </table>
+ </div>
+ </div>
+ </div>
 
-  <!-- ── ADD / EDIT FLIGHT ── -->
-  <div id="page-add" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" id="formTitle" data-i18n="page.add.title">Log a Flight</div>
-        <div class="page-sub" data-i18n="page.add.sub">Fill in your flight details</div>
-      </div>
-    </div>
+ <!-- ── ADD / EDIT FLIGHT ── -->
+ <div id="page-add" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" id="formTitle" data-i18n="page.add.title">Log a Flight</div>
+ <div class="page-sub" data-i18n="page.add.sub">Fill in your flight details</div>
+ </div>
+ </div>
 
-    <input type="hidden" id="editId">
+ <input type="hidden" id="editId">
 
-    <!-- ─── ENTRY TYPE TOGGLE (Flight vs Simulator) ─── -->
-    <div class="form-card" style="margin-bottom:var(--s-3);">
-      <div style="display:flex; gap:var(--s-2); padding:4px; background:var(--bg-subtle); border-radius:var(--r-md);">
-        <button type="button" class="entry-type-btn is-active" id="entryTypeFlight" onclick="setEntryType('flight')" data-i18n="flight.entryFlight">
-          ✈ Flight
-        </button>
-        <button type="button" class="entry-type-btn" id="entryTypeSim" onclick="setEntryType('sim')" data-i18n="flight.entrySim">
-          Simulator session
-        </button>
-      </div>
-    </div>
+ <!-- ─── ENTRY TYPE TOGGLE (Flight vs Simulator) ─── -->
+ <div class="form-card" style="margin-bottom:var(--s-3);">
+ <div style="display:flex; gap:var(--s-2); padding:4px; background:var(--bg-subtle); border-radius:var(--r-md);">
+ <button type="button" class="entry-type-btn is-active" id="entryTypeFlight" onclick="setEntryType('flight')" data-i18n="flight.entryFlight">
+ ✈ Flight
+ </button>
+ <button type="button" class="entry-type-btn" id="entryTypeSim" onclick="setEntryType('sim')" data-i18n="flight.entrySim">
+ Simulator session
+ </button>
+ </div>
+ </div>
 
-    <!-- ─── SIMULATOR FIELDS (shown only when sim mode is active) ─── -->
-    <div class="form-card" id="simFields" style="display:none;">
-      <div class="form-card-title" data-i18n="flight.simDetails">Simulator Details</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label data-i18n="flight.simType">Sim Type</label>
-          <select id="f-simType">
-            <option value="FFS">FFS — Full Flight Simulator (Level D)</option>
-            <option value="FFS-C">FFS — Level C</option>
-            <option value="FTD">FTD — Flight Training Device</option>
-            <option value="FNPT">FNPT — Flight & Navigation Procedures Trainer</option>
-            <option value="BITD">BITD — Basic Instrument Trainer</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.simSession">Session Type</label>
-          <select id="f-simSession">
-            <option value="PPC">PPC — Pilot Proficiency Check</option>
-            <option value="IPC">IPC — Instrument Proficiency Check</option>
-            <option value="IFR-Renewal">IFR Renewal</option>
-            <option value="Recurrent">Recurrent Training</option>
-            <option value="Initial">Initial Training</option>
-            <option value="Type-Rating">Type Rating Course</option>
-            <option value="LOFT">LOFT — Line Oriented Flight Training</option>
-            <option value="Other">Other Training</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.simRegistration">Sim Device ID</label>
-          <input type="text" id="f-simRegistration" placeholder="e.g. FFS-E195-001" style="text-transform:uppercase;">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.simInstructor">Instructor / Examiner</label>
-          <input type="text" id="f-simInstructor" placeholder="Captain name or examiner #">
-        </div>
-      </div>
-    </div>
+ <!-- ─── SIMULATOR FIELDS (shown only when sim mode is active) ─── -->
+ <div class="form-card" id="simFields" style="display:none;">
+ <div class="form-card-title" data-i18n="flight.simDetails">Simulator Details</div>
+ <div class="form-grid">
+ <div class="form-group">
+ <label data-i18n="flight.simType">Sim Type</label>
+ <select id="f-simType">
+ <option value="FFS">FFS — Full Flight Simulator (Level D)</option>
+ <option value="FFS-C">FFS — Level C</option>
+ <option value="FTD">FTD — Flight Training Device</option>
+ <option value="FNPT">FNPT — Flight & Navigation Procedures Trainer</option>
+ <option value="BITD">BITD — Basic Instrument Trainer</option>
+ <option value="other">Other</option>
+ </select>
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.simSession">Session Type</label>
+ <select id="f-simSession">
+ <option value="PPC">PPC — Pilot Proficiency Check</option>
+ <option value="IPC">IPC — Instrument Proficiency Check</option>
+ <option value="IFR-Renewal">IFR Renewal</option>
+ <option value="Recurrent">Recurrent Training</option>
+ <option value="Initial">Initial Training</option>
+ <option value="Type-Rating">Type Rating Course</option>
+ <option value="LOFT">LOFT — Line Oriented Flight Training</option>
+ <option value="Other">Other Training</option>
+ </select>
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.simRegistration">Sim Device ID</label>
+ <input type="text" id="f-simRegistration" placeholder="e.g. FFS-E195-001" style="text-transform:uppercase;">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.simInstructor">Instructor / Examiner</label>
+ <input type="text" id="f-simInstructor" placeholder="Captain name or examiner #">
+ </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title" data-i18n="flight.flightInfo">✈ Flight Information</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label data-i18n="flight.date">Date</label>
-          <input type="date" id="f-date">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.aircraftType">Aircraft Type</label>
-          <select id="f-type-select" onchange="onAircraftSelect()">
-            <option value="" data-i18n="flight.aircraftSelectPlaceholder">— Select type —</option>
-            <optgroup label="Airline / Regional jets">
-              <option value="E195-E2">E195-E2 — Embraer E-Jet</option>
-              <option value="E190">E190 / E190-E1 — Embraer</option>
-              <option value="A220">A220 (CS300) — Airbus</option>
-              <option value="A319">A319 — Airbus</option>
-              <option value="A320">A320 — Airbus</option>
-              <option value="A321">A321 — Airbus</option>
-              <option value="A330">A330 — Airbus</option>
-              <option value="B737-700">B737-700 — Boeing</option>
-              <option value="B737-800">B737-800 — Boeing</option>
-              <option value="B737 MAX 8">B737 MAX 8 — Boeing</option>
-              <option value="B767">B767 — Boeing</option>
-              <option value="B777">B777 — Boeing</option>
-              <option value="B787">B787 Dreamliner — Boeing</option>
-              <option value="CRJ-200">CRJ-200 — Bombardier</option>
-              <option value="CRJ-700">CRJ-700 — Bombardier</option>
-              <option value="CRJ-900">CRJ-900 — Bombardier</option>
-            </optgroup>
-            <optgroup label="Regional turboprops">
-              <option value="Q400">Q400 (DHC-8-400) — Bombardier</option>
-              <option value="DHC-8-100">DHC-8-100 (Dash 8) — De Havilland</option>
-              <option value="DHC-8-200">DHC-8-200 — De Havilland</option>
-              <option value="DHC-8-300">DHC-8-300 — De Havilland</option>
-              <option value="ATR-42">ATR-42</option>
-              <option value="ATR-72">ATR-72</option>
-              <option value="SAAB 340">SAAB 340</option>
-              <option value="Beechcraft 1900">Beechcraft 1900</option>
-            </optgroup>
-            <optgroup label="Bush / Northern ops">
-              <option value="DHC-6 Twin Otter">DHC-6 Twin Otter — De Havilland</option>
-              <option value="DHC-3 Otter">DHC-3 Otter</option>
-              <option value="DHC-2 Beaver">DHC-2 Beaver</option>
-              <option value="Pilatus PC-12">Pilatus PC-12</option>
-              <option value="King Air 200">King Air 200 / B200</option>
-              <option value="King Air 350">King Air 350</option>
-              <option value="Caravan C208">Cessna 208 Caravan</option>
-              <option value="Cessna 185">Cessna 185 Skywagon</option>
-              <option value="Cessna 206">Cessna 206 Stationair</option>
-              <option value="Beech 18">Beechcraft 18 (Twin Beech)</option>
-              <option value="Britten-Norman BN-2">Britten-Norman BN-2 Islander</option>
-            </optgroup>
-            <optgroup label="General aviation / training">
-              <option value="C172">Cessna 172 Skyhawk</option>
-              <option value="C152">Cessna 152</option>
-              <option value="C150">Cessna 150</option>
-              <option value="PA-28">Piper PA-28 Cherokee / Warrior / Archer</option>
-              <option value="PA-44">Piper PA-44 Seminole</option>
-              <option value="Diamond DA20">Diamond DA20 Katana</option>
-              <option value="Diamond DA40">Diamond DA40 Star</option>
-              <option value="Diamond DA42">Diamond DA42 Twin Star</option>
-              <option value="Cirrus SR20">Cirrus SR20</option>
-              <option value="Cirrus SR22">Cirrus SR22</option>
-            </optgroup>
-            <optgroup label="Helicopter">
-              <option value="R22">Robinson R22</option>
-              <option value="R44">Robinson R44</option>
-              <option value="Bell 206">Bell 206 JetRanger</option>
-              <option value="Bell 407">Bell 407</option>
-              <option value="A-Star AS350">Airbus AS350 (A-Star)</option>
-            </optgroup>
-            <optgroup label="Simulator">
-              <option value="FFS E195-E2">FFS E195-E2 — Level D</option>
-              <option value="FFS Q400">FFS Q400 — Level D</option>
-              <option value="FTD generic">FTD — Flight Training Device</option>
-              <option value="FNPT generic">FNPT — Procedures Trainer</option>
-            </optgroup>
-            <option value="custom" data-i18n="flight.typeCustom">— Other (type manually) —</option>
-          </select>
-          <input type="text" id="f-type-custom" placeholder="Enter aircraft type" style="display:none;margin-top:6px">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.aircraftReg">Registration</label>
-          <input type="text" id="f-reg" placeholder="e.g. C-GKQC, N123AB" oninput="this.value=this.value.toUpperCase()">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.typeRating">Type Rating</label>
-          <input type="text" id="f-rating" placeholder="Type rating">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.aircraftConfig">Aircraft Configuration</label>
-          <select id="f-acConfig">
-            <option value="wheels">Wheels (standard)</option>
-            <option value="floats">Floats / Seaplane</option>
-            <option value="skis">Skis</option>
-            <option value="amphibian">Amphibian</option>
-            <option value="tailwheel">Tailwheel</option>
-            <option value="ski-wheel">Ski-Wheel (combo)</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.pic">Pilot in Command</label>
-          <input type="text" id="f-pic" placeholder="Name">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.copilot">Co-Pilot / Passenger</label>
-          <input type="text" id="f-copilot" placeholder="Name">
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="flight.route">Route</label>
-          <input type="text" id="f-route" placeholder="YOW - YYZ - YOW" oninput="this.value=this.value.toUpperCase()">
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="flight.remarks">Remarks</label>
-          <textarea id="f-remarks" placeholder="Notes, observations..."></textarea>
-        </div>
-      </div>
-    </div>
+ <div class="form-card">
+ <div class="form-card-title" data-i18n="flight.flightInfo">✈ Flight Information</div>
+ <div class="form-grid">
+ <div class="form-group">
+ <label data-i18n="flight.date">Date</label>
+ <input type="date" id="f-date">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.aircraftType">Aircraft Type</label>
+ <select id="f-type-select" onchange="onAircraftSelect()">
+ <option value="" data-i18n="flight.aircraftSelectPlaceholder">— Select type —</option>
+ <optgroup label="Airline / Regional jets">
+ <option value="E195-E2">E195-E2 — Embraer E-Jet</option>
+ <option value="E190">E190 / E190-E1 — Embraer</option>
+ <option value="A220">A220 (CS300) — Airbus</option>
+ <option value="A319">A319 — Airbus</option>
+ <option value="A320">A320 — Airbus</option>
+ <option value="A321">A321 — Airbus</option>
+ <option value="A330">A330 — Airbus</option>
+ <option value="B737-700">B737-700 — Boeing</option>
+ <option value="B737-800">B737-800 — Boeing</option>
+ <option value="B737 MAX 8">B737 MAX 8 — Boeing</option>
+ <option value="B767">B767 — Boeing</option>
+ <option value="B777">B777 — Boeing</option>
+ <option value="B787">B787 Dreamliner — Boeing</option>
+ <option value="CRJ-200">CRJ-200 — Bombardier</option>
+ <option value="CRJ-700">CRJ-700 — Bombardier</option>
+ <option value="CRJ-900">CRJ-900 — Bombardier</option>
+ </optgroup>
+ <optgroup label="Regional turboprops">
+ <option value="Q400">Q400 (DHC-8-400) — Bombardier</option>
+ <option value="DHC-8-100">DHC-8-100 (Dash 8) — De Havilland</option>
+ <option value="DHC-8-200">DHC-8-200 — De Havilland</option>
+ <option value="DHC-8-300">DHC-8-300 — De Havilland</option>
+ <option value="ATR-42">ATR-42</option>
+ <option value="ATR-72">ATR-72</option>
+ <option value="SAAB 340">SAAB 340</option>
+ <option value="Beechcraft 1900">Beechcraft 1900</option>
+ </optgroup>
+ <optgroup label="Bush / Northern ops">
+ <option value="DHC-6 Twin Otter">DHC-6 Twin Otter — De Havilland</option>
+ <option value="DHC-3 Otter">DHC-3 Otter</option>
+ <option value="DHC-2 Beaver">DHC-2 Beaver</option>
+ <option value="Pilatus PC-12">Pilatus PC-12</option>
+ <option value="King Air 200">King Air 200 / B200</option>
+ <option value="King Air 350">King Air 350</option>
+ <option value="Caravan C208">Cessna 208 Caravan</option>
+ <option value="Cessna 185">Cessna 185 Skywagon</option>
+ <option value="Cessna 206">Cessna 206 Stationair</option>
+ <option value="Beech 18">Beechcraft 18 (Twin Beech)</option>
+ <option value="Britten-Norman BN-2">Britten-Norman BN-2 Islander</option>
+ </optgroup>
+ <optgroup label="General aviation / training">
+ <option value="C172">Cessna 172 Skyhawk</option>
+ <option value="C152">Cessna 152</option>
+ <option value="C150">Cessna 150</option>
+ <option value="PA-28">Piper PA-28 Cherokee / Warrior / Archer</option>
+ <option value="PA-44">Piper PA-44 Seminole</option>
+ <option value="Diamond DA20">Diamond DA20 Katana</option>
+ <option value="Diamond DA40">Diamond DA40 Star</option>
+ <option value="Diamond DA42">Diamond DA42 Twin Star</option>
+ <option value="Cirrus SR20">Cirrus SR20</option>
+ <option value="Cirrus SR22">Cirrus SR22</option>
+ </optgroup>
+ <optgroup label="Helicopter">
+ <option value="R22">Robinson R22</option>
+ <option value="R44">Robinson R44</option>
+ <option value="Bell 206">Bell 206 JetRanger</option>
+ <option value="Bell 407">Bell 407</option>
+ <option value="A-Star AS350">Airbus AS350 (A-Star)</option>
+ </optgroup>
+ <optgroup label="Simulator">
+ <option value="FFS E195-E2">FFS E195-E2 — Level D</option>
+ <option value="FFS Q400">FFS Q400 — Level D</option>
+ <option value="FTD generic">FTD — Flight Training Device</option>
+ <option value="FNPT generic">FNPT — Procedures Trainer</option>
+ </optgroup>
+ <option value="custom" data-i18n="flight.typeCustom">— Other (type manually) —</option>
+ </select>
+ <input type="text" id="f-type-custom" placeholder="Enter aircraft type" style="display:none;margin-top:6px">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.aircraftReg">Registration</label>
+ <input type="text" id="f-reg" placeholder="e.g. C-GKQC, N123AB" oninput="this.value=this.value.toUpperCase()">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.typeRating">Type Rating</label>
+ <input type="text" id="f-rating" placeholder="Type rating">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.aircraftConfig">Aircraft Configuration</label>
+ <select id="f-acConfig">
+ <option value="wheels">Wheels (standard)</option>
+ <option value="floats">Floats / Seaplane</option>
+ <option value="skis">Skis</option>
+ <option value="amphibian">Amphibian</option>
+ <option value="tailwheel">Tailwheel</option>
+ <option value="ski-wheel">Ski-Wheel (combo)</option>
+ <option value="other">Other</option>
+ </select>
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.pic">Pilot in Command</label>
+ <input type="text" id="f-pic" placeholder="Name">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.copilot">Co-Pilot / Passenger</label>
+ <input type="text" id="f-copilot" placeholder="Name">
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="flight.route">Route</label>
+ <input type="text" id="f-route" placeholder="YOW - YYZ - YOW" oninput="this.value=this.value.toUpperCase()">
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="flight.remarks">Remarks</label>
+ <textarea id="f-remarks" placeholder="Notes, observations..."></textarea>
+ </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title" data-i18n="flight.timeCard">⏱ Time</div>
-      <div class="form-grid form-grid-3">
-        <div class="form-group" id="fg-block">
-          <label data-i18n="flight.block">Block Time (hrs)</label>
-          <input type="number" id="f-block" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group" id="fg-duty">
-          <label data-i18n="flight.duty">Duty Time (hrs)</label>
-          <input type="number" id="f-duty" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.totalTime">Total Flight Time</label>
-          <input type="number" id="f-total" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-      </div>
-      <!-- Actual UTC times. The only time concept in Cumulo. Schedule
-           times are irrelevant for a logbook — only what actually
-           happened goes in here. Used to drive Night (RAC 101.01) and
-           Cross-Country (CAR 401.34) recalculation. -->
-      <div class="form-grid form-grid-2" style="margin-top:var(--s-3);">
-        <div class="form-group">
-          <label data-i18n="flight.atd">ATD (UTC) — actual departure</label>
-          <input type="text" id="f-atd-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.ata">ATA (UTC) — actual arrival</label>
-          <input type="text" id="f-ata-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
-        </div>
-      </div>
-      <div style="font-size:11px; color:var(--text-muted); margin-top:6px; line-height:1.5;" data-i18n-html="flight.atdHelpHtml">
+ <div class="form-card">
+ <div class="form-card-title" data-i18n="flight.timeCard"> Time</div>
+ <div class="form-grid form-grid-3">
+ <div class="form-group" id="fg-block">
+ <label data-i18n="flight.block">Block Time (hrs)</label>
+ <input type="number" id="f-block" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group" id="fg-duty">
+ <label data-i18n="flight.duty">Duty Time (hrs)</label>
+ <input type="number" id="f-duty" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.totalTime">Total Flight Time</label>
+ <input type="number" id="f-total" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ </div>
+ <!-- Actual UTC times. The only time concept in Cumulo. Schedule
+ times are irrelevant for a logbook — only what actually
+ happened goes in here. Used to drive Night (RAC 101.01) and
+ Cross-Country (CAR 401.34) recalculation. -->
+ <div class="form-grid form-grid-2" style="margin-top:var(--s-3);">
+ <div class="form-group">
+ <label data-i18n="flight.atd">ATD (UTC) — actual departure</label>
+ <input type="text" id="f-atd-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.ata">ATA (UTC) — actual arrival</label>
+ <input type="text" id="f-ata-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
+ </div>
+ </div>
+ <div style="font-size:11px; color:var(--text-muted); margin-top:6px; line-height:1.5;" data-i18n-html="flight.atdHelpHtml">
         Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
-      </div>
-    </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title" data-i18n="flight.meCard">🌙 Multi-Engine Time</div>
-      <div class="form-grid form-grid-4">
-        <div class="form-group">
-          <label data-i18n="flight.meDayDual">ME Day — Dual</label>
-          <input type="number" id="f-me-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.meDayPic">ME Day — PIC</label>
-          <input type="number" id="f-me-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group" id="fg-me-day-cop">
-          <label data-i18n="flight.meDayCop">ME Day — Co-Pilot</label>
-          <input type="number" id="f-me-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.meNightDual">ME Night — Dual</label>
-          <input type="number" id="f-me-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.meNightPic">ME Night — PIC</label>
-          <input type="number" id="f-me-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group" id="fg-me-night-cop">
-          <label data-i18n="flight.meNightCop">ME Night — Co-Pilot</label>
-          <input type="number" id="f-me-night-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-      </div>
-    </div>
+ <div class="form-card">
+ <div class="form-card-title" data-i18n="flight.meCard"> Multi-Engine Time</div>
+ <div class="form-grid form-grid-4">
+ <div class="form-group">
+ <label data-i18n="flight.meDayDual">ME Day — Dual</label>
+ <input type="number" id="f-me-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.meDayPic">ME Day — PIC</label>
+ <input type="number" id="f-me-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group" id="fg-me-day-cop">
+ <label data-i18n="flight.meDayCop">ME Day — Co-Pilot</label>
+ <input type="number" id="f-me-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.meNightDual">ME Night — Dual</label>
+ <input type="number" id="f-me-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.meNightPic">ME Night — PIC</label>
+ <input type="number" id="f-me-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group" id="fg-me-night-cop">
+ <label data-i18n="flight.meNightCop">ME Night — Co-Pilot</label>
+ <input type="number" id="f-me-night-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title" data-i18n="flight.xcCard">🗺 Cross Country</div>
-      <div class="form-grid form-grid-4">
-        <div class="form-group">
-          <label>XC Day — Dual</label>
-          <input type="number" id="f-xc-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label>XC Day — PIC</label>
-          <input type="number" id="f-xc-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label>XC Night — Dual</label>
-          <input type="number" id="f-xc-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label>XC Night — PIC</label>
-          <input type="number" id="f-xc-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-      </div>
-    </div>
+ <div class="form-card">
+ <div class="form-card-title" data-i18n="flight.xcCard">🗺 Cross Country</div>
+ <div class="form-grid form-grid-4">
+ <div class="form-group">
+ <label>XC Day — Dual</label>
+ <input type="number" id="f-xc-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label>XC Day — PIC</label>
+ <input type="number" id="f-xc-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label>XC Night — Dual</label>
+ <input type="number" id="f-xc-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label>XC Night — PIC</label>
+ <input type="number" id="f-xc-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title" data-i18n="flight.landingsCard">🛬 Landings & Instrument</div>
-      <div class="form-grid form-grid-4">
-        <div class="form-group">
-          <label data-i18n="flight.ldgDay">Day Landings</label>
-          <input type="number" id="f-ldg-day" placeholder="0" inputmode="numeric" step="1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.ldgNight">Night Landings</label>
-          <input type="number" id="f-ldg-night" placeholder="0" inputmode="numeric" step="1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.instActual">Instrument — Actual</label>
-          <input type="number" id="f-inst-actual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.instHood">Instrument — Hood</label>
-          <input type="number" id="f-inst-hood" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group">
-          <label data-i18n="flight.instSim">Instrument — Sim</label>
-          <input type="number" id="f-inst-sim" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-        <div class="form-group" id="fg-picus">
-          <label data-i18n="flight.picus">PICUS</label>
-          <input type="number" id="f-picus" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
-        </div>
-      </div>
-    </div>
+ <div class="form-card">
+ <div class="form-card-title" data-i18n="flight.landingsCard"> Landings & Instrument</div>
+ <div class="form-grid form-grid-4">
+ <div class="form-group">
+ <label data-i18n="flight.ldgDay">Day Landings</label>
+ <input type="number" id="f-ldg-day" placeholder="0" inputmode="numeric" step="1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.ldgNight">Night Landings</label>
+ <input type="number" id="f-ldg-night" placeholder="0" inputmode="numeric" step="1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.instActual">Instrument — Actual</label>
+ <input type="number" id="f-inst-actual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.instHood">Instrument — Hood</label>
+ <input type="number" id="f-inst-hood" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label data-i18n="flight.instSim">Instrument — Sim</label>
+ <input type="number" id="f-inst-sim" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group" id="fg-picus">
+ <label data-i18n="flight.picus">PICUS</label>
+ <input type="number" id="f-picus" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ </div>
+ </div>
 
-    <div class="form-actions">
-      <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveFlight()">💾 Save Flight</button>
-    </div>
-  </div>
+ <div class="form-actions">
+ <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
+ <button class="btn btn-primary" onclick="saveFlight()"> Save Flight</button>
+ </div>
+ </div>
 
-  <!-- ── IMPORT ── -->
-  <div id="page-import" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.import.title">Import</div>
-        <div class="page-sub" data-i18n="page.import.sub">Photo scan or Navblue PDF</div>
-      </div>
-    </div>
+ <!-- ── IMPORT ── -->
+ <div id="page-import" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.import.title">Import</div>
+ <div class="page-sub" data-i18n="page.import.sub">Photo scan or Navblue PDF</div>
+ </div>
+ </div>
 
-    <div class="import-grid">
-      <div class="drop-zone" id="photoZone"
-           onclick="document.getElementById('photoInput').click()"
-           ondragover="event.preventDefault();this.classList.add('dragover')"
-           ondragleave="this.classList.remove('dragover')"
-           ondrop="handleDrop(event,'photo')">
-        <div class="drop-icon">📸</div>
-        <div class="drop-title" data-i18n="import.photoTitle">Photo / Scan</div>
-        <div class="drop-sub" data-i18n-html="import.photoDescHtml">Take a photo of your paper logbook page.<br>AI reads all fields automatically.</div>
-        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
-      </div>
-      <div class="drop-zone" id="pdfZone" onclick="toggleNavbluePanel()" style="cursor:pointer">
-        <div class="drop-icon">📄</div>
-        <div class="drop-title" data-i18n="import.pdfTitle">Navblue Roster</div>
-        <div class="drop-sub" data-i18n-html="import.pdfDescHtml">Upload your Navblue PDF roster.<br>AI extracts only real flights.</div>
-      </div>
-    </div>
+ <div class="import-grid">
+ <div class="drop-zone" id="photoZone"
+ onclick="document.getElementById('photoInput').click()"
+ ondragover="event.preventDefault();this.classList.add('dragover')"
+ ondragleave="this.classList.remove('dragover')"
+ ondrop="handleDrop(event,'photo')">
+ <div class="drop-icon"></div>
+ <div class="drop-title" data-i18n="import.photoTitle">Photo / Scan</div>
+ <div class="drop-sub" data-i18n-html="import.photoDescHtml">Take a photo of your paper logbook page.<br>AI reads all fields automatically.</div>
+ <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
+ </div>
+ <div class="drop-zone" id="pdfZone" onclick="toggleNavbluePanel()" style="cursor:pointer">
+ <div class="drop-icon"></div>
+ <div class="drop-title" data-i18n="import.pdfTitle">Navblue Roster</div>
+ <div class="drop-sub" data-i18n-html="import.pdfDescHtml">Upload your Navblue PDF roster.<br>AI extracts only real flights.</div>
+ </div>
+ </div>
 
-    <!-- NAVBLUE PDF PANEL -->
-    <div id="navbluePanel" style="display:none;margin-bottom:18px">
-      <div class="form-card">
-        <div class="form-card-title" data-i18n="import.navblueCardTitle">📄 Navblue Roster — Upload PDF</div>
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;font-family:var(--font-mono)" data-i18n-html="import.navblueInstrHtml">
-          Upload your Navblue HrRosterReport PDF directly.<br>
-          AI reads the format and imports only your real flights.<br>
-          <strong>Skips:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO
-        </p>
-        <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()" style="padding:24px">
-          <div class="drop-icon">📋</div>
-          <div class="drop-title" data-i18n="import.navblueClickToSelect">Click to select Navblue PDF</div>
-          <div class="drop-sub" data-i18n="import.navblueFileHint">Roster_XXXX_MMMYYYY.pdf</div>
-        </div>
-        <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
-        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:14px">
-          <button class="btn btn-ghost" onclick="document.getElementById('navbluePanel').style.display='none'" data-i18n="btn.cancel">Cancel</button>
-        </div>
-      </div>
-    </div>
+ <!-- NAVBLUE PDF PANEL -->
+ <div id="navbluePanel" style="display:none;margin-bottom:18px">
+ <div class="form-card">
+ <div class="form-card-title" data-i18n="import.navblueCardTitle"> Navblue Roster — Upload PDF</div>
+ <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;font-family:var(--font-mono)" data-i18n-html="import.navblueInstrHtml">
+ Upload your Navblue HrRosterReport PDF directly.<br>
+ AI reads the format and imports only your real flights.<br>
+ <strong>Skips:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO
+ </p>
+ <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()" style="padding:24px">
+ <div class="drop-icon"></div>
+ <div class="drop-title" data-i18n="import.navblueClickToSelect">Click to select Navblue PDF</div>
+ <div class="drop-sub" data-i18n="import.navblueFileHint">Roster_XXXX_MMMYYYY.pdf</div>
+ </div>
+ <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
+ <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:14px">
+ <button class="btn btn-ghost" onclick="document.getElementById('navbluePanel').style.display='none'" data-i18n="btn.cancel">Cancel</button>
+ </div>
+ </div>
+ </div>
 
-    <div class="ai-box" id="aiBox">
-      <div class="ai-spinner"></div>
-      <div class="ai-msg" id="aiMsg" data-i18n="import.aiAnalyzing">ANALYZING LOGBOOK IMAGE...</div>
-    </div>
+ <div class="ai-box" id="aiBox">
+ <div class="ai-spinner"></div>
+ <div class="ai-msg" id="aiMsg" data-i18n="import.aiAnalyzing">ANALYZING LOGBOOK IMAGE...</div>
+ </div>
 
-    <!-- importPreview moved to a floating modal overlay (see below, before #toast) -->
-  </div>
+ <!-- importPreview moved to a floating modal overlay (see below, before #toast) -->
+ </div>
 
-  <!-- ── PROFILE ── -->
-  <div id="page-profile" class="page">
-    <div class="page-header">
-      <div><div class="page-title" data-i18n="page.profile.title">Profile</div></div>
-      <div class="page-actions">
-        <button class="btn btn-primary" onclick="saveProfile()" data-i18n="profile.saveBtn">💾 Save Profile</button>
-      </div>
-    </div>
+ <!-- ── PROFILE ── -->
+ <div id="page-profile" class="page">
+ <div class="page-header">
+ <div><div class="page-title" data-i18n="page.profile.title">Profile</div></div>
+ <div class="page-actions">
+ <button class="btn btn-primary" onclick="saveProfile()" data-i18n="profile.saveBtn"> Save Profile</button>
+ </div>
+ </div>
 
-    <div class="profile-hero">
-      <div class="profile-avatar">✈</div>
-      <div>
-        <div class="profile-name-display" id="profileNameDisp">F/O M. Daoust</div>
-        <div class="profile-role-display" id="profileRoleDisp">First Officer</div>
-      </div>
-    </div>
+ <div class="profile-hero">
+ <div class="profile-avatar">✈</div>
+ <div>
+ <div class="profile-name-display" id="profileNameDisp">Pilot</div>
+ <div class="profile-role-display" id="profileRoleDisp">First Officer</div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title">✈ <span data-i18n="profile.section.type">Pilot Type</span></div>
-      <div class="profile-type-grid">
-        <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
-          <div class="pt-icon">✈</div>
-          <div class="pt-name" data-i18n="profile.type.airline">Airline 705</div>
-          <div class="pt-desc" data-i18n="profile.type.airlineDesc">Air carrier ops · All TC columns</div>
-        </div>
-        <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')">
-          <div class="pt-icon">🛩</div>
-          <div class="pt-name" data-i18n="profile.type.private">Private / CPL</div>
-          <div class="pt-desc" data-i18n="profile.type.privateDesc">PPL / recreational · Simplified form</div>
-        </div>
-        <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')">
-          <div class="pt-icon">📚</div>
-          <div class="pt-name" data-i18n="profile.type.student">Student / CPL</div>
-          <div class="pt-desc" data-i18n="profile.type.studentDesc">Flight training · Dual &amp; solo focus</div>
-        </div>
-        <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')">
-          <div class="pt-icon">🎓</div>
-          <div class="pt-name" data-i18n="profile.type.instructor">Instructor / CFI</div>
-          <div class="pt-desc" data-i18n="profile.type.instructorDesc">Dual given · ATPL credit focus</div>
-        </div>
-        <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
-          <div class="pt-icon">🚁</div>
-          <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
-          <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · CAR 401.05 currency</div>
-        </div>
-      </div>
-    </div>
+ <div class="form-card">
+ <div class="form-card-title">✈ <span data-i18n="profile.section.type">Pilot Type</span></div>
+ <div class="profile-type-grid">
+ <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
+ <div class="pt-icon">✈</div>
+ <div class="pt-name" data-i18n="profile.type.airline">Airline 705</div>
+ <div class="pt-desc" data-i18n="profile.type.airlineDesc">Air carrier ops · All TC columns</div>
+ </div>
+ <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')">
+ <div class="pt-icon"></div>
+ <div class="pt-name" data-i18n="profile.type.private">Private / CPL</div>
+ <div class="pt-desc" data-i18n="profile.type.privateDesc">PPL / recreational · Simplified form</div>
+ </div>
+ <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')">
+ <div class="pt-icon"></div>
+ <div class="pt-name" data-i18n="profile.type.student">Student / CPL</div>
+ <div class="pt-desc" data-i18n="profile.type.studentDesc">Flight training · Dual &amp; solo focus</div>
+ </div>
+ <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')">
+ <div class="pt-icon"></div>
+ <div class="pt-name" data-i18n="profile.type.instructor">Instructor / CFI</div>
+ <div class="pt-desc" data-i18n="profile.type.instructorDesc">Dual given · ATPL credit focus</div>
+ </div>
+ <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
+ <div class="pt-icon"></div>
+ <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
+ <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · CAR 401.05 currency</div>
+ </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title">👤 <span data-i18n="profile.section.identity">Pilot Information</span></div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label data-i18n="profile.fname">First Name</label>
-          <input type="text" id="p-fname" placeholder="First name">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.lname">Last Name</label>
-          <input type="text" id="p-lname" placeholder="Last name">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.rank">Title / Rank</label>
-          <select id="p-rank">
-            <option value="F/O">F/O — First Officer</option>
-            <option value="Cpt.">Cpt. — Captain</option>
-            <option value="Student">Student Pilot</option>
-            <option value="PPL">PPL</option>
-            <option value="CPL">CPL</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.airline">Airline / Operator</label>
-          <select id="p-airlineSelect" onchange="onAirlineSelectChange()">
-            <option value="" data-i18n="profile.airline.select">— Select airline —</option>
-            <optgroup label="705 — Airline Operations">
-              <option value="Air Canada|AC">Air Canada (AC)</option>
-              <option value="Air Canada Express / Jazz|QK">Air Canada Express / Jazz (QK)</option>
-              <option value="WestJet|WS">WestJet (WS)</option>
-              <option value="WestJet Encore|WR">WestJet Encore (WR)</option>
-              <option value="Air Transat|TS">Air Transat (TS)</option>
-              <option value="Porter Airlines|PD">Porter Airlines (PD)</option>
-              <option value="Flair Airlines|F8">Flair Airlines (F8)</option>
-              <option value="Canadian North|5T">Canadian North (5T)</option>
-            </optgroup>
-            <optgroup label="704 — Commuter Operations">
-              <option value="PAL Airlines|PB">PAL Airlines (PB)</option>
-              <option value="Pacific Coastal Airlines|8P">Pacific Coastal Airlines (8P)</option>
-              <option value="Bearskin Airlines|JV">Bearskin Airlines (JV)</option>
-              <option value="Air Inuit|3H">Air Inuit (3H)</option>
-              <option value="Calm Air|MO">Calm Air (MO)</option>
-              <option value="Central Mountain Air|9M">Central Mountain Air (9M)</option>
-              <option value="North Star Air|NSA">North Star Air (NSA)</option>
-              <option value="Air Tindi|8T">Air Tindi (8T)</option>
-              <option value="Kenn Borek Air|KBA">Kenn Borek Air (KBA)</option>
-              <option value="Air Creebec|YN">Air Creebec (YN)</option>
-            </optgroup>
-            <optgroup label="703 — Air Taxi Operations">
-              <option value="Buffalo Airways|BFL">Buffalo Airways</option>
-              <option value="Wasaya Airways|WT">Wasaya Airways (WT)</option>
-              <option value="North-Wright Airways|HW">North-Wright Airways</option>
-              <option value="Summit Air|SUT">Summit Air</option>
-              <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
-              <option value="Missinippi Airways|MWT">Missinippi Airways</option>
-            </optgroup>
-            <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
-              <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
-              <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
-              <option value="Helijet International|HEJ">Helijet International</option>
-              <option value="Ascent Helicopters|ASC">Ascent Helicopters</option>
-              <option value="Yellowhead Helicopters|YHL">Yellowhead Helicopters</option>
-              <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
-              <option value="Heli-One|HO">Heli-One</option>
-            </optgroup>
-            <optgroup label="FTO — Flight Training Organization">
-              <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
-              <option value="Confederation College Aviation|CCA">Confederation College</option>
-              <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
-              <option value="Moncton Flight College|MFC">Moncton Flight College</option>
-              <option value="Seneca Aviation|SEN">Seneca Aviation</option>
-              <option value="Cargair|CGR">Cargair</option>
-              <option value="Other FTO|FTO">Other FTO — flight school</option>
-            </optgroup>
-            <optgroup label="Other">
-              <option value="other" data-i18n="profile.airline.other">— Other / Custom (enter manually) —</option>
-              <option value="none" data-i18n="profile.airline.none">Private / Not affiliated with an operator</option>
-            </optgroup>
-          </select>
-        </div>
-        <div class="form-group" id="p-airline-custom-wrap" style="display:none;">
-          <label data-i18n="profile.airline.custom">Custom Airline Name</label>
-          <input type="text" id="p-airline" placeholder="Type the airline name">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.license">License Number</label>
-          <input type="text" id="p-license" placeholder="ATPL number">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.medical">Medical Expiry</label>
-          <input type="date" id="p-medical">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.ecg">ECG Due Date</label>
-          <input type="date" id="p-ecg">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.base">Base</label>
-          <input type="text" id="p-base" placeholder="e.g. CYOW, CYUL, KJFK">
-        </div>
-        <div class="form-group">
-          <label data-i18n="profile.fleet">Primary Fleet</label>
-          <input type="text" id="p-fleet" placeholder="e.g. C172, B737, E190">
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="profile.codes">Operator Codes (for flight number recognition)</label>
-          <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;" data-i18n-html="profile.codesHintHtml">
-            Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
-          </div>
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="profile.ifr.title">IFR Approach Auto-Count</label>
-          <label class="col-option" style="margin-top:6px;">
-            <input type="checkbox" id="p-autoCountIFR" />
-            <span class="col-option-label" data-i18n="profile.ifr.label">Count 1 IFR approach per flight on sync (705 line operations)</span>
-          </label>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.ifr.descHtml">
+ <div class="form-card">
+ <div class="form-card-title"> <span data-i18n="profile.section.identity">Pilot Information</span></div>
+ <div class="form-grid">
+ <div class="form-group">
+ <label data-i18n="profile.fname">First Name</label>
+ <input type="text" id="p-fname" placeholder="First name">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.lname">Last Name</label>
+ <input type="text" id="p-lname" placeholder="Last name">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.rank">Title / Rank</label>
+ <select id="p-rank">
+ <option value="F/O">F/O — First Officer</option>
+ <option value="Cpt.">Cpt. — Captain</option>
+ <option value="Student">Student Pilot</option>
+ <option value="PPL">PPL</option>
+ <option value="CPL">CPL</option>
+ </select>
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.airline">Airline / Operator</label>
+ <select id="p-airlineSelect" onchange="onAirlineSelectChange()">
+ <option value="" data-i18n="profile.airline.select">— Select airline —</option>
+ <optgroup label="705 — Airline Operations">
+ <option value="Air Canada|AC">Air Canada (AC)</option>
+ <option value="Air Canada Express / Jazz|QK">Air Canada Express / Jazz (QK)</option>
+ <option value="WestJet|WS">WestJet (WS)</option>
+ <option value="WestJet Encore|WR">WestJet Encore (WR)</option>
+ <option value="Air Transat|TS">Air Transat (TS)</option>
+ <option value="Porter Airlines|PD">Porter Airlines (PD)</option>
+ <option value="Flair Airlines|F8">Flair Airlines (F8)</option>
+ <option value="Canadian North|5T">Canadian North (5T)</option>
+ </optgroup>
+ <optgroup label="704 — Commuter Operations">
+ <option value="PAL Airlines|PB">PAL Airlines (PB)</option>
+ <option value="Pacific Coastal Airlines|8P">Pacific Coastal Airlines (8P)</option>
+ <option value="Bearskin Airlines|JV">Bearskin Airlines (JV)</option>
+ <option value="Air Inuit|3H">Air Inuit (3H)</option>
+ <option value="Calm Air|MO">Calm Air (MO)</option>
+ <option value="Central Mountain Air|9M">Central Mountain Air (9M)</option>
+ <option value="North Star Air|NSA">North Star Air (NSA)</option>
+ <option value="Air Tindi|8T">Air Tindi (8T)</option>
+ <option value="Kenn Borek Air|KBA">Kenn Borek Air (KBA)</option>
+ <option value="Air Creebec|YN">Air Creebec (YN)</option>
+ </optgroup>
+ <optgroup label="703 — Air Taxi Operations">
+ <option value="Buffalo Airways|BFL">Buffalo Airways</option>
+ <option value="Wasaya Airways|WT">Wasaya Airways (WT)</option>
+ <option value="North-Wright Airways|HW">North-Wright Airways</option>
+ <option value="Summit Air|SUT">Summit Air</option>
+ <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
+ <option value="Missinippi Airways|MWT">Missinippi Airways</option>
+ </optgroup>
+ <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
+ <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
+ <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
+ <option value="Helijet International|HEJ">Helijet International</option>
+ <option value="Ascent Helicopters|ASC">Ascent Helicopters</option>
+ <option value="Yellowhead Helicopters|YHL">Yellowhead Helicopters</option>
+ <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
+ <option value="Heli-One|HO">Heli-One</option>
+ </optgroup>
+ <optgroup label="FTO — Flight Training Organization">
+ <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
+ <option value="Confederation College Aviation|CCA">Confederation College</option>
+ <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
+ <option value="Moncton Flight College|MFC">Moncton Flight College</option>
+ <option value="Seneca Aviation|SEN">Seneca Aviation</option>
+ <option value="Cargair|CGR">Cargair</option>
+ <option value="Other FTO|FTO">Other FTO — flight school</option>
+ </optgroup>
+ <optgroup label="Other">
+ <option value="other" data-i18n="profile.airline.other">— Other / Custom (enter manually) —</option>
+ <option value="none" data-i18n="profile.airline.none">Private / Not affiliated with an operator</option>
+ </optgroup>
+ </select>
+ </div>
+ <div class="form-group" id="p-airline-custom-wrap" style="display:none;">
+ <label data-i18n="profile.airline.custom">Custom Airline Name</label>
+ <input type="text" id="p-airline" placeholder="Type the airline name">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.license">License Number</label>
+ <input type="text" id="p-license" placeholder="ATPL number">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.medical">Medical Expiry</label>
+ <input type="date" id="p-medical">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.ecg">ECG Due Date</label>
+ <input type="date" id="p-ecg">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.base">Base</label>
+ <input type="text" id="p-base" placeholder="e.g. CYOW, CYUL, KJFK">
+ </div>
+ <div class="form-group">
+ <label data-i18n="profile.fleet">Primary Fleet</label>
+ <input type="text" id="p-fleet" placeholder="e.g. C172, B737, E190">
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="profile.codes">Operator Codes (for flight number recognition)</label>
+ <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
+ <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;" data-i18n-html="profile.codesHintHtml">
+ Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
+ </div>
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="profile.ifr.title">IFR Approach Auto-Count</label>
+ <label class="col-option" style="margin-top:6px;">
+ <input type="checkbox" id="p-autoCountIFR" />
+ <span class="col-option-label" data-i18n="profile.ifr.label">Count 1 IFR approach per flight on sync (705 line operations)</span>
+ </label>
+ <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.ifr.descHtml">
             Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.
-          </div>
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="profile.captain.title">Captain Name Privacy (PIPEDA)</label>
-          <label class="col-option" style="margin-top:6px;">
-            <input type="checkbox" id="p-consentCaptainNames" />
-            <span class="col-option-label" data-i18n="profile.captain.label">I have my crew's consent (or accept responsibility) — keep full captain names</span>
-          </label>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.captain.descHtml">
-            <strong>Default: OFF (anonymized).</strong> When OFF, Cumulo automatically stores captain names from Navblue / PDF roster / AI photo imports as <strong>initials only</strong> (e.g. <code>M.D.</code> instead of <code>Martin Daoust</code>). This protects third-party privacy under PIPEDA Principle 4.3 (consent from the data subject).<br><br>Turn ON only if you've obtained your crew's consent to record their names in your logbook, or if you take responsibility for that handling. Already-imported names are not touched retroactively — only new imports follow the current setting.
-          </div>
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="profile.display.title">Display preferences</label>
-          <label class="col-option" style="margin-top:6px;">
-            <input type="checkbox" id="p-hideZeroColumns" />
-            <span class="col-option-label" data-i18n="profile.display.label">Hide empty columns on screen (sum = 0 across all flights)</span>
-          </label>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.display.descHtml">
-            Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. Useful when you've imported a CSV that doesn't have the full TC granularity (e.g. ForeFlight imports leave SE Day, IFR Hood, etc. empty). <strong>The PDF export for Transport Canada always keeps all 38 columns</strong> for ramp-check compliance, regardless of this setting.
-          </div>
-        </div>
-        <div class="form-group col-span-2">
-          <label data-i18n="profile.acConfigs.title">Aircraft Configurations (for bush / GA pilots)</label>
-          <div style="display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:6px;" id="p-acConfigs">
-            <label class="col-option"><input type="checkbox" value="wheels" /> <span class="col-option-label" data-i18n="profile.acConfigs.wheels">Wheels (standard)</span></label>
-            <label class="col-option"><input type="checkbox" value="floats" /> <span class="col-option-label" data-i18n="profile.acConfigs.floats">Floats / Seaplane</span></label>
-            <label class="col-option"><input type="checkbox" value="skis" /> <span class="col-option-label" data-i18n="profile.acConfigs.skis">Skis</span></label>
-            <label class="col-option"><input type="checkbox" value="amphibian" /> <span class="col-option-label" data-i18n="profile.acConfigs.amphibian">Amphibian</span></label>
-            <label class="col-option"><input type="checkbox" value="tailwheel" /> <span class="col-option-label" data-i18n="profile.acConfigs.tailwheel">Tailwheel / Conventional gear</span></label>
-            <label class="col-option"><input type="checkbox" value="multiengine" /> <span class="col-option-label" data-i18n="profile.acConfigs.multi">Multi-engine</span></label>
-            <label class="col-option"><input type="checkbox" value="turbine" /> <span class="col-option-label" data-i18n="profile.acConfigs.turbine">Turbine</span></label>
-            <label class="col-option"><input type="checkbox" value="jet" /> <span class="col-option-label" data-i18n="profile.acConfigs.jet">Jet</span></label>
-            <label class="col-option"><input type="checkbox" value="helicopter" /> <span class="col-option-label" data-i18n="profile.acConfigs.heli">Helicopter</span></label>
-            <label class="col-option"><input type="checkbox" value="glider" /> <span class="col-option-label" data-i18n="profile.acConfigs.glider">Glider</span></label>
-          </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;" data-i18n="profile.acConfigs.descHtml">
-            Check the configurations you fly. Used to filter aircraft type suggestions and currency tracking (TC requires separate currency for floats, skis, tailwheel per CAR 401.05).
-          </div>
-        </div>
-      </div>
-    </div>
+ </div>
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="profile.captain.title">Captain Name Privacy (PIPEDA)</label>
+ <label class="col-option" style="margin-top:6px;">
+ <input type="checkbox" id="p-consentCaptainNames" />
+ <span class="col-option-label" data-i18n="profile.captain.label">I have my crew's consent (or accept responsibility) — keep full captain names</span>
+ </label>
+ <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.captain.descHtml">
+            <strong>Default: OFF (anonymized).</strong> When OFF, Cumulo automatically stores captain names from Navblue / PDF roster / AI photo imports as <strong>initials only</strong> (e.g. <code>J.S.</code> instead of <code>John Smith</code>). This protects third-party privacy under PIPEDA Principle 4.3 (consent from the data subject).<br><br>Turn ON only if you've obtained your crew's consent to record their names in your logbook, or if you take responsibility for that handling. Already-imported names are not touched retroactively — only new imports follow the current setting.
+ </div>
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="profile.display.title">Display preferences</label>
+ <label class="col-option" style="margin-top:6px;">
+ <input type="checkbox" id="p-hideZeroColumns" />
+ <span class="col-option-label" data-i18n="profile.display.label">Hide empty columns on screen (sum = 0 across all flights)</span>
+ </label>
+ <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.display.descHtml">
+ Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. Useful when you've imported a CSV that doesn't have the full TC granularity (e.g. ForeFlight imports leave SE Day, IFR Hood, etc. empty). <strong>The PDF export for Transport Canada always keeps all 38 columns</strong> for ramp-check compliance, regardless of this setting.
+ </div>
+ </div>
+ <div class="form-group col-span-2">
+ <label data-i18n="profile.acConfigs.title">Aircraft Configurations (for bush / GA pilots)</label>
+ <div style="display:flex; flex-wrap:wrap; gap:var(--s-2); margin-top:6px;" id="p-acConfigs">
+ <label class="col-option"><input type="checkbox" value="wheels" /> <span class="col-option-label" data-i18n="profile.acConfigs.wheels">Wheels (standard)</span></label>
+ <label class="col-option"><input type="checkbox" value="floats" /> <span class="col-option-label" data-i18n="profile.acConfigs.floats">Floats / Seaplane</span></label>
+ <label class="col-option"><input type="checkbox" value="skis" /> <span class="col-option-label" data-i18n="profile.acConfigs.skis">Skis</span></label>
+ <label class="col-option"><input type="checkbox" value="amphibian" /> <span class="col-option-label" data-i18n="profile.acConfigs.amphibian">Amphibian</span></label>
+ <label class="col-option"><input type="checkbox" value="tailwheel" /> <span class="col-option-label" data-i18n="profile.acConfigs.tailwheel">Tailwheel / Conventional gear</span></label>
+ <label class="col-option"><input type="checkbox" value="multiengine" /> <span class="col-option-label" data-i18n="profile.acConfigs.multi">Multi-engine</span></label>
+ <label class="col-option"><input type="checkbox" value="turbine" /> <span class="col-option-label" data-i18n="profile.acConfigs.turbine">Turbine</span></label>
+ <label class="col-option"><input type="checkbox" value="jet" /> <span class="col-option-label" data-i18n="profile.acConfigs.jet">Jet</span></label>
+ <label class="col-option"><input type="checkbox" value="helicopter" /> <span class="col-option-label" data-i18n="profile.acConfigs.heli">Helicopter</span></label>
+ <label class="col-option"><input type="checkbox" value="glider" /> <span class="col-option-label" data-i18n="profile.acConfigs.glider">Glider</span></label>
+ </div>
+ <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;" data-i18n="profile.acConfigs.descHtml">
+ Check the configurations you fly. Used to filter aircraft type suggestions and currency tracking (TC requires separate currency for floats, skis, tailwheel per CAR 401.05).
+ </div>
+ </div>
+ </div>
+ </div>
 
-    <div class="form-card">
-      <div class="form-card-title">✍ Electronic Signature</div>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:var(--s-3);line-height:1.5">
-        Sign below. Your signature is saved locally and appears on PDF exports.
-      </p>
-      <div style="border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-surface);overflow:hidden;touch-action:none">
-        <canvas id="sigCanvas" width="600" height="120" style="display:block;width:100%;cursor:crosshair"></canvas>
-      </div>
-      <div style="display:flex;gap:var(--s-2);margin-top:var(--s-3);align-items:center">
-        <button class="btn btn-ghost btn-sm" onclick="clearSignature()">🗑 Clear</button>
-        <button class="btn btn-primary btn-sm" onclick="saveSignature()">💾 Save Signature</button>
-        <span id="sigStatus" class="eyebrow" style="margin-left:auto;"></span>
-      </div>
-    </div>
+ <div class="form-card">
+ <div class="form-card-title">✍ Electronic Signature</div>
+ <p style="font-size:12px;color:var(--text-muted);margin-bottom:var(--s-3);line-height:1.5">
+ Sign below. Your signature is saved locally and appears on PDF exports.
+ </p>
+ <div style="border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-surface);overflow:hidden;touch-action:none">
+ <canvas id="sigCanvas" width="600" height="120" style="display:block;width:100%;cursor:crosshair"></canvas>
+ </div>
+ <div style="display:flex;gap:var(--s-2);margin-top:var(--s-3);align-items:center">
+ <button class="btn btn-ghost btn-sm" onclick="clearSignature()"> Clear</button>
+ <button class="btn btn-primary btn-sm" onclick="saveSignature()"> Save Signature</button>
+ <span id="sigStatus" class="eyebrow" style="margin-left:auto;"></span>
+ </div>
+ </div>
 
-  </div>
+ </div>
 
-  <!-- ── Q&A ── -->
-  <div id="page-qa" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.qa.title">Q&A</div>
-        <div class="page-sub" data-i18n="page.qa.sub">Common aviation & logbook questions</div>
-      </div>
-    </div>
+ <!-- ── Q&A ── -->
+ <div id="page-qa" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.qa.title">Q&A</div>
+ <div class="page-sub" data-i18n="page.qa.sub">Common aviation & logbook questions</div>
+ </div>
+ </div>
 
-    <!-- FAQ accordion -->
-    <div class="card" style="margin-bottom:18px">
-      <div class="card-header"><div class="card-title">Common Questions</div></div>
-      <div id="faqList"></div>
-    </div>
+ <!-- FAQ accordion -->
+ <div class="card" style="margin-bottom:18px">
+ <div class="card-header"><div class="card-title">Common Questions</div></div>
+ <div id="faqList"></div>
+ </div>
 
-    <!-- AI "Ask a Question" form removed — to be re-introduced as a premium feature
-         once Cumulo has authentication and bilingual support. See git history at
-         commit aedca46 for the previous implementation. -->
-  </div>
+ <!-- AI "Ask a Question" form removed — to be re-introduced as a premium feature
+ once Cumulo has authentication and bilingual support. See git history at
+ commit aedca46 for the previous implementation. -->
+ </div>
 
-  <!-- ── GLOSSARY ── -->
-  <div id="page-glossary" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.glossary.title">Aviation Glossary</div>
-        <div class="page-sub" data-i18n="page.glossary.sub">Logbook abbreviations & definitions</div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header">
-        <input type="text" class="search-input" placeholder="Search abbreviation or definition..." oninput="filterGlossary(this.value)" id="glossarySearch">
-      </div>
-      <div id="glossaryList" style="padding:6px 0"></div>
-    </div>
-  </div>
+ <!-- ── GLOSSARY ── -->
+ <div id="page-glossary" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.glossary.title">Aviation Glossary</div>
+ <div class="page-sub" data-i18n="page.glossary.sub">Logbook abbreviations & definitions</div>
+ </div>
+ </div>
+ <div class="card" style="margin-bottom:16px">
+ <div class="card-header">
+ <input type="text" class="search-input" placeholder="Search abbreviation or definition..." oninput="filterGlossary(this.value)" id="glossarySearch">
+ </div>
+ <div id="glossaryList" style="padding:6px 0"></div>
+ </div>
+ </div>
 
-  <!-- ── YEAR RECAP ── -->
-  <div id="page-recap" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.recap.title">Year Recap</div>
-        <div class="page-sub" data-i18n="page.recap.sub">Annual flight summary</div>
-      </div>
-      <div class="page-actions">
-        <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);font-family:var(--font-mono);font-size:13px;background:var(--white);color:var(--text)"></select>
-      </div>
-    </div>
+ <!-- ── YEAR RECAP ── -->
+ <div id="page-recap" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.recap.title">Year Recap</div>
+ <div class="page-sub" data-i18n="page.recap.sub">Annual flight summary</div>
+ </div>
+ <div class="page-actions">
+ <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);font-family:var(--font-mono);font-size:13px;background:var(--white);color:var(--text)"></select>
+ </div>
+ </div>
 
-    <div class="stats-grid" id="recapStats" style="margin-bottom:20px"></div>
+ <div class="stats-grid" id="recapStats" style="margin-bottom:20px"></div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Monthly Hours</div></div>
-        <div style="padding:16px"><canvas id="recapChart" height="130"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Top Airports</div></div>
-        <div id="recapAirports" style="padding:16px;font-size:13px"></div>
-      </div>
-    </div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+ <div class="card">
+ <div class="card-header"><div class="card-title">Monthly Hours</div></div>
+ <div style="padding:16px"><canvas id="recapChart" height="130"></canvas></div>
+ </div>
+ <div class="card">
+ <div class="card-header"><div class="card-title">Top Airports</div></div>
+ <div id="recapAirports" style="padding:16px;font-size:13px"></div>
+ </div>
+ </div>
 
-    <div class="card">
-      <div class="card-header"><div class="card-title">Top Routes</div></div>
-      <div id="recapRoutes" style="padding:16px;font-size:13px"></div>
-    </div>
-  </div>
+ <div class="card">
+ <div class="card-header"><div class="card-title">Top Routes</div></div>
+ <div id="recapRoutes" style="padding:16px;font-size:13px"></div>
+ </div>
+ </div>
 
-  <!-- ── BACKUP ── -->
-  <div id="page-backup" class="page">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-i18n="page.settings.title">Settings</div>
-        <div class="page-sub" data-i18n="page.settings.sub">Sync · Display · Export · Data</div>
-      </div>
-    </div>
+ <!-- ── BACKUP ── -->
+ <div id="page-backup" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.settings.title">Settings</div>
+ <div class="page-sub" data-i18n="page.settings.sub">Sync · Display · Export · Data</div>
+ </div>
+ </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- SECTION 0 — PRIVACY & TRUST (visible signals) -->
-    <!-- ═══════════════════════════════════════════ -->
-    <div class="settings-section">
-      <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
+ <!-- ═══════════════════════════════════════════ -->
+ <!-- SECTION 0 — PRIVACY & TRUST (visible signals) -->
+ <!-- ═══════════════════════════════════════════ -->
+ <div class="settings-section">
+ <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
 
-      <!-- Canadian data residency card — visible promise. -->
-      <div class="form-card settings-card trust-card">
-        <div class="settings-card-head">
-          <div class="settings-card-icon">🇨🇦</div>
-          <div>
-            <div class="settings-card-title" data-i18n="trust.canada.title">Your flight data stays in Canada</div>
-            <div class="settings-card-sub" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.</div>
-          </div>
-        </div>
-        <div class="trust-bullets">
-          <div class="trust-bullet"><span class="trust-bullet-icon">🔒</span><span data-i18n="trust.bullet.encrypted">Encrypted end-to-end</span></div>
-          <div class="trust-bullet"><span class="trust-bullet-icon">🇨🇦</span><span data-i18n="trust.bullet.canadian">Stored in Montréal</span></div>
-          <div class="trust-bullet"><span class="trust-bullet-icon">🚫</span><span data-i18n="trust.bullet.nosale">We will never sell your data</span></div>
-          <div class="trust-bullet"><span class="trust-bullet-icon">📤</span><span data-i18n="trust.bullet.yours">Your data, your ownership — export anytime</span></div>
-        </div>
-        <div style="margin-top:var(--s-3); font-size:12px;">
-          <a href="security.html" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600;" data-i18n="trust.whitepaper">📜 Read the full security whitepaper →</a>
-        </div>
-      </div>
+ <!-- Canadian data residency card — visible promise. -->
+ <div class="form-card settings-card trust-card">
+ <div class="settings-card-head">
+ <div class="settings-card-icon"></div>
+ <div>
+ <div class="settings-card-title" data-i18n="trust.canada.title">Your flight data stays in Canada</div>
+ <div class="settings-card-sub" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.</div>
+ </div>
+ </div>
+ <div class="trust-bullets">
+ <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.encrypted">Encrypted end-to-end</span></div>
+ <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.canadian">Stored in Montréal</span></div>
+ <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.nosale">We will never sell your data</span></div>
+ <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.yours">Your data, your ownership — export anytime</span></div>
+ </div>
+ <div style="margin-top:var(--s-3); font-size:12px;">
+ <a href="security.html" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600;" data-i18n="trust.whitepaper"> Read the full security whitepaper →</a>
+ </div>
+ </div>
 
-      <!-- Export all my data — already prominent. -->
-      <div class="settings-row">
-        <div class="settings-row-icon">📤</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="trust.export.title">Export all my data</div>
-          <div class="settings-row-desc" data-i18n="trust.export.desc">Download a full JSON copy of every flight, your profile, and your import audit log. Your data is yours — take it with you anytime.</div>
-        </div>
-        <button class="btn btn-outline" onclick="backupData()" data-i18n="trust.export.btn">📤 Export</button>
-      </div>
+ <!-- Export all my data — already prominent. -->
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="trust.export.title">Export all my data</div>
+ <div class="settings-row-desc" data-i18n="trust.export.desc">Download a full JSON copy of every flight, your profile, and your import audit log. Your data is yours — take it with you anytime.</div>
+ </div>
+ <button class="btn btn-outline" onclick="backupData()" data-i18n="trust.export.btn"> Export</button>
+ </div>
 
-      <!-- Delete account + purge — honest danger button, not buried. -->
-      <div class="settings-row">
-        <div class="settings-row-icon">🗑</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="trust.delete.title">Delete my data + purge</div>
-          <div class="settings-row-desc" data-i18n="trust.delete.desc">Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days.</div>
-        </div>
-        <button class="btn btn-danger" onclick="deleteAccountPurge()" data-i18n="trust.delete.btn">Delete + Purge</button>
-      </div>
-    </div>
+ <!-- Delete account + purge — honest danger button, not buried. -->
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="trust.delete.title">Delete my data + purge</div>
+ <div class="settings-row-desc" data-i18n="trust.delete.desc">Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days.</div>
+ </div>
+ <button class="btn btn-danger" onclick="deleteAccountPurge()" data-i18n="trust.delete.btn">Delete + Purge</button>
+ </div>
+ </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- SECTION 1 — IMPORT & SYNC                   -->
-    <!-- ═══════════════════════════════════════════ -->
-    <div class="settings-section">
-      <div class="settings-section-title" data-i18n="settings.section.sync">Sync &amp; Import</div>
+ <!-- ═══════════════════════════════════════════ -->
+ <!-- SECTION 1 — IMPORT & SYNC -->
+ <!-- ═══════════════════════════════════════════ -->
+ <div class="settings-section">
+ <div class="settings-section-title" data-i18n="settings.section.sync">Sync &amp; Import</div>
 
-      <!-- Navblue iCal Auto-Sync -->
-      <div class="form-card settings-card settings-card-accent">
-        <div class="settings-card-head">
-          <div class="settings-card-icon">🔄</div>
-          <div>
-            <div class="settings-card-title" data-i18n="sync.navblue.title">Navblue iCal Auto-Sync</div>
-            <div class="settings-card-desc" data-i18n="sync.navblue.desc">Fetches your roster automatically — completed flights with real block hours.</div>
-          </div>
-          <span id="navblueStatus" class="eyebrow"></span>
-        </div>
-        <div class="form-group" style="margin-bottom:var(--s-3);">
-          <label for="navblueUrl" data-i18n="sync.navblue.urlLabel">iCal URL</label>
-          <input type="url" id="navblueUrl"
-                 placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
-                 style="font-family:var(--font-mono); font-size:11px;">
-        </div>
-        <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="saveNavblueUrl()" data-i18n="sync.navblue.saveBtn">💾 Save URL</button>
-          <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn" data-i18n="sync.navblue.syncBtn">🔄 Sync now</button>
-          <button class="btn btn-ghost btn-sm" onclick="showNavblueDiagnostic()" title="View raw iCal data — useful if crew names aren't appearing">🔧 Diagnostic</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
-        </div>
-        <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
-      </div>
+ <!-- Navblue iCal Auto-Sync -->
+ <div class="form-card settings-card settings-card-accent">
+ <div class="settings-card-head">
+ <div class="settings-card-icon"></div>
+ <div>
+ <div class="settings-card-title" data-i18n="sync.navblue.title">Navblue iCal Auto-Sync</div>
+ <div class="settings-card-desc" data-i18n="sync.navblue.desc">Fetches your roster automatically — completed flights with real block hours.</div>
+ </div>
+ <span id="navblueStatus" class="eyebrow"></span>
+ </div>
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="navblueUrl" data-i18n="sync.navblue.urlLabel">iCal URL</label>
+ <input type="url" id="navblueUrl"
+ placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
+ style="font-family:var(--font-mono); font-size:11px;">
+ </div>
+ <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
+ <button class="btn btn-primary" onclick="saveNavblueUrl()" data-i18n="sync.navblue.saveBtn"> Save URL</button>
+ <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn" data-i18n="sync.navblue.syncBtn"> Sync now</button>
+ <button class="btn btn-ghost btn-sm" onclick="showNavblueDiagnostic()" title="View raw iCal data — useful if crew names aren't appearing"> Diagnostic</button>
+ <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
+ </div>
+ <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
+ </div>
 
-      <!-- PDF Roster for captain names -->
-      <div class="form-card settings-card settings-card-success">
-        <div class="settings-card-head">
-          <div class="settings-card-icon">👨‍✈️</div>
-          <div>
-            <div class="settings-card-title" data-i18n="sync.roster.title">Crew names from PDF roster</div>
-            <div class="settings-card-desc" data-i18n="sync.roster.desc">iCal doesn't include captains. Drop your HrRosterReport PDF — Cumulo extracts and merges captain names. 100% client-side, nothing uploaded.</div>
-          </div>
-        </div>
-        <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
-             ondragover="event.preventDefault(); this.classList.add('dragover');"
-             ondragleave="this.classList.remove('dragover');"
-             ondrop="handleRosterDrop(event);">
-          <div class="drop-icon">📄</div>
-          <div class="drop-title" data-i18n="sync.roster.dropTitle">Drop Navblue PDF roster here</div>
-          <div class="drop-sub" data-i18n="sync.roster.dropSub">or click · HrRosterReport_*.pdf</div>
-        </div>
-        <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
-        <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
-      </div>
+ <!-- PDF Roster for captain names -->
+ <div class="form-card settings-card settings-card-success">
+ <div class="settings-card-head">
+ <div class="settings-card-icon"></div>
+ <div>
+ <div class="settings-card-title" data-i18n="sync.roster.title">Crew names from PDF roster</div>
+ <div class="settings-card-desc" data-i18n="sync.roster.desc">iCal doesn't include captains. Drop your HrRosterReport PDF — Cumulo extracts and merges captain names. 100% client-side, nothing uploaded.</div>
+ </div>
+ </div>
+ <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
+ ondragover="event.preventDefault(); this.classList.add('dragover');"
+ ondragleave="this.classList.remove('dragover');"
+ ondrop="handleRosterDrop(event);">
+ <div class="drop-icon"></div>
+ <div class="drop-title" data-i18n="sync.roster.dropTitle">Drop Navblue PDF roster here</div>
+ <div class="drop-sub" data-i18n="sync.roster.dropSub">or click · HrRosterReport_*.pdf</div>
+ </div>
+ <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
+ <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
+ </div>
 
-      <!-- Migrate from another logbook app (CSV import) -->
-      <div class="form-card settings-card">
-        <div class="settings-card-head">
-          <div class="settings-card-icon">📥</div>
-          <div>
-            <div class="settings-card-title" data-i18n="sync.csv.title">Migrate from another logbook app</div>
-            <div class="settings-card-desc" data-i18n="sync.csv.desc">Drop a CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens the universal column-mapping wizard. 100% client-side, nothing uploaded.</div>
-          </div>
-        </div>
-        <div id="csvDropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click()"
-             ondragover="event.preventDefault(); this.classList.add('dragover');"
-             ondragleave="this.classList.remove('dragover');"
-             ondrop="handleCsvDrop(event);">
-          <div class="drop-icon">📑</div>
-          <div class="drop-title" data-i18n="sync.csv.dropTitle">Drop your logbook CSV export here</div>
-          <div class="drop-sub" data-i18n="sync.csv.dropSub">or click · .csv from ForeFlight / LogTen / MyFlightbook / Logbook Pro / Safelog / any other</div>
-        </div>
-        <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(this.files[0])">
-        <div style="margin-top:var(--s-2); font-size:11px; color:var(--text-muted); line-height:1.5;" data-i18n="sync.csv.note">
-          Imports are stored as-is — Cumulo never invents data. Fields not present in the source CSV are saved as 0. Use the "Hide empty columns" toggle in Profile to clean the table view. The PDF export for Transport Canada always shows the full 38 columns regardless of import source.
-        </div>
-      </div>
-    </div>
+ <!-- Migrate from another logbook app (CSV import) -->
+ <div class="form-card settings-card">
+ <div class="settings-card-head">
+ <div class="settings-card-icon"></div>
+ <div>
+ <div class="settings-card-title" data-i18n="sync.csv.title">Migrate from another logbook app</div>
+ <div class="settings-card-desc" data-i18n="sync.csv.desc">Drop a CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens the universal column-mapping wizard. 100% client-side, nothing uploaded.</div>
+ </div>
+ </div>
+ <div id="csvDropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click()"
+ ondragover="event.preventDefault(); this.classList.add('dragover');"
+ ondragleave="this.classList.remove('dragover');"
+ ondrop="handleCsvDrop(event);">
+ <div class="drop-icon">📑</div>
+ <div class="drop-title" data-i18n="sync.csv.dropTitle">Drop your logbook CSV export here</div>
+ <div class="drop-sub" data-i18n="sync.csv.dropSub">or click · .csv from ForeFlight / LogTen / MyFlightbook / Logbook Pro / Safelog / any other</div>
+ </div>
+ <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(this.files[0])">
+ <div style="margin-top:var(--s-2); font-size:11px; color:var(--text-muted); line-height:1.5;" data-i18n="sync.csv.note">
+ Imports are stored as-is — Cumulo never invents data. Fields not present in the source CSV are saved as 0. Use the "Hide empty columns" toggle in Profile to clean the table view. The PDF export for Transport Canada always shows the full 38 columns regardless of import source.
+ </div>
+ </div>
+ </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- SECTION 2 — DISPLAY & EXPORT                -->
-    <!-- ═══════════════════════════════════════════ -->
-    <div class="settings-section">
-      <div class="settings-section-title" data-i18n="settings.section.display">Display &amp; Export</div>
+ <!-- ═══════════════════════════════════════════ -->
+ <!-- SECTION 2 — DISPLAY & EXPORT -->
+ <!-- ═══════════════════════════════════════════ -->
+ <div class="settings-section">
+ <div class="settings-section-title" data-i18n="settings.section.display">Display &amp; Export</div>
 
-      <!-- Theme -->
-      <div class="settings-row">
-        <div class="settings-row-icon">🌙</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.darkmode.title">Dark Mode</div>
-          <div class="settings-row-desc" data-i18n="settings.darkmode.desc">Switch between light and dark theme.</div>
-        </div>
-        <div class="dark-toggle">
-          <label class="toggle-switch">
-            <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
+ <!-- Theme -->
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.darkmode.title">Dark Mode</div>
+ <div class="settings-row-desc" data-i18n="settings.darkmode.desc">Switch between light and dark theme.</div>
+ </div>
+ <div class="dark-toggle">
+ <label class="toggle-switch">
+ <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
+ <span class="toggle-slider"></span>
+ </label>
+ </div>
+ </div>
 
-      <!-- Language -->
-      <div class="settings-row">
-        <div class="settings-row-icon">🌐</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.language.title">Language</div>
-          <div class="settings-row-desc" data-i18n="settings.language.desc">Interface language. The TC PDF export stays English (regulatory requirement).</div>
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button type="button" class="btn btn-ghost btn-sm" id="langBtnEN" onclick="setLang('en')">EN</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="langBtnFR" onclick="setLang('fr')">FR</button>
-        </div>
-      </div>
+ <!-- Language -->
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.language.title">Language</div>
+ <div class="settings-row-desc" data-i18n="settings.language.desc">Interface language. The TC PDF export stays English (regulatory requirement).</div>
+ </div>
+ <div style="display:flex; gap:6px;">
+ <button type="button" class="btn btn-ghost btn-sm" id="langBtnEN" onclick="setLang('en')">EN</button>
+ <button type="button" class="btn btn-ghost btn-sm" id="langBtnFR" onclick="setLang('fr')">FR</button>
+ </div>
+ </div>
 
-      <!-- Export PDF -->
-      <div class="settings-row">
-        <div class="settings-row-icon">📄</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.export.title">Export Logbook as PDF</div>
-          <div class="settings-row-desc" data-i18n="settings.export.desc">Print-ready CAR 401.08 layout with cover page, signature blocks, and currency status annex.</div>
-        </div>
-        <button class="btn btn-primary" onclick="exportPDF()" data-i18n="btn.export">📄 Export</button>
-      </div>
+ <!-- Export PDF -->
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.export.title">Export Logbook as PDF</div>
+ <div class="settings-row-desc" data-i18n="settings.export.desc">Print-ready CAR 401.08 layout with cover page, signature blocks, and currency status annex.</div>
+ </div>
+ <button class="btn btn-primary" onclick="exportPDF()" data-i18n="btn.export"> Export</button>
+ </div>
 
-      <!-- Column visibility is now controlled inline:
-           - Logbook page: 'Columns ▾' menu in the table header
-           - PDF export: 'Select columns' modal before generating -->
-    </div>
+ <!-- Column visibility is now controlled inline:
+ - Logbook page: 'Columns ▾' menu in the table header
+ - PDF export: 'Select columns' modal before generating -->
+ </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- SECTION 3 — DATA MAINTENANCE                -->
-    <!-- ═══════════════════════════════════════════ -->
-    <div class="settings-section">
-      <div class="settings-section-title" data-i18n="settings.section.data">Data &amp; Maintenance</div>
+ <!-- ═══════════════════════════════════════════ -->
+ <!-- SECTION 3 — DATA MAINTENANCE -->
+ <!-- ═══════════════════════════════════════════ -->
+ <div class="settings-section">
+ <div class="settings-section-title" data-i18n="settings.section.data">Data &amp; Maintenance</div>
 
-      <div class="settings-row">
-        <div class="settings-row-icon">🌙</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.recalc.title">Recalculate Night &amp; Cross-Country</div>
-          <div class="settings-row-desc" data-i18n="settings.recalc.desc">Re-process all flights with astronomical sunrise/sunset (RAC 101.01) and great-circle distance (CAR 401.34).</div>
-        </div>
-        <button class="btn btn-outline" onclick="recalculateAllFlights()">🔄 Recalc</button>
-      </div>
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.recalc.title">Recalculate Night &amp; Cross-Country</div>
+ <div class="settings-row-desc" data-i18n="settings.recalc.desc">Re-process all flights with astronomical sunrise/sunset (RAC 101.01) and great-circle distance (CAR 401.34).</div>
+ </div>
+ <button class="btn btn-outline" onclick="recalculateAllFlights()"> Recalc</button>
+ </div>
 
-      <div class="settings-row">
-        <div class="settings-row-icon">↩️</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.undo.title">Undo last bulk operation</div>
-          <div class="settings-row-desc" data-i18n="settings.undo.desc">Cumulo snapshots automatically before sync/recalc. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.</div>
-        </div>
-        <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">↩️ Undo</button>
-      </div>
+ <div class="settings-row">
+ <div class="settings-row-icon">️</div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.undo.title">Undo last bulk operation</div>
+ <div class="settings-row-desc" data-i18n="settings.undo.desc">Cumulo snapshots automatically before sync/recalc. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.</div>
+ </div>
+ <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">️ Undo</button>
+ </div>
 
-      <div class="settings-row">
-        <div class="settings-row-icon">💾</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.backup.title">Download data backup (JSON)</div>
-          <div class="settings-row-desc" data-i18n="settings.backup.desc">Technical backup for restoring on another device. Not human-readable — use Export PDF for reading.</div>
-        </div>
-        <button class="btn btn-ghost" onclick="backupData()">Download JSON</button>
-      </div>
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.backup.title">Download data backup (JSON)</div>
+ <div class="settings-row-desc" data-i18n="settings.backup.desc">Technical backup for restoring on another device. Not human-readable — use Export PDF for reading.</div>
+ </div>
+ <button class="btn btn-ghost" onclick="backupData()">Download JSON</button>
+ </div>
 
-      <div class="settings-row">
-        <div class="settings-row-icon">📤</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" data-i18n="settings.restore.title">Restore from JSON backup</div>
-          <div class="settings-row-desc" data-i18n="settings.restore.desc">Load a previously downloaded backup file.</div>
-        </div>
-        <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">Restore</button>
-        <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)">
-      </div>
-    </div>
+ <div class="settings-row">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.restore.title">Restore from JSON backup</div>
+ <div class="settings-row-desc" data-i18n="settings.restore.desc">Load a previously downloaded backup file.</div>
+ </div>
+ <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">Restore</button>
+ <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)">
+ </div>
+ </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- SECTION 4 — DANGER ZONE                     -->
-    <!-- ═══════════════════════════════════════════ -->
-    <div class="settings-section settings-section-danger">
-      <div class="settings-section-title" style="color:var(--danger);" data-i18n="settings.danger">Danger Zone</div>
-      <div class="settings-row settings-row-danger">
-        <div class="settings-row-icon">🗑</div>
-        <div class="settings-row-info">
-          <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all data</div>
-          <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong></div>
-        </div>
-        <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear All</button>
-      </div>
-    </div>
-  </div>
+ <!-- ═══════════════════════════════════════════ -->
+ <!-- SECTION 4 — DANGER ZONE -->
+ <!-- ═══════════════════════════════════════════ -->
+ <div class="settings-section settings-section-danger">
+ <div class="settings-section-title" style="color:var(--danger);" data-i18n="settings.danger">Danger Zone</div>
+ <div class="settings-row settings-row-danger">
+ <div class="settings-row-icon"></div>
+ <div class="settings-row-info">
+ <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all data</div>
+ <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong></div>
+ </div>
+ <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear All</button>
+ </div>
+ </div>
+ </div>
 
 </main>
 </div>
 
 <!-- ONBOARDING WIZARD (shown on first launch — no profile set) -->
 <div class="import-overlay" id="onboardingOverlay" onclick="if(event.target===this)skipOnboarding()">
-  <div class="import-modal" style="max-width:560px;">
-    <div class="import-modal-head">
-      <div>
-        <div class="eyebrow" style="margin-bottom:4px;"><span data-i18n="onb.step">Step</span> <span id="onbStepNum">1</span> <span data-i18n="onb.of">of</span> 4</div>
-        <div class="t-title-2" id="onbStepTitle">Welcome to Cumulo</div>
-      </div>
-      <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip">
+ <div class="import-modal" style="max-width:560px;">
+ <div class="import-modal-head">
+ <div>
+ <div class="eyebrow" style="margin-bottom:4px;"><span data-i18n="onb.step">Step</span> <span id="onbStepNum">1</span> <span data-i18n="onb.of">of</span> 4</div>
+ <div class="t-title-2" id="onbStepTitle">Welcome to Cumulo</div>
+ </div>
+ <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="import-modal-body" id="onbBody">
-      <!-- Filled by onboarding script -->
-    </div>
-    <div class="import-modal-foot">
-      <button class="btn btn-ghost" onclick="skipOnboarding()" data-i18n="onb.skip">Skip setup</button>
-      <button class="btn btn-ghost" id="onbBackBtn" onclick="onboardingBack()" style="display:none;" data-i18n="onb.back">← Back</button>
-      <button class="btn btn-primary" id="onbNextBtn" onclick="onboardingNext()" data-i18n="onb.continue">Continue →</button>
-    </div>
-  </div>
+ </button>
+ </div>
+ <div class="import-modal-body" id="onbBody">
+ <!-- Filled by onboarding script -->
+ </div>
+ <div class="import-modal-foot">
+ <button class="btn btn-ghost" onclick="skipOnboarding()" data-i18n="onb.skip">Skip setup</button>
+ <button class="btn btn-ghost" id="onbBackBtn" onclick="onboardingBack()" style="display:none;" data-i18n="onb.back">← Back</button>
+ <button class="btn btn-primary" id="onbNextBtn" onclick="onboardingNext()" data-i18n="onb.continue">Continue →</button>
+ </div>
+ </div>
 </div>
 
 <!-- FLIGHT DETAIL MODAL (click any row in Logbook to open) -->
 <div class="import-overlay" id="flightDetailOverlay" onclick="if(event.target===this)closeFlightDetail()">
-  <div class="import-modal" style="max-width:560px;">
-    <div class="import-modal-head">
-      <div>
-        <div class="eyebrow" style="margin-bottom:4px;">Flight Detail</div>
-        <div class="t-title-2" id="flightDetailTitle">Flight</div>
-      </div>
-      <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close">
+ <div class="import-modal" style="max-width:560px;">
+ <div class="import-modal-head">
+ <div>
+ <div class="eyebrow" style="margin-bottom:4px;">Flight Detail</div>
+ <div class="t-title-2" id="flightDetailTitle">Flight</div>
+ </div>
+ <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="import-modal-body">
-      <div id="flightDetailBody"></div>
-    </div>
-    <div class="import-modal-foot">
-      <button class="btn btn-ghost" id="flightDetailDeleteBtn">🗑 Delete</button>
-      <button class="btn btn-primary" id="flightDetailEditBtn">✏ Edit flight</button>
-    </div>
-  </div>
+ </button>
+ </div>
+ <div class="import-modal-body">
+ <div id="flightDetailBody"></div>
+ </div>
+ <div class="import-modal-foot">
+ <button class="btn btn-ghost" id="flightDetailDeleteBtn"> Delete</button>
+ <button class="btn btn-primary" id="flightDetailEditBtn">✏ Edit flight</button>
+ </div>
+ </div>
 </div>
 
 <!-- IMPORT REVIEW MODAL (floating overlay — appears over any page) -->
 <div class="import-overlay" id="importPreview" onclick="if(event.target===this)cancelImport()">
-  <div class="import-modal">
-    <div class="import-modal-head">
-      <div>
-        <div class="t-title-2" data-i18n="preview.title">Review extracted flights</div>
-        <div class="eyebrow" style="margin-top:4px;" id="importSubtitle" data-i18n="preview.selectInstruction">Select which flights to import</div>
-      </div>
-      <button class="icon-btn" onclick="cancelImport()" aria-label="Close" title="Close">
+ <div class="import-modal">
+ <div class="import-modal-head">
+ <div>
+ <div class="t-title-2" data-i18n="preview.title">Review extracted flights</div>
+ <div class="eyebrow" style="margin-top:4px;" id="importSubtitle" data-i18n="preview.selectInstruction">Select which flights to import</div>
+ </div>
+ <button class="icon-btn" onclick="cancelImport()" aria-label="Close" title="Close">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="import-modal-body">
-      <div id="extractedList"></div>
-    </div>
-    <div class="import-modal-foot">
-      <button class="btn btn-ghost" onclick="cancelImport()" data-i18n="preview.cancel.btn">Cancel</button>
-      <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" data-i18n="preview.confirm.btn">✅ Import</button>
-    </div>
-  </div>
+ </button>
+ </div>
+ <div class="import-modal-body">
+ <div id="extractedList"></div>
+ </div>
+ <div class="import-modal-foot">
+ <button class="btn btn-ghost" onclick="cancelImport()" data-i18n="preview.cancel.btn">Cancel</button>
+ <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" data-i18n="preview.confirm.btn"> Import</button>
+ </div>
+ </div>
 </div>
 
 <!-- AUTH MODAL — populated dynamically by AuthUI.render() in 18-supabase.js.
-     Hidden by default; .show class displays it (see 08-auth.css). -->
+ Hidden by default; .show class displays it (see 08-auth.css). -->
 <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
-  <div class="auth-modal-backdrop" onclick="AuthUI.close()"></div>
-  <div class="auth-modal-card">
-    <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close">×</button>
-    <div class="auth-modal-body" id="authModalBody"></div>
-  </div>
+ <div class="auth-modal-backdrop" onclick="AuthUI.close()"></div>
+ <div class="auth-modal-card">
+ <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close">×</button>
+ <div class="auth-modal-body" id="authModalBody"></div>
+ </div>
 </div>
 
 <!-- TOAST -->
