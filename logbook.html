@@ -1242,6 +1242,44 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 .col-pill.off { opacity: 0.7; }
 
+/* ─── Settings tabs (top of Settings page) ─── */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--s-5);
+  padding: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.settings-tab {
+  flex: 1 1 auto;
+  min-width: 80px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: calc(var(--r-md) - 4px);
+  cursor: pointer;
+  transition: all var(--t-micro) var(--ease-out);
+  white-space: nowrap;
+}
+.settings-tab:hover { color: var(--text); background: var(--bg-surface); }
+.settings-tab.active {
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+@media (max-width: 600px) {
+  .settings-tab { font-size: 12px; padding: 8px 12px; min-width: 64px; }
+}
+
 /* ─── Privacy & Trust card (Settings → Section 0) ─── */
 .trust-card {
   border: 1px solid var(--accent, #3884ff) !important;
@@ -3216,14 +3254,24 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="page-header">
  <div>
  <div class="page-title" data-i18n="page.settings.title">Settings</div>
- <div class="page-sub" data-i18n="page.settings.sub">Sync · Display · Export · Data</div>
+ <div class="page-sub" data-i18n="page.settings.sub">Sync · Display · Data · Privacy · Danger</div>
  </div>
+ </div>
+
+ <!-- Settings tab bar — only one section visible at a time. Cleaner than
+      stacking five long sections; pattern from Linear / Stripe Dashboard. -->
+ <div class="settings-tabs" role="tablist">
+ <button type="button" class="settings-tab active" data-settings-tab="sync"    onclick="showSettingsTab('sync')"    role="tab" aria-selected="true"  data-i18n="settings.tab.sync">Sync</button>
+ <button type="button" class="settings-tab"        data-settings-tab="display" onclick="showSettingsTab('display')" role="tab" aria-selected="false" data-i18n="settings.tab.display">Display</button>
+ <button type="button" class="settings-tab"        data-settings-tab="data"    onclick="showSettingsTab('data')"    role="tab" aria-selected="false" data-i18n="settings.tab.data">Data</button>
+ <button type="button" class="settings-tab"        data-settings-tab="privacy" onclick="showSettingsTab('privacy')" role="tab" aria-selected="false" data-i18n="settings.tab.privacy">Privacy</button>
+ <button type="button" class="settings-tab"        data-settings-tab="danger"  onclick="showSettingsTab('danger')"  role="tab" aria-selected="false" data-i18n="settings.tab.danger">Danger</button>
  </div>
 
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 0 — PRIVACY & TRUST (visible signals) -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="privacy" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
 
  <!-- Canadian data residency card — visible promise. -->
@@ -3270,7 +3318,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 1 — IMPORT & SYNC -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="sync">
  <div class="settings-section-title" data-i18n="settings.section.sync">Sync &amp; Import</div>
 
  <!-- Navblue iCal Auto-Sync -->
@@ -3346,7 +3394,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 2 — DISPLAY & EXPORT -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="display" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.display">Display &amp; Export</div>
 
  <!-- Theme -->
@@ -3395,7 +3443,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 3 — DATA MAINTENANCE -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="data" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.data">Data &amp; Maintenance</div>
 
  <div class="settings-row">
@@ -3439,7 +3487,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 4 — DANGER ZONE -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section settings-section-danger">
+ <div class="settings-section settings-section-danger" data-settings-pane="danger" style="display:none;">
  <div class="settings-section-title" style="color:var(--danger);" data-i18n="settings.danger">Danger Zone</div>
  <div class="settings-row settings-row-danger">
  <div class="settings-row-icon"></div>
@@ -6978,6 +7026,37 @@ function loadNavblueUI() {
   updateNavblueStatus();
   updateUndoButton();
   renderColumnPicker();
+}
+
+// ═══════════════════════════════════════════
+// SETTINGS TABS — only one section visible at a time
+// ═══════════════════════════════════════════
+const SETTINGS_TAB_KEY = 'cumulo_settings_tab_v1';
+
+function showSettingsTab(name) {
+  if (!name) return;
+  // Toggle pane visibility
+  document.querySelectorAll('[data-settings-pane]').forEach(el => {
+    el.style.display = (el.getAttribute('data-settings-pane') === name) ? '' : 'none';
+  });
+  // Toggle tab button active state
+  document.querySelectorAll('[data-settings-tab]').forEach(btn => {
+    const isActive = btn.getAttribute('data-settings-tab') === name;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  // Persist for next visit
+  try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}
+  // Reset scroll to top of page so user sees the new pane
+  window.scrollTo({ top: document.querySelector('#page-backup .page-header')?.offsetTop || 0, behavior: 'instant' });
+}
+
+// Restore last-used tab on page load (default = 'sync')
+function restoreSettingsTab() {
+  const saved = (() => {
+    try { return localStorage.getItem(SETTINGS_TAB_KEY); } catch { return null; }
+  })();
+  showSettingsTab(saved || 'sync');
 }
 
 // ═══════════════════════════════════════════
@@ -11857,7 +11936,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-pilot-grade-strip';
+const BUILD_VERSION = 'v3a-2026-05-14-settings-tabs';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

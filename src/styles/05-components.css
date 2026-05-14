@@ -440,6 +440,44 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 .col-pill.off { opacity: 0.7; }
 
+/* ─── Settings tabs (top of Settings page) ─── */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--s-5);
+  padding: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.settings-tab {
+  flex: 1 1 auto;
+  min-width: 80px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: calc(var(--r-md) - 4px);
+  cursor: pointer;
+  transition: all var(--t-micro) var(--ease-out);
+  white-space: nowrap;
+}
+.settings-tab:hover { color: var(--text); background: var(--bg-surface); }
+.settings-tab.active {
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+@media (max-width: 600px) {
+  .settings-tab { font-size: 12px; padding: 8px 12px; min-width: 64px; }
+}
+
 /* ─── Privacy & Trust card (Settings → Section 0) ─── */
 .trust-card {
   border: 1px solid var(--accent, #3884ff) !important;

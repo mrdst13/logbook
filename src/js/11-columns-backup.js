@@ -1,4 +1,35 @@
 // ═══════════════════════════════════════════
+// SETTINGS TABS — only one section visible at a time
+// ═══════════════════════════════════════════
+const SETTINGS_TAB_KEY = 'cumulo_settings_tab_v1';
+
+function showSettingsTab(name) {
+  if (!name) return;
+  // Toggle pane visibility
+  document.querySelectorAll('[data-settings-pane]').forEach(el => {
+    el.style.display = (el.getAttribute('data-settings-pane') === name) ? '' : 'none';
+  });
+  // Toggle tab button active state
+  document.querySelectorAll('[data-settings-tab]').forEach(btn => {
+    const isActive = btn.getAttribute('data-settings-tab') === name;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  // Persist for next visit
+  try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}
+  // Reset scroll to top of page so user sees the new pane
+  window.scrollTo({ top: document.querySelector('#page-backup .page-header')?.offsetTop || 0, behavior: 'instant' });
+}
+
+// Restore last-used tab on page load (default = 'sync')
+function restoreSettingsTab() {
+  const saved = (() => {
+    try { return localStorage.getItem(SETTINGS_TAB_KEY); } catch { return null; }
+  })();
+  showSettingsTab(saved || 'sync');
+}
+
+// ═══════════════════════════════════════════
 // COLUMN PICKER (Settings → Visible Columns)
 // ═══════════════════════════════════════════
 function renderColumnPicker() {

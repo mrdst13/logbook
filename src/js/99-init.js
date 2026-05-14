@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-pilot-grade-strip';
+const BUILD_VERSION = 'v3a-2026-05-14-settings-tabs';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

@@ -954,14 +954,24 @@
  <div class="page-header">
  <div>
  <div class="page-title" data-i18n="page.settings.title">Settings</div>
- <div class="page-sub" data-i18n="page.settings.sub">Sync · Display · Export · Data</div>
+ <div class="page-sub" data-i18n="page.settings.sub">Sync · Display · Data · Privacy · Danger</div>
  </div>
+ </div>
+
+ <!-- Settings tab bar — only one section visible at a time. Cleaner than
+      stacking five long sections; pattern from Linear / Stripe Dashboard. -->
+ <div class="settings-tabs" role="tablist">
+ <button type="button" class="settings-tab active" data-settings-tab="sync"    onclick="showSettingsTab('sync')"    role="tab" aria-selected="true"  data-i18n="settings.tab.sync">Sync</button>
+ <button type="button" class="settings-tab"        data-settings-tab="display" onclick="showSettingsTab('display')" role="tab" aria-selected="false" data-i18n="settings.tab.display">Display</button>
+ <button type="button" class="settings-tab"        data-settings-tab="data"    onclick="showSettingsTab('data')"    role="tab" aria-selected="false" data-i18n="settings.tab.data">Data</button>
+ <button type="button" class="settings-tab"        data-settings-tab="privacy" onclick="showSettingsTab('privacy')" role="tab" aria-selected="false" data-i18n="settings.tab.privacy">Privacy</button>
+ <button type="button" class="settings-tab"        data-settings-tab="danger"  onclick="showSettingsTab('danger')"  role="tab" aria-selected="false" data-i18n="settings.tab.danger">Danger</button>
  </div>
 
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 0 — PRIVACY & TRUST (visible signals) -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="privacy" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
 
  <!-- Canadian data residency card — visible promise. -->
@@ -1008,7 +1018,7 @@
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 1 — IMPORT & SYNC -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="sync">
  <div class="settings-section-title" data-i18n="settings.section.sync">Sync &amp; Import</div>
 
  <!-- Navblue iCal Auto-Sync -->
@@ -1084,7 +1094,7 @@
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 2 — DISPLAY & EXPORT -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="display" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.display">Display &amp; Export</div>
 
  <!-- Theme -->
@@ -1133,7 +1143,7 @@
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 3 — DATA MAINTENANCE -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section">
+ <div class="settings-section" data-settings-pane="data" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.data">Data &amp; Maintenance</div>
 
  <div class="settings-row">
@@ -1177,7 +1187,7 @@
  <!-- ═══════════════════════════════════════════ -->
  <!-- SECTION 4 — DANGER ZONE -->
  <!-- ═══════════════════════════════════════════ -->
- <div class="settings-section settings-section-danger">
+ <div class="settings-section settings-section-danger" data-settings-pane="danger" style="display:none;">
  <div class="settings-section-title" style="color:var(--danger);" data-i18n="settings.danger">Danger Zone</div>
  <div class="settings-row settings-row-danger">
  <div class="settings-row-icon"></div>
