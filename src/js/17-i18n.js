@@ -545,7 +545,8 @@ const STRINGS = {
     'sync.migration.success':    '☁ {n} flights synced to the cloud.',
     'sync.migration.failed':     'Migration failed:',
     'sync.migration.partial':    'Migration partial — some flights may not have synced. Local data is intact.',
-    'sync.pulled':               '☁ Sync: +{added} new, {updated} updated'
+    'sync.pulled':               '☁ Sync: +{added} new, {updated} updated',
+    'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)'
   },
 
   fr: {
@@ -1076,7 +1077,8 @@ const STRINGS = {
     'sync.migration.success':    '☁ {n} vols synchronisés vers le nuage.',
     'sync.migration.failed':     'Échec de la migration :',
     'sync.migration.partial':    'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
-    'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour'
+    'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour',
+    'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)'
   }
 };
 
@@ -1093,12 +1095,26 @@ function setLang(lang) {
   localStorage.setItem(LANG_KEY, lang);
   document.documentElement.setAttribute('lang', lang);
   applyTranslations();
+  // Sync header EN/FR toggle button states (mirrors setTheme pattern).
+  syncLangToggleUI(lang);
   // Re-render dynamic UI that produces strings via t() at render time
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof renderAlerts === 'function') renderAlerts();
   if (typeof renderCurrencyCard === 'function') renderCurrencyCard();
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
   if (typeof renderRecap === 'function' && document.getElementById('page-recap')?.classList.contains('active')) renderRecap();
+  // If the auth modal is open (e.g. user clicked EN/FR mid-signin), re-render
+  // its body so the form labels switch language too.
+  if (typeof AuthUI !== 'undefined' && document.getElementById('authModal')?.classList.contains('show')) {
+    AuthUI.render();
+  }
+}
+
+function syncLangToggleUI(lang) {
+  const en = document.getElementById('langBtnEn');
+  const fr = document.getElementById('langBtnFr');
+  if (en) en.classList.toggle('active', lang === 'en');
+  if (fr) fr.classList.toggle('active', lang === 'fr');
 }
 
 // Lookup with optional variable interpolation. Falls back to EN, then to key.
@@ -1142,6 +1158,8 @@ function applyTranslations() {
       if (txt && txt !== key) el.setAttribute(attr, txt);
     });
   });
+  // Header toggle reflects the active language on first paint + every refresh.
+  syncLangToggleUI(getLang());
 }
 
 // Bootstrap on first paint — must run before init() touches the DOM.

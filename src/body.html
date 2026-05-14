@@ -29,6 +29,14 @@
        Stays empty in skeleton mode (Supabase keys not yet configured). -->
   <div class="auth-status-slot" id="authStatusSlot"></div>
 
+  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
+       pilots aren't stranded in English on first visit. Wired to setLang()
+       which re-renders dashboard/logbook/etc. -->
+  <div class="lang-toggle" role="group" aria-label="Language">
+    <button type="button" id="langBtnEn" onclick="setLang('en')" title="English" aria-label="English">EN</button>
+    <button type="button" id="langBtnFr" onclick="setLang('fr')" title="Français" aria-label="Français">FR</button>
+  </div>
+
   <!-- Theme toggle (v3a) — small sun/moon switch -->
   <div class="theme-toggle" role="group" aria-label="Theme">
     <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
@@ -474,15 +482,15 @@
       <div class="form-grid form-grid-3">
         <div class="form-group" id="fg-block">
           <label data-i18n="flight.block">Block Time (hrs)</label>
-          <input type="number" id="f-block" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-block" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-duty">
           <label data-i18n="flight.duty">Duty Time (hrs)</label>
-          <input type="number" id="f-duty" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-duty" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.totalTime">Total Flight Time</label>
-          <input type="number" id="f-total" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-total" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -492,27 +500,27 @@
       <div class="form-grid form-grid-4">
         <div class="form-group">
           <label data-i18n="flight.meDayDual">ME Day — Dual</label>
-          <input type="number" id="f-me-day-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.meDayPic">ME Day — PIC</label>
-          <input type="number" id="f-me-day-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-me-day-cop">
           <label data-i18n="flight.meDayCop">ME Day — Co-Pilot</label>
-          <input type="number" id="f-me-day-cop" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.meNightDual">ME Night — Dual</label>
-          <input type="number" id="f-me-night-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.meNightPic">ME Night — PIC</label>
-          <input type="number" id="f-me-night-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-me-night-cop">
           <label data-i18n="flight.meNightCop">ME Night — Co-Pilot</label>
-          <input type="number" id="f-me-night-cop" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-night-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -522,19 +530,19 @@
       <div class="form-grid form-grid-4">
         <div class="form-group">
           <label>XC Day — Dual</label>
-          <input type="number" id="f-xc-day-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label>XC Day — PIC</label>
-          <input type="number" id="f-xc-day-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label>XC Night — Dual</label>
-          <input type="number" id="f-xc-night-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label>XC Night — PIC</label>
-          <input type="number" id="f-xc-night-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -544,27 +552,27 @@
       <div class="form-grid form-grid-4">
         <div class="form-group">
           <label data-i18n="flight.ldgDay">Day Landings</label>
-          <input type="number" id="f-ldg-day" placeholder="0" step="1" min="0">
+          <input type="number" id="f-ldg-day" placeholder="0" inputmode="numeric" step="1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.ldgNight">Night Landings</label>
-          <input type="number" id="f-ldg-night" placeholder="0" step="1" min="0">
+          <input type="number" id="f-ldg-night" placeholder="0" inputmode="numeric" step="1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.instActual">Instrument — Actual</label>
-          <input type="number" id="f-inst-actual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-inst-actual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.instHood">Instrument — Hood</label>
-          <input type="number" id="f-inst-hood" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-inst-hood" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.instSim">Instrument — Sim</label>
-          <input type="number" id="f-inst-sim" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-inst-sim" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-picus">
           <label data-i18n="flight.picus">PICUS</label>
-          <input type="number" id="f-picus" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-picus" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>

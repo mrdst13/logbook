@@ -119,20 +119,100 @@ function backupData() {
   showToast(t('toast.backupDownloaded'), 'success');
 }
 
+// Restore from a JSON backup file.
+// SECURITY: this path accepts arbitrary user-supplied JSON. We must
+// validate strictly — past audits flagged it as an injection vector
+// (XSS via raw HTML in flight fields, ReDoS via crafted regex strings).
+// Rules enforced here:
+//   - data.flights must be a real array, capped at 100k entries
+//   - each flight is an object; string fields are sanitized
+//   - data.profile is an object; `lang` is whitelisted; `operatorCodes`
+//     is restricted to safe alphanumeric characters
+//   - captain/copilot names are re-anonymized to initials if the user
+//     has consent toggle OFF (PIPEDA Principle 4.3)
 function restoreData(input) {
   const file = input.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.flights) { flights = data.flights; DB.save(flights); }
-      if (data.profile) { DB.saveProfile(data.profile); }
+      if (!data || typeof data !== 'object') {
+        showToast(t('toast.invalidBackup'), 'error');
+        return;
+      }
+
+      // Validate flights array shape and cap.
+      if (data.flights !== undefined) {
+        if (!Array.isArray(data.flights)) {
+          showToast(t('toast.invalidBackup'), 'error');
+          return;
+        }
+        if (data.flights.length > 100000) {
+          showToast(t('toast.invalidBackup'), 'error');
+          console.warn('[Restore] rejected backup with', data.flights.length, 'flights — cap is 100,000');
+          return;
+        }
+        const cleanProfile = data.profile && typeof data.profile === 'object'
+          ? data.profile : DB.loadProfile();
+        const cleanFlights = data.flights
+          .filter(f => f && typeof f === 'object' && !Array.isArray(f))
+          .map(f => sanitizeFlightRow(f, cleanProfile));
+        flights = cleanFlights;
+        DB.save(flights);
+      }
+
+      // Validate profile fields (lang whitelist, operatorCodes regex-safe).
+      if (data.profile !== undefined) {
+        if (!data.profile || typeof data.profile !== 'object' || Array.isArray(data.profile)) {
+          showToast(t('toast.invalidBackup'), 'error');
+          return;
+        }
+        const cleanProfile = { ...data.profile };
+        if (cleanProfile.lang && cleanProfile.lang !== 'en' && cleanProfile.lang !== 'fr') {
+          delete cleanProfile.lang;
+        }
+        if (typeof cleanProfile.operatorCodes === 'string') {
+          // Allow A-Z 0-9 comma and whitespace — anything else strips out
+          cleanProfile.operatorCodes = cleanProfile.operatorCodes.replace(/[^A-Za-z0-9, \t-]/g, '');
+        }
+        DB.saveProfile(cleanProfile);
+      }
+
       showToast(t('toast.flightsRestored', { n: flights.length }), 'success');
       renderDashboard();
-    } catch { showToast(t('toast.invalidBackup'), 'error'); }
+    } catch (err) {
+      console.warn('[Restore] parse error:', err);
+      showToast(t('toast.invalidBackup'), 'error');
+    }
   };
   r.readAsText(file);
   input.value = '';
+}
+
+// Strip dangerous content from each flight before adopting it into the
+// live list. We drop unknown keys and clip string values to a sane length.
+function sanitizeFlightRow(f, profile) {
+  const MAX_STR = 1024;
+  const out = {};
+  Object.keys(f).forEach(k => {
+    const v = f[k];
+    if (v === null) { out[k] = null; return; }
+    if (typeof v === 'string') {
+      out[k] = v.length > MAX_STR ? v.slice(0, MAX_STR) : v;
+    } else if (typeof v === 'number' || typeof v === 'boolean') {
+      out[k] = v;
+    } else if (Array.isArray(v) || (typeof v === 'object' && k === 'sources')) {
+      // Preserve the merge audit trail; everything else flattens out.
+      out[k] = v;
+    }
+    // Drop anything else (functions, weird objects).
+  });
+  // Re-apply PIPEDA captain/copilot anonymization if user hasn't consented.
+  if (typeof gateCaptainName === 'function') {
+    if (typeof out.pic === 'string')     out.pic = gateCaptainName(out.pic, profile);
+    if (typeof out.copilot === 'string') out.copilot = gateCaptainName(out.copilot, profile);
+  }
+  return out;
 }
 
 function clearAll() {

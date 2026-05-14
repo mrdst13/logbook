@@ -139,6 +139,18 @@ function localFlightToRow(f, userId, opId) {
       row[remoteKey] = f[localKey];
     }
   }
+  // PIPEDA gate: if the user has NOT given consent to keep full captain
+  // names, anonymize before sending to Supabase. Belt-and-suspenders —
+  // local rows should already be anonymized at write-time, but if any
+  // ever slipped through (CSV import edge case, legacy data), we still
+  // never push raw third-party PII to the cloud.
+  if (typeof DB !== 'undefined' && typeof gateCaptainName === 'function') {
+    const profile = DB.loadProfile();
+    if (profile && !profile.consentCaptainNames) {
+      if (typeof row.pic === 'string')     row.pic = gateCaptainName(row.pic, profile);
+      if (typeof row.copilot === 'string') row.copilot = gateCaptainName(row.copilot, profile);
+    }
+  }
   // Mint id if missing
   if (!row.id) row.id = newUUID();
   // Sync metadata

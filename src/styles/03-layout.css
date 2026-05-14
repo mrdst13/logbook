@@ -136,6 +136,38 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   box-shadow: var(--shadow-xs);
 }
 
+/* ── Language toggle (EN/FR pill, same shape as theme-toggle) ── */
+.lang-toggle {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-right: var(--s-2);
+}
+.lang-toggle button {
+  min-width: 32px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.lang-toggle button:hover { color: var(--text-secondary); }
+.lang-toggle button.active {
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
 /* ── MOBILE NAV OVERLAY ── */
 .nav-overlay {
   display: none;          /* block on mobile via media query */

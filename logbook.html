@@ -443,6 +443,38 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   box-shadow: var(--shadow-xs);
 }
 
+/* ── Language toggle (EN/FR pill, same shape as theme-toggle) ── */
+.lang-toggle {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-right: var(--s-2);
+}
+.lang-toggle button {
+  min-width: 32px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: all var(--t-micro) var(--ease-out);
+}
+.lang-toggle button:hover { color: var(--text-secondary); }
+.lang-toggle button.active {
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
 /* ── MOBILE NAV OVERLAY ── */
 .nav-overlay {
   display: none;          /* block on mobile via media query */
@@ -2161,6 +2193,14 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
        Stays empty in skeleton mode (Supabase keys not yet configured). -->
   <div class="auth-status-slot" id="authStatusSlot"></div>
 
+  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
+       pilots aren't stranded in English on first visit. Wired to setLang()
+       which re-renders dashboard/logbook/etc. -->
+  <div class="lang-toggle" role="group" aria-label="Language">
+    <button type="button" id="langBtnEn" onclick="setLang('en')" title="English" aria-label="English">EN</button>
+    <button type="button" id="langBtnFr" onclick="setLang('fr')" title="Français" aria-label="Français">FR</button>
+  </div>
+
   <!-- Theme toggle (v3a) — small sun/moon switch -->
   <div class="theme-toggle" role="group" aria-label="Theme">
     <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
@@ -2606,15 +2646,15 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="form-grid form-grid-3">
         <div class="form-group" id="fg-block">
           <label data-i18n="flight.block">Block Time (hrs)</label>
-          <input type="number" id="f-block" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-block" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-duty">
           <label data-i18n="flight.duty">Duty Time (hrs)</label>
-          <input type="number" id="f-duty" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-duty" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.totalTime">Total Flight Time</label>
-          <input type="number" id="f-total" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-total" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -2624,27 +2664,27 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="form-grid form-grid-4">
         <div class="form-group">
           <label data-i18n="flight.meDayDual">ME Day — Dual</label>
-          <input type="number" id="f-me-day-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.meDayPic">ME Day — PIC</label>
-          <input type="number" id="f-me-day-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-me-day-cop">
           <label data-i18n="flight.meDayCop">ME Day — Co-Pilot</label>
-          <input type="number" id="f-me-day-cop" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.meNightDual">ME Night — Dual</label>
-          <input type="number" id="f-me-night-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.meNightPic">ME Night — PIC</label>
-          <input type="number" id="f-me-night-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-me-night-cop">
           <label data-i18n="flight.meNightCop">ME Night — Co-Pilot</label>
-          <input type="number" id="f-me-night-cop" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-me-night-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -2654,19 +2694,19 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="form-grid form-grid-4">
         <div class="form-group">
           <label>XC Day — Dual</label>
-          <input type="number" id="f-xc-day-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label>XC Day — PIC</label>
-          <input type="number" id="f-xc-day-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label>XC Night — Dual</label>
-          <input type="number" id="f-xc-night-dual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label>XC Night — PIC</label>
-          <input type="number" id="f-xc-night-pic" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-xc-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -2676,27 +2716,27 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       <div class="form-grid form-grid-4">
         <div class="form-group">
           <label data-i18n="flight.ldgDay">Day Landings</label>
-          <input type="number" id="f-ldg-day" placeholder="0" step="1" min="0">
+          <input type="number" id="f-ldg-day" placeholder="0" inputmode="numeric" step="1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.ldgNight">Night Landings</label>
-          <input type="number" id="f-ldg-night" placeholder="0" step="1" min="0">
+          <input type="number" id="f-ldg-night" placeholder="0" inputmode="numeric" step="1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.instActual">Instrument — Actual</label>
-          <input type="number" id="f-inst-actual" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-inst-actual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.instHood">Instrument — Hood</label>
-          <input type="number" id="f-inst-hood" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-inst-hood" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group">
           <label data-i18n="flight.instSim">Instrument — Sim</label>
-          <input type="number" id="f-inst-sim" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-inst-sim" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
         <div class="form-group" id="fg-picus">
           <label data-i18n="flight.picus">PICUS</label>
-          <input type="number" id="f-picus" placeholder="0.0" step="0.1" min="0">
+          <input type="number" id="f-picus" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
         </div>
       </div>
     </div>
@@ -4918,6 +4958,33 @@ function saveProfile() {
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
+
+  // PIPEDA sweep: if the user just flipped consentCaptainNames from ON
+  // to OFF, walk every stored flight and re-anonymize captain/copilot
+  // names that are still in full form. Without this, old rows continued
+  // to expose 3rd-party PII even after consent was withdrawn — flagged
+  // by the 2026-05-13 security panel as a P0.
+  const wasOn = !!(existing && existing.consentCaptainNames);
+  const isOff = !p.consentCaptainNames;
+  if (wasOn && isOff && Array.isArray(flights) && flights.length) {
+    let changed = 0;
+    flights.forEach(f => {
+      if (typeof f.pic === 'string') {
+        const a = anonymizeCaptainName(f.pic);
+        if (a !== f.pic) { f.pic = a; changed++; }
+      }
+      if (typeof f.copilot === 'string') {
+        const a = anonymizeCaptainName(f.copilot);
+        if (a !== f.copilot) { f.copilot = a; changed++; }
+      }
+    });
+    if (changed) {
+      DB.save(flights);
+      if (typeof renderDashboard === 'function') renderDashboard();
+      showToast(t('toast.captainSweepDone', { n: changed }), 'success');
+      console.log(`[Privacy] re-anonymized ${changed} captain/copilot names after consent flip ON→OFF`);
+    }
+  }
   showToast(t('toast.profileSaved'), 'success');
 }
 
@@ -6340,20 +6407,100 @@ function backupData() {
   showToast(t('toast.backupDownloaded'), 'success');
 }
 
+// Restore from a JSON backup file.
+// SECURITY: this path accepts arbitrary user-supplied JSON. We must
+// validate strictly — past audits flagged it as an injection vector
+// (XSS via raw HTML in flight fields, ReDoS via crafted regex strings).
+// Rules enforced here:
+//   - data.flights must be a real array, capped at 100k entries
+//   - each flight is an object; string fields are sanitized
+//   - data.profile is an object; `lang` is whitelisted; `operatorCodes`
+//     is restricted to safe alphanumeric characters
+//   - captain/copilot names are re-anonymized to initials if the user
+//     has consent toggle OFF (PIPEDA Principle 4.3)
 function restoreData(input) {
   const file = input.files[0]; if (!file) return;
   const r = new FileReader();
   r.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.flights) { flights = data.flights; DB.save(flights); }
-      if (data.profile) { DB.saveProfile(data.profile); }
+      if (!data || typeof data !== 'object') {
+        showToast(t('toast.invalidBackup'), 'error');
+        return;
+      }
+
+      // Validate flights array shape and cap.
+      if (data.flights !== undefined) {
+        if (!Array.isArray(data.flights)) {
+          showToast(t('toast.invalidBackup'), 'error');
+          return;
+        }
+        if (data.flights.length > 100000) {
+          showToast(t('toast.invalidBackup'), 'error');
+          console.warn('[Restore] rejected backup with', data.flights.length, 'flights — cap is 100,000');
+          return;
+        }
+        const cleanProfile = data.profile && typeof data.profile === 'object'
+          ? data.profile : DB.loadProfile();
+        const cleanFlights = data.flights
+          .filter(f => f && typeof f === 'object' && !Array.isArray(f))
+          .map(f => sanitizeFlightRow(f, cleanProfile));
+        flights = cleanFlights;
+        DB.save(flights);
+      }
+
+      // Validate profile fields (lang whitelist, operatorCodes regex-safe).
+      if (data.profile !== undefined) {
+        if (!data.profile || typeof data.profile !== 'object' || Array.isArray(data.profile)) {
+          showToast(t('toast.invalidBackup'), 'error');
+          return;
+        }
+        const cleanProfile = { ...data.profile };
+        if (cleanProfile.lang && cleanProfile.lang !== 'en' && cleanProfile.lang !== 'fr') {
+          delete cleanProfile.lang;
+        }
+        if (typeof cleanProfile.operatorCodes === 'string') {
+          // Allow A-Z 0-9 comma and whitespace — anything else strips out
+          cleanProfile.operatorCodes = cleanProfile.operatorCodes.replace(/[^A-Za-z0-9, \t-]/g, '');
+        }
+        DB.saveProfile(cleanProfile);
+      }
+
       showToast(t('toast.flightsRestored', { n: flights.length }), 'success');
       renderDashboard();
-    } catch { showToast(t('toast.invalidBackup'), 'error'); }
+    } catch (err) {
+      console.warn('[Restore] parse error:', err);
+      showToast(t('toast.invalidBackup'), 'error');
+    }
   };
   r.readAsText(file);
   input.value = '';
+}
+
+// Strip dangerous content from each flight before adopting it into the
+// live list. We drop unknown keys and clip string values to a sane length.
+function sanitizeFlightRow(f, profile) {
+  const MAX_STR = 1024;
+  const out = {};
+  Object.keys(f).forEach(k => {
+    const v = f[k];
+    if (v === null) { out[k] = null; return; }
+    if (typeof v === 'string') {
+      out[k] = v.length > MAX_STR ? v.slice(0, MAX_STR) : v;
+    } else if (typeof v === 'number' || typeof v === 'boolean') {
+      out[k] = v;
+    } else if (Array.isArray(v) || (typeof v === 'object' && k === 'sources')) {
+      // Preserve the merge audit trail; everything else flattens out.
+      out[k] = v;
+    }
+    // Drop anything else (functions, weird objects).
+  });
+  // Re-apply PIPEDA captain/copilot anonymization if user hasn't consented.
+  if (typeof gateCaptainName === 'function') {
+    if (typeof out.pic === 'string')     out.pic = gateCaptainName(out.pic, profile);
+    if (typeof out.copilot === 'string') out.copilot = gateCaptainName(out.copilot, profile);
+  }
+  return out;
 }
 
 function clearAll() {
@@ -9028,7 +9175,8 @@ const STRINGS = {
     'sync.migration.success':    '☁ {n} flights synced to the cloud.',
     'sync.migration.failed':     'Migration failed:',
     'sync.migration.partial':    'Migration partial — some flights may not have synced. Local data is intact.',
-    'sync.pulled':               '☁ Sync: +{added} new, {updated} updated'
+    'sync.pulled':               '☁ Sync: +{added} new, {updated} updated',
+    'toast.captainSweepDone':    '🔒 Re-anonymized {n} captain/copilot names (consent withdrawn)'
   },
 
   fr: {
@@ -9559,7 +9707,8 @@ const STRINGS = {
     'sync.migration.success':    '☁ {n} vols synchronisés vers le nuage.',
     'sync.migration.failed':     'Échec de la migration :',
     'sync.migration.partial':    'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
-    'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour'
+    'sync.pulled':               '☁ Sync : +{added} nouveaux, {updated} mis à jour',
+    'toast.captainSweepDone':    '🔒 {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)'
   }
 };
 
@@ -9576,12 +9725,26 @@ function setLang(lang) {
   localStorage.setItem(LANG_KEY, lang);
   document.documentElement.setAttribute('lang', lang);
   applyTranslations();
+  // Sync header EN/FR toggle button states (mirrors setTheme pattern).
+  syncLangToggleUI(lang);
   // Re-render dynamic UI that produces strings via t() at render time
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof renderAlerts === 'function') renderAlerts();
   if (typeof renderCurrencyCard === 'function') renderCurrencyCard();
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
   if (typeof renderRecap === 'function' && document.getElementById('page-recap')?.classList.contains('active')) renderRecap();
+  // If the auth modal is open (e.g. user clicked EN/FR mid-signin), re-render
+  // its body so the form labels switch language too.
+  if (typeof AuthUI !== 'undefined' && document.getElementById('authModal')?.classList.contains('show')) {
+    AuthUI.render();
+  }
+}
+
+function syncLangToggleUI(lang) {
+  const en = document.getElementById('langBtnEn');
+  const fr = document.getElementById('langBtnFr');
+  if (en) en.classList.toggle('active', lang === 'en');
+  if (fr) fr.classList.toggle('active', lang === 'fr');
 }
 
 // Lookup with optional variable interpolation. Falls back to EN, then to key.
@@ -9625,6 +9788,8 @@ function applyTranslations() {
       if (txt && txt !== key) el.setAttribute(attr, txt);
     });
   });
+  // Header toggle reflects the active language on first paint + every refresh.
+  syncLangToggleUI(getLang());
 }
 
 // Bootstrap on first paint — must run before init() touches the DOM.
@@ -10285,6 +10450,18 @@ function localFlightToRow(f, userId, opId) {
       row[remoteKey] = f[localKey];
     }
   }
+  // PIPEDA gate: if the user has NOT given consent to keep full captain
+  // names, anonymize before sending to Supabase. Belt-and-suspenders —
+  // local rows should already be anonymized at write-time, but if any
+  // ever slipped through (CSV import edge case, legacy data), we still
+  // never push raw third-party PII to the cloud.
+  if (typeof DB !== 'undefined' && typeof gateCaptainName === 'function') {
+    const profile = DB.loadProfile();
+    if (profile && !profile.consentCaptainNames) {
+      if (typeof row.pic === 'string')     row.pic = gateCaptainName(row.pic, profile);
+      if (typeof row.copilot === 'string') row.copilot = gateCaptainName(row.copilot, profile);
+    }
+  }
   // Mint id if missing
   if (!row.id) row.id = newUUID();
   // Sync metadata
@@ -10724,7 +10901,7 @@ function wireSyncEvents() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-supabase-skeleton';
+const BUILD_VERSION = 'v3a-2026-05-14-panel-fixes';
 
 (function init() {
   applyDarkMode();
