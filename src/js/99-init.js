@@ -27,6 +27,8 @@ function injectDemoBanner() {
 (function init() {
  applyDarkMode();
  injectDemoBanner();
+ // Restore last-used Settings tab so the page opens where the user left off
+ if (typeof restoreSettingsTab === 'function') restoreSettingsTab();
  // NOTE (2026-05-14): a previous version of init() ran a "migration"
  // that copied legacy std_utc → atd_utc. That was an approximation —
  // labelling a schedule as actual. REMOVED. Legacy std_utc values are
