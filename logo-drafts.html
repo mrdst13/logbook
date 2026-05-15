@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cumulo — Logo Drafts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --text: #0a0e1a;
+    --text-mute: #6b7286;
+    --accent: #3884ff;
+    --dark-bg: #0a0e1a;
+    --dark-text: #e8eef9;
+    --border: rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  header { padding: 32px 28px 16px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 32px; margin: 0 0 8px; font-weight: 800; letter-spacing: -0.02em; }
+  .lede { color: var(--text-mute); font-size: 15px; max-width: 760px; line-height: 1.55; }
+  main { padding: 16px 28px 80px; max-width: 1200px; margin: 0 auto; }
+
+  .concept {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .concept-head {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .concept-name { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .concept-desc { font-size: 13px; color: var(--text-mute); line-height: 1.55; }
+  .concept-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+  .stage { padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 22px; min-height: 220px; justify-content: center; }
+  .stage.dark { background: var(--dark-bg); color: var(--dark-text); }
+  .stage.light { background: white; color: var(--text); }
+  .stage-label { font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stage.dark .stage-label { color: rgba(255,255,255,0.4); }
+
+  .sizes { padding: 22px; display: flex; align-items: end; gap: 32px; flex-wrap: wrap; background: #fafafb; border-top: 1px solid var(--border); }
+  .size-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .size-cell-label { font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* === CONCEPT 1 — WORDMARK ONLY === */
+  .wm-1 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: currentColor;
+  }
+  .wm-1.lg { font-size: 64px; }
+  .wm-1.md { font-size: 32px; }
+  .wm-1.sm { font-size: 18px; }
+  .wm-1 sup {
+    font-size: 0.32em;
+    color: var(--accent);
+    margin-left: 0.05em;
+    vertical-align: top;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+
+  /* === CONCEPT 2 — C cloud monogram === */
+
+  /* === CONCEPT 3 — Cumulus + horizon mark === */
+
+  /* === CONCEPT 4 — Altitude dot === */
+
+  .lockup { display: inline-flex; align-items: center; gap: 12px; }
+  .lockup-mark { flex: 0 0 auto; }
+  .lockup-text { font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: currentColor; }
+  .lockup-text.lg { font-size: 44px; }
+  .lockup-text.md { font-size: 26px; }
+  .lockup-text.sm { font-size: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Logo drafts</h1>
+  <p class="lede">
+    Four concepts for the Cumulo Flight Deck mark + wordmark. Each shown on the dark app background (primary use) and on white (App Store, marketing). Three sizes per concept: hero, header bar, favicon.
+    <br><br>
+    Pick a direction (or say what you want changed) and I&rsquo;ll polish + export final SVG / PNG / favicon files.
+  </p>
+</header>
+
+<main>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- CONCEPT 1 — Wordmark only, with subtle accent tick           -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="concept">
+    <div class="concept-head">
+      <div class="concept-name">1. Wordmark only — pure typography</div>
+      <div class="concept-desc">Just the word, set in Inter 800, tight tracking. A small accent dot replaces the dot of an &ldquo;i&rdquo; — except &ldquo;cumulo&rdquo; has no &ldquo;i&rdquo;, so the dot becomes a registered-mark-style altitude tick to the right of the word. Reads as a serious tech wordmark. No symbol to license, easiest to scale to any size, easiest to evolve later.</div>
+    </div>
+    <div class="concept-body">
+      <div class="stage dark">
+        <span class="stage-label">Dark — primary app</span>
+        <div class="wm-1 lg">cumulo<sup>•</sup></div>
+        <div class="wm-1 md">cumulo<sup>•</sup></div>
+      </div>
+      <div class="stage light">
+        <span class="stage-label">Light — app store / web</span>
+        <div class="wm-1 lg" style="color: var(--text);">cumulo<sup>•</sup></div>
+        <div class="wm-1 md" style="color: var(--text);">cumulo<sup>•</sup></div>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="size-cell">
+        <div class="wm-1 sm" style="color: var(--text);">cumulo<sup>•</sup></div>
+        <span class="size-cell-label">16 / nav</span>
+      </div>
+      <div class="size-cell">
+        <div class="wm-1 md" style="color: var(--text);">cumulo<sup>•</sup></div>
+        <span class="size-cell-label">32 / header</span>
+      </div>
+      <div class="size-cell">
+        <div class="wm-1 lg" style="color: var(--text);">cumulo<sup>•</sup></div>
+        <span class="size-cell-label">64 / hero</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- CONCEPT 2 — "C" cloud monogram                               -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="concept">
+    <div class="concept-head">
+      <div class="concept-name">2. &ldquo;C&rdquo; cloud monogram + wordmark</div>
+      <div class="concept-desc">A geometric letter C drawn as a stylised cumulus silhouette. The C&rsquo;s aperture faces right, with three rounded bumps along the top suggesting a cumulus cloud. Mark works alone (favicon, App Store) or paired with the wordmark.</div>
+    </div>
+    <div class="concept-body">
+      <div class="stage dark">
+        <span class="stage-label">Dark — primary app</span>
+        <div class="lockup">
+          <svg class="lockup-mark" width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect width="64" height="64" rx="14" fill="#3884ff"/>
+            <!-- C-cloud silhouette in white -->
+            <path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white" opacity="0.96"/>
+          </svg>
+          <span class="lockup-text lg">cumulo</span>
+        </div>
+        <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#3884ff"/>
+          <path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white" opacity="0.96"/>
+        </svg>
+      </div>
+      <div class="stage light">
+        <span class="stage-label">Light — app store / web</span>
+        <div class="lockup">
+          <svg class="lockup-mark" width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect width="64" height="64" rx="14" fill="#3884ff"/>
+            <path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white" opacity="0.96"/>
+          </svg>
+          <span class="lockup-text lg" style="color: var(--text);">cumulo</span>
+        </div>
+        <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#3884ff"/>
+          <path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white" opacity="0.96"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="size-cell">
+        <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white"/></svg>
+        <span class="size-cell-label">16 / favicon</span>
+      </div>
+      <div class="size-cell">
+        <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white"/></svg>
+        <span class="size-cell-label">32 / header</span>
+      </div>
+      <div class="size-cell">
+        <svg width="128" height="128" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><path d="M50 38c0 7-6 12-13 12H28c-9 0-15-6-15-15s6-15 15-15h7v9h-7c-3 0-6 3-6 6s3 6 6 6h9c1 0 2-1 2-2v-1c0-1-1-1-1-1h-2v-8h3c4 0 7 2 9 5 1-3 4-5 7-5v9c-2 0-4 2-4 5z" fill="white"/></svg>
+        <span class="size-cell-label">128 / pwa</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- CONCEPT 3 — Cumulus + horizon                                -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="concept">
+    <div class="concept-head">
+      <div class="concept-name">3. Cumulus over horizon</div>
+      <div class="concept-desc">A small cumulus cloud sitting above a thin horizon line — the horizon is iconic in aviation (attitude indicator). Reads as &ldquo;altitude&rdquo; and &ldquo;in flight&rdquo; without any plane silhouette. Mark works alone or in lockup.</div>
+    </div>
+    <div class="concept-body">
+      <div class="stage dark">
+        <span class="stage-label">Dark — primary app</span>
+        <div class="lockup">
+          <svg class="lockup-mark" width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect width="64" height="64" rx="14" fill="#3884ff"/>
+            <!-- horizon line -->
+            <line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+            <!-- cumulus cloud (3 bumps) -->
+            <path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white" opacity="0.96"/>
+          </svg>
+          <span class="lockup-text lg">cumulo</span>
+        </div>
+        <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#3884ff"/>
+          <line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+          <path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white" opacity="0.96"/>
+        </svg>
+      </div>
+      <div class="stage light">
+        <span class="stage-label">Light — app store / web</span>
+        <div class="lockup">
+          <svg class="lockup-mark" width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect width="64" height="64" rx="14" fill="#3884ff"/>
+            <line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+            <path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white" opacity="0.96"/>
+          </svg>
+          <span class="lockup-text lg" style="color: var(--text);">cumulo</span>
+        </div>
+        <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#3884ff"/>
+          <line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+          <path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white" opacity="0.96"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="size-cell">
+        <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/><path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white"/></svg>
+        <span class="size-cell-label">16 / favicon</span>
+      </div>
+      <div class="size-cell">
+        <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/><path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white"/></svg>
+        <span class="size-cell-label">32 / header</span>
+      </div>
+      <div class="size-cell">
+        <svg width="128" height="128" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><line x1="10" y1="46" x2="54" y2="46" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/><path d="M16 38c-2 0-4-2-4-5s2-5 4-5c0-4 4-7 8-7s7 2 8 5c1-3 4-5 7-5 5 0 9 4 9 9 0 1 0 2-1 3 2 0 4 2 4 5s-2 5-4 5H16z" fill="white"/></svg>
+        <span class="size-cell-label">128 / pwa</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- CONCEPT 4 — Altitude dot (minimal)                           -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <section class="concept">
+    <div class="concept-head">
+      <div class="concept-name">4. Altitude dot — radical minimalism</div>
+      <div class="concept-desc">A single filled dot sitting above a horizon line. The most minimal of the four. Reads as &ldquo;a flight at altitude&rdquo; and as &ldquo;a logbook entry on a row.&rdquo; Easiest to render at favicon sizes, ages well, no detail to break.</div>
+    </div>
+    <div class="concept-body">
+      <div class="stage dark">
+        <span class="stage-label">Dark — primary app</span>
+        <div class="lockup">
+          <svg class="lockup-mark" width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect width="64" height="64" rx="14" fill="#3884ff"/>
+            <!-- horizon line -->
+            <line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+            <!-- altitude dot above -->
+            <circle cx="42" cy="22" r="6" fill="white"/>
+          </svg>
+          <span class="lockup-text lg">cumulo</span>
+        </div>
+        <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#3884ff"/>
+          <line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <circle cx="42" cy="22" r="6" fill="white"/>
+        </svg>
+      </div>
+      <div class="stage light">
+        <span class="stage-label">Light — app store / web</span>
+        <div class="lockup">
+          <svg class="lockup-mark" width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect width="64" height="64" rx="14" fill="#3884ff"/>
+            <line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+            <circle cx="42" cy="22" r="6" fill="white"/>
+          </svg>
+          <span class="lockup-text lg" style="color: var(--text);">cumulo</span>
+        </div>
+        <svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#3884ff"/>
+          <line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <circle cx="42" cy="22" r="6" fill="white"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div class="size-cell">
+        <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round"/><circle cx="42" cy="22" r="6" fill="white"/></svg>
+        <span class="size-cell-label">16 / favicon</span>
+      </div>
+      <div class="size-cell">
+        <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round"/><circle cx="42" cy="22" r="6" fill="white"/></svg>
+        <span class="size-cell-label">32 / header</span>
+      </div>
+      <div class="size-cell">
+        <svg width="128" height="128" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#3884ff"/><line x1="12" y1="42" x2="52" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round"/><circle cx="42" cy="22" r="6" fill="white"/></svg>
+        <span class="size-cell-label">128 / pwa</span>
+      </div>
+    </div>
+  </section>
+
+  <p style="margin-top: 48px; padding: 20px; background: white; border-radius: 12px; font-size: 14px; color: var(--text-mute); line-height: 1.6; border: 1px solid var(--border);">
+    <strong style="color: var(--text);">Next step</strong> — pick one number (1, 2, 3, 4) or describe what direction you want changed (e.g. &ldquo;3 but warmer&rdquo;, &ldquo;2 with a different colour&rdquo;, &ldquo;none, try something else&rdquo;). I&rsquo;ll polish the chosen one, generate the full asset pack (SVG, PNG @ 16/32/64/128/192/512/1024, favicon.ico), wire it into the app + landing page + App Store metadata.
+  </p>
+
+</main>
+
+</body>
+</html>
