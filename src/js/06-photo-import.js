@@ -269,7 +269,7 @@ function confirmImport() {
     showToast(t('toast.nothingSelected'), 'error');
     return;
   }
-  // PIPEDA model (2026-05-13 panel decision): store full names locally.
+  // PIPEDA model: store full names locally.
   // Anonymization happens at egress (cloud sync, shareable PDF), not at
   // import. The user retains the ability to see who they flew with in
   // their own logbook — personal-use exception under PIPEDA s.4(2)(b)

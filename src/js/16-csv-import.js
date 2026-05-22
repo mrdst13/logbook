@@ -10,7 +10,7 @@
 // in Profile to clean the on-screen view; the TC PDF export always keeps
 // all 38 columns for ramp-check compliance.
 //
-// TC compliance highlights (from May 2026 panel audit):
+// TC compliance highlights:
 // - Engine class (SE/ME/Heli/Glider/Sim) detected from aircraft type+reg, with
 //   per-aircraft confirmation UI before import so the user can override.
 // - Role bucketing is ADDITIVE: a flight with PIC=1.0 AND SIC=0.5 fills both

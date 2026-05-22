@@ -114,11 +114,9 @@ function resetColumnPrefs() {
   showToast(t('toast.columnsReset'));
 }
 
-// Per-pilot-type column presets. Each preset is hand-tuned for what the
-// matching persona actually scans for daily. Validated by the 2026-05-13
-// pilot panel (SE private, bush, helicopter, regional 704, major 705, CFI).
-// User can still override any preset via the Columns picker — these are
-// just smart defaults that turn the table from "generic" to "made for me".
+// Per-pilot-type column presets. Each preset is a default selection of
+// columns for the matching persona; user can override any preset via the
+// Columns picker. These are smart defaults, not opinionated rules.
 const COLUMN_PRESETS = {
   // F/O 705 — Airline First Officer (Porter, Jazz, Encore, etc.)
   'airline-fo': ['date','flightNum','type','reg','route','crewPosition','ldgDay','ldgNight','night','block','total'],

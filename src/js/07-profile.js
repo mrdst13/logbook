@@ -243,7 +243,7 @@ function saveProfile() {
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
-  // Note (2026-05-13 panel decision): we no longer sweep+anonymize local
+  // Note: we no longer sweep+anonymize local
   // flights when the toggle flips ON→OFF. Under the new model, full names
   // ALWAYS stay on the user's device — anonymization only happens at egress
   // (cloud sync, shareable PDF export). Flipping the toggle is non-destructive.

@@ -5,7 +5,7 @@
 // Status: SKELETON. Becomes active once Auth.isReady() (i.e. SUPABASE_URL
 // + SUPABASE_ANON_KEY are filled in 18-supabase.js).
 //
-// Contracts (from pre-Supabase expert panel):
+// Contracts:
 //   - Local writes always happen FIRST (write-through to localStorage),
 //     then enqueue + push to Supabase. Offline-first by design.
 //   - LWW on updated_at server-side (DB trigger). Client sends

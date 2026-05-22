@@ -186,9 +186,10 @@ function _generatePDF() {
     });
 
     // Footer (cover) — includes import provenance notice if any flights
-    // came from a CSV import, per the panel's CAR 401.08(2)(h) attestation
-    // recommendation. A TC inspector reading the PDF will see which records
-    // were imported and which were native to Cumulo.
+    // came from a CSV import. CAR 401.08(2)(h) requires an attestation
+    // signed by the pilot; the provenance notice supports that. A TC
+    // inspector reading the PDF will see which records were imported and
+    // which were native to Cumulo.
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...muted);

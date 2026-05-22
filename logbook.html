@@ -3600,15 +3600,11 @@ function esc(s) {
 }
 
 // ═══════════════════════════════════════════
-// PIPEDA — Captain-name anonymization (context-aware model, 2026-05-13)
+// PIPEDA — Captain-name anonymization (context-aware model)
 //
-// MODEL (validated by 4-expert panel: PIPEDA federal, Loi 25 Quebec,
-// retired TC inspector, UX designer):
-//
-//   - The user (pilot) is the OWNER of their own logbook. Personal-use
-//     exception under PIPEDA s.4(2)(b) AND Loi 25 art. 1 covers their
-//     local-device storage of crew names imported from their own employer's
-//     roster.
+// Legal anchors:
+//   - PIPEDA s.4(2)(b) + Loi 25 art. 1: personal-use exception covers
+//     local-device storage of crew names imported from a user's employer roster.
 //   - Cumulo Inc. (the vendor) is NOT a controller for data that stays on
 //     the user's device. It BECOMES one when data leaves: cloud sync,
 //     PDF export to a third party, JSON backup, share.
@@ -3616,9 +3612,9 @@ function esc(s) {
 //     without consent under PIPEDA s.7(3)(c.1)(i). Full names in a TC PDF
 //     export are lawful and arguably required for record integrity.
 //
-// RESULT: store full names locally, anonymize ONLY at egress (outbound),
-// keep full names in the TC PDF export. The user controls a toggle that
-// says "Keep full crew names when sharing / syncing" — default OFF.
+// Implementation: store full names locally, anonymize ONLY at egress
+// (outbound), keep full names in the TC PDF export. The user controls a
+// toggle "Keep full crew names when sharing / syncing" — default OFF.
 //
 // Format normalization (anonymizeCaptainName helper):
 //   "DAOUST, Martin"   → "M.D."  (last, first  →  first.last initials)
@@ -3729,10 +3725,10 @@ function resolveSelfReferences(flight, profile) {
   const out = { ...flight };
   const picIsSelf = _isSelfReference(out.pic, profile);
   const copIsSelf = _isSelfReference(out.copilot, profile);
-  // PRESERVE what the pilot wrote (TC TP 14052 accepts "SELF" in the PIC
-  // column — the retired inspector on the 2026-05-13 panel confirmed). The
-  // resolver's job is ONLY to record the user's seat in crewPosition; we
-  // never overwrite the text the pilot recorded in their paper logbook.
+  // PRESERVE what the pilot wrote — TC TP 14052 accepts "SELF" in the PIC
+  // column. The resolver's job is ONLY to record the user's seat in
+  // crewPosition; we never overwrite the text the pilot recorded in their
+  // paper logbook.
   if (picIsSelf) {
     if (!out.crewPosition) out.crewPosition = 'PIC';
   } else if (out.pic) {
@@ -3751,7 +3747,7 @@ function resolveSelfReferences(flight, profile) {
 // sandbox: persistent storage is disabled, fake demo data is pre-loaded,
 // and a sticky banner warns the visitor that changes won't persist.
 // Lets curious pilots try Cumulo without signup — zero friction, zero
-// lock-in. The "killer feature anti-IA" identified by the trust panel.
+// lock-in.
 // ═══════════════════════════════════════════
 const DEMO_MODE = (() => {
   try {
@@ -5163,7 +5159,7 @@ function confirmImport() {
     showToast(t('toast.nothingSelected'), 'error');
     return;
   }
-  // PIPEDA model (2026-05-13 panel decision): store full names locally.
+  // PIPEDA model: store full names locally.
   // Anonymization happens at egress (cloud sync, shareable PDF), not at
   // import. The user retains the ability to see who they flew with in
   // their own logbook — personal-use exception under PIPEDA s.4(2)(b)
@@ -5455,7 +5451,7 @@ function saveProfile() {
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
-  // Note (2026-05-13 panel decision): we no longer sweep+anonymize local
+  // Note: we no longer sweep+anonymize local
   // flights when the toggle flips ON→OFF. Under the new model, full names
   // ALWAYS stay on the user's device — anonymization only happens at egress
   // (cloud sync, shareable PDF export). Flipping the toggle is non-destructive.
@@ -7144,11 +7140,9 @@ function resetColumnPrefs() {
   showToast(t('toast.columnsReset'));
 }
 
-// Per-pilot-type column presets. Each preset is hand-tuned for what the
-// matching persona actually scans for daily. Validated by the 2026-05-13
-// pilot panel (SE private, bush, helicopter, regional 704, major 705, CFI).
-// User can still override any preset via the Columns picker — these are
-// just smart defaults that turn the table from "generic" to "made for me".
+// Per-pilot-type column presets. Each preset is a default selection of
+// columns for the matching persona; user can override any preset via the
+// Columns picker. These are smart defaults, not opinionated rules.
 const COLUMN_PRESETS = {
   // F/O 705 — Airline First Officer (Porter, Jazz, Encore, etc.)
   'airline-fo': ['date','flightNum','type','reg','route','crewPosition','ldgDay','ldgNight','night','block','total'],
@@ -7564,9 +7558,10 @@ function _generatePDF() {
     });
 
     // Footer (cover) — includes import provenance notice if any flights
-    // came from a CSV import, per the panel's CAR 401.08(2)(h) attestation
-    // recommendation. A TC inspector reading the PDF will see which records
-    // were imported and which were native to Cumulo.
+    // came from a CSV import. CAR 401.08(2)(h) requires an attestation
+    // signed by the pilot; the provenance notice supports that. A TC
+    // inspector reading the PDF will see which records were imported and
+    // which were native to Cumulo.
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...muted);
@@ -7974,7 +7969,7 @@ const FAQS = [
  // ── Privacy & compliance ──────────────────────────────────────────
  {
  q: 'How does Cumulo handle the OTHER pilot\'s name (captain or F/O)?',
- a: 'The rule is symmetric — whether you\'re F/O (the captain is the third party) or you\'re PIC (the F/O is the third party), the OTHER pilot is treated identically. Cumulo stores full names locally on your device — your logbook works exactly like a paper logbook (PIPEDA s.4(2)(b) and Loi 25 art. 1 personal-use exceptions). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i). Self-references (your own name, or the literal text "self" / "moi" — which TP 14052 explicitly accepts) are NEVER anonymized: they are not third-party data. Control via Profile → "Keep full crew names when syncing or sharing" (default OFF). Validated by a 4-expert panel on 2026-05-13.'
+ a: 'The rule is symmetric — whether you\'re F/O (the captain is the third party) or you\'re PIC (the F/O is the third party), the OTHER pilot is treated identically. Cumulo stores full names locally on your device — your logbook works exactly like a paper logbook (PIPEDA s.4(2)(b) and Loi 25 art. 1 personal-use exceptions). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i). Self-references (your own name, or the literal text "self" / "moi" — which TP 14052 explicitly accepts) are NEVER anonymized: they are not third-party data. Control via Profile → "Keep full crew names when syncing or sharing" (default OFF).'
  },
  {
  q: 'Does the Navblue auto-sync capture captain names, or do I have to upload a PDF?',
@@ -8347,7 +8342,7 @@ function showToast(msg, type='') {
 // in Profile to clean the on-screen view; the TC PDF export always keeps
 // all 38 columns for ramp-check compliance.
 //
-// TC compliance highlights (from May 2026 panel audit):
+// TC compliance highlights:
 // - Engine class (SE/ME/Heli/Glider/Sim) detected from aircraft type+reg, with
 //   per-aircraft confirmation UI before import so the user can override.
 // - Role bucketing is ADDITIVE: a flight with PIC=1.0 AND SIC=0.5 fills both
@@ -9738,7 +9733,7 @@ const STRINGS = {
     'profile.ifr.descHtml':      'Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.',
  'profile.captain.title': 'Crew Name Privacy (PIPEDA / Loi 25)',
  'profile.captain.label': 'Keep full crew names when syncing or sharing (I have crew consent)',
- 'profile.captain.descHtml': '<strong>How Cumulo handles your crew names — applies equally to the captain (when you are F/O) AND the F/O (when you are captain). Validated 2026-05-13 by a 4-expert panel: PIPEDA federal lawyer, Loi 25 Quebec lawyer, retired TC inspector, UX designer.</strong><br><br>• <strong>On your device:</strong> always full names. You see exactly what you wrote in your paper logbook.<br>• <strong>TC PDF export:</strong> always full names — or "SELF" if that\'s what you wrote (TC Standard 421 / TP 14052 explicitly accepts SELF for the pilot\'s own entries).<br>• <strong>Cloud sync / shareable exports:</strong> third-party crew names (the OTHER pilot) anonymize to initials by default. Your own name (or "self") is never anonymized — it\'s not third-party data.<br>• <strong>Toggle ON</strong> only if you\'ve obtained the other pilot\'s consent OR you accept responsibility for the third-party data leaving your device.<br><br><em>Note: rows imported before 2026-05-14 may already be in initials form — re-import the roster (or use the Navblue auto-sync, which now extracts crew names) to recover full names.</em>',
+ 'profile.captain.descHtml': '<strong>How Cumulo handles your crew names — applies equally to the captain (when you are F/O) AND the F/O (when you are captain).</strong><br><br>• <strong>On your device:</strong> always full names. You see exactly what you wrote in your paper logbook.<br>• <strong>TC PDF export:</strong> always full names — or "SELF" if that\'s what you wrote (TC Standard 421 / TP 14052 explicitly accepts SELF for the pilot\'s own entries).<br>• <strong>Cloud sync / shareable exports:</strong> third-party crew names (the OTHER pilot) anonymize to initials by default. Your own name (or "self") is never anonymized — it\'s not third-party data.<br>• <strong>Toggle ON</strong> only if you\'ve obtained the other pilot\'s consent OR you accept responsibility for the third-party data leaving your device.<br><br><em>Legal anchors: PIPEDA s.4(2)(b), s.7(3)(c.1)(i), Principle 4.3; Loi 25 art. 1.</em>',
  'profile.display.title': 'Display preferences',
  'profile.display.label': 'Hide empty columns on screen (sum = 0 across all flights)',
  'profile.display.descHtml': 'Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. Useful when you\'ve imported a CSV that doesn\'t have the full TC granularity (e.g. ForeFlight imports leave SE Day, IFR Hood, etc. empty). <strong>The PDF export for Transport Canada always keeps all 38 columns</strong> for ramp-check compliance, regardless of this setting.',
@@ -10308,7 +10303,7 @@ const STRINGS = {
     'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro Navblue inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
  'profile.captain.title': 'Confidentialité des noms d\'équipage (LPRPDE / Loi 25)',
  'profile.captain.label': 'Conserver les noms complets d\'équipage en synchronisation et partage (j\'ai le consentement)',
- 'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant). Validé le 13 mai 2026 par un panel de 4 experts : avocat LPRPDE fédéral, avocate Loi 25 Québec, inspecteur TC retraité, expert UX.</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Note : les lignes importées avant le 14 mai 2026 peuvent déjà être en initiales — réimportez votre horaire (ou utilisez la sync automatique Navblue, qui extrait maintenant les noms d\'équipage) pour récupérer les noms complets.</em>',
+ 'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant).</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Ancrages légaux : LPRPDE art. 4(2)(b), art. 7(3)c.1(i), Principe 4.3 ; Loi 25 art. 1.</em>',
  'profile.display.title': 'Préférences d’affichage',
  'profile.display.label': 'Masquer les colonnes vides à l’écran (somme = 0 sur tous les vols)',
  'profile.display.descHtml': 'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR Capot, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
@@ -10847,7 +10842,7 @@ function applyTranslations() {
 //
 // Setup steps for Martin: see /SUPABASE-SETUP-GUIDE.md at repo root.
 //
-// Patterns enforced (from pre-Supabase expert panel):
+// Patterns enforced:
 //   - RLS owner-scoped (auth.uid() = user_id) — enforced server-side, see schema.sql.
 //   - Anon key OK to ship (designed public when RLS is correct).
 //   - Service-role key NEVER in client (would bypass RLS).
@@ -10972,7 +10967,7 @@ const Auth = {
   //   3. user types the 6-digit code → verifyTOTP(factorId, code).
   //   4. on success, generate + show 8 single-use backup codes.
   //
-  // Per security panel: backup codes must be hashed server-side and shown
+  // Security: backup codes must be hashed server-side and shown
   // ONCE. Supabase handles this internally for the `recovery_codes` API,
   // but we still need to display + force user to download/print before
   // they leave the modal.
@@ -11004,7 +10999,7 @@ const Auth = {
 
   // ── Trust device (TODO Phase 1.1) ─────────────────────────────────
   // The Supabase MFA API does not have a built-in "trust this browser"
-  // primitive. Implementation pattern (per security panel):
+  // primitive. Implementation pattern:
   //   1. On MFA success with "Trust 60 days" checkbox checked, generate
   //      a 32-byte random token. Hash it with SHA-256.
   //   2. INSERT INTO public.trusted_devices (user_id, device_hash,
@@ -11290,9 +11285,9 @@ const AuthUI = {
     const resp = await Auth.verifyTOTPEnroll(this.pendingMFAFactorId, code);
     if (resp.error) { this._showErr(normalizeAuthError(resp.error)); return; }
     // TODO: generate + show 8 single-use backup codes here, force user
-    // to download .txt or print before closing (per UX panel + security
-    // panel). Supabase doesn't auto-issue these — we need to mint+hash
-    // them ourselves and store in a `mfa_backup_codes` table.
+    // to download .txt or print before closing. Supabase doesn't auto-issue
+    // these — we need to mint+hash them ourselves and store in a
+    // `mfa_backup_codes` table.
     showToast(t('auth.mfaEnroll.success'), 'success');
     this.close();
   },
@@ -11353,7 +11348,7 @@ function renderAuthStateUI() {
 // Status: SKELETON. Becomes active once Auth.isReady() (i.e. SUPABASE_URL
 // + SUPABASE_ANON_KEY are filled in 18-supabase.js).
 //
-// Contracts (from pre-Supabase expert panel):
+// Contracts:
 //   - Local writes always happen FIRST (write-through to localStorage),
 //     then enqueue + push to Supabase. Offline-first by design.
 //   - LWW on updated_at server-side (DB trigger). Client sends

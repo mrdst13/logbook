@@ -14,15 +14,11 @@ function esc(s) {
 }
 
 // ═══════════════════════════════════════════
-// PIPEDA — Captain-name anonymization (context-aware model, 2026-05-13)
+// PIPEDA — Captain-name anonymization (context-aware model)
 //
-// MODEL (validated by 4-expert panel: PIPEDA federal, Loi 25 Quebec,
-// retired TC inspector, UX designer):
-//
-//   - The user (pilot) is the OWNER of their own logbook. Personal-use
-//     exception under PIPEDA s.4(2)(b) AND Loi 25 art. 1 covers their
-//     local-device storage of crew names imported from their own employer's
-//     roster.
+// Legal anchors:
+//   - PIPEDA s.4(2)(b) + Loi 25 art. 1: personal-use exception covers
+//     local-device storage of crew names imported from a user's employer roster.
 //   - Cumulo Inc. (the vendor) is NOT a controller for data that stays on
 //     the user's device. It BECOMES one when data leaves: cloud sync,
 //     PDF export to a third party, JSON backup, share.
@@ -30,9 +26,9 @@ function esc(s) {
 //     without consent under PIPEDA s.7(3)(c.1)(i). Full names in a TC PDF
 //     export are lawful and arguably required for record integrity.
 //
-// RESULT: store full names locally, anonymize ONLY at egress (outbound),
-// keep full names in the TC PDF export. The user controls a toggle that
-// says "Keep full crew names when sharing / syncing" — default OFF.
+// Implementation: store full names locally, anonymize ONLY at egress
+// (outbound), keep full names in the TC PDF export. The user controls a
+// toggle "Keep full crew names when sharing / syncing" — default OFF.
 //
 // Format normalization (anonymizeCaptainName helper):
 //   "DAOUST, Martin"   → "M.D."  (last, first  →  first.last initials)
@@ -143,10 +139,10 @@ function resolveSelfReferences(flight, profile) {
   const out = { ...flight };
   const picIsSelf = _isSelfReference(out.pic, profile);
   const copIsSelf = _isSelfReference(out.copilot, profile);
-  // PRESERVE what the pilot wrote (TC TP 14052 accepts "SELF" in the PIC
-  // column — the retired inspector on the 2026-05-13 panel confirmed). The
-  // resolver's job is ONLY to record the user's seat in crewPosition; we
-  // never overwrite the text the pilot recorded in their paper logbook.
+  // PRESERVE what the pilot wrote — TC TP 14052 accepts "SELF" in the PIC
+  // column. The resolver's job is ONLY to record the user's seat in
+  // crewPosition; we never overwrite the text the pilot recorded in their
+  // paper logbook.
   if (picIsSelf) {
     if (!out.crewPosition) out.crewPosition = 'PIC';
   } else if (out.pic) {
@@ -165,7 +161,7 @@ function resolveSelfReferences(flight, profile) {
 // sandbox: persistent storage is disabled, fake demo data is pre-loaded,
 // and a sticky banner warns the visitor that changes won't persist.
 // Lets curious pilots try Cumulo without signup — zero friction, zero
-// lock-in. The "killer feature anti-IA" identified by the trust panel.
+// lock-in.
 // ═══════════════════════════════════════════
 const DEMO_MODE = (() => {
   try {

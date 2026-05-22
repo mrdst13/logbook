@@ -10,7 +10,7 @@
 //
 // Setup steps for Martin: see /SUPABASE-SETUP-GUIDE.md at repo root.
 //
-// Patterns enforced (from pre-Supabase expert panel):
+// Patterns enforced:
 //   - RLS owner-scoped (auth.uid() = user_id) — enforced server-side, see schema.sql.
 //   - Anon key OK to ship (designed public when RLS is correct).
 //   - Service-role key NEVER in client (would bypass RLS).
@@ -135,7 +135,7 @@ const Auth = {
   //   3. user types the 6-digit code → verifyTOTP(factorId, code).
   //   4. on success, generate + show 8 single-use backup codes.
   //
-  // Per security panel: backup codes must be hashed server-side and shown
+  // Security: backup codes must be hashed server-side and shown
   // ONCE. Supabase handles this internally for the `recovery_codes` API,
   // but we still need to display + force user to download/print before
   // they leave the modal.
@@ -167,7 +167,7 @@ const Auth = {
 
   // ── Trust device (TODO Phase 1.1) ─────────────────────────────────
   // The Supabase MFA API does not have a built-in "trust this browser"
-  // primitive. Implementation pattern (per security panel):
+  // primitive. Implementation pattern:
   //   1. On MFA success with "Trust 60 days" checkbox checked, generate
   //      a 32-byte random token. Hash it with SHA-256.
   //   2. INSERT INTO public.trusted_devices (user_id, device_hash,
@@ -453,9 +453,9 @@ const AuthUI = {
     const resp = await Auth.verifyTOTPEnroll(this.pendingMFAFactorId, code);
     if (resp.error) { this._showErr(normalizeAuthError(resp.error)); return; }
     // TODO: generate + show 8 single-use backup codes here, force user
-    // to download .txt or print before closing (per UX panel + security
-    // panel). Supabase doesn't auto-issue these — we need to mint+hash
-    // them ourselves and store in a `mfa_backup_codes` table.
+    // to download .txt or print before closing. Supabase doesn't auto-issue
+    // these — we need to mint+hash them ourselves and store in a
+    // `mfa_backup_codes` table.
     showToast(t('auth.mfaEnroll.success'), 'success');
     this.close();
   },

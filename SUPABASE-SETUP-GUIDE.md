@@ -120,7 +120,7 @@ Setup Resend free (3000 emails/mois gratuits) :
 
 ## Ce qui reste à coder après que tout ça marche
 
-Le skeleton couvre signup, signin, MFA enrollment, password reset (avec deep-link), migration localStorage → Supabase (avec resume cursor + 24h cooldown sur cancel), et auto-sync débouncé sur DB.save (avec LWW _updated_at marker). **Pas encore** wired (trouvés par les panels post-code, à régler après première démo cross-device réussie) :
+Le skeleton couvre signup, signin, MFA enrollment, password reset (avec deep-link), migration localStorage → Supabase (avec resume cursor + 24h cooldown sur cancel), et auto-sync débouncé sur DB.save (avec LWW _updated_at marker). **Pas encore** wired, à régler après première démo cross-device réussie :
 
 **Sécurité (Phase 1.1)** :
 - **AAL2 enforcement à la RLS** : actuellement les policies RLS acceptent role `authenticated` (= AAL1). Idéalement on devrait exiger AAL2 pour les écritures sur `flights` une fois que TOTP est enrôlé. Le code fait un `signOut` si l'utilisateur abandonne le MFA challenge — mais un meilleur fix server-side existerait.
