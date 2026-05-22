@@ -21,8 +21,13 @@ function startOnboarding() {
   renderOnboardingStep();
 }
 
-function skipOnboarding() {
-  if (!confirm(t('onb.skipConfirm'))) return;
+async function skipOnboarding() {
+  if (!await confirmDialog({
+    title: 'Skip onboarding?',
+    body: t('onb.skipConfirm'),
+    cancelLabel: 'Continue setup',
+    confirmLabel: 'Skip for now'
+  })) return;
   localStorage.setItem(ONBOARDING_KEY, 'skipped');
   document.getElementById('onboardingOverlay').classList.remove('show');
   document.body.style.overflow = '';

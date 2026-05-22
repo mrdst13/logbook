@@ -246,13 +246,13 @@ function updateUndoButton() {
   const history = loadSnapshots();
   if (history.length === 0) {
     btn.disabled = true;
-    btn.textContent = '↩️ No snapshot';
+    btn.textContent = 'No snapshot';
     return;
   }
   const snap = history[0];
   const label = history.length > 1
-    ? `↩️ Undo · ${history.length} snapshots`
-    : `↩️ Undo "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})`;
+    ? `Undo · ${history.length} snapshots`
+    : `Undo "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})`;
   btn.disabled = false;
   btn.textContent = label;
 }

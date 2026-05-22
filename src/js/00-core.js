@@ -341,3 +341,56 @@ function wireNav() {
   });
 }
 
+// ═══════════════════════════════════════════
+// CONFIRM DIALOG — in-app replacement for native confirm()
+// ═══════════════════════════════════════════
+// Native browser confirm() looks broken inside a PWA (iOS shows
+// "logbook-cxy.pages.dev says:" above the message) and isn't styled.
+// This helper renders a Cumulo-styled modal and returns a Promise<boolean>.
+//
+//   const ok = await confirmDialog({
+//     title: 'Clear all flights',
+//     body: 'This deletes every flight in your logbook. Cannot be undone.',
+//     confirmLabel: 'Clear all',
+//     danger: true
+//   });
+//   if (!ok) return;
+//
+// Esc key or backdrop click = cancel. The modal removes itself on resolve.
+function confirmDialog({ title, body, cancelLabel = 'Cancel', confirmLabel = 'Confirm', danger = false }) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'import-overlay show';
+    overlay.dataset.confirmDialog = '1';
+    overlay.innerHTML = `
+      <div class="import-modal" style="max-width:440px;">
+        <div class="import-modal-head">
+          <div><div class="t-headline">${esc(title || 'Confirm')}</div></div>
+        </div>
+        <div class="import-modal-body" style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;">${esc(body || '')}</div>
+        <div class="import-modal-foot">
+          <button class="btn btn-ghost" data-cd="cancel">${esc(cancelLabel)}</button>
+          <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-cd="ok" autofocus>${esc(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    const cleanup = (result) => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Enter') cleanup(true);
+    };
+    overlay.addEventListener('click', e => {
+      const btn = e.target.closest('[data-cd]');
+      if (btn) { cleanup(btn.dataset.cd === 'ok'); return; }
+      if (e.target === overlay) cleanup(false);
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
+    // Focus the primary action button so Enter works immediately.
+    setTimeout(() => overlay.querySelector('[data-cd="ok"]')?.focus(), 30);
+  });
+}

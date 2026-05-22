@@ -22,6 +22,11 @@ function showSettingsTab(name) {
     if (typeof initSignature === 'function') setTimeout(initSignature, 50);
     if (typeof renderOpeningBalancesSection === 'function') renderOpeningBalancesSection('openingBalancesSection');
   }
+  // Data tab: refresh the Undo button label to show what would be undone
+  // (which bulk operation was snapshotted, how long ago).
+  if (name === 'data') {
+    if (typeof updateUndoButton === 'function') updateUndoButton();
+  }
   // Persist for next visit
   try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}
   // Reset scroll to top of page so user sees the new pane
@@ -34,8 +39,11 @@ function restoreSettingsTab() {
   const saved = (() => {
     try { return localStorage.getItem(SETTINGS_TAB_KEY); } catch { return null; }
   })();
-  // Migrate legacy 'display' tab key (removed in IA refactor) to 'profile'.
-  const tab = (saved === 'display' || !saved) ? 'profile' : saved;
+  // Migrate legacy tab keys removed in IA refactors:
+  //   'display' → 'profile' (display tab merged into header pills + Logbook)
+  //   'danger'  → 'data'    (Reset tab folded into Data → Clear all row)
+  let tab = saved || 'profile';
+  if (tab === 'display' || tab === 'danger') tab = (tab === 'danger') ? 'data' : 'profile';
   showSettingsTab(tab);
 }
 
@@ -116,8 +124,13 @@ function closeColumnMenuOnOutside(e) {
   }
 }
 
-function resetColumnPrefs() {
-  if (!confirm(t('confirm.resetCols'))) return;
+async function resetColumnPrefs() {
+  if (!await confirmDialog({
+    title: 'Reset column preferences',
+    body: t('confirm.resetCols'),
+    confirmLabel: 'Reset',
+    danger: true
+  })) return;
   localStorage.removeItem(COLUMN_PREFS_KEY);
   renderColumnPicker();
   if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
@@ -304,8 +317,13 @@ function sanitizeFlightRow(f, profile) {
   return out;
 }
 
-function clearAll() {
-  if (!confirm(t('confirm.deleteAll'))) return;
+async function clearAll() {
+  if (!await confirmDialog({
+    title: 'Clear all flights',
+    body: t('confirm.deleteAll'),
+    confirmLabel: 'Clear all',
+    danger: true
+  })) return;
   flights = [];
   DB.save(flights);
   showToast(t('toast.allCleared'), 'error');
@@ -319,8 +337,18 @@ function clearAll() {
 // remote purge and 30-day backup-retention window per the policy).
 async function deleteAccountPurge() {
   // Two-stage confirmation — this is irreversible local + cloud destruction.
-  if (!confirm(t('confirm.deletePurge1'))) return;
-  if (!confirm(t('confirm.deletePurge2'))) return;
+  if (!await confirmDialog({
+    title: 'Delete account + purge all data',
+    body: t('confirm.deletePurge1'),
+    confirmLabel: 'Continue',
+    danger: true
+  })) return;
+  if (!await confirmDialog({
+    title: 'Are you absolutely sure?',
+    body: t('confirm.deletePurge2'),
+    confirmLabel: 'Yes, delete everything',
+    danger: true
+  })) return;
 
   // 1) If signed in to Supabase, mark account for deletion (server-side).
   try {
