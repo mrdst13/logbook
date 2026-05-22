@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24" fill="#3884FF" role="img" aria-label="Cumulo">
+  <!--
+    Cumulo favicon: cloud only (no horizon) — per brand essential F:
+    "Below 24px, drop the horizon line entirely. Cloud silhouette only."
+  -->
+  <path d="M6 19 C6 10 10 5 16 5 C22 5 26 10 26 19 L6 19 Z"/>
+</svg>

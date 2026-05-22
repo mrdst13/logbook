@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 32" fill="currentColor" role="img" aria-label="Cumulo">
+  <!--
+    Cumulo primary mark: cloud + horizon delivered as one merged path
+    (per brand essentials, brand guide v1.0 2024-05-18).
+    Color is inherited via currentColor — set color on the parent element.
+  -->
+  <path fill-rule="evenodd" d="M18 22 C18 13 23 8 28 8 C34 8 42 13 42 22 L18 22 Z M4 25 H52 V27 H4 Z"/>
+</svg>
