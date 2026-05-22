@@ -113,6 +113,17 @@
 
  <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
 
+ <!-- Brought-forward discovery banner — appears when the pilot is new
+      (no flights, no opening balances) so they know they can declare
+      paper-logbook totals without re-entering every flight. -->
+ <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); display:flex; gap:var(--s-3); align-items:center; flex-wrap:wrap;">
+ <div style="flex:1; min-width:0;">
+ <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;" data-i18n="dash.brought.title">Have a paper logbook?</div>
+ <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;" data-i18n="dash.brought.desc">Declare your cumulative totals as brought-forward hours — no need to re-enter every flight. One attestation, then log new flights forward from today.</div>
+ </div>
+ <button class="btn btn-primary" onclick="showPage('backup'); setTimeout(()=>{showSettingsTab&&showSettingsTab('profile'); setTimeout(()=>openOpeningBalancesEditor&&openOpeningBalancesEditor(), 100);}, 50);" data-i18n="dash.brought.cta">Declare totals</button>
+ </div>
+
  <!-- HERO CARD (v3a signature element) -->
  <div class="hero">
  <div class="hero-content">

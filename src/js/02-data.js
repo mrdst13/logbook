@@ -365,6 +365,16 @@ function renderDashboard() {
   // count) intentionally stay as-flights only — currency + activity metrics,
   // not cumulative totals.
   const s = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw) : sRaw;
+
+  // Discovery banner for brought-forward: show only to brand-new pilots
+  // (no flights, no declared opening balances). Once they log a flight OR
+  // declare an opening balance, the banner disappears naturally.
+  const bfBanner = document.getElementById('broughtForwardBanner');
+  if (bfBanner) {
+    const isBrandNew = (flights.length === 0)
+      && (typeof hasOpeningBalances !== 'function' || !hasOpeningBalances());
+    bfBanner.style.display = isBrandNew ? 'flex' : 'none';
+  }
   document.getElementById('s-total').textContent = fmt(s.total);
   document.getElementById('s-pic').textContent = fmt(s.pic);
   document.getElementById('s-night').textContent = fmt(s.night);

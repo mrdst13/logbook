@@ -2430,6 +2430,17 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
  <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
 
+ <!-- Brought-forward discovery banner — appears when the pilot is new
+      (no flights, no opening balances) so they know they can declare
+      paper-logbook totals without re-entering every flight. -->
+ <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); display:flex; gap:var(--s-3); align-items:center; flex-wrap:wrap;">
+ <div style="flex:1; min-width:0;">
+ <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;" data-i18n="dash.brought.title">Have a paper logbook?</div>
+ <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;" data-i18n="dash.brought.desc">Declare your cumulative totals as brought-forward hours — no need to re-enter every flight. One attestation, then log new flights forward from today.</div>
+ </div>
+ <button class="btn btn-primary" onclick="showPage('backup'); setTimeout(()=>{showSettingsTab&&showSettingsTab('profile'); setTimeout(()=>openOpeningBalancesEditor&&openOpeningBalancesEditor(), 100);}, 50);" data-i18n="dash.brought.cta">Declare totals</button>
+ </div>
+
  <!-- HERO CARD (v3a signature element) -->
  <div class="hero">
  <div class="hero-content">
@@ -4298,6 +4309,16 @@ function renderDashboard() {
   // count) intentionally stay as-flights only — currency + activity metrics,
   // not cumulative totals.
   const s = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw) : sRaw;
+
+  // Discovery banner for brought-forward: show only to brand-new pilots
+  // (no flights, no declared opening balances). Once they log a flight OR
+  // declare an opening balance, the banner disappears naturally.
+  const bfBanner = document.getElementById('broughtForwardBanner');
+  if (bfBanner) {
+    const isBrandNew = (flights.length === 0)
+      && (typeof hasOpeningBalances !== 'function' || !hasOpeningBalances());
+    bfBanner.style.display = isBrandNew ? 'flex' : 'none';
+  }
   document.getElementById('s-total').textContent = fmt(s.total);
   document.getElementById('s-pic').textContent = fmt(s.pic);
   document.getElementById('s-night').textContent = fmt(s.night);
@@ -9866,6 +9887,9 @@ const STRINGS = {
  'currency.days': '{n} days',
  'dash.recentFlights': 'Recent flights',
  'dash.viewAll': 'View all →',
+ 'dash.brought.title': 'Have a paper logbook?',
+ 'dash.brought.desc': 'Declare your cumulative totals as brought-forward hours — no need to re-enter every flight. One attestation, then log new flights forward from today.',
+ 'dash.brought.cta': 'Declare totals',
  'dash.recentTitle': 'Recent Flights',
  'dash.viewAllBtn': 'View All',
  'stats.totalTime': 'Total Time',
@@ -10436,6 +10460,9 @@ const STRINGS = {
  'currency.days': '{n} jours',
  'dash.recentFlights': 'Vols récents',
  'dash.viewAll': 'Tout voir →',
+ 'dash.brought.title': 'Tu as un carnet papier ?',
+ 'dash.brought.desc': 'Déclare tes totaux cumulatifs en heures reportées — pas besoin de ressaisir chaque vol. Une attestation, puis tu enregistres les nouveaux vols à partir d\'aujourd\'hui.',
+ 'dash.brought.cta': 'Déclarer les totaux',
  'dash.recentTitle': 'Vols récents',
  'dash.viewAllBtn': 'Tout voir',
  'stats.totalTime': 'Temps total',
