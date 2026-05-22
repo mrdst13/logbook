@@ -5,22 +5,25 @@
  <title>Cumulo Flight Deck — Canadian pilot logbook</title>
  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
  <meta name="description" content="The pilot logbook built by a Canadian pilot, for Canadian pilots. Your flight data stays in Canada. Encrypted end-to-end. PIPEDA + Loi 25 compliant. Try it now — no signup.">
- <meta name="theme-color" content="#0F2A5C">
+ <meta name="theme-color" content="#FFFFFF">
  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
  <link rel="preconnect" href="https://fonts.googleapis.com">
  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
  <style>
  :root {
- --bg: #0a0e1a;
- --bg-surface: #131826;
- --bg-elev: #1a2032;
- --text: #e8eef9;
- --text-mute: #8b9bb4;
- --accent: #3884ff;
- --accent-soft: rgba(56,132,255,0.12);
- --canada-red: #ff3b3b;
- --border: rgba(255,255,255,0.08);
+ /* Light theme — matches the Cumulo brand light mode.
+    The marketing site is light-first; the in-app PWA is also light-first
+    with a dark toggle. Same brand accent (#3884FF) works on both. */
+ --bg: #FFFFFF;
+ --bg-surface: #F7F8FA;
+ --bg-elev: #FFFFFF;
+ --text: #0A0E1A;
+ --text-mute: #5E6678;
+ --accent: #3884FF;
+ --accent-soft: rgba(56,132,255,0.10);
+ --canada-red: #DC2A2A;
+ --border: rgba(15, 23, 42, 0.10);
  --r: 14px;
  }
  * { box-sizing: border-box; }
@@ -39,9 +42,9 @@
  .canada-banner {
  display:inline-flex; align-items:center; gap:8px;
  padding: 6px 14px;
- background: rgba(255,59,59,0.08);
+ background: rgba(220, 42, 42, 0.06);
  color: var(--canada-red);
- border: 1px solid rgba(255,59,59,0.25);
+ border: 1px solid rgba(220, 42, 42, 0.22);
  border-radius: 999px;
  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
  margin-bottom: 28px;
@@ -53,8 +56,8 @@
  /* CTA buttons */
  .cta-row { display:flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
  .btn { display:inline-flex; align-items:center; gap:8px; padding: 13px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.2s ease; text-decoration: none; }
- .btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 18px rgba(56,132,255,0.35); }
- .btn-primary:hover { transform: translateY(-1px); text-decoration: none; }
+ .btn-primary { background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(56,132,255,0.20); }
+ .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(56,132,255,0.28); text-decoration: none; }
  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
  .btn-outline:hover { background: var(--bg-surface); text-decoration: none; }
 

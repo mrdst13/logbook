@@ -1211,6 +1211,10 @@ function setLang(lang) {
  if (typeof renderCurrencyCard === 'function') renderCurrencyCard();
  if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
  if (typeof renderRecap === 'function' && document.getElementById('page-recap')?.classList.contains('active')) renderRecap();
+ // Q&A and Glossary contain hard-coded prose that has FR translations baked
+ // into the source data — re-render them so the language toggle is immediate.
+ if (typeof renderQA === 'function' && document.getElementById('page-qa')?.classList.contains('active')) renderQA();
+ if (typeof filterGlossary === 'function' && document.getElementById('page-glossary')?.classList.contains('active')) filterGlossary(glossaryFilter || '');
  // If the auth modal is open (e.g. user clicked EN/FR mid-signin), re-render
  // its body so the form labels switch language too.
  if (typeof AuthUI !== 'undefined' && document.getElementById('authModal')?.classList.contains('show')) {
