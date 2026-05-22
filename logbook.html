@@ -13,9 +13,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cumulo">
 <meta name="theme-color" content="#0F2A5C">
-<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.svg">
-<link rel="mask-icon" href="/assets/favicon.svg" color="#3884FF">
 <title>Cumulo Flight Deck — Pilot Logbook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -366,7 +363,12 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   align-items: center;
   gap: var(--s-3);
   flex: 1;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity var(--t-micro) var(--ease-out);
 }
+a.logo { cursor: pointer; }
+a.logo:hover .logo-title { color: var(--accent); }
 
 .logo-icon {
   width: 36px;
@@ -2328,13 +2330,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <span></span>
  </button>
 
- <div class="logo">
- <div class="logo-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 32" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 22 C18 13 23 8 28 8 C34 8 42 13 42 22 L18 22 Z M4 25 H52 V27 H4 Z"/></svg></div>
+ <!-- Header wordmark — clickable, links back to the marketing home page. -->
+ <a href="/" class="logo" title="Cumulo home" style="text-decoration:none;color:inherit;">
  <div class="logo-texts">
  <div class="logo-title" data-i18n="logo.title">Cumulo</div>
  <div class="logo-sub" data-i18n="logo.sub">Flight Deck</div>
  </div>
- </div>
+ </a>
  <div class="header-pilot">
  <div class="pilot-name">Pilot</div>
  <div class="pilot-hours" id="headerHours">0.0 hrs total</div>

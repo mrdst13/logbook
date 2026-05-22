@@ -55,7 +55,12 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   align-items: center;
   gap: var(--s-3);
   flex: 1;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity var(--t-micro) var(--ease-out);
 }
+a.logo { cursor: pointer; }
+a.logo:hover .logo-title { color: var(--accent); }
 
 .logo-icon {
   width: 36px;
