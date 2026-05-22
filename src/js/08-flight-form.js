@@ -895,7 +895,7 @@ function showNavblueDiagnostic() {
     </details>
   `;
   const confirmBtn = document.getElementById('importConfirmBtn');
-  confirmBtn.textContent = '📋 Copy all';
+  confirmBtn.textContent = 'Copy all';
   confirmBtn.disabled = false;
   confirmBtn.onclick = () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {

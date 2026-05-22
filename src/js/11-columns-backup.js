@@ -67,7 +67,7 @@ function renderColumnPicker() {
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">Instructor</button>
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">Private</button>
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">Student</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">📋 ATPL</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">ATPL</button>
       <span class="col-toolbar-sep"></span>
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">All</button>
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">None</button>
