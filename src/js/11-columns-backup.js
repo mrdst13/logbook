@@ -235,7 +235,7 @@ function backupData() {
 function restoreData(input) {
   const file = input.files[0]; if (!file) return;
   const r = new FileReader();
-  r.onload = e => {
+  r.onload = async e => {
     try {
       const data = JSON.parse(e.target.result);
       if (!data || typeof data !== 'object') {
@@ -243,7 +243,8 @@ function restoreData(input) {
         return;
       }
 
-      // Validate flights array shape and cap.
+      // Validate flights array shape and cap upfront, BEFORE confirmation
+      // — so we don't show the user a bogus summary derived from invalid data.
       if (data.flights !== undefined) {
         if (!Array.isArray(data.flights)) {
           showToast(t('toast.invalidBackup'), 'error');
@@ -254,6 +255,42 @@ function restoreData(input) {
           console.warn('[Restore] rejected backup with', data.flights.length, 'flights — cap is 100,000');
           return;
         }
+      }
+      if (data.profile !== undefined) {
+        if (!data.profile || typeof data.profile !== 'object' || Array.isArray(data.profile)) {
+          showToast(t('toast.invalidBackup'), 'error');
+          return;
+        }
+      }
+
+      // Dry-run preview: tell the user EXACTLY what's about to change before
+      // committing. Restore is destructive — overwrites every flight + profile
+      // in the current local store. The pilot has 2 seconds to read the
+      // counts, see the dates, and bail if anything looks off.
+      const incomingFlightCount = Array.isArray(data.flights) ? data.flights.length : 0;
+      const currentFlightCount = Array.isArray(flights) ? flights.length : 0;
+      const dates = (data.flights || []).map(f => f && f.date).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+      const dateRange = dates.length
+        ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} → ${dates[dates.length - 1]}`)
+        : 'no dated entries';
+      const profileNote = (data.profile && typeof data.profile === 'object')
+        ? ` plus profile (${[data.profile.fname, data.profile.lname].filter(Boolean).join(' ') || 'unnamed'}).`
+        : '';
+      const exportedNote = data.exportedAt ? `Backup exported: ${String(data.exportedAt).slice(0, 10)}.` : '';
+
+      const body = `${exportedNote}\n\nBackup contains ${incomingFlightCount} flight${incomingFlightCount !== 1 ? 's' : ''} (${dateRange})${profileNote}\n\nThis will REPLACE your current ${currentFlightCount} flight${currentFlightCount !== 1 ? 's' : ''}. Cannot be undone — download a fresh backup first if unsure.`;
+
+      const ok = await confirmDialog({
+        title: 'Restore from backup',
+        body,
+        confirmLabel: 'Replace + restore',
+        cancelLabel: 'Cancel',
+        danger: true
+      });
+      if (!ok) return;
+
+      // Confirmed — apply the restore.
+      if (data.flights !== undefined) {
         const cleanProfile = data.profile && typeof data.profile === 'object'
           ? data.profile : DB.loadProfile();
         const cleanFlights = data.flights
@@ -262,13 +299,7 @@ function restoreData(input) {
         flights = cleanFlights;
         DB.save(flights);
       }
-
-      // Validate profile fields (lang whitelist, operatorCodes regex-safe).
       if (data.profile !== undefined) {
-        if (!data.profile || typeof data.profile !== 'object' || Array.isArray(data.profile)) {
-          showToast(t('toast.invalidBackup'), 'error');
-          return;
-        }
         const cleanProfile = { ...data.profile };
         if (cleanProfile.lang && cleanProfile.lang !== 'en' && cleanProfile.lang !== 'fr') {
           delete cleanProfile.lang;

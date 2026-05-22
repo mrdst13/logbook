@@ -7,9 +7,46 @@ function sv(id, val) { document.getElementById(id).value = val || ''; }
 // ═══════════════════════════════════════════
 // AIRCRAFT DROPDOWN (Feature 2)
 // ═══════════════════════════════════════════
+// Map Aircraft Type → TC Type Rating. Only type-rated aircraft are listed
+// (per CAR Standard 421: jets and turbines > 5,700 kg, plus designated
+// aircraft like Q400). Light singles / twins below the threshold don't
+// require a type rating — they're omitted on purpose so the field stays
+// blank for those (the pilot's licence covers them via class rating).
 const AIRCRAFT_RATINGS = {
-  'E195-E2': 'E195',
-  'Q400':    'DH4',
+  // Embraer
+  'E195-E2': 'E190/E195',
+  'E190':    'E190/E195',
+  // Airbus
+  'A220':    'A220',
+  'A319':    'A320',
+  'A320':    'A320',
+  'A321':    'A320',
+  'A330':    'A330',
+  // Boeing
+  'B737-700':   'B737',
+  'B737-800':   'B737',
+  'B737 MAX 8': 'B737',
+  'B767':       'B767',
+  'B777':       'B777',
+  'B787':       'B787',
+  // Bombardier / De Havilland
+  'CRJ-200': 'CRJ',
+  'CRJ-700': 'CRJ',
+  'CRJ-900': 'CRJ',
+  'Q400':              'DH4',
+  'DHC-8-100':         'DH8',
+  'DHC-8-200':         'DH8',
+  'DHC-8-300':         'DH8',
+  // ATR
+  'ATR-42': 'ATR42/72',
+  'ATR-72': 'ATR42/72',
+  // Other commuters
+  'SAAB 340':         'SF34',
+  'Beechcraft 1900':  'BE1900',
+  'DHC-6 Twin Otter': 'DHC-6',
+  'Pilatus PC-12':    'PC12',
+  'King Air 200':     'BE20',
+  'King Air 350':     'BE30',
 };
 
 function onAircraftSelect() {
@@ -72,7 +109,12 @@ function setEntryType(type) {
   if (ft && !editingId) ft.textContent = type === 'sim' ? 'Log a Simulator Session' : 'Log a Flight';
 }
 
-function saveFlight() {
+// saveFlight(options) — when options.addAnother === true, stay on the form
+// after save and reset for the next leg (Porter F/Os fly 4-6 legs/day).
+// Keeps Date (same day), Aircraft Type and Registration (same plane in
+// most cases) pre-filled so the pilot only types what actually changed.
+function saveFlight(options) {
+  const opts = (options && typeof options === 'object') ? options : {};
   const date = gv('f-date');
   if (!date) { showToast(t('toast.dateRequired'), 'error'); return; }
 
@@ -131,6 +173,26 @@ function saveFlight() {
 
   DB.save(flights);
   showToast(t('toast.flightSaved'), 'success');
+
+  if (opts.addAnother) {
+    // Stay on Add Flight. Reset most fields but keep Date / Aircraft type / Reg
+    // (those are usually the same across legs of the same duty day).
+    const keep = {
+      date: gv('f-date'),
+      type: getAircraftType(),
+      reg: gv('f-reg'),
+      rating: gv('f-rating'),
+    };
+    clearForm();
+    sv('f-date', keep.date);
+    setAircraftTypeField(keep.type);
+    sv('f-reg', keep.reg);
+    sv('f-rating', keep.rating);
+    // Focus the next-likely-changed field (Route) so the pilot can type immediately.
+    setTimeout(() => document.getElementById('f-route')?.focus(), 30);
+    return;
+  }
+
   showPage('logbook');
 }
 
