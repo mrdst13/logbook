@@ -333,7 +333,8 @@
 .faq-item { border-bottom: 1px solid var(--border); }
 .faq-item:last-child { border-bottom: none; }
 .faq-q {
-  padding: var(--s-3) var(--s-5);
+  padding: 14px var(--s-5);
+  min-height: 48px;
   cursor: pointer;
   display: flex;
   align-items: center;

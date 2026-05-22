@@ -14,10 +14,10 @@
  </button>
 
  <div class="logo">
- <div class="logo-icon">✈</div>
+ <div class="logo-icon" aria-hidden="true"></div>
  <div class="logo-texts">
- <div class="logo-title" data-i18n="logo.title">My Logbook</div>
- <div class="logo-sub" data-i18n="logo.sub">Flight Record</div>
+ <div class="logo-title" data-i18n="logo.title">Cumulo</div>
+ <div class="logo-sub" data-i18n="logo.sub">Flight Deck</div>
  </div>
  </div>
  <div class="header-pilot">
@@ -75,7 +75,7 @@
  <div class="nav-group">
  <div class="nav-label" data-i18n="nav.reports">Reports</div>
  <button type="button" class="nav-item" data-page="recap">
- <span class="nav-icon">🗓</span> <span data-i18n="nav.recap">Year Recap</span>
+ <span class="nav-icon"></span> <span data-i18n="nav.recap">Year Recap</span>
  </button>
  <button type="button" class="nav-item" data-page="glossary">
  <span class="nav-icon"></span> <span data-i18n="nav.glossary">Glossary</span>
@@ -95,7 +95,7 @@
  </button>
  </div>
  <div class="nav-spacer"></div>
- <div class="nav-version" data-i18n="nav.versionLabel">v2.0 · My Logbook</div>
+ <div class="nav-version" data-i18n="nav.versionLabel">Cumulo Flight Deck</div>
 </nav>
 
 <!-- MAIN -->
@@ -109,7 +109,7 @@
  <div class="page-sub" id="dashDate"></div>
  </div>
  <div class="page-actions">
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">✈ Log Flight</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log Flight</button>
  </div>
  </div>
 
@@ -246,7 +246,7 @@
  </tr>
  </thead>
  <tbody id="recentTbody">
- <tr class="empty-row"><td colspan="6" data-i18n="misc.noFlightsYet">No flights yet — add your first entry above ✈</td></tr>
+ <tr class="empty-row"><td colspan="6" data-i18n="misc.noFlightsYet">No flights logged yet. Add your first flight to start tracking.</td></tr>
  </tbody>
  </table>
  </div>
@@ -261,8 +261,8 @@
  <div class="page-sub" id="logbookSub">0 entries</div>
  </div>
  <div class="page-actions">
- <button class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn"> Export PDF</button>
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="lb.addFlight"> Add Flight</button>
+ <button class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn">Export PDF</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="lb.addFlight">Add Flight</button>
  </div>
  </div>
 
@@ -287,7 +287,7 @@
  <table>
  <thead id="logbookThead"></thead>
  <tbody id="logbookTbody">
- <tr class="empty-row"><td>No flights logged yet ✈</td></tr>
+ <tr class="empty-row"><td colspan="99" data-i18n="lb.empty">No flights logged yet. Import a roster or log your first flight.</td></tr>
  </tbody>
  <tfoot id="logbookTfoot"></tfoot>
  </table>
@@ -310,7 +310,7 @@
  <div class="form-card" style="margin-bottom:var(--s-3);">
  <div style="display:flex; gap:var(--s-2); padding:4px; background:var(--bg-subtle); border-radius:var(--r-md);">
  <button type="button" class="entry-type-btn is-active" id="entryTypeFlight" onclick="setEntryType('flight')" data-i18n="flight.entryFlight">
- ✈ Flight
+ Flight
  </button>
  <button type="button" class="entry-type-btn" id="entryTypeSim" onclick="setEntryType('sim')" data-i18n="flight.entrySim">
  Simulator session
@@ -358,7 +358,7 @@
  </div>
 
  <div class="form-card">
- <div class="form-card-title" data-i18n="flight.flightInfo">✈ Flight Information</div>
+ <div class="form-card-title" data-i18n="flight.flightInfo">Flight Information</div>
  <div class="form-grid">
  <div class="form-group">
  <label data-i18n="flight.date">Date</label>
@@ -543,7 +543,7 @@
  </div>
 
  <div class="form-card">
- <div class="form-card-title" data-i18n="flight.xcCard">🗺 Cross Country</div>
+ <div class="form-card-title" data-i18n="flight.xcCard">Cross Country</div>
  <div class="form-grid form-grid-4">
  <div class="form-group">
  <label>XC Day — Dual</label>
@@ -596,7 +596,7 @@
 
  <div class="form-actions">
  <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
- <button class="btn btn-primary" onclick="saveFlight()"> Save Flight</button>
+ <button class="btn btn-primary" onclick="saveFlight()" data-i18n="flight.saveBtn">Save Flight</button>
  </div>
  </div>
 
@@ -666,18 +666,18 @@
  </div>
 
  <div class="profile-hero">
- <div class="profile-avatar">✈</div>
+ <div class="profile-avatar" id="profileAvatar" aria-hidden="true"></div>
  <div>
- <div class="profile-name-display" id="profileNameDisp">Pilot</div>
+ <div class="profile-name-display" id="profileNameDisp">—</div>
  <div class="profile-role-display" id="profileRoleDisp">First Officer</div>
  </div>
  </div>
 
  <div class="form-card">
- <div class="form-card-title">✈ <span data-i18n="profile.section.type">Pilot Type</span></div>
+ <div class="form-card-title"><span data-i18n="profile.section.type">Pilot Type</span></div>
  <div class="profile-type-grid">
  <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
- <div class="pt-icon">✈</div>
+ <div class="pt-icon"></div>
  <div class="pt-name" data-i18n="profile.type.airline">Airline 705</div>
  <div class="pt-desc" data-i18n="profile.type.airlineDesc">Air carrier ops · All TC columns</div>
  </div>
@@ -866,7 +866,7 @@
  </div>
 
  <div class="form-card">
- <div class="form-card-title">✍ Electronic Signature</div>
+ <div class="form-card-title">Electronic Signature</div>
  <p style="font-size:12px;color:var(--text-muted);margin-bottom:var(--s-3);line-height:1.5">
  Sign below. Your signature is saved locally and appears on PDF exports.
  </p>
@@ -926,7 +926,7 @@
  <div class="page-sub" data-i18n="page.recap.sub">Annual flight summary</div>
  </div>
  <div class="page-actions">
- <select id="recapYear" onchange="renderRecap()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);font-family:var(--font-mono);font-size:13px;background:var(--white);color:var(--text)"></select>
+ <select id="recapYear" onchange="renderRecap()"></select>
  </div>
  </div>
 
@@ -1080,7 +1080,7 @@
  ondragover="event.preventDefault(); this.classList.add('dragover');"
  ondragleave="this.classList.remove('dragover');"
  ondrop="handleCsvDrop(event);">
- <div class="drop-icon">📑</div>
+ <div class="drop-icon"></div>
  <div class="drop-title" data-i18n="sync.csv.dropTitle">Drop your logbook CSV export here</div>
  <div class="drop-sub" data-i18n="sync.csv.dropSub">or click · .csv from ForeFlight / LogTen / MyFlightbook / Logbook Pro / Safelog / any other</div>
  </div>
@@ -1156,12 +1156,12 @@
  </div>
 
  <div class="settings-row">
- <div class="settings-row-icon">️</div>
+ <div class="settings-row-icon"></div>
  <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="settings.undo.title">Undo last bulk operation</div>
  <div class="settings-row-desc" data-i18n="settings.undo.desc">Cumulo snapshots automatically before sync/recalc. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.</div>
  </div>
- <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">️ Undo</button>
+ <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">Undo</button>
  </div>
 
  <div class="settings-row">

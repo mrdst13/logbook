@@ -33,7 +33,7 @@ function renderLogbook(filter='') {
   }
 
   if (!list.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">No flights found ✈</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">No flights found.</td></tr>`;
     return;
   }
 

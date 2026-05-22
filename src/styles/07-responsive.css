@@ -98,7 +98,7 @@
   .hero-value { font-size: 32px; }
   .hero-mini { gap: var(--s-3); }
   .mini-stat-value { font-size: 16px; }
-  .logo-sub { display: none; }  /* keep just "My Logbook" */
+  .logo-sub { display: none; }  /* on mobile keep only "Cumulo" — the product suffix returns at md+ */
   main { padding: var(--s-4) var(--s-3) var(--s-10); }
   .form-actions { flex-direction: column; }
   .form-actions .btn { width: 100%; justify-content: center; }

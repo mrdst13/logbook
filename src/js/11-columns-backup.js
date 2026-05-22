@@ -53,20 +53,20 @@ function renderColumnPicker() {
       const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
       return `<button type="button" class="col-pill ${checked ? 'on' : 'off'}"
                        onclick="toggleColumn('${c.key}', ${!checked})"
-                       title="${c.label}">${checked ? '✓ ' : ''}${c.short || c.label}</button>`;
+                       title="${c.label}">${c.short || c.label}</button>`;
     }).join('')}
   `).join('');
 
   container.innerHTML = `
     <div class="col-toolbar">
       <span class="eyebrow">Persona:</span>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O">✈ F/O</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain">✈ Capt</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="Bush ops">🚤 Bush</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft">🚁 Heli</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">🎓 Instr</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">🛩 Priv</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">📚 Stu</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O">Airline F/O</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain">Airline Capt</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="Bush ops">Bush</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft">Heli</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">Instructor</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">Private</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">Student</button>
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">📋 ATPL</button>
       <span class="col-toolbar-sep"></span>
       <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">All</button>
