@@ -271,10 +271,11 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   vertical-align: middle;
 }
 
-/* Entry type toggle (Flight vs Simulator) */
+/* Entry type toggle (Flight vs Simulator) — min 44pt tap target per iOS HIG */
 .entry-type-btn {
   flex: 1;
-  padding: var(--s-3);
+  padding: 14px var(--s-4);
+  min-height: 44px;
   background: transparent;
   border: none;
   border-radius: var(--r-sm);
@@ -419,9 +420,10 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 3px 8px;
+  padding: 6px 10px;
+  min-height: 28px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.02em;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -439,6 +441,9 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   font-weight: 600;
 }
 .col-pill.off { opacity: 0.7; }
+@media (max-width: 860px) {
+  .col-pill { padding: 10px 14px; min-height: 44px; font-size: 12px; }
+}
 
 /* ─── Settings tabs (top of Settings page) ─── */
 .settings-tabs {
@@ -456,7 +461,8 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 .settings-tab {
   flex: 1 1 auto;
   min-width: 80px;
-  padding: 10px 16px;
+  min-height: 44px;
+  padding: 14px 16px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -475,7 +481,7 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   box-shadow: var(--shadow-xs);
 }
 @media (max-width: 600px) {
-  .settings-tab { font-size: 12px; padding: 8px 12px; min-width: 64px; }
+  .settings-tab { font-size: 12px; padding: 12px 14px; min-width: 64px; min-height: 44px; }
 }
 
 /* ─── Privacy & Trust card (Settings → Section 0) ─── */

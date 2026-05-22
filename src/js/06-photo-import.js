@@ -257,7 +257,7 @@ function updateImportButton() {
   if (counter) counter.textContent = `${selected} of ${total} selected`;
   const btn = document.getElementById('importConfirmBtn');
   if (btn) {
-    btn.textContent = selected > 0 ? `✅ Import ${selected} flight${selected !== 1 ? 's' : ''}` : 'Nothing to import';
+    btn.textContent = selected > 0 ? `Import ${selected} flight${selected !== 1 ? 's' : ''}` : 'Nothing to import';
     btn.disabled = selected === 0;
   }
 }

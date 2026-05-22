@@ -380,7 +380,7 @@ function renderDashboard() {
   const recent = [...flights].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
   const tbody = document.getElementById('recentTbody');
   if (!recent.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No flights yet — add your first entry above ✈</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No flights logged yet. Add your first flight to start tracking.</td></tr>';
     return;
   }
   tbody.innerHTML = recent.map(f => `
