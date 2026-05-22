@@ -2,6 +2,16 @@
 // NAVIGATION
 // ═══════════════════════════════════════════
 function showPage(id) {
+  // Back-compat redirect: Profile is now a Settings tab, not a standalone page.
+  // Any legacy showPage('profile') call lands on Settings → Profile.
+  if (id === 'profile') {
+    showPage('backup');
+    if (typeof showSettingsTab === 'function') {
+      setTimeout(() => showSettingsTab('profile'), 0);
+    }
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const target = document.getElementById('page-' + id);
@@ -15,8 +25,8 @@ function showPage(id) {
 
   if (id === 'dashboard') renderDashboard();
   if (id === 'logbook') renderLogbook();
-  if (id === 'profile') { loadProfile(); setTimeout(initSignature, 50); }
   if (id === 'backup') {
+    // Settings page: refresh dark-mode mirror (if the legacy toggle still exists).
     const toggle = document.getElementById('darkModeToggle');
     if (toggle) toggle.checked = localStorage.getItem('logbook_dark') === '1';
   }

@@ -15,18 +15,27 @@ function showSettingsTab(name) {
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
+  // Tab-specific init. Profile tab needs loadProfile + initSignature on entry
+  // (these used to fire from router.js when 'profile' was a standalone page).
+  if (name === 'profile') {
+    if (typeof loadProfile === 'function') loadProfile();
+    if (typeof initSignature === 'function') setTimeout(initSignature, 50);
+  }
   // Persist for next visit
   try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}
   // Reset scroll to top of page so user sees the new pane
   window.scrollTo({ top: document.querySelector('#page-backup .page-header')?.offsetTop || 0, behavior: 'instant' });
 }
 
-// Restore last-used tab on page load (default = 'sync')
+// Restore last-used tab on page load (default = 'profile' — Profile is now the
+// landing tab for Settings, replacing the standalone Profile page).
 function restoreSettingsTab() {
   const saved = (() => {
     try { return localStorage.getItem(SETTINGS_TAB_KEY); } catch { return null; }
   })();
-  showSettingsTab(saved || 'sync');
+  // Migrate legacy 'display' tab key (removed in IA refactor) to 'profile'.
+  const tab = (saved === 'display' || !saved) ? 'profile' : saved;
+  showSettingsTab(tab);
 }
 
 // ═══════════════════════════════════════════
