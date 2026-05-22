@@ -1,4 +1,67 @@
 // ═══════════════════════════════════════════
+// QUICK-ENTRY HELPERS (Add Flight form)
+// ═══════════════════════════════════════════
+
+// Toggle the advanced fields wrapper (Multi-Engine / Cross Country / Instrument).
+// Default state on form open = collapsed. Pilots who need the breakdown open
+// it with one click; daily quick-log pilots never see these 16 fields.
+function toggleAdvancedFormFields() {
+  const wrap = document.getElementById('advancedFormFields');
+  const btn = document.getElementById('formAdvancedToggle');
+  if (!wrap || !btn) return;
+  const opening = wrap.style.display === 'none' || !wrap.style.display;
+  wrap.style.display = opening ? '' : 'none';
+  btn.textContent = opening
+    ? (typeof t === 'function' ? t('flight.hideAdvanced') : 'Hide advanced fields')
+    : (typeof t === 'function' ? t('flight.showAdvanced') : 'Show advanced fields (ME · XC · Instrument)');
+}
+
+// Populate PIC + Co-Pilot <datalist> autocomplete suggestions from the most
+// recent 90 days of flights. Captains rotate — a Porter F/O sees the same
+// ~20 names month after month. Cuts ~5 seconds of typing per entry.
+function populateRecentNames() {
+  if (!Array.isArray(flights)) return;
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const recent = flights.filter(f => f.date && f.date >= cutoff);
+  const fillDatalist = (id, values) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    const unique = [...new Set(values.filter(v => v && String(v).trim()))]
+      .map(v => String(v).trim()).slice(0, 50);
+    dl.innerHTML = unique.map(v => `<option value="${esc(v)}">`).join('');
+  };
+  fillDatalist('recentPics', recent.map(f => f.pic));
+  fillDatalist('recentCops', recent.map(f => f.copilot));
+}
+
+// One-time wiring: auto-sync Total Flight Time to Block Time as user types.
+// For 95% of airline / commercial ops, Block === Total. Setting both manually
+// is friction with no value. The Total field has its own override: once the
+// pilot edits Total directly, auto-sync stops for that entry.
+(function wireBlockTotalAutoSync() {
+  // Run once after DOM is ready (99-init.js calls this at start).
+  const wire = () => {
+    const block = document.getElementById('f-block');
+    const total = document.getElementById('f-total');
+    if (!block || !total) return;
+    block.addEventListener('input', () => {
+      if (!total.value || total.dataset.autoFromBlock === '1') {
+        total.value = block.value;
+        total.dataset.autoFromBlock = '1';
+      }
+    });
+    total.addEventListener('input', () => {
+      // User explicitly typed in Total → stop auto-syncing
+      total.dataset.autoFromBlock = '0';
+    });
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire);
+  } else {
+    wire();
+  }
+})();
+
 // ─────────────────────────────────────────────────────────────────
 //  LOGBOOK COLUMNS — defined per Transport Canada CAR 401.08(2)
 //  + Standard 421 (experience categories needed for ATPL / currency).

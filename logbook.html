@@ -2625,8 +2625,8 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div id="page-add" class="page">
  <div class="page-header">
  <div>
- <div class="page-title" id="formTitle" data-i18n="page.add.title">Log a Flight</div>
- <div class="page-sub" data-i18n="page.add.sub">Fill in your flight details</div>
+ <div class="page-title" id="formTitle" data-i18n="page.add.title">Log flight</div>
+ <div class="page-sub" id="formDateContext"></div>
  </div>
  </div>
 
@@ -2786,11 +2786,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="form-group">
  <label data-i18n="flight.pic">Pilot in Command</label>
- <input type="text" id="f-pic" placeholder="Name">
+ <input type="text" id="f-pic" placeholder="Name" list="recentPics" autocomplete="off">
+ <datalist id="recentPics"></datalist>
  </div>
  <div class="form-group">
  <label data-i18n="flight.copilot">Co-Pilot / Passenger</label>
- <input type="text" id="f-copilot" placeholder="Name">
+ <input type="text" id="f-copilot" placeholder="Name" list="recentCops" autocomplete="off">
+ <datalist id="recentCops"></datalist>
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.route">Route</label>
@@ -2837,6 +2839,17 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
         Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
  </div>
  </div>
+
+ <!-- Quick-entry toggle: for a daily Porter F/O log, the essentials are
+      Flight info + Time + (Day/Night Landings). Multi-Engine / Cross Country
+      / Instrument details are usually auto-filled from iCal sync (XC via
+      great-circle) or set on a known minority of entries. Default state
+      hides them; pilots who need them open with one click. -->
+ <div style="margin: var(--s-3) 0 var(--s-4);">
+ <button type="button" id="formAdvancedToggle" class="btn btn-ghost btn-sm" onclick="toggleAdvancedFormFields()" data-i18n="flight.showAdvanced">Show advanced fields (ME · XC · Instrument)</button>
+ </div>
+
+ <div id="advancedFormFields" style="display:none;">
 
  <div class="form-card">
  <div class="form-card-title" data-i18n="flight.meCard"> Multi-Engine Time</div>
@@ -2920,9 +2933,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
 
+ </div><!-- /#advancedFormFields -->
+
  <div class="form-actions">
- <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
- <button class="btn btn-primary" onclick="saveFlight()" data-i18n="flight.saveBtn">Save Flight</button>
+ <button class="btn btn-ghost" onclick="cancelForm()" data-i18n="flight.cancelBtn">Cancel</button>
+ <button class="btn btn-primary" onclick="saveFlight()" data-i18n="flight.saveBtn">Save flight</button>
  </div>
  </div>
 
@@ -3976,13 +3991,31 @@ function showPage(id) {
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();
   if (id === 'add' && !editingId) {
-    document.getElementById('formTitle').textContent = 'Log a Flight';
+    document.getElementById('formTitle').textContent = 'Log flight';
     clearForm();
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
     setEntryType('flight');   // default to flight when entering a new entry
   }
   if (id === 'add') {
     adaptFormToProfile(DB.loadProfile().pilotType || 'airline705');
+    // Date context under page title — gives the pilot a glance check
+    // that they're logging the right day before they start typing.
+    const ctx = document.getElementById('formDateContext');
+    if (ctx) {
+      const d = document.getElementById('f-date').value;
+      const dt = d ? new Date(d + 'T12:00:00') : new Date();
+      ctx.textContent = dt.toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    // Populate PIC / Co-pilot autocomplete from the last 90 days of flights.
+    if (typeof populateRecentNames === 'function') populateRecentNames();
+    // Reset advanced-fields toggle to collapsed state when opening a new entry
+    // (editingId is set when editing — keep state in that case).
+    if (!editingId) {
+      const adv = document.getElementById('advancedFormFields');
+      const btn = document.getElementById('formAdvancedToggle');
+      if (adv) adv.style.display = 'none';
+      if (btn) btn.textContent = t ? t('flight.showAdvanced') : 'Show advanced fields (ME · XC · Instrument)';
+    }
   }
 }
 
@@ -5349,6 +5382,22 @@ function adaptFormToProfile(type) {
     hide('fg-me-night-cop');
     hide('fg-picus');
   }
+
+  // Rank override for Airline 705 Captains: a Captain logs PIC time, not
+  // Co-Pilot time. ME Day/Night Co-Pilot fields are irrelevant for them
+  // and just create noise. The PICUS field also doesn't apply (PICUS is a
+  // co-pilot acting as PIC under supervision — not a Captain).
+  if (type === 'airline705') {
+    const p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+    const rank = (p.rank || '').toLowerCase();
+    const isCaptain = rank === 'cpt.' || rank === 'cpt' || rank === 'captain' || rank === 'pic';
+    if (isCaptain) {
+      hide('fg-me-day-cop');
+      hide('fg-me-night-cop');
+      hide('fg-picus');
+      setLbl('f-copilot', 'Co-Pilot (F/O)');
+    }
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -5527,6 +5576,69 @@ function updateProfileDisplay(p) {
 // ═══════════════════════════════════════════
 // NAVBLUE iCal AUTO-SYNC
 // ═══════════════════════════════════════════
+// QUICK-ENTRY HELPERS (Add Flight form)
+// ═══════════════════════════════════════════
+
+// Toggle the advanced fields wrapper (Multi-Engine / Cross Country / Instrument).
+// Default state on form open = collapsed. Pilots who need the breakdown open
+// it with one click; daily quick-log pilots never see these 16 fields.
+function toggleAdvancedFormFields() {
+  const wrap = document.getElementById('advancedFormFields');
+  const btn = document.getElementById('formAdvancedToggle');
+  if (!wrap || !btn) return;
+  const opening = wrap.style.display === 'none' || !wrap.style.display;
+  wrap.style.display = opening ? '' : 'none';
+  btn.textContent = opening
+    ? (typeof t === 'function' ? t('flight.hideAdvanced') : 'Hide advanced fields')
+    : (typeof t === 'function' ? t('flight.showAdvanced') : 'Show advanced fields (ME · XC · Instrument)');
+}
+
+// Populate PIC + Co-Pilot <datalist> autocomplete suggestions from the most
+// recent 90 days of flights. Captains rotate — a Porter F/O sees the same
+// ~20 names month after month. Cuts ~5 seconds of typing per entry.
+function populateRecentNames() {
+  if (!Array.isArray(flights)) return;
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const recent = flights.filter(f => f.date && f.date >= cutoff);
+  const fillDatalist = (id, values) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    const unique = [...new Set(values.filter(v => v && String(v).trim()))]
+      .map(v => String(v).trim()).slice(0, 50);
+    dl.innerHTML = unique.map(v => `<option value="${esc(v)}">`).join('');
+  };
+  fillDatalist('recentPics', recent.map(f => f.pic));
+  fillDatalist('recentCops', recent.map(f => f.copilot));
+}
+
+// One-time wiring: auto-sync Total Flight Time to Block Time as user types.
+// For 95% of airline / commercial ops, Block === Total. Setting both manually
+// is friction with no value. The Total field has its own override: once the
+// pilot edits Total directly, auto-sync stops for that entry.
+(function wireBlockTotalAutoSync() {
+  // Run once after DOM is ready (99-init.js calls this at start).
+  const wire = () => {
+    const block = document.getElementById('f-block');
+    const total = document.getElementById('f-total');
+    if (!block || !total) return;
+    block.addEventListener('input', () => {
+      if (!total.value || total.dataset.autoFromBlock === '1') {
+        total.value = block.value;
+        total.dataset.autoFromBlock = '1';
+      }
+    });
+    total.addEventListener('input', () => {
+      // User explicitly typed in Total → stop auto-syncing
+      total.dataset.autoFromBlock = '0';
+    });
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire);
+  } else {
+    wire();
+  }
+})();
+
 // ─────────────────────────────────────────────────────────────────
 //  LOGBOOK COLUMNS — defined per Transport Canada CAR 401.08(2)
 //  + Standard 421 (experience categories needed for ATPL / currency).
@@ -9933,7 +10045,10 @@ const STRINGS = {
  'flight.simSession': 'Session Type',
  'flight.simRegistration': 'Sim Device ID',
  'flight.deleteBtn': ' Delete',
- 'flight.saveBtn': 'Save Flight',
+ 'flight.saveBtn': 'Save flight',
+ 'flight.cancelBtn': 'Cancel',
+ 'flight.showAdvanced': 'Show advanced fields (ME · XC · Instrument)',
+ 'flight.hideAdvanced': 'Hide advanced fields',
  'lb.empty': 'No flights logged yet. Import a roster or log your first flight.',
  'flight.entryFlight': 'Flight',
  'flight.entrySim': 'Simulator session',
@@ -10507,6 +10622,9 @@ const STRINGS = {
  'flight.simRegistration': 'Identifiant de l’appareil sim',
  'flight.deleteBtn': ' Supprimer',
  'flight.saveBtn': 'Enregistrer le vol',
+ 'flight.cancelBtn': 'Annuler',
+ 'flight.showAdvanced': 'Afficher les champs avancés (ME · Voyage · Instrument)',
+ 'flight.hideAdvanced': 'Masquer les champs avancés',
  'lb.empty': 'Aucun vol enregistré. Importez un horaire ou inscrivez votre premier vol.',
  'flight.entryFlight': 'Vol',
  'flight.entrySim': 'Séance simulateur',

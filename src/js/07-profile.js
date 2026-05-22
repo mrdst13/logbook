@@ -82,6 +82,22 @@ function adaptFormToProfile(type) {
     hide('fg-me-night-cop');
     hide('fg-picus');
   }
+
+  // Rank override for Airline 705 Captains: a Captain logs PIC time, not
+  // Co-Pilot time. ME Day/Night Co-Pilot fields are irrelevant for them
+  // and just create noise. The PICUS field also doesn't apply (PICUS is a
+  // co-pilot acting as PIC under supervision — not a Captain).
+  if (type === 'airline705') {
+    const p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+    const rank = (p.rank || '').toLowerCase();
+    const isCaptain = rank === 'cpt.' || rank === 'cpt' || rank === 'captain' || rank === 'pic';
+    if (isCaptain) {
+      hide('fg-me-day-cop');
+      hide('fg-me-night-cop');
+      hide('fg-picus');
+      setLbl('f-copilot', 'Co-Pilot (F/O)');
+    }
+  }
 }
 
 // ═══════════════════════════════════════════

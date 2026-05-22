@@ -308,8 +308,8 @@
  <div id="page-add" class="page">
  <div class="page-header">
  <div>
- <div class="page-title" id="formTitle" data-i18n="page.add.title">Log a Flight</div>
- <div class="page-sub" data-i18n="page.add.sub">Fill in your flight details</div>
+ <div class="page-title" id="formTitle" data-i18n="page.add.title">Log flight</div>
+ <div class="page-sub" id="formDateContext"></div>
  </div>
  </div>
 
@@ -469,11 +469,13 @@
  </div>
  <div class="form-group">
  <label data-i18n="flight.pic">Pilot in Command</label>
- <input type="text" id="f-pic" placeholder="Name">
+ <input type="text" id="f-pic" placeholder="Name" list="recentPics" autocomplete="off">
+ <datalist id="recentPics"></datalist>
  </div>
  <div class="form-group">
  <label data-i18n="flight.copilot">Co-Pilot / Passenger</label>
- <input type="text" id="f-copilot" placeholder="Name">
+ <input type="text" id="f-copilot" placeholder="Name" list="recentCops" autocomplete="off">
+ <datalist id="recentCops"></datalist>
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.route">Route</label>
@@ -520,6 +522,17 @@
         Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
  </div>
  </div>
+
+ <!-- Quick-entry toggle: for a daily Porter F/O log, the essentials are
+      Flight info + Time + (Day/Night Landings). Multi-Engine / Cross Country
+      / Instrument details are usually auto-filled from iCal sync (XC via
+      great-circle) or set on a known minority of entries. Default state
+      hides them; pilots who need them open with one click. -->
+ <div style="margin: var(--s-3) 0 var(--s-4);">
+ <button type="button" id="formAdvancedToggle" class="btn btn-ghost btn-sm" onclick="toggleAdvancedFormFields()" data-i18n="flight.showAdvanced">Show advanced fields (ME · XC · Instrument)</button>
+ </div>
+
+ <div id="advancedFormFields" style="display:none;">
 
  <div class="form-card">
  <div class="form-card-title" data-i18n="flight.meCard"> Multi-Engine Time</div>
@@ -603,9 +616,11 @@
  </div>
  </div>
 
+ </div><!-- /#advancedFormFields -->
+
  <div class="form-actions">
- <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
- <button class="btn btn-primary" onclick="saveFlight()" data-i18n="flight.saveBtn">Save Flight</button>
+ <button class="btn btn-ghost" onclick="cancelForm()" data-i18n="flight.cancelBtn">Cancel</button>
+ <button class="btn btn-primary" onclick="saveFlight()" data-i18n="flight.saveBtn">Save flight</button>
  </div>
  </div>
 
