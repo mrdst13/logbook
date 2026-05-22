@@ -3401,15 +3401,6 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="settings-row">
  <div class="settings-row-icon"></div>
  <div class="settings-row-info">
- <div class="settings-row-title" data-i18n="settings.recalc.title">Recalculate Night &amp; Cross-Country</div>
- <div class="settings-row-desc" data-i18n="settings.recalc.desc">Re-process all flights with astronomical sunrise/sunset (RAC 101.01) and great-circle distance (CAR 401.34).</div>
- </div>
- <button class="btn btn-outline" onclick="recalculateAllFlights()"> Recalc</button>
- </div>
-
- <div class="settings-row">
- <div class="settings-row-icon"></div>
- <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="settings.undo.title">Undo last bulk operation</div>
  <div class="settings-row-desc" data-i18n="settings.undo.desc">Cumulo snapshots automatically before sync/recalc. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.</div>
  </div>
@@ -4224,9 +4215,19 @@ function findMatchingExistingFlight(incoming) {
   return null;
 }
 
-// Re-process ALL existing flights and persist. Reports skips with reasons.
+// Manual bulk-recalc removed (was a TC compliance risk: retroactive overwrite
+// of pilot-logged values, breaks attestation→value binding under CAR 401.08).
+// The internal function below is still called from the Navblue iCal sync
+// AFTER existing flights are enriched with new UTC anchors — that's a
+// defensible "fill what was previously uncalculable" path, not a bulk
+// retroactive modification of pilot-confirmed values.
 function recalculateAllFlights() {
-  if (!confirm(t('confirm.recalc'))) return;
+  // Stub kept so any legacy onclick="recalculateAllFlights()" no-ops cleanly.
+  // The Settings → Data UI no longer exposes this; sync calls
+  // recalculateAllFlightsInternal() directly.
+  console.warn('[Recalc] Manual bulk-recalc is disabled (TC compliance). Edit individual flights via Add/Edit instead.');
+  return;
+  // ─── former body (kept for git-blame reference only, never executes) ───
   snapshotBeforeOperation('Recalculate Night & XC');
   updateUndoButton();
   const result = recalculateAllFlightsInternal();
@@ -9650,8 +9651,6 @@ const STRINGS = {
  'settings.language.desc': 'Interface language. The TC PDF export stays English (regulatory requirement).',
  'settings.export.title': 'Export Logbook as PDF',
  'settings.export.desc': 'Print-ready CAR 401.08 layout with cover page, signature blocks, and currency status annex.',
- 'settings.recalc.title': 'Recalculate Night & Cross-Country',
- 'settings.recalc.desc': 'Re-process all flights with astronomical sunrise/sunset (RAC 101.01) and great-circle distance (CAR 401.34).',
  'settings.undo.title': 'Undo last bulk operation',
  'settings.undo.desc': 'Cumulo snapshots automatically before sync/recalc. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.',
  'settings.backup.title': 'Download backup',
@@ -10221,8 +10220,6 @@ const STRINGS = {
  'settings.language.desc': 'Langue de l’interface. L’exportation PDF pour Transports Canada reste en anglais (exigence réglementaire).',
  'settings.export.title': 'Exporter le carnet en PDF',
  'settings.export.desc': 'Mise en page CAR 401.08 prête à l’impression avec page couverture, bloc signature et annexe de validité.',
- 'settings.recalc.title': 'Recalculer Nuit et Voyage',
- 'settings.recalc.desc': 'Retraite tous les vols avec lever/coucher astronomique (RAC 101.01) et distance grand cercle (CAR 401.34).',
  'settings.undo.title': 'Annuler la dernière opération en lot',
  'settings.undo.desc': 'Cumulo prend un instantané automatique avant chaque synchro/recalc. Vous pouvez restaurer un état antérieur — vos données ne sont jamais supprimées sans votre confirmation explicite par vol.',
  'settings.backup.title': 'Télécharger une sauvegarde',

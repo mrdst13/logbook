@@ -297,9 +297,19 @@ function findMatchingExistingFlight(incoming) {
   return null;
 }
 
-// Re-process ALL existing flights and persist. Reports skips with reasons.
+// Manual bulk-recalc removed (was a TC compliance risk: retroactive overwrite
+// of pilot-logged values, breaks attestation→value binding under CAR 401.08).
+// The internal function below is still called from the Navblue iCal sync
+// AFTER existing flights are enriched with new UTC anchors — that's a
+// defensible "fill what was previously uncalculable" path, not a bulk
+// retroactive modification of pilot-confirmed values.
 function recalculateAllFlights() {
-  if (!confirm(t('confirm.recalc'))) return;
+  // Stub kept so any legacy onclick="recalculateAllFlights()" no-ops cleanly.
+  // The Settings → Data UI no longer exposes this; sync calls
+  // recalculateAllFlightsInternal() directly.
+  console.warn('[Recalc] Manual bulk-recalc is disabled (TC compliance). Edit individual flights via Add/Edit instead.');
+  return;
+  // ─── former body (kept for git-blame reference only, never executes) ───
   snapshotBeforeOperation('Recalculate Night & XC');
   updateUndoButton();
   const result = recalculateAllFlightsInternal();
