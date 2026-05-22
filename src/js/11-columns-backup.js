@@ -20,6 +20,7 @@ function showSettingsTab(name) {
   if (name === 'profile') {
     if (typeof loadProfile === 'function') loadProfile();
     if (typeof initSignature === 'function') setTimeout(initSignature, 50);
+    if (typeof renderOpeningBalancesSection === 'function') renderOpeningBalancesSection('openingBalancesSection');
   }
   // Persist for next visit
   try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}

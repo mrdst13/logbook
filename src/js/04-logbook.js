@@ -73,21 +73,32 @@ function renderLogbook(filter='') {
   }).join('');
 
   // ── Render totals footer (sum of all visible flights for each numeric column) ──
+  // When NO filter is active, fold brought-forward (opening balances) into the
+  // totals so the row matches the cumulative shown on Dashboard hero and TC PDF
+  // cover. When a filter is active, the totals are filter-local; brought-forward
+  // is NOT added (it would mix cumulative paper-logbook hours with a filtered subset).
   const tfoot = document.getElementById('logbookTfoot');
   if (tfoot) {
+    const includeOpening = !filter && typeof getOpening === 'function';
     const totals = {};
     cols.forEach(c => {
       if (c.decimal) {
         totals[c.key] = list.reduce((s, f) => s + (+computeCellValue(f, c.key) || 0), 0);
+        if (includeOpening) totals[c.key] += getOpening(c.key);
       } else if (['ldgDay','ldgNight','approaches','toDay','toNight'].includes(c.key)) {
         totals[c.key] = list.reduce((s, f) => s + (+f[c.key] || 0), 0);
+        if (includeOpening) totals[c.key] += getOpening(c.key);
       }
     });
+
+    const broughtFwdNote = (includeOpening && typeof hasOpeningBalances === 'function' && hasOpeningBalances())
+      ? ` <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.04em;">(incl. brought-forward)</span>`
+      : '';
 
     const totalCells = cols.map((c, i) => {
       let display = '';
       if (i === 0) {
-        display = `<strong>TOTALS</strong> · ${list.length} flight${list.length !== 1 ? 's' : ''}`;
+        display = `<strong>TOTALS</strong> · ${list.length} flight${list.length !== 1 ? 's' : ''}${broughtFwdNote}`;
       } else if (totals.hasOwnProperty(c.key)) {
         const v = totals[c.key];
         display = c.decimal ? `<strong>${fmt(v)}</strong>` : `<strong>${v}</strong>`;

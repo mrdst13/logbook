@@ -359,7 +359,12 @@ function setMini(id, val) {
 }
 
 function renderDashboard() {
-  const s = calcStats();
+  const sRaw = calcStats();
+  // Merge brought-forward (opening balances from a paper logbook) into the
+  // cumulative figures. s.block30 (last 30 days) and s.entries (in-app flight
+  // count) intentionally stay as-flights only — currency + activity metrics,
+  // not cumulative totals.
+  const s = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw) : sRaw;
   document.getElementById('s-total').textContent = fmt(s.total);
   document.getElementById('s-pic').textContent = fmt(s.pic);
   document.getElementById('s-night').textContent = fmt(s.night);
@@ -367,21 +372,21 @@ function renderDashboard() {
   document.getElementById('s-me').textContent = fmt(s.me);
   document.getElementById('s-xc').textContent = fmt(s.xc);
   document.getElementById('s-block').textContent = fmt(s.block);
-  document.getElementById('s-entries').textContent = s.entries;
+  document.getElementById('s-entries').textContent = sRaw.entries;
   document.getElementById('headerHours').textContent = fmt(s.total) + ' hrs total';
   document.getElementById('dashDate').textContent = new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
-  // Hero card (v3a signature element)
+  // Hero card
   const heroTotal = document.getElementById('hero-total');
   if (heroTotal) {
     heroTotal.textContent = fmt(s.block || s.total);
-    document.getElementById('hero-delta-value').textContent = fmt(s.block30);
+    document.getElementById('hero-delta-value').textContent = fmt(sRaw.block30);
     setMini('hero-pic', s.pic);
     setMini('hero-sic', s.sic);
     setMini('hero-night', s.night);
     // Hide delta block if no flights last 30 days
     const delta = document.getElementById('hero-delta');
-    delta.style.display = s.block30 > 0 ? 'inline-flex' : 'none';
+    delta.style.display = sRaw.block30 > 0 ? 'inline-flex' : 'none';
   }
 
   renderAlerts();

@@ -148,15 +148,23 @@ function _generatePDF() {
       doc.text(row[1], x, y + 6);
     });
 
-    // Cumulative totals summary (right block — gives the headline numbers)
-    const totals = calcStats();
+    // Cumulative totals summary (right block — gives the headline numbers).
+    // Fold brought-forward (opening balances from a paper logbook) into the
+    // totals so the cover reflects the pilot's TRUE cumulative — TP 14052
+    // explicitly supports "brought forward" / "previous balance" entries.
+    const rawTotals = calcStats();
+    const totals = (typeof totalsWithOpening === 'function') ? totalsWithOpening(rawTotals) : rawTotals;
+    const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
     const sumY = H - 50;
     doc.setFillColor(...light);
     doc.rect(cardX, sumY, cardW, 28, 'F');
     doc.setTextColor(...textPrimary);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('CAREER TOTALS (as of ' + new Date().toLocaleDateString('en-CA') + ')', cardX + 5, sumY + 6);
+    const totalsLabel = hasBF
+      ? 'CAREER TOTALS — incl. brought-forward (as of ' + new Date().toLocaleDateString('en-CA') + ')'
+      : 'CAREER TOTALS (as of ' + new Date().toLocaleDateString('en-CA') + ')';
+    doc.text(totalsLabel, cardX + 5, sumY + 6);
 
     // Cover totals — show only categories the pilot actually has hours in
     // (otherwise the heli/dual-given columns dilute visible space for line
@@ -184,6 +192,20 @@ function _generatePDF() {
       doc.setTextColor(...textPrimary);
       doc.text(h[1], x + 5, sumY + 22);
     });
+
+    // Brought-forward attestation line. Visible to TC inspector: shows that
+    // some of the cumulative comes from a prior paper logbook, with the
+    // pilot's attestation date. TP 14052 supports this pattern explicitly.
+    if (hasBF && typeof loadOpeningBalances === 'function') {
+      const ob = loadOpeningBalances();
+      const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
+      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.setTextColor(...muted);
+      const bfLine = `Brought forward from paper logbook: ${fmt(bfTotal)} hrs total · attested ${bfDate} by ${fullTitle}`;
+      doc.text(bfLine, cardX + 5, sumY + 30, { maxWidth: cardW - 10 });
+    }
 
     // Footer (cover) — includes import provenance notice if any flights
     // came from a CSV import. CAR 401.08(2)(h) requires an attestation

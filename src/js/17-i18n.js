@@ -122,6 +122,7 @@ const STRINGS = {
  // ─── Profile page
  'profile.section.identity': 'Pilot Identity',
  'profile.section.type': 'Pilot Type',
+ 'profile.section.opening': 'Brought-forward hours (paper logbook)',
  'profile.section.licence': 'Licence & Currency',
  'profile.section.airline': 'Airline & Operator',
  'profile.section.prefs': 'Preferences',
@@ -691,6 +692,7 @@ const STRINGS = {
  // ─── Profil
  'profile.section.identity': 'Identité pilote',
  'profile.section.type': 'Type de pilote',
+ 'profile.section.opening': 'Heures reportées (carnet papier)',
  'profile.section.licence': 'Licence et validité',
  'profile.section.airline': 'Compagnie / Exploitant',
  'profile.section.prefs': 'Préférences',
