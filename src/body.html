@@ -103,23 +103,13 @@
 <!-- MAIN -->
 <main>
 
- <!-- ── DASHBOARD ── -->
+ <!-- ── DASHBOARD (Q9 2026 hero direction, design handoff 2026-05-25) ── -->
  <div id="page-dashboard" class="page active">
- <div class="page-header">
- <div>
- <div class="page-title" data-i18n="page.dashboard.title">Dashboard</div>
- <div class="page-sub" id="dashDate"></div>
- </div>
- <div class="page-actions">
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log flight</button>
- </div>
- </div>
 
+ <!-- (1) Top-level alerts: currency expiring soon, medical, etc. -->
  <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
 
- <!-- Brought-forward discovery banner — appears when the pilot is new
-      (no flights, no opening balances) so they know they can declare
-      paper-logbook totals without re-entering every flight. -->
+ <!-- (2) Brought-forward discovery banner — only for brand-new users. -->
  <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); display:flex; gap:var(--s-3); align-items:center; flex-wrap:wrap;">
  <div style="flex:1; min-width:0;">
  <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;" data-i18n="dash.brought.title">Have a paper logbook?</div>
@@ -128,140 +118,106 @@
  <button class="btn btn-primary" onclick="showPage('backup'); setTimeout(()=>{showSettingsTab&&showSettingsTab('profile'); setTimeout(()=>openOpeningBalancesEditor&&openOpeningBalancesEditor(), 100);}, 50);" data-i18n="dash.brought.cta">Declare totals</button>
  </div>
 
- <!-- HERO CARD (v3a signature element) -->
- <div class="hero">
- <div class="hero-content">
- <div class="hero-label" data-i18n="hero.totalBlock">Total Block Hours</div>
+ <!-- (3) Greeting bar — date + "Bonsoir Pilote" + sub + actions -->
+ <div class="dash-greeting">
  <div>
- <span class="hero-value" id="hero-total">0.0</span>
- <span class="hero-unit">hrs</span>
+ <div class="dash-greeting-date mono" id="dashGreetingDate">—</div>
+ <h1 class="dash-greeting-hello" id="dashGreetingHello">Hello.</h1>
+ <div class="dash-greeting-sub" id="dashGreetingSub"></div>
  </div>
- <div class="hero-delta" id="hero-delta">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17l10-10 M17 17V7H7"/></svg>
- <span id="hero-delta-value">0.0</span> hrs <span class="hero-delta-muted" data-i18n="hero.last30">last 30 days</span>
+ <div class="dash-greeting-actions">
+ <button class="btn btn-ghost btn-sm" onclick="showPage('import')" data-i18n="dash.importRoster">Import roster</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log flight</button>
  </div>
  </div>
- <div class="hero-mini">
- <div class="mini-stat">
- <div class="mini-stat-label" data-i18n="hero.pic">PIC</div>
- <div class="mini-stat-value" id="hero-pic">0.0</div>
+
+ <!-- (4) Row 1: Hero career number + Validités status rings -->
+ <div class="dash-row dash-row-main">
+ <div class="dash-card dash-hero">
+ <div class="eyebrow" data-i18n="dash.heroEyebrow">TOTAL BLOCK HOURS · CAREER</div>
+ <div class="dash-hero-body">
+ <div class="dash-hero-num-block">
+ <div class="dash-hero-num">
+ <span class="dash-hero-num-val" id="dashHeroNum">0.0</span>
+ <span class="dash-hero-num-unit" data-i18n="hero.unitHours">hrs</span>
  </div>
- <div class="mini-stat">
- <div class="mini-stat-label" data-i18n="hero.sic">SIC</div>
- <div class="mini-stat-value" id="hero-sic">0.0</div>
+ <div class="dash-hero-delta" id="dashHeroDelta" style="display:none;">
+ <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l10-10 M17 17V7H7"/></svg>
+ <span id="dashHeroDeltaVal">+0.0 hrs · last 30 days</span>
  </div>
- <div class="mini-stat">
- <div class="mini-stat-label" data-i18n="hero.night">Night</div>
- <div class="mini-stat-value" id="hero-night">0.0</div>
+ </div>
+ <div class="dash-hero-spark">
+ <svg id="dashSparklineSvg" width="300" height="76" viewBox="0 0 300 76" preserveAspectRatio="none"></svg>
+ <div class="dash-hero-spark-labels">
+ <span class="mono" id="dashSparkStart">—</span>
+ <span class="mono" id="dashSparkEnd">—</span>
+ </div>
  </div>
  </div>
  </div>
 
- <div class="stats-grid">
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.totalTime">Total Time</div>
- <div class="stat-value" id="s-total">0.0</div>
- <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ <div class="dash-card dash-validities">
+ <div class="eyebrow" data-i18n="dash.validitiesEyebrow">CURRENT VALIDITIES</div>
+ <div class="dash-rings">
+ <div class="dash-ring-block">
+ <div class="dash-ring" id="dashRingIFR"><!-- SVG written by JS --></div>
+ <div class="dash-ring-sub" id="dashRingIFRSub">— / 6 appr.</div>
+ <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
  </div>
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.picTime">PIC Time</div>
- <div class="stat-value" id="s-pic">0.0</div>
- <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ <div class="dash-ring-block">
+ <div class="dash-ring" id="dashRingREC"></div>
+ <div class="dash-ring-sub" id="dashRingRECSub">— / 5 ldg</div>
+ <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
  </div>
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.nightTime">Night Time</div>
- <div class="stat-value" id="s-night">0.0</div>
- <div class="stat-unit" data-i18n="stats.hours">hours</div>
+ <div class="dash-ring-block" id="dashRingMedBlock">
+ <div class="dash-ring" id="dashRingMED"></div>
+ <div class="dash-ring-sub" id="dashRingMEDSub">—</div>
+ <div class="dash-ring-cap mono" data-i18n="dash.ringCapCat1">CAT 1</div>
  </div>
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.landings">Landings</div>
- <div class="stat-value" id="s-ldg">0</div>
- <div class="stat-unit" data-i18n="stats.totalUnit">total</div>
- </div>
- </div>
-
- <div class="stats-grid">
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.me">Multi-Engine</div>
- <div class="stat-value" id="s-me">0.0</div>
- <div class="stat-unit" data-i18n="stats.hours">hours</div>
- </div>
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.xc">Cross Country</div>
- <div class="stat-value" id="s-xc">0.0</div>
- <div class="stat-unit" data-i18n="stats.hours">hours</div>
- </div>
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.blockTime">Block Time</div>
- <div class="stat-value" id="s-block">0.0</div>
- <div class="stat-unit" data-i18n="stats.hours">hours</div>
- </div>
- <div class="stat-card">
- <div class="stat-label" data-i18n="stats.entries">Entries</div>
- <div class="stat-value" id="s-entries">0</div>
- <div class="stat-unit" data-i18n="stats.flightsLogged">flights logged</div>
- </div>
- </div>
-
- <!-- ── IFR CURRENCY STATUS (CAR 401.05 — last 6 months) ── -->
- <div class="card" id="currencyCard" style="margin-bottom:24px">
- <div class="card-header">
- <div class="card-title" data-i18n="curr.ifrTitle">IFR Currency — Last 6 Months</div>
- <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px">CAR 401.05</span>
- </div>
- <div style="padding:14px 18px; display:grid; grid-template-columns:1fr 1fr; gap:18px;" id="currencyGrid">
- <div class="cur-item" id="cur-approaches">
- <div class="cur-label" data-i18n="curr.approaches">Instrument Approaches</div>
- <div class="cur-value-row">
- <span class="cur-value" id="cur-app-count">0</span>
- <span class="cur-unit" data-i18n="curr.approachesUnit">/ 6 required</span>
- <span class="cur-status" id="cur-app-status">—</span>
- </div>
- <div class="cur-sub" id="cur-app-sub" data-i18n="curr.approachesSub">No flights in last 6 months</div>
- </div>
- <div class="cur-item" id="cur-instHrs">
- <div class="cur-label" data-i18n="curr.instTime">Instrument Time</div>
- <div class="cur-value-row">
- <span class="cur-value" id="cur-hrs-count">0.0</span>
- <span class="cur-unit" data-i18n="curr.instTimeUnit">/ 6.0 hrs required</span>
- <span class="cur-status" id="cur-hrs-status">—</span>
- </div>
- <div class="cur-sub" id="cur-hrs-sub" data-i18n="curr.instTimeSub">Actual + hood + approved sim</div>
  </div>
  </div>
  </div>
 
- <div class="card" style="margin-bottom:24px">
- <div class="card-header">
- <div class="card-title" data-i18n="chart.monthlyTitle">Monthly Block Hours</div>
- <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:1px" data-i18n="chart.last12mo">LAST 12 MONTHS</span>
+ <!-- (5) Row 2: Recent legs (typographic list) + Next column (proactive cards) -->
+ <div class="dash-row dash-row-main">
+ <div class="dash-card dash-legs">
+ <div class="dash-card-head">
+ <div class="eyebrow" data-i18n="dash.legsEyebrow">RECENT LEGS</div>
+ <a href="#" class="dash-card-link" onclick="showPage('logbook');return false;" data-i18n="dash.viewAllLink">Full logbook →</a>
  </div>
- <div style="padding:16px 18px 12px">
- <canvas id="monthlyChart" height="75"></canvas>
+ <div id="dashLegsList"><!-- rendered by JS --></div>
  </div>
+ <div class="dash-next" id="dashNextColumn"><!-- rendered by JS --></div>
  </div>
 
- <div class="card">
- <div class="card-header">
- <div class="card-title" data-i18n="dash.recentTitle">Recent Flights</div>
- <button class="btn btn-ghost btn-sm" onclick="showPage('logbook')" data-i18n="dash.viewAllBtn">View All</button>
+ <!-- (6) Compact 6-col stat strip — secondary totals. 2px colored left
+       borders are intentional (small numbers; color = quick anchor) —
+       different role from the deleted rainbow tiles (large numbers, color
+       was dominant). -->
+ <div class="dash-card dash-strip">
+ <div class="dash-strip-item" style="border-color:var(--success);">
+ <div class="eyebrow" data-i18n="dash.strip.pic">PIC</div>
+ <div class="dash-strip-val" id="dashStripPIC">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
  </div>
- <div class="table-wrap">
- <table>
- <thead>
- <tr>
- <th data-i18n="rec.date">Date</th>
- <th data-i18n="rec.reg">Registration</th>
- <th data-i18n="rec.route">Route</th>
- <th data-i18n="rec.block">Block</th>
- <th data-i18n="rec.total">Total</th>
- <th data-i18n="rec.ldg">Ldg</th>
- </tr>
- </thead>
- <tbody id="recentTbody">
- <tr class="empty-row"><td colspan="6" data-i18n="misc.noFlightsYet">No flights logged yet. Add your first flight to start tracking.</td></tr>
- </tbody>
- </table>
+ <div class="dash-strip-item" style="border-color:var(--accent);">
+ <div class="eyebrow" data-i18n="dash.strip.sic">SIC</div>
+ <div class="dash-strip-val" id="dashStripSIC">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
+ </div>
+ <div class="dash-strip-item" style="border-color:#6366F1;">
+ <div class="eyebrow" data-i18n="dash.strip.night">NIGHT</div>
+ <div class="dash-strip-val" id="dashStripNIGHT">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
+ </div>
+ <div class="dash-strip-item" style="border-color:var(--accent);">
+ <div class="eyebrow" data-i18n="dash.strip.multi">MULTI</div>
+ <div class="dash-strip-val" id="dashStripMULTI">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
+ </div>
+ <div class="dash-strip-item" style="border-color:var(--accent);">
+ <div class="eyebrow" data-i18n="dash.strip.xc">XC</div>
+ <div class="dash-strip-val" id="dashStripXC">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
+ </div>
+ <div class="dash-strip-item" style="border-color:#E08A2A;">
+ <div class="eyebrow" data-i18n="dash.strip.ldg">LDG</div>
+ <div class="dash-strip-val" id="dashStripLDG">0</div>
  </div>
  </div>
  </div>

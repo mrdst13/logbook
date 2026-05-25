@@ -160,6 +160,309 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
    All stat-cards now render identically — typography + spacing do the
    hierarchy, not arbitrary color codes. */
 
+/* ═══════════════════════════════════════════════════════════════════
+   DASHBOARD — Q9 2026 hero direction (design handoff 2026-05-25)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Greeting bar at the top of the dashboard */
+.dash-greeting {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-6);
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.dash-greeting-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.10em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.dash-greeting-hello {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--text);
+}
+.dash-greeting-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.dash-greeting-sub strong { color: var(--text); font-weight: 600; }
+.dash-greeting-sub .dash-warn-amber { color: var(--warning); font-weight: 600; }
+.dash-greeting-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Layout: 2-col asymmetric grid (1.4fr / 1fr) for rows 1 + 2 */
+.dash-row { display: grid; gap: var(--s-5); margin-bottom: var(--s-5); }
+.dash-row-main { grid-template-columns: 1.4fr 1fr; }
+
+/* Generic card surface — same as .card but namespaced so we can tune Q9 separately */
+.dash-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 22px 26px;
+}
+.dash-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+.dash-card-link {
+  font-size: 11.5px;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+.dash-card-link:hover { text-decoration: underline; }
+
+/* Hero career-total card */
+.dash-hero { padding: 28px 32px; position: relative; overflow: hidden; }
+.dash-hero-body {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-6);
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.dash-hero-num-block { flex-shrink: 0; }
+.dash-hero-num {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.dash-hero-num-val {
+  font-size: 88px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.dash-hero-num-unit {
+  font-size: 22px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.dash-hero-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--r-pill);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dash-hero-spark {
+  flex: 1;
+  min-width: 200px;
+  padding-bottom: 8px;
+}
+.dash-hero-spark svg { width: 100%; height: 76px; display: block; }
+.dash-hero-spark-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.dash-hero-spark-labels .mono {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Validités card with status rings */
+.dash-validities { padding: 24px 26px; }
+.dash-rings {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+.dash-ring-block { text-align: center; flex: 1; min-width: 0; }
+.dash-ring {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  position: relative;
+}
+.dash-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.dash-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  transform: rotate(0deg);
+}
+.dash-ring-sub {
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-top: 8px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.dash-ring-cap {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* Recent legs list — typographic, NOT cards */
+.dash-legs .dash-leg {
+  display: grid;
+  grid-template-columns: 60px 1fr 70px 50px;
+  gap: 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bg-subtle);
+}
+.dash-legs .dash-leg:last-child { border-bottom: none; }
+.dash-leg-date {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dash-leg-route { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+.dash-leg-reg {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.dash-leg-hours {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dash-legs-empty {
+  padding: 28px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* "Next" proactive copilot column */
+.dash-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.dash-next-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+}
+.dash-next-card[data-tone="primary"] { border-left: 3px solid var(--accent); }
+.dash-next-card[data-tone="warning"] { border-left: 3px solid var(--warning); }
+.dash-next-card[data-tone="quiet"]   { border-left: 3px solid var(--text-muted); }
+.dash-next-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.dash-next-card[data-tone="primary"] .dash-next-kicker { color: var(--accent); }
+.dash-next-card[data-tone="warning"] .dash-next-kicker { color: var(--warning); }
+.dash-next-card[data-tone="quiet"]   .dash-next-kicker { color: var(--text-muted); }
+.dash-next-chip {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.dash-next-card[data-tone="primary"] .dash-next-chip { background: var(--accent-soft); color: var(--accent); }
+.dash-next-card[data-tone="warning"] .dash-next-chip { background: var(--warning-soft); color: var(--warning); }
+.dash-next-card[data-tone="quiet"]   .dash-next-chip { background: var(--bg-subtle);   color: var(--text-secondary); }
+.dash-next-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 8px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.dash-next-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* Compact 6-col stat strip */
+.dash-strip {
+  padding: 18px 26px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--s-4);
+}
+.dash-strip-item {
+  border-left: 2px solid var(--text-muted);
+  padding-left: 14px;
+  min-width: 0;
+}
+.dash-strip-val {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+  line-height: 1;
+  color: var(--text);
+}
+.dash-strip-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: 3px;
+}
+
+/* Responsive collapse */
+@media (max-width: 860px) {
+  .dash-row-main { grid-template-columns: 1fr; }
+  .dash-strip { grid-template-columns: repeat(3, 1fr); }
+  .dash-hero { padding: 22px 22px; }
+  .dash-hero-num-val { font-size: 64px; }
+  .dash-hero-body { gap: var(--s-4); }
+  .dash-hero-spark { min-width: 0; width: 100%; }
+  .dash-greeting-hello { font-size: 24px; }
+  .dash-greeting-actions { width: 100%; justify-content: stretch; }
+  .dash-greeting-actions .btn { flex: 1; justify-content: center; }
+}
+@media (max-width: 480px) {
+  .dash-strip { grid-template-columns: repeat(2, 1fr); }
+  .dash-rings { gap: 6px; }
+  .dash-ring { width: 56px; height: 56px; }
+  .dash-hero-num-val { font-size: 56px; }
+}
+
 /* IFR Currency card (CAR 401.05 status display) */
 .cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
 .cur-label { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-secondary); }
