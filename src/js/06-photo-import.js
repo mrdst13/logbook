@@ -9,7 +9,7 @@ async function handlePhotoImport(input) {
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
   box.classList.add('show');
-  msg.textContent = 'READING LOGBOOK IMAGE...';
+  msg.textContent = 'Reading logbook image…';
 
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
@@ -19,7 +19,7 @@ async function handlePhotoImport(input) {
   });
 
   try {
-    msg.textContent = 'AI EXTRACTING FLIGHT DATA...';
+    msg.textContent = 'Extracting flight data…';
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -67,7 +67,7 @@ async function parseNavbluePDF(input) {
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
   box.classList.add('show');
-  msg.textContent = 'READING NAVBLUE ROSTER PDF...';
+  msg.textContent = 'Reading Navblue roster PDF…';
 
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
@@ -77,7 +77,7 @@ async function parseNavbluePDF(input) {
   });
 
   try {
-    msg.textContent = 'AI EXTRACTING FLIGHTS...';
+    msg.textContent = 'Extracting flights…';
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

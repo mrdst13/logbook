@@ -1594,60 +1594,64 @@ select {
 .drop-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
 .ai-box {
-  background: linear-gradient(135deg, var(--accent), var(--night));
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
   border-radius: var(--r-md);
   padding: var(--s-6);
   text-align: center;
-  color: #FFFFFF;
+  color: var(--text);
   display: none;
   margin-bottom: var(--s-4);
-  box-shadow: 0 8px 24px rgba(46, 99, 216, 0.25);
 }
 .ai-box.show { display: block; }
 .ai-spinner {
-  width: 36px; height: 36px;
-  border: 3px solid rgba(255,255,255,0.25);
-  border-top-color: var(--white);
+  width: 28px; height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.ai-msg { font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px; }
+.ai-msg { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
 
 /* ═══════════════════════════════════════
    PROFILE (v3a)
 ═══════════════════════════════════════ */
 .profile-hero {
-  background: linear-gradient(135deg, var(--accent), var(--night));
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: var(--s-8);
+  padding: var(--s-6);
   display: flex;
   align-items: center;
   gap: var(--s-5);
   margin-bottom: var(--s-5);
-  color: #FFFFFF;
-  box-shadow: 0 8px 24px rgba(46, 99, 216, 0.25);
+  color: var(--text);
 }
 .profile-avatar {
-  width: 64px; height: 64px;
-  background: rgba(255,255,255,0.18);
+  width: 56px; height: 56px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 26px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
   flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.35);
-  backdrop-filter: blur(10px);
 }
 .profile-name-display {
   font-family: var(--font-sans); font-weight: 700;
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 .profile-role-display {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(255,255,255,0.85);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-top: 4px;
@@ -1681,7 +1685,8 @@ select {
 ═══════════════════════════════════════ */
 .toast {
   position: fixed;
-  bottom: var(--s-6); right: var(--s-6);
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
+  right: var(--s-6);
   background: var(--text);
   color: var(--bg-surface);
   padding: var(--s-3) var(--s-5);
@@ -1693,15 +1698,22 @@ select {
   gap: var(--s-2);
   transform: translateY(80px);
   opacity: 0;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 24px rgba(15,32,68,0.3);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 500;
-  box-shadow: 0 8px 24px rgba(15,32,68,0.3);
   max-width: 320px;
 }
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast.success { background: #1a5e35; }
 .toast.error { background: var(--danger); }
+@media (max-width: 480px) {
+  .toast {
+    left: var(--s-4);
+    right: var(--s-4);
+    max-width: none;
+    bottom: calc(var(--s-4) + env(safe-area-inset-bottom));
+  }
+}
 
 /* ═══════════════════════════════════════
    IMPORT PREVIEW MODAL (floating overlay)
@@ -1867,17 +1879,15 @@ select {
   user-select: none;
 }
 .profile-type-card:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
 }
 .profile-type-card.active {
   border-color: var(--accent);
-  background: var(--accent);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(46, 99, 216, 0.25);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
-.profile-type-card.active .pt-desc { color: rgba(255,255,255,0.75); }
+.profile-type-card.active .pt-desc { color: var(--text-secondary); }
 .pt-icon { font-size: 24px; margin-bottom: var(--s-2); opacity: 0.9; }
 .pt-name {
   font-family: var(--font-sans); font-weight: 600;
@@ -1891,7 +1901,7 @@ select {
   font-family: var(--font-mono);
   line-height: 1.4;
 }
-.profile-type-card.active .pt-name { color: #FFFFFF; }
+.profile-type-card.active .pt-name { color: var(--accent); }
 
 /* ═══════════════════════════════════════
    Q&A (v3a)
@@ -2766,7 +2776,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="form-group">
  <label data-i18n="flight.aircraftReg">Registration</label>
- <input type="text" id="f-reg" placeholder="e.g. C-GKQC, N123AB" oninput="this.value=this.value.toUpperCase()">
+ <input type="text" id="f-reg" placeholder="e.g. C-GKQC, N123AB" style="text-transform:uppercase" onblur="this.value=this.value.toUpperCase()" autocapitalize="characters" autocorrect="off" spellcheck="false">
  </div>
  <div class="form-group">
  <label data-i18n="flight.typeRating">Type Rating</label>
@@ -2796,7 +2806,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.route">Route</label>
- <input type="text" id="f-route" placeholder="YOW - YYZ - YOW" oninput="this.value=this.value.toUpperCase()">
+ <input type="text" id="f-route" placeholder="YOW - YYZ - YOW" style="text-transform:uppercase" onblur="this.value=this.value.toUpperCase()" autocapitalize="characters" autocorrect="off" spellcheck="false">
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.remarks">Remarks</label>
@@ -3099,22 +3109,22 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
 
- <div class="stats-grid" id="recapStats" style="margin-bottom:20px"></div>
+ <div class="stats-grid" id="recapStats" style="margin-bottom:20px;min-height:104px"></div>
 
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
  <div class="card">
  <div class="card-header"><div class="card-title">Monthly Hours</div></div>
- <div style="padding:16px"><canvas id="recapChart" height="130"></canvas></div>
+ <div style="padding:16px;min-height:160px"><canvas id="recapChart" height="130"></canvas></div>
  </div>
  <div class="card">
  <div class="card-header"><div class="card-title">Top Airports</div></div>
- <div id="recapAirports" style="padding:16px;font-size:13px"></div>
+ <div id="recapAirports" style="padding:16px;font-size:13px;min-height:160px"></div>
  </div>
  </div>
 
  <div class="card">
  <div class="card-header"><div class="card-title">Top Routes</div></div>
- <div id="recapRoutes" style="padding:16px;font-size:13px"></div>
+ <div id="recapRoutes" style="padding:16px;font-size:13px;min-height:120px"></div>
  </div>
  </div>
 
@@ -5062,7 +5072,7 @@ async function handlePhotoImport(input) {
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
   box.classList.add('show');
-  msg.textContent = 'READING LOGBOOK IMAGE...';
+  msg.textContent = 'Reading logbook image…';
 
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
@@ -5072,7 +5082,7 @@ async function handlePhotoImport(input) {
   });
 
   try {
-    msg.textContent = 'AI EXTRACTING FLIGHT DATA...';
+    msg.textContent = 'Extracting flight data…';
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5120,7 +5130,7 @@ async function parseNavbluePDF(input) {
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
   box.classList.add('show');
-  msg.textContent = 'READING NAVBLUE ROSTER PDF...';
+  msg.textContent = 'Reading Navblue roster PDF…';
 
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
@@ -5130,7 +5140,7 @@ async function parseNavbluePDF(input) {
   });
 
   try {
-    msg.textContent = 'AI EXTRACTING FLIGHTS...';
+    msg.textContent = 'Extracting flights…';
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -12769,7 +12779,7 @@ async function commitOpeningBalances() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-14-logo-c-redraw';
+const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v2';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
