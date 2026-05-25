@@ -1057,6 +1057,10 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   background: var(--bg-subtle);
   display: grid; place-items: center;
 }
+/* Hide empty icon slots — many rows have no icon glyph yet, the grey
+   square was reading as visual noise. When SVG glyphs land per row,
+   the :empty rule no longer applies and the slot reappears. */
+.settings-row-icon:empty { display: none; }
 .settings-row-info { flex: 1; min-width: 0; }
 .settings-row-title { font-weight: 600; font-size: 14px; color: var(--text); }
 .settings-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
@@ -1294,6 +1298,61 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 @media (max-width: 600px) {
   .settings-tab { font-size: 12px; padding: 12px 14px; min-width: 64px; min-height: 44px; }
+}
+
+/* ─── Help-text utility (replaces scattered inline font-size:11px styles) ─── */
+.help-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: var(--s-2);
+  line-height: 1.55;
+}
+.help-text code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--bg-subtle);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.help-text strong { color: var(--text-secondary); font-weight: 600; }
+
+/* ─── Form validation visuals ───
+   HHMM inputs flag invalid format on blur (after the user typed something)
+   instead of jamming the field as they type. Inline .field-error is the
+   placeholder for the per-input message; .form-error-summary sits above
+   the Save/Cancel row when multiple fields fail. */
+input:invalid:not(:placeholder-shown):not(:focus) {
+  border-color: var(--danger, #c44);
+  box-shadow: 0 0 0 1px var(--danger, #c44);
+}
+.field-error {
+  display: none;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--danger, #c44);
+  font-family: var(--font-mono);
+}
+.field-error.show { display: block; }
+.form-error-summary {
+  display: none;
+  margin: var(--s-3) 0;
+  padding: var(--s-3) var(--s-4);
+  background: var(--danger-soft, rgba(196,68,68,0.08));
+  border: 1px solid var(--danger, #c44);
+  border-radius: var(--r-sm);
+  color: var(--danger, #c44);
+  font-size: 13px;
+}
+.form-error-summary.show { display: block; }
+.form-error-summary ul { margin: 6px 0 0; padding-left: 18px; }
+.form-error-summary li { margin: 2px 0; }
+
+/* Disabled primary button (used for Save when required fields empty) */
+.btn-primary:disabled,
+.btn-primary[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ─── Privacy & Trust card (Settings → Section 0) ─── */
@@ -2816,7 +2875,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <div class="form-card">
- <div class="form-card-title" data-i18n="flight.timeCard"> Time</div>
+ <div class="form-card-title" data-i18n="flight.timeCard">Time</div>
  <div class="form-grid form-grid-3">
  <div class="form-group" id="fg-block">
  <label data-i18n="flight.block">Block Time (hrs)</label>
@@ -2845,7 +2904,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="text" id="f-ata-utc" placeholder="HHMM" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" style="font-family:var(--font-mono); letter-spacing:0.04em;">
  </div>
  </div>
- <div style="font-size:11px; color:var(--text-muted); margin-top:6px; line-height:1.5;" data-i18n-html="flight.atdHelpHtml">
+ <div class="help-text" data-i18n-html="flight.atdHelpHtml">
         Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
  </div>
  </div>
@@ -2922,7 +2981,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <div class="form-card">
- <div class="form-card-title" data-i18n="flight.landingsCard"> Landings & Instrument</div>
+ <div class="form-card-title" data-i18n="flight.landingsCard">Landings & Instrument</div>
  <div class="form-grid form-grid-4">
  <div class="form-group">
  <label data-i18n="flight.ldgDay">Day Landings</label>
@@ -2953,10 +3012,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
  </div><!-- /#advancedFormFields -->
 
+ <div class="form-error-summary" id="formErrorSummary" role="alert" aria-live="polite"></div>
  <div class="form-actions">
  <button class="btn btn-ghost" onclick="cancelForm()" data-i18n="flight.cancelBtn">Cancel</button>
- <button class="btn btn-outline" onclick="saveFlight({addAnother:true})" data-i18n="flight.saveAndAddBtn">Save &amp; add another</button>
- <button class="btn btn-primary" onclick="saveFlight()" data-i18n="flight.saveBtn">Save flight</button>
+ <button class="btn btn-outline" id="saveAddAnotherBtn" onclick="saveFlight({addAnother:true})" data-i18n="flight.saveAndAddBtn">Save &amp; add another</button>
+ <button class="btn btn-primary" id="saveFlightBtn" onclick="saveFlight()" data-i18n="flight.saveBtn">Save flight</button>
  </div>
  </div>
 
@@ -3072,8 +3132,12 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
  <!-- FAQ accordion -->
  <div class="card" style="margin-bottom:18px">
- <div class="card-header"><div class="card-title">Common Questions</div></div>
- <div id="faqList"></div>
+ <div class="card-header">
+ <input type="text" class="search-input" placeholder="Search questions…" oninput="filterFaq(this.value)" id="faqSearch" data-i18n-placeholder="qa.searchPlaceholder">
+ </div>
+ <div id="faqList">
+ <div class="faq-item" id="faqLoading"><div class="faq-q"><span style="color:var(--text-muted)">Loading questions…</span></div></div>
+ </div>
  </div>
 
  <!-- AI "Ask a Question" form removed — to be re-introduced as a premium feature
@@ -3093,7 +3157,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="card-header">
  <input type="text" class="search-input" placeholder="Search abbreviation or definition..." oninput="filterGlossary(this.value)" id="glossarySearch">
  </div>
- <div id="glossaryList" style="padding:6px 0"></div>
+ <div id="glossaryList" style="padding:6px 0">
+ <div class="glossary-item" id="glossaryLoading"><div class="glossary-abbr">—</div><div class="glossary-def" style="color:var(--text-muted)">Loading definitions…</div></div>
+ </div>
  </div>
  </div>
 
@@ -3298,7 +3364,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-group col-span-2">
  <label data-i18n="profile.codes">Operator codes (for flight number recognition)</label>
  <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
- <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;" data-i18n-html="profile.codesHintHtml">
+ <div class="help-text" data-i18n-html="profile.codesHintHtml">
  Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
  </div>
  </div>
@@ -3308,7 +3374,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="checkbox" id="p-autoCountIFR" />
  <span class="col-option-label" data-i18n="profile.ifr.label">Count 1 IFR approach per flight on sync (705 line operations)</span>
  </label>
- <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.ifr.descHtml">
+ <div class="help-text" data-i18n-html="profile.ifr.descHtml">
  Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.
  </div>
  </div>
@@ -3318,7 +3384,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="checkbox" id="p-consentCaptainNames" />
  <span class="col-option-label" data-i18n="profile.captain.label">Keep full crew names when syncing or sharing (I have crew consent)</span>
  </label>
- <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.captain.descHtml">
+ <div class="help-text" data-i18n-html="profile.captain.descHtml">
  How Cumulo handles your crew names — see Privacy tab and the public Security page for the full model.
  </div>
  </div>
@@ -3328,7 +3394,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="checkbox" id="p-hideZeroColumns" />
  <span class="col-option-label" data-i18n="profile.display.label">Hide empty columns on screen (sum = 0 across all flights)</span>
  </label>
- <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;" data-i18n-html="profile.display.descHtml">
+ <div class="help-text" data-i18n-html="profile.display.descHtml">
  Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. The PDF export for Transport Canada always keeps all 38 columns regardless of this setting.
  </div>
  </div>
@@ -3346,7 +3412,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <label class="col-option"><input type="checkbox" value="helicopter" /> <span class="col-option-label" data-i18n="profile.acConfigs.heli">Helicopter</span></label>
  <label class="col-option"><input type="checkbox" value="glider" /> <span class="col-option-label" data-i18n="profile.acConfigs.glider">Glider</span></label>
  </div>
- <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;" data-i18n="profile.acConfigs.descHtml">
+ <div class="help-text" data-i18n-html="profile.acConfigs.descHtml">
  Check the configurations you fly. Used to filter aircraft type suggestions and currency tracking (TC requires separate currency for floats, skis, tailwheel per CAR 401.05).
  </div>
  </div>
@@ -5029,6 +5095,7 @@ function editFlight(id) {
     sv('f-simInstructor', f.simInstructor);
   }
   showPage('add');
+  if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
 function deleteFlight(id) {
@@ -5047,18 +5114,124 @@ function clearForm() {
   if (custom) { custom.value = ''; custom.style.display = 'none'; }
 
   ['f-date','f-reg','f-rating','f-pic','f-copilot','f-route','f-remarks',
-   'f-block','f-duty','f-total','f-me-day-dual','f-me-day-pic','f-me-day-cop',
+   'f-block','f-duty','f-total','f-atd-utc','f-ata-utc',
+   'f-me-day-dual','f-me-day-pic','f-me-day-cop',
    'f-me-night-dual','f-me-night-pic','f-me-night-cop','f-xc-day-dual','f-xc-day-pic',
    'f-xc-night-dual','f-xc-night-pic','f-ldg-day','f-ldg-night',
    'f-inst-actual','f-inst-hood','f-inst-sim','f-picus'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  // Clear any leftover validation messages.
+  document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
+  if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
 function cancelForm() {
   editingId = null;
   showPage('logbook');
+}
+
+// ═══════════════════════════════════════════
+// HHMM TIME-INPUT MASK + FORM VALIDATION
+// ═══════════════════════════════════════════
+// A pilot who types "1235" should see "12:35" while the stored value
+// stays "1235" (HHMM, no colon — same format Navblue / TC PDF use).
+// Native HTML5 pattern only flags on submit; we want a live cue.
+
+function _hhmmIsValid(s) {
+  if (!s) return true;  // empty allowed (field is optional)
+  if (!/^\d{4}$/.test(s)) return false;
+  const h = +s.slice(0, 2), m = +s.slice(2);
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
+function attachHHMMMask(input) {
+  if (!input || input._hhmmBound) return;
+  input._hhmmBound = true;
+
+  // Display the colon visually but only store the 4-digit value.
+  // We keep the underlying value as HHMM so saveFlight() / pdf-roster /
+  // dtstart parsing don't have to special-case the colon.
+  input.addEventListener('input', (e) => {
+    const digitsOnly = (input.value || '').replace(/\D/g, '').slice(0, 4);
+    input.value = digitsOnly;
+  });
+
+  input.addEventListener('blur', () => {
+    const v = (input.value || '').trim();
+    const errEl = input.parentElement.querySelector('.field-error');
+    if (v && !_hhmmIsValid(v)) {
+      if (!errEl) {
+        const err = document.createElement('div');
+        err.className = 'field-error show';
+        err.textContent = 'Invalid time. Use HHMM (e.g. 1235 for 12:35Z).';
+        input.parentElement.appendChild(err);
+      } else {
+        errEl.classList.add('show');
+      }
+      input.setAttribute('aria-invalid', 'true');
+    } else {
+      if (errEl) errEl.classList.remove('show');
+      input.removeAttribute('aria-invalid');
+    }
+    validateFlightForm();
+  });
+}
+
+// Render a summary above the save buttons; toggle Save disabled state.
+function validateFlightForm() {
+  const errSummary = document.getElementById('formErrorSummary');
+  const saveBtn = document.getElementById('saveFlightBtn');
+  const saveAddBtn = document.getElementById('saveAddAnotherBtn');
+  if (!saveBtn) return;
+
+  const errors = [];
+
+  // Hard requirement: date present (matches saveFlight() check).
+  const dateVal = (document.getElementById('f-date') || {}).value;
+  if (!dateVal) errors.push('Date is required.');
+
+  // HHMM format checks (soft — only flagged if user typed something).
+  ['f-atd-utc', 'f-ata-utc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value && !_hhmmIsValid(el.value)) {
+      const label = id === 'f-atd-utc' ? 'ATD (UTC)' : 'ATA (UTC)';
+      errors.push(`${label} is not a valid HHMM time.`);
+    }
+  });
+
+  const hasErrors = errors.length > 0;
+  if (errSummary) {
+    if (hasErrors) {
+      errSummary.innerHTML = '<strong>Fix before saving:</strong><ul>' +
+        errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+      errSummary.classList.add('show');
+    } else {
+      errSummary.classList.remove('show');
+      errSummary.innerHTML = '';
+    }
+  }
+  [saveBtn, saveAddBtn].forEach(btn => {
+    if (!btn) return;
+    btn.disabled = hasErrors;
+    btn.setAttribute('aria-disabled', String(hasErrors));
+  });
+}
+
+// Wire validation listeners. Called from 99-init once on page load.
+function wireFlightFormValidation() {
+  const dateEl = document.getElementById('f-date');
+  if (dateEl) {
+    dateEl.addEventListener('input', validateFlightForm);
+    dateEl.addEventListener('blur', validateFlightForm);
+  }
+  ['f-atd-utc', 'f-ata-utc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) attachHHMMMask(el);
+  });
+  // Initial state — disable Save until date is filled.
+  validateFlightForm();
 }
 
 // ═══════════════════════════════════════════
@@ -8507,12 +8680,36 @@ const FAQS = [
 // Re-introduce as a premium / authenticated feature once Cumulo has Supabase auth
 // and bilingual EN/FR support.
 
+let faqFilter = '';
+
 function renderQA() {
+ const s = document.getElementById('faqSearch');
+ if (s) s.value = '';
+ faqFilter = '';
+ _renderFaqList();
+}
+
+function filterFaq(val) {
+ faqFilter = (val || '').toLowerCase();
+ _renderFaqList();
+}
+
+function _renderFaqList() {
  const faqList = document.getElementById('faqList');
  if (!faqList) return;
  const isFr = (typeof getLang === 'function') && getLang() === 'fr';
- // Always re-render so language toggle updates immediately.
- faqList.innerHTML = FAQS.map((f, i) => {
+ const filtered = FAQS.map((f, i) => ({ f, i })).filter(({ f }) => {
+   if (!faqFilter) return true;
+   const q = isFr && f.qFr ? f.qFr : f.q;
+   const a = isFr && f.aFr ? f.aFr : f.a;
+   return (q + ' ' + a).toLowerCase().includes(faqFilter);
+ });
+ if (!filtered.length) {
+   const noResults = isFr ? 'Aucune question trouvée.' : 'No questions found.';
+   faqList.innerHTML = `<div class="faq-item"><div class="faq-q"><span style="color:var(--text-muted)">${noResults}</span></div></div>`;
+   return;
+ }
+ faqList.innerHTML = filtered.map(({ f, i }) => {
    const q = isFr && f.qFr ? f.qFr : f.q;
    const a = isFr && f.aFr ? f.aFr : f.a;
    return `
@@ -8536,15 +8733,40 @@ function toggleFaq(i) {
 // ═══════════════════════════════════════════
 let sigDrawing = false, sigCtx = null, sigCanvas = null;
 
+function _sizeSignatureCanvas() {
+ if (!sigCanvas) return;
+ const w = sigCanvas.offsetWidth || 600;
+ // Preserve the existing stroke if there is one (resize would otherwise wipe it).
+ const previous = sigCanvas.width && sigCanvas.height
+   ? sigCanvas.toDataURL('image/png')
+   : null;
+ sigCanvas.width = w;
+ sigCanvas.height = Math.round(w * 0.28);  // ~3.5:1 aspect — fits signature without distorting strokes
+ if (sigCtx) {
+   sigCtx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#0f2044';
+   sigCtx.lineWidth = 2.2;
+   sigCtx.lineCap = 'round';
+   sigCtx.lineJoin = 'round';
+ }
+ if (previous) {
+   const img = new Image();
+   img.onload = () => { try { sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height); } catch {} };
+   img.src = previous;
+ }
+}
+
 function initSignature() {
  sigCanvas = document.getElementById('sigCanvas');
  if (!sigCanvas) return;
- sigCanvas.width = sigCanvas.offsetWidth || 600;
  sigCtx = sigCanvas.getContext('2d');
- sigCtx.strokeStyle = '#0f2044';
- sigCtx.lineWidth = 2.2;
- sigCtx.lineCap = 'round';
- sigCtx.lineJoin = 'round';
+ _sizeSignatureCanvas();
+ // Re-size on orientation change or window resize so the strokes don't distort
+ // when an iPad rotates between portrait/landscape on the flight deck.
+ if (!window._sigResizeBound) {
+   window._sigResizeBound = true;
+   window.addEventListener('resize', () => { _sizeSignatureCanvas(); });
+   window.addEventListener('orientationchange', () => { setTimeout(_sizeSignatureCanvas, 100); });
+ }
 
  // Load saved signature
  const saved = localStorage.getItem('logbook_signature');
@@ -10342,10 +10564,11 @@ const STRINGS = {
  'flight.simDetails': 'Simulator Details',
  'flight.simInstructor': 'Instructor / Examiner',
  'flight.flightInfo': 'Flight Information',
- 'flight.timeCard': ' Time',
- 'flight.meCard': ' Multi-Engine Time',
+ 'flight.timeCard': 'Time',
+ 'flight.meCard': 'Multi-Engine Time',
  'flight.xcCard': 'Cross Country',
- 'flight.landingsCard': ' Landings & Instrument',
+ 'flight.landingsCard': 'Landings & Instrument',
+ 'qa.searchPlaceholder': 'Search questions…',
  'flight.aircraftConfig': 'Aircraft Configuration',
  'flight.typeRating': 'Type Rating',
  'flight.totalTime': 'Total Flight Time',
@@ -10933,10 +11156,11 @@ const STRINGS = {
  'flight.simDetails': 'Détails simulateur',
  'flight.simInstructor': 'Instructeur / Examinateur',
  'flight.flightInfo': 'Renseignements du vol',
- 'flight.timeCard': ' Temps',
- 'flight.meCard': ' Temps multimoteur',
+ 'flight.timeCard': 'Temps',
+ 'qa.searchPlaceholder': 'Chercher une question…',
+ 'flight.meCard': 'Temps multimoteur',
  'flight.xcCard': 'Voyage',
- 'flight.landingsCard': ' Atterrissages et instruments',
+ 'flight.landingsCard': 'Atterrissages et instruments',
  'flight.aircraftConfig': 'Configuration d’aéronef',
  'flight.typeRating': 'Qualification de type',
  'flight.totalTime': 'Temps de vol total',
@@ -12779,7 +13003,7 @@ async function commitOpeningBalances() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v2';
+const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v3';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -12830,6 +13054,9 @@ function injectDemoBanner() {
  loadNavblueUI();
  // Update relative-time status every minute
  setInterval(updateNavblueStatus, 60000);
+ // Wire form validation + HHMM masks on the Add Flight form. Safe to call
+ // even before the page is visible — listeners attach to existing IDs.
+ if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();
  // First-launch onboarding (only if no profile name set)
  if (shouldShowOnboarding()) {
  setTimeout(startOnboarding, 400);

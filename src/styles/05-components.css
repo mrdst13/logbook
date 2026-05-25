@@ -245,6 +245,10 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   background: var(--bg-subtle);
   display: grid; place-items: center;
 }
+/* Hide empty icon slots — many rows have no icon glyph yet, the grey
+   square was reading as visual noise. When SVG glyphs land per row,
+   the :empty rule no longer applies and the slot reappears. */
+.settings-row-icon:empty { display: none; }
 .settings-row-info { flex: 1; min-width: 0; }
 .settings-row-title { font-weight: 600; font-size: 14px; color: var(--text); }
 .settings-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
@@ -482,6 +486,61 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 @media (max-width: 600px) {
   .settings-tab { font-size: 12px; padding: 12px 14px; min-width: 64px; min-height: 44px; }
+}
+
+/* ─── Help-text utility (replaces scattered inline font-size:11px styles) ─── */
+.help-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: var(--s-2);
+  line-height: 1.55;
+}
+.help-text code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--bg-subtle);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.help-text strong { color: var(--text-secondary); font-weight: 600; }
+
+/* ─── Form validation visuals ───
+   HHMM inputs flag invalid format on blur (after the user typed something)
+   instead of jamming the field as they type. Inline .field-error is the
+   placeholder for the per-input message; .form-error-summary sits above
+   the Save/Cancel row when multiple fields fail. */
+input:invalid:not(:placeholder-shown):not(:focus) {
+  border-color: var(--danger, #c44);
+  box-shadow: 0 0 0 1px var(--danger, #c44);
+}
+.field-error {
+  display: none;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--danger, #c44);
+  font-family: var(--font-mono);
+}
+.field-error.show { display: block; }
+.form-error-summary {
+  display: none;
+  margin: var(--s-3) 0;
+  padding: var(--s-3) var(--s-4);
+  background: var(--danger-soft, rgba(196,68,68,0.08));
+  border: 1px solid var(--danger, #c44);
+  border-radius: var(--r-sm);
+  color: var(--danger, #c44);
+  font-size: 13px;
+}
+.form-error-summary.show { display: block; }
+.form-error-summary ul { margin: 6px 0 0; padding-left: 18px; }
+.form-error-summary li { margin: 2px 0; }
+
+/* Disabled primary button (used for Save when required fields empty) */
+.btn-primary:disabled,
+.btn-primary[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ─── Privacy & Trust card (Settings → Section 0) ─── */

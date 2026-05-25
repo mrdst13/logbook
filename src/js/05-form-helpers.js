@@ -228,6 +228,7 @@ function editFlight(id) {
     sv('f-simInstructor', f.simInstructor);
   }
   showPage('add');
+  if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
 function deleteFlight(id) {
@@ -246,17 +247,123 @@ function clearForm() {
   if (custom) { custom.value = ''; custom.style.display = 'none'; }
 
   ['f-date','f-reg','f-rating','f-pic','f-copilot','f-route','f-remarks',
-   'f-block','f-duty','f-total','f-me-day-dual','f-me-day-pic','f-me-day-cop',
+   'f-block','f-duty','f-total','f-atd-utc','f-ata-utc',
+   'f-me-day-dual','f-me-day-pic','f-me-day-cop',
    'f-me-night-dual','f-me-night-pic','f-me-night-cop','f-xc-day-dual','f-xc-day-pic',
    'f-xc-night-dual','f-xc-night-pic','f-ldg-day','f-ldg-night',
    'f-inst-actual','f-inst-hood','f-inst-sim','f-picus'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  // Clear any leftover validation messages.
+  document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
+  if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
 function cancelForm() {
   editingId = null;
   showPage('logbook');
+}
+
+// ═══════════════════════════════════════════
+// HHMM TIME-INPUT MASK + FORM VALIDATION
+// ═══════════════════════════════════════════
+// A pilot who types "1235" should see "12:35" while the stored value
+// stays "1235" (HHMM, no colon — same format Navblue / TC PDF use).
+// Native HTML5 pattern only flags on submit; we want a live cue.
+
+function _hhmmIsValid(s) {
+  if (!s) return true;  // empty allowed (field is optional)
+  if (!/^\d{4}$/.test(s)) return false;
+  const h = +s.slice(0, 2), m = +s.slice(2);
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
+function attachHHMMMask(input) {
+  if (!input || input._hhmmBound) return;
+  input._hhmmBound = true;
+
+  // Display the colon visually but only store the 4-digit value.
+  // We keep the underlying value as HHMM so saveFlight() / pdf-roster /
+  // dtstart parsing don't have to special-case the colon.
+  input.addEventListener('input', (e) => {
+    const digitsOnly = (input.value || '').replace(/\D/g, '').slice(0, 4);
+    input.value = digitsOnly;
+  });
+
+  input.addEventListener('blur', () => {
+    const v = (input.value || '').trim();
+    const errEl = input.parentElement.querySelector('.field-error');
+    if (v && !_hhmmIsValid(v)) {
+      if (!errEl) {
+        const err = document.createElement('div');
+        err.className = 'field-error show';
+        err.textContent = 'Invalid time. Use HHMM (e.g. 1235 for 12:35Z).';
+        input.parentElement.appendChild(err);
+      } else {
+        errEl.classList.add('show');
+      }
+      input.setAttribute('aria-invalid', 'true');
+    } else {
+      if (errEl) errEl.classList.remove('show');
+      input.removeAttribute('aria-invalid');
+    }
+    validateFlightForm();
+  });
+}
+
+// Render a summary above the save buttons; toggle Save disabled state.
+function validateFlightForm() {
+  const errSummary = document.getElementById('formErrorSummary');
+  const saveBtn = document.getElementById('saveFlightBtn');
+  const saveAddBtn = document.getElementById('saveAddAnotherBtn');
+  if (!saveBtn) return;
+
+  const errors = [];
+
+  // Hard requirement: date present (matches saveFlight() check).
+  const dateVal = (document.getElementById('f-date') || {}).value;
+  if (!dateVal) errors.push('Date is required.');
+
+  // HHMM format checks (soft — only flagged if user typed something).
+  ['f-atd-utc', 'f-ata-utc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value && !_hhmmIsValid(el.value)) {
+      const label = id === 'f-atd-utc' ? 'ATD (UTC)' : 'ATA (UTC)';
+      errors.push(`${label} is not a valid HHMM time.`);
+    }
+  });
+
+  const hasErrors = errors.length > 0;
+  if (errSummary) {
+    if (hasErrors) {
+      errSummary.innerHTML = '<strong>Fix before saving:</strong><ul>' +
+        errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+      errSummary.classList.add('show');
+    } else {
+      errSummary.classList.remove('show');
+      errSummary.innerHTML = '';
+    }
+  }
+  [saveBtn, saveAddBtn].forEach(btn => {
+    if (!btn) return;
+    btn.disabled = hasErrors;
+    btn.setAttribute('aria-disabled', String(hasErrors));
+  });
+}
+
+// Wire validation listeners. Called from 99-init once on page load.
+function wireFlightFormValidation() {
+  const dateEl = document.getElementById('f-date');
+  if (dateEl) {
+    dateEl.addEventListener('input', validateFlightForm);
+    dateEl.addEventListener('blur', validateFlightForm);
+  }
+  ['f-atd-utc', 'f-ata-utc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) attachHHMMMask(el);
+  });
+  // Initial state — disable Save until date is filled.
+  validateFlightForm();
 }
 

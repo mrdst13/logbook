@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v2';
+const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v3';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -53,6 +53,9 @@ function injectDemoBanner() {
  loadNavblueUI();
  // Update relative-time status every minute
  setInterval(updateNavblueStatus, 60000);
+ // Wire form validation + HHMM masks on the Add Flight form. Safe to call
+ // even before the page is visible — listeners attach to existing IDs.
+ if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();
  // First-launch onboarding (only if no profile name set)
  if (shouldShowOnboarding()) {
  setTimeout(startOnboarding, 400);

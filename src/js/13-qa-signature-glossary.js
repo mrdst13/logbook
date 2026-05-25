@@ -132,12 +132,36 @@ const FAQS = [
 // Re-introduce as a premium / authenticated feature once Cumulo has Supabase auth
 // and bilingual EN/FR support.
 
+let faqFilter = '';
+
 function renderQA() {
+ const s = document.getElementById('faqSearch');
+ if (s) s.value = '';
+ faqFilter = '';
+ _renderFaqList();
+}
+
+function filterFaq(val) {
+ faqFilter = (val || '').toLowerCase();
+ _renderFaqList();
+}
+
+function _renderFaqList() {
  const faqList = document.getElementById('faqList');
  if (!faqList) return;
  const isFr = (typeof getLang === 'function') && getLang() === 'fr';
- // Always re-render so language toggle updates immediately.
- faqList.innerHTML = FAQS.map((f, i) => {
+ const filtered = FAQS.map((f, i) => ({ f, i })).filter(({ f }) => {
+   if (!faqFilter) return true;
+   const q = isFr && f.qFr ? f.qFr : f.q;
+   const a = isFr && f.aFr ? f.aFr : f.a;
+   return (q + ' ' + a).toLowerCase().includes(faqFilter);
+ });
+ if (!filtered.length) {
+   const noResults = isFr ? 'Aucune question trouvée.' : 'No questions found.';
+   faqList.innerHTML = `<div class="faq-item"><div class="faq-q"><span style="color:var(--text-muted)">${noResults}</span></div></div>`;
+   return;
+ }
+ faqList.innerHTML = filtered.map(({ f, i }) => {
    const q = isFr && f.qFr ? f.qFr : f.q;
    const a = isFr && f.aFr ? f.aFr : f.a;
    return `
@@ -161,15 +185,40 @@ function toggleFaq(i) {
 // ═══════════════════════════════════════════
 let sigDrawing = false, sigCtx = null, sigCanvas = null;
 
+function _sizeSignatureCanvas() {
+ if (!sigCanvas) return;
+ const w = sigCanvas.offsetWidth || 600;
+ // Preserve the existing stroke if there is one (resize would otherwise wipe it).
+ const previous = sigCanvas.width && sigCanvas.height
+   ? sigCanvas.toDataURL('image/png')
+   : null;
+ sigCanvas.width = w;
+ sigCanvas.height = Math.round(w * 0.28);  // ~3.5:1 aspect — fits signature without distorting strokes
+ if (sigCtx) {
+   sigCtx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#0f2044';
+   sigCtx.lineWidth = 2.2;
+   sigCtx.lineCap = 'round';
+   sigCtx.lineJoin = 'round';
+ }
+ if (previous) {
+   const img = new Image();
+   img.onload = () => { try { sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height); } catch {} };
+   img.src = previous;
+ }
+}
+
 function initSignature() {
  sigCanvas = document.getElementById('sigCanvas');
  if (!sigCanvas) return;
- sigCanvas.width = sigCanvas.offsetWidth || 600;
  sigCtx = sigCanvas.getContext('2d');
- sigCtx.strokeStyle = '#0f2044';
- sigCtx.lineWidth = 2.2;
- sigCtx.lineCap = 'round';
- sigCtx.lineJoin = 'round';
+ _sizeSignatureCanvas();
+ // Re-size on orientation change or window resize so the strokes don't distort
+ // when an iPad rotates between portrait/landscape on the flight deck.
+ if (!window._sigResizeBound) {
+   window._sigResizeBound = true;
+   window.addEventListener('resize', () => { _sizeSignatureCanvas(); });
+   window.addEventListener('orientationchange', () => { setTimeout(_sizeSignatureCanvas, 100); });
+ }
 
  // Load saved signature
  const saved = localStorage.getItem('logbook_signature');
