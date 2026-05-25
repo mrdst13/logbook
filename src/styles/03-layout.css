@@ -63,8 +63,10 @@ a.logo { cursor: pointer; }
 a.logo:hover .logo-title { color: var(--accent); }
 
 .logo-icon {
-  width: 36px;
-  height: 22px;
+  /* Aspect 32:24 (4:3) per official brand mark viewBox.
+     32×24px at @1 fits naturally next to the wordmark cap-height. */
+  width: 32px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
