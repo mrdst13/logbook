@@ -383,7 +383,11 @@ function renderDashboard() {
   document.getElementById('s-xc').textContent = fmt(s.xc);
   document.getElementById('s-block').textContent = fmt(s.block);
   document.getElementById('s-entries').textContent = sRaw.entries;
-  document.getElementById('headerHours').textContent = fmt(s.total) + ' hrs total';
+  // headerHours element was removed (audit Dashboard P1 #10 — duplicate of
+  // hero card). Guard against missing element for back-compat with any
+  // build that still has it.
+  const headerHoursEl = document.getElementById('headerHours');
+  if (headerHoursEl) headerHoursEl.textContent = fmt(s.total) + ' hrs total';
   document.getElementById('dashDate').textContent = new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
   // Hero card

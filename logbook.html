@@ -236,53 +236,11 @@ body {
   transition: background var(--t-std) var(--ease-out), color var(--t-std) var(--ease-out);
 }
 
-/* Ambient color blobs that the glass layers catch — boosted to make glass alive */
-body::before, body::after {
-  content: '';
-  position: fixed;
-  pointer-events: none;
-  border-radius: 50%;
-  filter: blur(90px);
-  z-index: 0;
-  transition: opacity var(--t-emphasis) var(--ease-out);
-}
-body::before {
-  width: 650px; height: 650px;
-  top: -180px; left: -180px;
-  background: radial-gradient(circle, rgba(46, 99, 216, 0.28), transparent 70%);
-  opacity: 1;
-}
-body::after {
-  width: 700px; height: 700px;
-  bottom: -220px; right: -220px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.22), transparent 70%);
-  opacity: 1;
-}
-/* Third blob centered to feed the middle of the viewport */
-body { position: relative; }
-.app-body::before {
-  content: '';
-  position: fixed;
-  width: 500px; height: 500px;
-  top: 30%; left: 40%;
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.18), transparent 70%);
-  filter: blur(100px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.9;
-}
-:root[data-theme="dark"] body::before {
-  background: radial-gradient(circle, rgba(91, 149, 255, 0.35), transparent 70%);
-  opacity: 0.85;
-}
-:root[data-theme="dark"] body::after {
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.28), transparent 70%);
-  opacity: 0.85;
-}
-:root[data-theme="dark"] .app-body::before {
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.18), transparent 70%);
-  opacity: 0.75;
-}
+/* Ambient color blobs DELETED (audit Dashboard P0 #1).
+   The 3 radial-gradient pseudo-elements (body::before, body::after,
+   .app-body::before) were producing blue/indigo/violet halos behind
+   the entire app — the most visible "consumer SaaS" tell. Linear /
+   Stripe / Patek / NetJets use none. Same removal for dark theme overrides. */
 
 /* Make sure header / main / nav sit above the ambient blobs (z-index: 0).
    DO NOT add .app-body here. A z-index on .app-body creates a stacking
@@ -764,15 +722,15 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   cursor: default;
   box-shadow: var(--shadow-xs);
 }
-.stat-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-}
-.stat-card.accent { border-top: 3px solid var(--accent); padding-top: calc(var(--s-5) - 2px); }
-.stat-card.success { border-top: 3px solid var(--success); padding-top: calc(var(--s-5) - 2px); }
-.stat-card.night { border-top: 3px solid var(--night); padding-top: calc(var(--s-5) - 2px); }
-.stat-card.warn { border-top: 3px solid var(--warning); padding-top: calc(var(--s-5) - 2px); }
+/* Audit Dashboard P0 #6: hover transform/shadow removed.
+   Cards are cursor:default (not clickable) — animating on hover sent a
+   false interactive signal. Bring back when stat-cards become drill-down
+   links to Logbook-filtered views.
+
+   Audit Dashboard P0 #5: .accent/.success/.night/.warn modifiers removed.
+   Total/PIC/Night/Landings are not semantically blue/green/indigo/orange.
+   All stat-cards now render identically — typography + spacing do the
+   hierarchy, not arbitrary color codes. */
 
 /* IFR Currency card (CAR 401.05 status display) */
 .cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
@@ -2414,9 +2372,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="logo-sub" data-i18n="logo.sub">Flight Deck</div>
  </div>
  </a>
+ <!-- Hours intentionally NOT shown here — duplicates the hero card 60px below.
+      Pilots reflexively cross-check the two; better to have one canonical figure. -->
  <div class="header-pilot">
  <div class="pilot-name">Pilot</div>
- <div class="pilot-hours" id="headerHours">0.0 hrs total</div>
  </div>
 
  <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
@@ -2501,7 +2460,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="page-sub" id="dashDate"></div>
  </div>
  <div class="page-actions">
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log Flight</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log flight</button>
  </div>
  </div>
 
@@ -2548,22 +2507,22 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <div class="stats-grid">
- <div class="stat-card accent">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.totalTime">Total Time</div>
  <div class="stat-value" id="s-total">0.0</div>
  <div class="stat-unit" data-i18n="stats.hours">hours</div>
  </div>
- <div class="stat-card success">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.picTime">PIC Time</div>
  <div class="stat-value" id="s-pic">0.0</div>
  <div class="stat-unit" data-i18n="stats.hours">hours</div>
  </div>
- <div class="stat-card night">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.nightTime">Night Time</div>
  <div class="stat-value" id="s-night">0.0</div>
  <div class="stat-unit" data-i18n="stats.hours">hours</div>
  </div>
- <div class="stat-card warn">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.landings">Landings</div>
  <div class="stat-value" id="s-ldg">0</div>
  <div class="stat-unit" data-i18n="stats.totalUnit">total</div>
@@ -4497,7 +4456,11 @@ function renderDashboard() {
   document.getElementById('s-xc').textContent = fmt(s.xc);
   document.getElementById('s-block').textContent = fmt(s.block);
   document.getElementById('s-entries').textContent = sRaw.entries;
-  document.getElementById('headerHours').textContent = fmt(s.total) + ' hrs total';
+  // headerHours element was removed (audit Dashboard P1 #10 — duplicate of
+  // hero card). Guard against missing element for back-compat with any
+  // build that still has it.
+  const headerHoursEl = document.getElementById('headerHours');
+  if (headerHoursEl) headerHoursEl.textContent = fmt(s.total) + ' hrs total';
   document.getElementById('dashDate').textContent = new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
   // Hero card
@@ -10409,7 +10372,7 @@ const STRINGS = {
  'btn.import': 'Import',
  'btn.export': 'Export',
  'btn.add': 'Add',
- 'btn.logFlight': 'Log Flight',
+ 'btn.logFlight': 'Log flight',
 
  // ─── Hero card
  'hero.totalBlock': 'Total Block Hours',

@@ -91,53 +91,11 @@ body {
   transition: background var(--t-std) var(--ease-out), color var(--t-std) var(--ease-out);
 }
 
-/* Ambient color blobs that the glass layers catch — boosted to make glass alive */
-body::before, body::after {
-  content: '';
-  position: fixed;
-  pointer-events: none;
-  border-radius: 50%;
-  filter: blur(90px);
-  z-index: 0;
-  transition: opacity var(--t-emphasis) var(--ease-out);
-}
-body::before {
-  width: 650px; height: 650px;
-  top: -180px; left: -180px;
-  background: radial-gradient(circle, rgba(46, 99, 216, 0.28), transparent 70%);
-  opacity: 1;
-}
-body::after {
-  width: 700px; height: 700px;
-  bottom: -220px; right: -220px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.22), transparent 70%);
-  opacity: 1;
-}
-/* Third blob centered to feed the middle of the viewport */
-body { position: relative; }
-.app-body::before {
-  content: '';
-  position: fixed;
-  width: 500px; height: 500px;
-  top: 30%; left: 40%;
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.18), transparent 70%);
-  filter: blur(100px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.9;
-}
-:root[data-theme="dark"] body::before {
-  background: radial-gradient(circle, rgba(91, 149, 255, 0.35), transparent 70%);
-  opacity: 0.85;
-}
-:root[data-theme="dark"] body::after {
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.28), transparent 70%);
-  opacity: 0.85;
-}
-:root[data-theme="dark"] .app-body::before {
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.18), transparent 70%);
-  opacity: 0.75;
-}
+/* Ambient color blobs DELETED (audit Dashboard P0 #1).
+   The 3 radial-gradient pseudo-elements (body::before, body::after,
+   .app-body::before) were producing blue/indigo/violet halos behind
+   the entire app — the most visible "consumer SaaS" tell. Linear /
+   Stripe / Patek / NetJets use none. Same removal for dark theme overrides. */
 
 /* Make sure header / main / nav sit above the ambient blobs (z-index: 0).
    DO NOT add .app-body here. A z-index on .app-body creates a stacking

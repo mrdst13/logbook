@@ -150,15 +150,15 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   cursor: default;
   box-shadow: var(--shadow-xs);
 }
-.stat-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-}
-.stat-card.accent { border-top: 3px solid var(--accent); padding-top: calc(var(--s-5) - 2px); }
-.stat-card.success { border-top: 3px solid var(--success); padding-top: calc(var(--s-5) - 2px); }
-.stat-card.night { border-top: 3px solid var(--night); padding-top: calc(var(--s-5) - 2px); }
-.stat-card.warn { border-top: 3px solid var(--warning); padding-top: calc(var(--s-5) - 2px); }
+/* Audit Dashboard P0 #6: hover transform/shadow removed.
+   Cards are cursor:default (not clickable) — animating on hover sent a
+   false interactive signal. Bring back when stat-cards become drill-down
+   links to Logbook-filtered views.
+
+   Audit Dashboard P0 #5: .accent/.success/.night/.warn modifiers removed.
+   Total/PIC/Night/Landings are not semantically blue/green/indigo/orange.
+   All stat-cards now render identically — typography + spacing do the
+   hierarchy, not arbitrary color codes. */
 
 /* IFR Currency card (CAR 401.05 status display) */
 .cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }

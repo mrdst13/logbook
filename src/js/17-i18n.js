@@ -73,7 +73,7 @@ const STRINGS = {
  'btn.import': 'Import',
  'btn.export': 'Export',
  'btn.add': 'Add',
- 'btn.logFlight': 'Log Flight',
+ 'btn.logFlight': 'Log flight',
 
  // ─── Hero card
  'hero.totalBlock': 'Total Block Hours',

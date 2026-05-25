@@ -23,9 +23,10 @@
  <div class="logo-sub" data-i18n="logo.sub">Flight Deck</div>
  </div>
  </a>
+ <!-- Hours intentionally NOT shown here — duplicates the hero card 60px below.
+      Pilots reflexively cross-check the two; better to have one canonical figure. -->
  <div class="header-pilot">
  <div class="pilot-name">Pilot</div>
- <div class="pilot-hours" id="headerHours">0.0 hrs total</div>
  </div>
 
  <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
@@ -110,7 +111,7 @@
  <div class="page-sub" id="dashDate"></div>
  </div>
  <div class="page-actions">
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log Flight</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log flight</button>
  </div>
  </div>
 
@@ -157,22 +158,22 @@
  </div>
 
  <div class="stats-grid">
- <div class="stat-card accent">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.totalTime">Total Time</div>
  <div class="stat-value" id="s-total">0.0</div>
  <div class="stat-unit" data-i18n="stats.hours">hours</div>
  </div>
- <div class="stat-card success">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.picTime">PIC Time</div>
  <div class="stat-value" id="s-pic">0.0</div>
  <div class="stat-unit" data-i18n="stats.hours">hours</div>
  </div>
- <div class="stat-card night">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.nightTime">Night Time</div>
  <div class="stat-value" id="s-night">0.0</div>
  <div class="stat-unit" data-i18n="stats.hours">hours</div>
  </div>
- <div class="stat-card warn">
+ <div class="stat-card">
  <div class="stat-label" data-i18n="stats.landings">Landings</div>
  <div class="stat-value" id="s-ldg">0</div>
  <div class="stat-unit" data-i18n="stats.totalUnit">total</div>
