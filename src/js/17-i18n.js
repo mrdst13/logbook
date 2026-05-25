@@ -225,6 +225,8 @@ const STRINGS = {
  'flight.deleteBtn': ' Delete',
  'flight.saveBtn': 'Save flight',
  'flight.saveAndAddBtn': 'Save & add another',
+ 'flight.meDayRow': 'Day',
+ 'flight.meNightRow': 'Night',
  'flight.cancelBtn': 'Cancel',
  'flight.showAdvanced': 'Show advanced fields (ME · XC · Instrument)',
  'flight.hideAdvanced': 'Hide advanced fields',
@@ -433,7 +435,9 @@ const STRINGS = {
  'toast.columnsReset': 'Column visibility reset to defaults',
  'toast.presetApplied': 'Preset "{name}" applied',
  'toast.profileTypeSaved': 'Profile type saved ✓',
- 'toast.signatureSaved': 'Signature saved ✓',
+ 'toast.signatureSaved': 'Signature saved',
+ 'sig.statusLoaded': 'Signature saved.',
+ 'sig.statusJustSaved': 'Saved.',
  'toast.dateRequired': 'Date is required',
  'toast.enterNavblueUrl': 'Enter a Navblue iCal URL first',
  'toast.invalidNavblueDomain': 'URL must be a Navblue domain (navblue.cloud)',
@@ -812,6 +816,8 @@ const STRINGS = {
  'flight.deleteBtn': ' Supprimer',
  'flight.saveBtn': 'Enregistrer le vol',
  'flight.saveAndAddBtn': 'Enregistrer et ajouter un autre',
+ 'flight.meDayRow': 'Jour',
+ 'flight.meNightRow': 'Nuit',
  'flight.cancelBtn': 'Annuler',
  'flight.showAdvanced': 'Afficher les champs avancés (ME · Voyage · Instrument)',
  'flight.hideAdvanced': 'Masquer les champs avancés',
@@ -1020,7 +1026,9 @@ const STRINGS = {
  'toast.columnsReset': 'Visibilité des colonnes réinitialisée',
  'toast.presetApplied': 'Préréglage « {name} » appliqué',
  'toast.profileTypeSaved': 'Type de pilote enregistré ✓',
- 'toast.signatureSaved': 'Signature enregistrée ✓',
+ 'toast.signatureSaved': 'Signature enregistrée',
+ 'sig.statusLoaded': 'Signature enregistrée.',
+ 'sig.statusJustSaved': 'Enregistrée.',
  'toast.dateRequired': 'La date est requise',
  'toast.enterNavblueUrl': 'Saisissez d’abord une URL iCal Navblue',
  'toast.invalidNavblueDomain': 'L’URL doit être sur le domaine Navblue (navblue.cloud)',
@@ -1216,6 +1224,7 @@ function setLang(lang) {
  // Q&A and Glossary contain hard-coded prose that has FR translations baked
  // into the source data — re-render them so the language toggle is immediate.
  if (typeof renderQA === 'function' && document.getElementById('page-qa')?.classList.contains('active')) renderQA();
+ if (typeof filterGlossary === 'function' && document.getElementById('page-glossary')?.classList.contains('active')) filterGlossary(typeof glossaryFilter !== 'undefined' ? (glossaryFilter || '') : '');
  if (typeof filterGlossary === 'function' && document.getElementById('page-glossary')?.classList.contains('active')) filterGlossary(glossaryFilter || '');
  // If the auth modal is open (e.g. user clicked EN/FR mid-signin), re-render
  // its body so the form labels switch language too.

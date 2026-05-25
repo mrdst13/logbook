@@ -483,7 +483,7 @@
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.remarks">Remarks</label>
- <textarea id="f-remarks" placeholder="Notes, observations..."></textarea>
+ <textarea id="f-remarks" placeholder="Notes, observations, deferrals (MEL), unusual conditions..." style="min-height:96px;" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight, 400)+'px';"></textarea>
  </div>
  </div>
  </div>
@@ -535,8 +535,11 @@
  <div id="advancedFormFields" style="display:none;">
 
  <div class="form-card">
- <div class="form-card-title" data-i18n="flight.meCard"> Multi-Engine Time</div>
- <div class="form-grid form-grid-4">
+ <div class="form-card-title" data-i18n="flight.meCard">Multi-Engine Time</div>
+
+ <!-- Day row -->
+ <div class="eyebrow" style="margin-bottom:var(--s-2);" data-i18n="flight.meDayRow">Day</div>
+ <div class="form-grid form-grid-3">
  <div class="form-group">
  <label data-i18n="flight.meDayDual">ME Day — Dual</label>
  <input type="number" id="f-me-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
@@ -549,6 +552,11 @@
  <label data-i18n="flight.meDayCop">ME Day — Co-Pilot</label>
  <input type="number" id="f-me-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
+ </div>
+
+ <!-- Night row -->
+ <div class="eyebrow" style="margin-top:var(--s-4); margin-bottom:var(--s-2);" data-i18n="flight.meNightRow">Night</div>
+ <div class="form-grid form-grid-3">
  <div class="form-group">
  <label data-i18n="flight.meNightDual">ME Night — Dual</label>
  <input type="number" id="f-me-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">

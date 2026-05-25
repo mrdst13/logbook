@@ -2800,7 +2800,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.remarks">Remarks</label>
- <textarea id="f-remarks" placeholder="Notes, observations..."></textarea>
+ <textarea id="f-remarks" placeholder="Notes, observations, deferrals (MEL), unusual conditions..." style="min-height:96px;" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight, 400)+'px';"></textarea>
  </div>
  </div>
  </div>
@@ -2852,8 +2852,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div id="advancedFormFields" style="display:none;">
 
  <div class="form-card">
- <div class="form-card-title" data-i18n="flight.meCard"> Multi-Engine Time</div>
- <div class="form-grid form-grid-4">
+ <div class="form-card-title" data-i18n="flight.meCard">Multi-Engine Time</div>
+
+ <!-- Day row -->
+ <div class="eyebrow" style="margin-bottom:var(--s-2);" data-i18n="flight.meDayRow">Day</div>
+ <div class="form-grid form-grid-3">
  <div class="form-group">
  <label data-i18n="flight.meDayDual">ME Day — Dual</label>
  <input type="number" id="f-me-day-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
@@ -2866,6 +2869,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <label data-i18n="flight.meDayCop">ME Day — Co-Pilot</label>
  <input type="number" id="f-me-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
+ </div>
+
+ <!-- Night row -->
+ <div class="eyebrow" style="margin-top:var(--s-4); margin-bottom:var(--s-2);" data-i18n="flight.meNightRow">Night</div>
+ <div class="form-grid form-grid-3">
  <div class="form-group">
  <label data-i18n="flight.meNightDual">ME Night — Dual</label>
  <input type="number" id="f-me-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
@@ -8534,7 +8542,7 @@ function initSignature() {
  const img = new Image();
  img.onload = () => sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
  img.src = saved;
- document.getElementById('sigStatus').textContent = 'Signature saved.';
+ document.getElementById('sigStatus').textContent = (typeof t === 'function') ? t('sig.statusLoaded') : 'Signature saved.';
  }
 
  const getPos = e => {
@@ -8564,7 +8572,7 @@ function saveSignature() {
  if (!sigCanvas) return;
  const data = sigCanvas.toDataURL('image/png');
  localStorage.setItem('logbook_signature', data);
- document.getElementById('sigStatus').textContent = 'Saved.';
+ document.getElementById('sigStatus').textContent = (typeof t === 'function') ? t('sig.statusJustSaved') : 'Saved.';
  showToast(t('toast.signatureSaved'), 'success');
 }
 
@@ -10313,6 +10321,8 @@ const STRINGS = {
  'flight.deleteBtn': ' Delete',
  'flight.saveBtn': 'Save flight',
  'flight.saveAndAddBtn': 'Save & add another',
+ 'flight.meDayRow': 'Day',
+ 'flight.meNightRow': 'Night',
  'flight.cancelBtn': 'Cancel',
  'flight.showAdvanced': 'Show advanced fields (ME · XC · Instrument)',
  'flight.hideAdvanced': 'Hide advanced fields',
@@ -10521,7 +10531,9 @@ const STRINGS = {
  'toast.columnsReset': 'Column visibility reset to defaults',
  'toast.presetApplied': 'Preset "{name}" applied',
  'toast.profileTypeSaved': 'Profile type saved ✓',
- 'toast.signatureSaved': 'Signature saved ✓',
+ 'toast.signatureSaved': 'Signature saved',
+ 'sig.statusLoaded': 'Signature saved.',
+ 'sig.statusJustSaved': 'Saved.',
  'toast.dateRequired': 'Date is required',
  'toast.enterNavblueUrl': 'Enter a Navblue iCal URL first',
  'toast.invalidNavblueDomain': 'URL must be a Navblue domain (navblue.cloud)',
@@ -10900,6 +10912,8 @@ const STRINGS = {
  'flight.deleteBtn': ' Supprimer',
  'flight.saveBtn': 'Enregistrer le vol',
  'flight.saveAndAddBtn': 'Enregistrer et ajouter un autre',
+ 'flight.meDayRow': 'Jour',
+ 'flight.meNightRow': 'Nuit',
  'flight.cancelBtn': 'Annuler',
  'flight.showAdvanced': 'Afficher les champs avancés (ME · Voyage · Instrument)',
  'flight.hideAdvanced': 'Masquer les champs avancés',
@@ -11108,7 +11122,9 @@ const STRINGS = {
  'toast.columnsReset': 'Visibilité des colonnes réinitialisée',
  'toast.presetApplied': 'Préréglage « {name} » appliqué',
  'toast.profileTypeSaved': 'Type de pilote enregistré ✓',
- 'toast.signatureSaved': 'Signature enregistrée ✓',
+ 'toast.signatureSaved': 'Signature enregistrée',
+ 'sig.statusLoaded': 'Signature enregistrée.',
+ 'sig.statusJustSaved': 'Enregistrée.',
  'toast.dateRequired': 'La date est requise',
  'toast.enterNavblueUrl': 'Saisissez d’abord une URL iCal Navblue',
  'toast.invalidNavblueDomain': 'L’URL doit être sur le domaine Navblue (navblue.cloud)',
@@ -11304,6 +11320,7 @@ function setLang(lang) {
  // Q&A and Glossary contain hard-coded prose that has FR translations baked
  // into the source data — re-render them so the language toggle is immediate.
  if (typeof renderQA === 'function' && document.getElementById('page-qa')?.classList.contains('active')) renderQA();
+ if (typeof filterGlossary === 'function' && document.getElementById('page-glossary')?.classList.contains('active')) filterGlossary(typeof glossaryFilter !== 'undefined' ? (glossaryFilter || '') : '');
  if (typeof filterGlossary === 'function' && document.getElementById('page-glossary')?.classList.contains('active')) filterGlossary(glossaryFilter || '');
  // If the auth modal is open (e.g. user clicked EN/FR mid-signin), re-render
  // its body so the form labels switch language too.

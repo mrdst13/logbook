@@ -177,7 +177,7 @@ function initSignature() {
  const img = new Image();
  img.onload = () => sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
  img.src = saved;
- document.getElementById('sigStatus').textContent = 'Signature saved.';
+ document.getElementById('sigStatus').textContent = (typeof t === 'function') ? t('sig.statusLoaded') : 'Signature saved.';
  }
 
  const getPos = e => {
@@ -207,7 +207,7 @@ function saveSignature() {
  if (!sigCanvas) return;
  const data = sigCanvas.toDataURL('image/png');
  localStorage.setItem('logbook_signature', data);
- document.getElementById('sigStatus').textContent = 'Saved.';
+ document.getElementById('sigStatus').textContent = (typeof t === 'function') ? t('sig.statusJustSaved') : 'Saved.';
  showToast(t('toast.signatureSaved'), 'success');
 }
 
