@@ -209,23 +209,38 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .dash-row-main { grid-template-columns: 1.4fr 1fr; }
 
 /* Generic card surface — same as .card but namespaced so we can tune Q9 separately.
-   The shadow + inset top highlight combo gives cards a "floating over the
-   atmospheric sky backdrop" feel. Subtle — never heavy. */
+   Depth pass v2: replaced the solid 1px border with a near-invisible
+   rgba border + a stronger layered shadow. The card now reads as
+   "floating glass" over the sky backdrop rather than "rectangle with
+   a 1px line around it". Pattern from Apple's WWDC site cards,
+   Vercel dashboard, Linear v2. */
 .dash-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.50) 0%,
+      rgba(255, 255, 255, 0) 80px),
+    var(--bg-surface);
+  border: 1px solid rgba(15, 23, 42, 0.05);
   border-radius: var(--r-md);
   padding: 22px 26px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,        /* top highlight */
-    0 1px 2px rgba(15, 23, 42, 0.04),              /* close shadow */
-    0 8px 24px rgba(15, 23, 42, 0.03);             /* atmospheric drop */
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,        /* top highlight (glass) */
+    0 1px 2px rgba(15, 23, 42, 0.03),              /* close shadow */
+    0 4px 12px rgba(15, 23, 42, 0.04),             /* mid drop */
+    0 16px 40px rgba(15, 23, 42, 0.04);            /* atmospheric far drop */
 }
 :root[data-theme="dark"] .dash-card {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 80px),
+    var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.04) inset,
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.30),
+    0 16px 40px rgba(0, 0, 0, 0.25);
 }
 .dash-card-head {
   display: flex;

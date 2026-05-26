@@ -268,24 +268,24 @@ html, body { height: 100vh; height: 100dvh; overflow: hidden; }
 
 body {
   font-family: var(--font-sans);
-  /* ─── Atmospheric sky backdrop (2026-05-26) ─────────────────────
+  /* ─── Atmospheric sky backdrop (2026-05-26, depth pass v2) ───────
      The brand is "Cumulo" — cumulus cloud. The backdrop should feel
-     like the sky from altitude: cooler/bluer at the top of the
-     viewport, fading to neutral by mid-page. Static, no motion (a
-     looping gradient would feel like a screensaver — wrong tone).
-     Subtle enough that on first glance the page reads as "white" /
-     "light", but the depth registers peripherally.
-
-     Pattern: linear-gradient on body, two soft radial glows via
-     pseudo-elements that suggest atmospheric layers.
-
-     Light mode values are calibrated for ≤6% perceived tint at the
-     top — anything stronger trips the consumer-SaaS dial that
-     Martin rejected earlier. */
+     like the sky from altitude: cooler/bluer at the top, fading to
+     neutral lower down. Three stacked gradients give the depth that
+     a single gradient can't: high-altitude blue cool, mid-altitude
+     fade, then a soft warm-cream bottom hint (like horizon haze at
+     ground level). The whole thing is static — no animation loops. */
   background:
+    /* Layer 1: subtle warm horizon hint at the bottom */
     linear-gradient(180deg,
-      #EEF2F8 0%,                  /* horizon-blue tint at the very top */
-      var(--bg-app) 380px,         /* fades to the standard app bg */
+      transparent 0%,
+      transparent 70%,
+      rgba(255, 246, 235, 0.30) 100%),
+    /* Layer 2: main cool-blue → neutral fade */
+    linear-gradient(180deg,
+      #E6ECF5 0%,                /* deeper horizon-blue at the very top */
+      #F1F4F9 240px,             /* mid fade */
+      var(--bg-app) 560px,       /* lands on neutral by mid-viewport */
       var(--bg-app) 100%);
   color: var(--text);
   height: 100vh;
@@ -300,63 +300,72 @@ body {
   position: relative;
 }
 
-/* Two soft atmospheric glow blobs, positioned in the upper third of
-   the viewport. Very low opacity — they're peripheral mood, never
-   foreground. Both are pure CSS (no JS, no canvas), zero perf cost.
-   Animation: static. (A loop would steal attention from data.)
-
-   Why pseudo-elements on <body> instead of a wrapper div: body already
-   has overflow:hidden + display:flex; the pseudo-elements sit behind
-   the flex children without breaking the layout. z-index: 0 keeps
-   them under header/main/nav (which are z-index: 1 below). */
+/* Three soft atmospheric glow blobs — depth pass v2. Pure CSS, zero
+   JS / canvas / animation. Light enough to never be the foreground;
+   dense enough that the page no longer feels like a flat sheet with
+   tight 1px lines. */
 body::before {
+  /* Upper-left high-altitude blue — broader, more visible than v1 */
   content: '';
   position: fixed;
-  top: -120px;
-  left: -10vw;
-  width: 60vw;
-  height: 420px;
+  top: -180px;
+  left: -15vw;
+  width: 70vw;
+  height: 560px;
   background: radial-gradient(ellipse at center,
-    rgba(56, 132, 255, 0.10) 0%,
-    rgba(56, 132, 255, 0) 70%);
-  filter: blur(40px);
-  pointer-events: none;
-  z-index: 0;
-}
-body::after {
-  content: '';
-  position: fixed;
-  top: -80px;
-  right: -10vw;
-  width: 55vw;
-  height: 380px;
-  background: radial-gradient(ellipse at center,
-    rgba(91, 149, 255, 0.08) 0%,
-    rgba(91, 149, 255, 0) 70%);
+    rgba(56, 132, 255, 0.18) 0%,
+    rgba(56, 132, 255, 0.06) 45%,
+    rgba(56, 132, 255, 0) 75%);
   filter: blur(50px);
   pointer-events: none;
   z-index: 0;
 }
+body::after {
+  /* Upper-right counter-balance + soft mid-viewport warm hint */
+  content: '';
+  position: fixed;
+  top: -120px;
+  right: -15vw;
+  width: 65vw;
+  height: 520px;
+  background:
+    radial-gradient(ellipse at top right,
+      rgba(91, 149, 255, 0.14) 0%,
+      rgba(91, 149, 255, 0) 60%),
+    radial-gradient(ellipse 60% 80% at 50% 80%,
+      rgba(255, 220, 180, 0.05) 0%,
+      rgba(255, 220, 180, 0) 100%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+}
 
-/* Dark mode: deeper navy at the top fading to base dark, with the
-   atmospheric glows toned down because the dark surfaces already
-   carry depth via shadow. */
+/* (Vignette layer intentionally omitted — adding any element with
+   z-index/position to .app-body breaks the mobile nav drawer stacking,
+   per the comment above. The strengthened body gradient + the two
+   blobs do the depth work alone. If more vignette becomes needed, the
+   right place is a <div class="app-vignette"> at the body root, not
+   pseudo-elements on .app-body / main.) */
+
+/* Dark mode: tighter blue tones, no warm hint (clashes with night). */
 :root[data-theme="dark"] body {
   background:
     linear-gradient(180deg,
-      #1F2436 0%,                  /* deeper navy at top — sky at altitude */
-      var(--bg-app) 420px,
+      #1A1F30 0%,                  /* deep navy "high altitude night" */
+      #1C212F 240px,
+      var(--bg-app) 560px,
       var(--bg-app) 100%);
 }
 :root[data-theme="dark"] body::before {
   background: radial-gradient(ellipse at center,
-    rgba(91, 149, 255, 0.10) 0%,
-    rgba(91, 149, 255, 0) 70%);
+    rgba(91, 149, 255, 0.18) 0%,
+    rgba(91, 149, 255, 0.05) 45%,
+    rgba(91, 149, 255, 0) 75%);
 }
 :root[data-theme="dark"] body::after {
-  background: radial-gradient(ellipse at center,
-    rgba(91, 149, 255, 0.08) 0%,
-    rgba(91, 149, 255, 0) 70%);
+  background: radial-gradient(ellipse at top right,
+    rgba(91, 149, 255, 0.14) 0%,
+    rgba(91, 149, 255, 0) 60%);
 }
 
 /* Make sure header / main / nav sit above the atmospheric layer (z-index: 0).
@@ -906,23 +915,38 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .dash-row-main { grid-template-columns: 1.4fr 1fr; }
 
 /* Generic card surface — same as .card but namespaced so we can tune Q9 separately.
-   The shadow + inset top highlight combo gives cards a "floating over the
-   atmospheric sky backdrop" feel. Subtle — never heavy. */
+   Depth pass v2: replaced the solid 1px border with a near-invisible
+   rgba border + a stronger layered shadow. The card now reads as
+   "floating glass" over the sky backdrop rather than "rectangle with
+   a 1px line around it". Pattern from Apple's WWDC site cards,
+   Vercel dashboard, Linear v2. */
 .dash-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.50) 0%,
+      rgba(255, 255, 255, 0) 80px),
+    var(--bg-surface);
+  border: 1px solid rgba(15, 23, 42, 0.05);
   border-radius: var(--r-md);
   padding: 22px 26px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,        /* top highlight */
-    0 1px 2px rgba(15, 23, 42, 0.04),              /* close shadow */
-    0 8px 24px rgba(15, 23, 42, 0.03);             /* atmospheric drop */
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,        /* top highlight (glass) */
+    0 1px 2px rgba(15, 23, 42, 0.03),              /* close shadow */
+    0 4px 12px rgba(15, 23, 42, 0.04),             /* mid drop */
+    0 16px 40px rgba(15, 23, 42, 0.04);            /* atmospheric far drop */
 }
 :root[data-theme="dark"] .dash-card {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 80px),
+    var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.04) inset,
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.30),
+    0 16px 40px rgba(0, 0, 0, 0.25);
 }
 .dash-card-head {
   display: flex;
@@ -16689,7 +16713,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-greeting-ppc';
+const BUILD_VERSION = 'v3a-2026-05-26-atmosphere-everywhere';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

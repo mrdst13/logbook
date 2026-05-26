@@ -28,11 +28,47 @@
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
-  background: var(--bg); color: var(--text);
+  color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   line-height: 1.6;
 }
+/* Atmospheric sky backdrop — same brand atmosphere as the app + landing. */
+body {
+  position: relative;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 70%, rgba(255, 246, 235, 0.30) 100%),
+    linear-gradient(180deg, #E6ECF5 0%, #F1F4F9 240px, var(--bg) 560px, var(--bg) 100%);
+}
+body::before {
+  content: '';
+  position: fixed;
+  top: -180px; left: -15vw;
+  width: 70vw; height: 560px;
+  background: radial-gradient(ellipse at center,
+    rgba(56, 132, 255, 0.18) 0%,
+    rgba(56, 132, 255, 0.06) 45%,
+    rgba(56, 132, 255, 0) 75%);
+  filter: blur(50px);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: -120px; right: -15vw;
+  width: 65vw; height: 520px;
+  background:
+    radial-gradient(ellipse at top right,
+      rgba(91, 149, 255, 0.14) 0%, rgba(91, 149, 255, 0) 60%),
+    radial-gradient(ellipse 60% 80% at 50% 80%,
+      rgba(255, 220, 180, 0.05) 0%, rgba(255, 220, 180, 0) 100%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+}
+nav.top, main, footer { position: relative; z-index: 1; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
