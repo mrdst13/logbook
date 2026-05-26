@@ -1911,29 +1911,62 @@ select {
 ═══════════════════════════════════════ */
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
 
+/* Drop zones — compact list-row affordance. The pattern from Linear,
+   Stripe, Notion: a "Select file" button-like row, no giant placeholder.
+   The whole row is droppable; the dashed border only appears DURING a
+   drag event (.dragover), not at rest. This way the page reads as a
+   clean list of import options, not a wall of empty placeholder boxes. */
 .drop-zone {
-  border: 2px dashed var(--border-strong);
-  border-radius: var(--r-md);
-  padding: var(--s-10) var(--s-6);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
   cursor: pointer;
-  transition: all var(--t-std) var(--ease-out);
-  background: var(--bg-surface);
+  transition: background var(--t-micro) var(--ease-out),
+              border-color var(--t-micro) var(--ease-out),
+              box-shadow var(--t-micro) var(--ease-out);
+  min-height: 44px;       /* iOS HIG tap target */
 }
 .drop-zone:hover {
-  border-color: var(--accent);
   background: var(--accent-soft);
-  transform: translateY(-1px);
+  border-color: var(--accent);
 }
 .drop-zone.dragover {
-  border-color: var(--accent);
   background: var(--accent-soft);
-  transform: scale(1.01);
-  box-shadow: var(--shadow-md);
+  border: 1.5px dashed var(--accent);
+  box-shadow: 0 0 0 4px rgba(56, 132, 255, 0.10);
 }
-.drop-icon { font-size: 32px; margin-bottom: var(--s-3); opacity: 0.9; }
-.drop-title { font-family: var(--font-sans); font-weight: 600; font-size: 15px; color: var(--text); letter-spacing: -0.01em; margin-bottom: 6px; }
-.drop-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.drop-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+.drop-icon svg { width: 100%; height: 100%; display: block; }
+.drop-title {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13.5px;
+  color: var(--text);
+  letter-spacing: -0.005em;
+  flex: 1;
+  min-width: 0;
+}
+.drop-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
 
 .ai-box {
   background: var(--bg-subtle);
@@ -3308,8 +3341,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  ondragover="event.preventDefault();this.classList.add('dragover')"
  ondragleave="this.classList.remove('dragover')"
  ondrop="handleDrop(event,'photo')">
- <div class="drop-title" data-i18n="import.photoDrop">Drop a photo or click to select</div>
- <div class="drop-sub" data-i18n="import.photoFileHint">JPG, PNG, HEIC</div>
+ <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg></span>
+ <span class="drop-title" data-i18n="import.photoDrop">Select photo or drop here</span>
+ <span class="drop-sub" data-i18n="import.photoFileHint">JPG · PNG · HEIC</span>
  </div>
  <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
  </div>
@@ -3322,9 +3356,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="settings-card-desc" data-i18n-html="import.navblueInstrHtml">Upload your Navblue HrRosterReport PDF. AI reads the format and imports only real flights. Skips: VAC, GD, SDO, REAX, HTL, PER, LM, BO.</div>
  </div>
  </div>
- <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()">
- <div class="drop-title" data-i18n="import.navblueClickToSelect">Drop your Navblue PDF or click to select</div>
- <div class="drop-sub" data-i18n="import.navblueFileHint">Roster_XXXX_MMMYYYY.pdf</div>
+ <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()"
+ ondragover="event.preventDefault();this.classList.add('dragover')"
+ ondragleave="this.classList.remove('dragover')"
+ ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){var i=document.getElementById('navbluePdf');var dt=new DataTransfer();dt.items.add(f);i.files=dt.files;parseNavbluePDF(i);}">
+ <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
+ <span class="drop-title" data-i18n="import.navblueClickToSelect">Select Navblue PDF or drop here</span>
+ <span class="drop-sub" data-i18n="import.navblueFileHint">Roster_XXXX_MMMYYYY.pdf</span>
  </div>
  <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
  </div>
@@ -3341,8 +3379,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  ondragover="event.preventDefault(); this.classList.add('dragover');"
  ondragleave="this.classList.remove('dragover');"
  ondrop="handleRosterDrop(event);">
- <div class="drop-title" data-i18n="sync.roster.dropTitle">Drop Navblue PDF roster here</div>
- <div class="drop-sub" data-i18n="sync.roster.dropSub">or click · HrRosterReport_*.pdf</div>
+ <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+ <span class="drop-title" data-i18n="sync.roster.dropTitle">Select roster PDF or drop here</span>
+ <span class="drop-sub" data-i18n="sync.roster.dropSub">HRROSTERREPORT_*.PDF</span>
  </div>
  <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
  <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
@@ -3360,8 +3399,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  ondragover="event.preventDefault(); this.classList.add('dragover');"
  ondragleave="this.classList.remove('dragover');"
  ondrop="handleCsvDrop(event);">
- <div class="drop-title" data-i18n="sync.csv.dropTitle">Drop your logbook CSV export</div>
- <div class="drop-sub" data-i18n="sync.csv.dropSub">or click · .csv from ForeFlight / LogTen / MyFlightbook / Logbook Pro / Safelog / any other</div>
+ <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span>
+ <span class="drop-title" data-i18n="sync.csv.dropTitle">Select CSV or drop here</span>
+ <span class="drop-sub" data-i18n="sync.csv.dropSub">FOREFLIGHT · LOGTEN · MYFLIGHTBOOK · OTHER</span>
  </div>
  <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(this.files[0])">
  <div style="margin-top:var(--s-2); font-size:11px; color:var(--text-muted); line-height:1.5;" data-i18n="sync.csv.note">
@@ -11288,12 +11328,12 @@ const STRINGS = {
  'sync.navblue.clearBtn': 'Clear',
  'sync.roster.title': 'Crew names from PDF roster',
  'sync.roster.desc': 'iCal doesn\'t include captains. Drop your HrRosterReport PDF — Cumulo extracts and merges captain names. 100% client-side, nothing uploaded.',
- 'sync.roster.dropTitle': 'Drop Navblue PDF roster here',
- 'sync.roster.dropSub': 'or click · HrRosterReport_*.pdf',
+ 'sync.roster.dropTitle': 'Select roster PDF or drop here',
+ 'sync.roster.dropSub': 'HRROSTERREPORT_*.PDF',
  'sync.csv.title': 'Migrate from another logbook app',
  'sync.csv.desc': 'Drop a CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens the universal column-mapping wizard. 100% client-side, nothing uploaded.',
- 'sync.csv.dropTitle': 'Drop your logbook CSV export here',
- 'sync.csv.dropSub': 'or click · .csv from ForeFlight / LogTen / MyFlightbook / Logbook Pro / Safelog / any other',
+ 'sync.csv.dropTitle': 'Select CSV or drop here',
+ 'sync.csv.dropSub': 'FOREFLIGHT · LOGTEN · MYFLIGHTBOOK · OTHER',
  'sync.csv.note': 'Imports are stored as-is — Cumulo never invents data. Fields not present in the source CSV are saved as 0. Use the "Hide empty columns" toggle in Profile to clean the table view. The PDF export for Transport Canada always shows the full 38 columns regardless of import source.',
 
  // ─── Profile page
@@ -11499,8 +11539,10 @@ const STRINGS = {
  'import.pdfDescHtml': 'Upload your Navblue PDF roster.<br>AI extracts only real flights.',
  'import.navblueCardTitle': ' Navblue Roster — Upload PDF',
  'import.navblueInstrHtml': 'Upload your Navblue HrRosterReport PDF directly.<br>AI reads the format and imports only your real flights.<br><strong>Skips:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO',
- 'import.navblueClickToSelect':'Click to select Navblue PDF',
+ 'import.navblueClickToSelect':'Select Navblue PDF or drop here',
  'import.navblueFileHint': 'Roster_XXXX_MMMYYYY.pdf',
+ 'import.photoDrop': 'Select photo or drop here',
+ 'import.photoFileHint': 'JPG · PNG · HEIC',
  'import.aiAnalyzing': 'ANALYZING LOGBOOK IMAGE...',
  'dash.alert.medicalSoon': 'Your medical expires in {days} days — book your renewal.',
  'dash.alert.medicalExpired': 'Your medical has expired. You may not exercise the privileges of your licence.',
@@ -11895,12 +11937,12 @@ const STRINGS = {
  'sync.navblue.clearBtn': 'Effacer',
  'sync.roster.title': 'Noms d’équipage par PDF d’horaire',
  'sync.roster.desc': 'L’iCal n’inclut pas les commandants. Déposez votre PDF HrRosterReport — Cumulo extrait et fusionne les noms. 100 % côté client, rien n’est téléversé.',
- 'sync.roster.dropTitle': 'Déposez ici votre PDF d’horaire Navblue',
- 'sync.roster.dropSub': 'ou cliquez · HrRosterReport_*.pdf',
+ 'sync.roster.dropTitle': 'Choisir le PDF d’horaire ou déposer',
+ 'sync.roster.dropSub': 'HRROSTERREPORT_*.PDF',
  'sync.csv.title': 'Migrer depuis une autre app de carnet',
  'sync.csv.desc': 'Déposez un export CSV de ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro ou Safelog. Tout autre CSV ouvre l’assistant universel de correspondance de colonnes. 100 % côté client, rien n’est téléversé.',
- 'sync.csv.dropTitle': 'Déposez ici votre fichier CSV',
- 'sync.csv.dropSub': 'ou cliquez · .csv de ForeFlight / LogTen / MyFlightbook / Logbook Pro / Safelog / tout autre',
+ 'sync.csv.dropTitle': 'Choisir le CSV ou déposer',
+ 'sync.csv.dropSub': 'FOREFLIGHT · LOGTEN · MYFLIGHTBOOK · AUTRE',
  'sync.csv.note': 'Les importations sont conservées telles quelles — Cumulo n’invente jamais de données. Les champs absents du CSV source sont enregistrés à 0. Utilisez l’option « Masquer les colonnes vides » dans le Profil pour épurer la vue. L’exportation PDF pour Transports Canada affiche toujours les 38 colonnes.',
 
  // ─── Profil
@@ -12106,8 +12148,10 @@ const STRINGS = {
  'import.pdfDescHtml': 'Téléversez votre PDF d’horaire Navblue.<br>L’IA n’extrait que les vols réels.',
  'import.navblueCardTitle': ' Horaire Navblue — Téléverser PDF',
  'import.navblueInstrHtml': 'Téléversez directement votre PDF HrRosterReport Navblue.<br>L’IA lit le format et importe seulement vos vrais vols.<br><strong>Ignore :</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO',
- 'import.navblueClickToSelect':'Cliquez pour choisir le PDF Navblue',
+ 'import.navblueClickToSelect':'Choisir le PDF Navblue ou déposer',
  'import.navblueFileHint': 'Roster_XXXX_MMMYYYY.pdf',
+ 'import.photoDrop': 'Choisir une photo ou déposer',
+ 'import.photoFileHint': 'JPG · PNG · HEIC',
  'import.aiAnalyzing': 'ANALYSE DE L’IMAGE DU CARNET...',
  'dash.alert.medicalSoon': 'Votre médical expire dans {days} jours — planifiez le renouvellement.',
  'dash.alert.medicalExpired': 'Votre médical est expiré. Vous ne pouvez pas exercer les privilèges de votre licence.',
