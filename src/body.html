@@ -859,14 +859,13 @@
       a specific section without scrolling. Small footprint, decoupled from
       the actual content order so we can re-arrange below without touching
       the chip list. -->
- <nav class="settings-subnav" aria-label="Profile sections">
-   <a href="#profile-type"      class="settings-subnav-chip" data-i18n="profile.subnav.type">Pilot type</a>
-   <a href="#profile-bf"        class="settings-subnav-chip" data-i18n="profile.subnav.bf">Brought-forward</a>
-   <a href="#profile-identity"  class="settings-subnav-chip" data-i18n="profile.subnav.identity">Identity</a>
-   <a href="#profile-ops"       class="settings-subnav-chip">Operational</a>
-   <a href="#profile-display"   class="settings-subnav-chip">Display</a>
-   <a href="#profile-signature" class="settings-subnav-chip" data-i18n="profile.subnav.signature">Signature</a>
- </nav>
+ <!-- Profile sub-anchor chips removed 2026-05-26 — Martin: "ca sert a
+      quoi ca on pourrait lenlever non ? quel est le plus value et ca
+      crée un gros trou vide". For a 5-section pane the Settings tabs
+      at the top already cover navigation; chips were over-engineering
+      and they were rendering as a floating left-side bar with empty
+      space next to them. Removed from all 3 panes (Profile, Privacy,
+      Data). Section IDs kept for deep-linking from URLs if needed. -->
 
  <div class="form-card" id="profile-type">
  <div class="form-card-title" data-i18n="profile.section.type">Pilot type</div>
@@ -1099,13 +1098,7 @@
  <div class="settings-section" data-settings-pane="privacy" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
 
- <!-- Sub-nav chips for the Privacy pane sections -->
- <nav class="settings-subnav" aria-label="Privacy sections">
-   <a href="#priv-consent" class="settings-subnav-chip">Crew names</a>
-   <a href="#priv-export"  class="settings-subnav-chip">Export</a>
-   <a href="#priv-delete"  class="settings-subnav-chip">Delete</a>
-   <a href="#priv-trust"   class="settings-subnav-chip">Why your data is safe</a>
- </nav>
+ <!-- Privacy sub-nav chips removed 2026-05-26 (see Profile pane comment). -->
 
  <!-- ─── Card: PIPEDA crew-name disclosure ──────────────────────
       Replaces the old binary "I have crew consent" checkbox. Pilots
@@ -1267,11 +1260,7 @@
  <div class="settings-section" data-settings-pane="data" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.data">Data &amp; Maintenance</div>
 
- <!-- Sub-nav chips for the Data pane -->
- <nav class="settings-subnav" aria-label="Data sections">
-   <a href="#data-recovery" class="settings-subnav-chip">Recovery</a>
-   <a href="#data-danger"   class="settings-subnav-chip" style="color:var(--danger);">Danger zone</a>
- </nav>
+ <!-- Data sub-nav chips removed 2026-05-26 (see Profile pane comment). -->
 
  <!-- ─── Card: Recovery (reversible operations) ──────────────── -->
  <div class="form-card" id="data-recovery">
