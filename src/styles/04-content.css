@@ -504,6 +504,68 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   DASHBOARD MOTION POLISH (2026-05-26)
+   Tasteful "this page just came alive" reveal animations. Pattern from
+   Linear (stagger fade-in on first render), Stripe (number count-up),
+   Mercury (hover-lift on cards). Quiet — never garish.
+
+   Every animation is gated by prefers-reduced-motion so accessibility
+   users get instant-render.
+═══════════════════════════════════════════════════════════════════ */
+@keyframes dashFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dashRingDrawIn {
+  from { stroke-dashoffset: var(--ring-c, 200); }
+  to   { /* JS sets final stroke-dashoffset inline */ }
+}
+
+@keyframes dashSparkDrawIn {
+  from { stroke-dashoffset: 1000; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Stagger reveal: each top-level card fades up with a small delay.
+     The selector hits .dash-card direct children in order they appear
+     in the Dashboard markup. */
+  #page-dashboard.active .dash-card,
+  #page-dashboard.active .dash-strip {
+    animation: dashFadeUp 480ms var(--ease-stable) both;
+  }
+  /* Stagger: each card 60ms after the previous one. */
+  #page-dashboard.active .dash-row:nth-of-type(1) .dash-card:nth-child(1) { animation-delay: 0ms; }
+  #page-dashboard.active .dash-row:nth-of-type(1) .dash-card:nth-child(2) { animation-delay: 60ms; }
+  #page-dashboard.active .dash-row:nth-of-type(2) .dash-card:nth-child(1) { animation-delay: 120ms; }
+  #page-dashboard.active .dash-row:nth-of-type(2) .dash-next            { animation-delay: 180ms; animation: dashFadeUp 480ms var(--ease-stable) 180ms both; }
+  #page-dashboard.active .dash-strip                                    { animation-delay: 240ms; }
+
+  /* Sparkline draws in from left to right on first render. The
+     stroke-dasharray=1000 is a safe-large default that fits any
+     line length up to 300px (Pythagorean upper bound ~424). The
+     animation only runs once (no infinite loop). */
+  #page-dashboard.active .dash-hero-spark path,
+  #page-dashboard.active .lb-summary .dash-hero-spark path {
+    stroke-dasharray: 1000;
+    animation: dashSparkDrawIn 1200ms var(--ease-stable) 300ms both;
+  }
+  /* Sparkline endpoint dot fades in after the line completes. */
+  #page-dashboard.active .dash-hero-spark circle {
+    animation: dashFadeUp 360ms var(--ease-stable) 1400ms both;
+  }
+
+  /* Validity rings: the progress arc draws in from 0 to its target.
+     The JS sets stroke-dashoffset inline as the target; the animation
+     starts from the full circle (stroke-dasharray) and reveals to
+     the target offset. */
+  #page-dashboard.active .dash-ring .dash-ring-progress {
+    animation: dashRingDrawIn 900ms var(--ease-stable) 400ms both;
+  }
+}
+
 /* ─── Dashboard clickable tiles + drill-down modal ──────────────
    Every interactive tile on the Dashboard signals it: cursor change,
    subtle hover lift, focus ring for keyboard users. The drill-down
@@ -514,11 +576,31 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   cursor: pointer;
   border-radius: var(--r-md);
   transition: background var(--motion-fast) var(--ease-quiet),
-              transform var(--motion-fast) var(--ease-quiet);
+              transform var(--motion-base) var(--ease-stable),
+              box-shadow var(--motion-base) var(--ease-stable);
   outline: none;
 }
 .dash-clickable:hover {
   background: var(--bg-subtle);
+}
+/* Subtle hover lift on dashboard ring blocks + strip items so they
+   feel responsive without being noisy. The 2px translate + soft shadow
+   are the Linear / Mercury pattern. Cards themselves don't lift —
+   only their inner clickable tiles do — so the dashboard composition
+   stays steady. */
+@media (prefers-reduced-motion: no-preference) {
+  .dash-ring-block.dash-clickable:hover,
+  .dash-strip-item.dash-clickable:hover,
+  .dash-leg.dash-clickable:hover,
+  .dash-next-card[onclick]:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
+  .dash-hero-num-block.dash-clickable:hover {
+    /* Hero number doesn't lift (it's huge — translate would look weird)
+       — instead the number gets a slight color shift to signal hover. */
+    color: var(--accent);
+  }
 }
 .dash-clickable:active {
   transform: scale(0.985);
