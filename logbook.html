@@ -2852,6 +2852,46 @@ select {
   .import-modal-foot .btn { width: 100%; justify-content: center; }
 }
 
+/* ─── Onboarding Welcome step layout ──────────────────────────────
+   Restructured for mobile readability: clear hierarchy (intro · 4 short
+   cards · footer), bigger fonts than the old bullet list, accent-soft
+   left border on each item so each value-prop reads as a distinct beat. */
+.onb-welcome-intro {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0 0 var(--s-5);
+  font-weight: 500;
+}
+.onb-welcome-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.onb-welcome-item {
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-subtle);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.onb-welcome-item-title {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.onb-welcome-item-title strong { font-weight: 600; }
+.onb-welcome-footer {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: var(--s-5) 0 0;
+}
+@media (max-width: 600px) {
+  .onb-welcome-intro { font-size: 17px; }
+  .onb-welcome-item { padding: 14px 14px; }
+  .onb-welcome-item-title { font-size: 14.5px; }
+}
+
 /* ─── Onboarding wizard polish ─────────────────────────────────────
    Visual progress bar at the top of the modal — gives the pilot a
    sense of momentum vs just reading "Step 2 of 6" in tiny text.
@@ -9201,30 +9241,30 @@ function renderOnboardingStep() {
   nextBtn.textContent = onbStep === 1 ? t('onb.getStarted') : (isLast ? t('onb.finish') : t('onb.continue'));
 
   // ─── Step 1: Welcome ──────────────────────────────────────────────
+  // Restructured for mobile readability — bigger font, punchier copy,
+  // regulation citations moved to a collapsible details block instead of
+  // dominating the first impression. Confident "what you get" framing
+  // beats defensive "here's how we comply with everything" framing.
   if (onbStep === 1) {
     body.innerHTML = `
-      <p style="font-size:15px; color:var(--text); margin-bottom:var(--s-4); line-height:1.55;">
+      <p class="onb-welcome-intro">
         ${esc(t('onb.welcome.intro'))}
       </p>
-      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:var(--s-3);">
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet1Html')}</span>
-        </li>
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet2Html')}</span>
-        </li>
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet3Html')}</span>
-        </li>
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet4Html')}</span>
-        </li>
-      </ul>
-      <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-5); line-height:1.5;">
+      <div class="onb-welcome-items">
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet1Html')}</div>
+        </div>
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet2Html')}</div>
+        </div>
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet3Html')}</div>
+        </div>
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet4Html')}</div>
+        </div>
+      </div>
+      <p class="onb-welcome-footer">
         ${esc(t('onb.welcome.footer'))}
       </p>
     `;
@@ -12918,12 +12958,12 @@ const STRINGS = {
  'onb.nameRequired': 'Please enter your first and last name',
  'onb.getStarted': 'Get started →',
  'onb.step1.title': 'Welcome to Cumulo',
- 'onb.welcome.intro': 'A pilot logbook built for Canadian regulations. Here\'s what you get:',
- 'onb.welcome.bullet1Html': '<strong>TC-compliant</strong> — CAR 401.08 columns, TP 14052 PDF format for ramp checks, RAC 101.01 night calculation, CAR 401.34 cross-country detection.',
- 'onb.welcome.bullet2Html': '<strong>Auto-sync</strong> — Navblue iCal for Porter, plus Photo / PDF / CSV imports from any other source.',
- 'onb.welcome.bullet3Html': '<strong>Brought-forward hours</strong> — declare your paper-logbook totals once, attest, then log new flights forward. No re-entry.',
- 'onb.welcome.bullet4Html': '<strong>Your data stays in Canada</strong> — Supabase Montréal, PIPEDA + Loi 25. Encrypted in transit and at rest.',
- 'onb.welcome.footer': 'This setup takes about 2 minutes. Every step is optional except your name.',
+ 'onb.welcome.intro': 'A modern logbook built for Canadian pilots.',
+ 'onb.welcome.bullet1Html': '<strong>Built for Transport Canada.</strong> Columns, PDF format, night and cross-country math — done right out of the box.',
+ 'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect Navblue iCal once. Cumulo pulls new flights every time you open the app.',
+ 'onb.welcome.bullet3Html': '<strong>Bring forward your paper hours.</strong> Declare your career totals once, attest, then log new flights forward. No re-typing.',
+ 'onb.welcome.bullet4Html': '<strong>Stays in Canada.</strong> Encrypted, stored in Montréal, yours to export anytime.',
+ 'onb.welcome.footer': 'Setup takes about 2 minutes. Skip anything you don\'t need — you can finish it later in Settings.',
  'onb.step2.title': 'Tell us about you',
  'onb.step2.intro': 'Cumulo is your personal pilot logbook. Let\'s set up your profile (you can change everything later).',
  'onb.step2.fname': 'First name',
@@ -13535,12 +13575,12 @@ const STRINGS = {
  'onb.nameRequired': 'Veuillez saisir votre prénom et votre nom',
  'onb.getStarted': 'Commencer →',
  'onb.step1.title': 'Bienvenue dans Cumulo',
- 'onb.welcome.intro': 'Un carnet de vol conçu pour la réglementation canadienne. Voici ce que vous obtenez :',
- 'onb.welcome.bullet1Html': '<strong>Conforme TC</strong> — colonnes CAR 401.08, format PDF TP 14052 pour le contrôle au sol, calcul nuit RAC 101.01, détection voyage CAR 401.34.',
- 'onb.welcome.bullet2Html': '<strong>Synchro automatique</strong> — iCal Navblue pour Porter, plus imports Photo / PDF / CSV depuis toute autre source.',
- 'onb.welcome.bullet3Html': '<strong>Heures reportées</strong> — déclarez vos totaux du carnet papier une seule fois, attestez, puis ajoutez les nouveaux vols à partir d\'aujourd\'hui. Sans ressaisie.',
- 'onb.welcome.bullet4Html': '<strong>Vos données restent au Canada</strong> — Supabase Montréal, LPRPDE + Loi 25. Chiffré au transit et au repos.',
- 'onb.welcome.footer': 'Cette configuration prend environ 2 minutes. Tout est facultatif sauf votre nom.',
+ 'onb.welcome.intro': 'Un carnet de vol moderne, conçu pour les pilotes canadiens.',
+ 'onb.welcome.bullet1Html': '<strong>Conforme Transports Canada.</strong> Colonnes, format PDF, calcul nuit et voyage — prêt dès la sortie de la boîte.',
+ 'onb.welcome.bullet2Html': '<strong>Synchronise votre horaire.</strong> Branchez iCal Navblue une fois. Cumulo récupère les nouveaux vols à chaque ouverture de l\'app.',
+ 'onb.welcome.bullet3Html': '<strong>Reportez vos heures papier.</strong> Déclarez vos totaux carrière une fois, attestez, puis ajoutez les nouveaux vols. Aucune ressaisie.',
+ 'onb.welcome.bullet4Html': '<strong>Reste au Canada.</strong> Chiffré, stocké à Montréal, à vous d\'exporter quand vous voulez.',
+ 'onb.welcome.footer': 'La configuration prend environ 2 minutes. Passez ce qui ne s\'applique pas — vous pouvez compléter plus tard dans Paramètres.',
  'onb.step2.title': 'Parlez-nous de vous',
  'onb.step2.intro': 'Cumulo est votre carnet de vol personnel. Configurons votre profil (modifiable plus tard).',
  'onb.step2.fname': 'Prénom',
@@ -15970,7 +16010,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-recalc-safe-mobile-onboarding';
+const BUILD_VERSION = 'v3a-2026-05-26-welcome-polish';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

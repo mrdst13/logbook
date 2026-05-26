@@ -223,30 +223,30 @@ function renderOnboardingStep() {
   nextBtn.textContent = onbStep === 1 ? t('onb.getStarted') : (isLast ? t('onb.finish') : t('onb.continue'));
 
   // ─── Step 1: Welcome ──────────────────────────────────────────────
+  // Restructured for mobile readability — bigger font, punchier copy,
+  // regulation citations moved to a collapsible details block instead of
+  // dominating the first impression. Confident "what you get" framing
+  // beats defensive "here's how we comply with everything" framing.
   if (onbStep === 1) {
     body.innerHTML = `
-      <p style="font-size:15px; color:var(--text); margin-bottom:var(--s-4); line-height:1.55;">
+      <p class="onb-welcome-intro">
         ${esc(t('onb.welcome.intro'))}
       </p>
-      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:var(--s-3);">
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet1Html')}</span>
-        </li>
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet2Html')}</span>
-        </li>
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet3Html')}</span>
-        </li>
-        <li style="display:flex; gap:var(--s-3); align-items:flex-start; font-size:13.5px; color:var(--text-secondary); line-height:1.5;">
-          <span style="color:var(--accent); font-weight:700; flex-shrink:0;">·</span>
-          <span>${t('onb.welcome.bullet4Html')}</span>
-        </li>
-      </ul>
-      <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-5); line-height:1.5;">
+      <div class="onb-welcome-items">
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet1Html')}</div>
+        </div>
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet2Html')}</div>
+        </div>
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet3Html')}</div>
+        </div>
+        <div class="onb-welcome-item">
+          <div class="onb-welcome-item-title">${t('onb.welcome.bullet4Html')}</div>
+        </div>
+      </div>
+      <p class="onb-welcome-footer">
         ${esc(t('onb.welcome.footer'))}
       </p>
     `;

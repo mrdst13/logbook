@@ -567,6 +567,46 @@
   .import-modal-foot .btn { width: 100%; justify-content: center; }
 }
 
+/* ─── Onboarding Welcome step layout ──────────────────────────────
+   Restructured for mobile readability: clear hierarchy (intro · 4 short
+   cards · footer), bigger fonts than the old bullet list, accent-soft
+   left border on each item so each value-prop reads as a distinct beat. */
+.onb-welcome-intro {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0 0 var(--s-5);
+  font-weight: 500;
+}
+.onb-welcome-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.onb-welcome-item {
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-subtle);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.onb-welcome-item-title {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.onb-welcome-item-title strong { font-weight: 600; }
+.onb-welcome-footer {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: var(--s-5) 0 0;
+}
+@media (max-width: 600px) {
+  .onb-welcome-intro { font-size: 17px; }
+  .onb-welcome-item { padding: 14px 14px; }
+  .onb-welcome-item-title { font-size: 14.5px; }
+}
+
 /* ─── Onboarding wizard polish ─────────────────────────────────────
    Visual progress bar at the top of the modal — gives the pilot a
    sense of momentum vs just reading "Step 2 of 6" in tiny text.
