@@ -516,12 +516,25 @@ function _dashRenderGreeting() {
     helloEl.textContent = `${greet}, ${name}.`;
   }
 
-  // Sub line: flights this month + next IFR renewal
+  // Sub line: flights this month + next primary-validity renewal.
+  //
+  // Profile-driven, matching the validity rings logic:
+  //   - airline 705 line pilots → PPC days (CASS 725.106)
+  //   - everyone else            → IFR approaches days (CAR 401.05(2))
+  //
+  // The "Next X renewal in Y days" copy adapts to whichever validity
+  // is primary for this pilot. PPC for an airline pilot is the actual
+  // calendar deadline they care about; the IFR-6mo rule doesn't apply
+  // the same way when a Company PPC covers it.
   const subEl = document.getElementById('dashGreetingSub');
   if (subEl) {
     const fr = lang === 'fr';
     const monthCount = _dashCurrentMonthFlights();
-    const ifrDays = _dashIFRDaysRemaining();
+    const is705ForGreet = (p.pilotType || 'airline705') === 'airline705';
+    const primaryDays = is705ForGreet
+      ? _dashPPCDaysRemaining(p)
+      : _dashIFRDaysRemaining();
+    const primaryLabel = is705ForGreet ? 'PPC' : 'IFR';
     const parts = [];
     if (monthCount > 0) {
       parts.push(fr
@@ -530,20 +543,25 @@ function _dashRenderGreeting() {
     } else if (flights.length > 0) {
       parts.push(fr ? 'Aucun vol enregistré ce mois-ci.' : 'No flights logged this month yet.');
     }
-    if (ifrDays !== null) {
-      if (ifrDays > 30) {
+    if (primaryDays !== null) {
+      if (primaryDays > 30) {
         parts.push(fr
-          ? `Prochain renouvellement IFR dans <strong>${ifrDays} jours</strong>.`
-          : `Next IFR renewal in <strong>${ifrDays} days</strong>.`);
-      } else if (ifrDays > 0) {
+          ? `Prochain renouvellement ${primaryLabel} dans <strong>${primaryDays} jours</strong>.`
+          : `Next ${primaryLabel} renewal in <strong>${primaryDays} days</strong>.`);
+      } else if (primaryDays > 0) {
         parts.push(fr
-          ? `Prochain renouvellement IFR dans <span class="dash-warn-amber">${ifrDays} jours</span>.`
-          : `Next IFR renewal in <span class="dash-warn-amber">${ifrDays} days</span>.`);
+          ? `Prochain renouvellement ${primaryLabel} dans <span class="dash-warn-amber">${primaryDays} jours</span>.`
+          : `Next ${primaryLabel} renewal in <span class="dash-warn-amber">${primaryDays} days</span>.`);
       } else {
         parts.push(fr
-          ? `<span class="dash-warn-amber">Validité IFR expirée.</span>`
-          : `<span class="dash-warn-amber">IFR currency expired.</span>`);
+          ? `<span class="dash-warn-amber">Validité ${primaryLabel} expirée.</span>`
+          : `<span class="dash-warn-amber">${primaryLabel} currency expired.</span>`);
       }
+    } else if (is705ForGreet) {
+      // 705 pilot but no PPC date entered yet — quiet nudge to fill it in.
+      parts.push(fr
+        ? `Définissez votre date PPC dans Profil pour suivre l'échéance.`
+        : `Set your PPC date in Profile to track renewal.`);
     }
     subEl.innerHTML = parts.join(' ');
   }
