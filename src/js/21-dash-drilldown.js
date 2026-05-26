@@ -267,44 +267,98 @@ function _drillMedical(profile, fr, settingsBtn) {
   };
 }
 
-// ─── Milestone drill-down — set / clear personal career goal ──────
-// Lets the pilot pick their own target (e.g. 1500 hrs for ATPL, 3000
-// for a specific dispatch threshold) instead of always tracking the
-// auto-stepping default chain. Saves to profile.personalGoalHrs.
+// ─── Milestone drill-down — typed personal career goal ──────────
+// Pilots care about SPECIFIC milestones, not just total hours.
+// E.g. Martin's case: "1500 hrs on E195-E2" — that's the upgrade-to-
+// captain threshold at Porter. Generic "1500 hrs total" misses
+// what actually matters.
+//
+// Goal data model (profile fields):
+//   personalGoalHrs:     numeric target (e.g. 1500)
+//   personalGoalKind:    one of 'total' | 'pic' | 'sic' | 'night' |
+//                        'xc' | 'me' | 'aircraft'
+//   personalGoalContext: aircraft type string when kind === 'aircraft'
+//                        (e.g. 'E195-E2', 'B737'). Empty for other kinds.
+//
+// Progress is computed against the matching counter — so a "1500 hrs
+// on E195-E2" goal accumulates only flights where flight.type matches
+// the context (case-insensitive substring).
 function _drillMilestone(s, profile, fr, F) {
-  const totalHrs = +s.total || +s.block || 0;
-  const currentGoal = +profile.personalGoalHrs || 0;
+  const totalHrs       = +s.total || +s.block || 0;
+  const currentGoal    = +profile.personalGoalHrs || 0;
+  const currentKind    = profile.personalGoalKind || 'total';
+  const currentContext = profile.personalGoalContext || '';
+
+  // Compute "achieved hours" for the chosen kind
+  const achieved = _dashGoalAchievedHours(currentKind, currentContext, s);
+
   const defaultMilestones = [50, 100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000, 15000, 20000];
   const nextAuto = defaultMilestones.find(m => totalHrs < m) || (defaultMilestones[defaultMilestones.length - 1] + 5000);
 
-  const activeTarget = (currentGoal > totalHrs) ? currentGoal : nextAuto;
-  const remain = Math.max(0, activeTarget - totalHrs);
-  const pct = activeTarget > 0 ? Math.min(100, (totalHrs / activeTarget) * 100) : 0;
+  // Active target: personal goal if set + ahead of achieved, else auto
+  const activeTarget = (currentGoal > achieved) ? currentGoal : nextAuto;
+  const activeAchieved = (currentGoal > 0) ? achieved : totalHrs;
+  const remain = Math.max(0, activeTarget - activeAchieved);
+  const pct = activeTarget > 0 ? Math.min(100, (activeAchieved / activeTarget) * 100) : 0;
+
+  // Friendly category labels
+  const kindLabel = (k) => ({
+    'total':    fr ? 'Total carrière'    : 'Career total',
+    'pic':      fr ? 'PIC seulement'     : 'PIC only',
+    'sic':      fr ? 'SIC seulement'     : 'SIC only',
+    'night':    fr ? 'Nuit seulement'    : 'Night only',
+    'xc':       fr ? 'Voyage seulement'  : 'Cross-country only',
+    'me':       fr ? 'Multi-moteur'      : 'Multi-engine',
+    'aircraft': fr ? 'Par aéronef'       : 'By aircraft type',
+  })[k] || k;
+
+  const goalDisplay = currentGoal > 0
+    ? `${currentGoal.toLocaleString()} hrs · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${currentContext})` : ''}`
+    : (fr ? 'non défini' : 'not set');
 
   const rows = [
-    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(totalHrs)}</strong> hrs` },
-    { k: fr ? 'Prochain jalon (auto)' : 'Next milestone (auto)', v: `${nextAuto.toLocaleString()} hrs` },
-    { k: fr ? 'Objectif personnel' : 'Personal goal',
-      v: currentGoal > 0
-        ? `<strong>${currentGoal.toLocaleString()}</strong> hrs`
-        : (fr ? 'non défini' : 'not set') },
+    { k: fr ? 'Heures dans la catégorie' : 'Hours in this category',
+      v: `<strong>${F(activeAchieved)}</strong> hrs` },
+    { k: fr ? 'Objectif personnel' : 'Personal goal', v: goalDisplay },
     { k: fr ? 'Restant pour la cible' : 'Remaining to target', v: `${F(remain)} hrs` },
     { k: fr ? 'Progression' : 'Progress', v: `<strong>${pct.toFixed(0)}%</strong>` },
   ];
 
+  const kindOptions = [
+    ['total',    fr ? 'Heures totales (carrière)'         : 'Total hours (career)'],
+    ['pic',      fr ? 'Heures PIC seulement'              : 'PIC hours only'],
+    ['sic',      fr ? 'Heures SIC seulement'              : 'SIC hours only'],
+    ['night',    fr ? 'Heures de nuit seulement'          : 'Night hours only'],
+    ['xc',       fr ? 'Heures voyage seulement'           : 'Cross-country hours only'],
+    ['me',       fr ? 'Heures multi-moteur'               : 'Multi-engine hours'],
+    ['aircraft', fr ? 'Heures sur un type d’aéronef'      : 'Hours on a specific aircraft type'],
+  ].map(([v, lbl]) => `<option value="${v}" ${v === currentKind ? 'selected' : ''}>${esc(lbl)}</option>`).join('');
+
   const editor = `
     <div class="dash-drill-sub">${esc(fr ? 'Fixer un objectif personnel' : 'Set a personal goal')}</div>
-    <div style="display:flex; gap:var(--s-2); align-items:center;">
-      <input type="number" id="dashGoalInput" min="0" step="50"
-             placeholder="${esc(fr ? 'p.ex. 1500' : 'e.g. 1500')}"
-             value="${currentGoal || ''}"
-             style="flex:1; height:38px; padding:0 12px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);" />
-      <button class="btn btn-primary btn-sm" onclick="saveMilestoneGoal()">${esc(fr ? 'Enregistrer' : 'Save')}</button>
-      ${currentGoal > 0 ? `<button class="btn btn-ghost btn-sm" onclick="clearMilestoneGoal()">${esc(fr ? 'Effacer' : 'Clear')}</button>` : ''}
+    <div style="display:flex; flex-direction:column; gap:var(--s-2);">
+      <select id="dashGoalKind" onchange="(function(){const ac=document.getElementById('dashGoalContextWrap');ac.style.display=document.getElementById('dashGoalKind').value==='aircraft'?'block':'none';})()" style="height:38px; padding:0 12px; font-size:14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);">
+        ${kindOptions}
+      </select>
+      <div id="dashGoalContextWrap" style="display:${currentKind === 'aircraft' ? 'block' : 'none'};">
+        <input type="text" id="dashGoalContext" placeholder="${esc(fr ? 'p.ex. E195-E2, B737, DH4' : 'e.g. E195-E2, B737, DH4')}"
+               value="${esc(currentContext)}"
+               style="width:100%; height:38px; padding:0 12px; font-family:var(--font-mono); font-size:14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);" />
+      </div>
+      <div style="display:flex; gap:var(--s-2); align-items:center;">
+        <input type="number" id="dashGoalInput" min="0" step="50"
+               placeholder="${esc(fr ? 'Heures cible · p.ex. 1500' : 'Target hours · e.g. 1500')}"
+               value="${currentGoal || ''}"
+               style="flex:1; height:38px; padding:0 12px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);" />
+        <button class="btn btn-primary btn-sm" onclick="saveMilestoneGoal()">${esc(fr ? 'Enregistrer' : 'Save')}</button>
+        ${currentGoal > 0 ? `<button class="btn btn-ghost btn-sm" onclick="clearMilestoneGoal()">${esc(fr ? 'Effacer' : 'Clear')}</button>` : ''}
+      </div>
     </div>
-    <div class="dash-drill-note" style="margin-top:var(--s-2);padding-top:var(--s-2);border-top:none;">${esc(fr
-      ? 'Quand un objectif personnel est défini, le Tableau de bord affiche la progression vers votre cible au lieu du jalon automatique suivant. Effacez pour revenir au mode automatique.'
-      : 'When a personal goal is set, the Dashboard tracks progress toward your target instead of the next auto-milestone. Clear to return to auto mode.')}</div>
+    <div class="dash-drill-note" style="margin-top:var(--s-2);padding-top:var(--s-2);border-top:none;">${
+      fr
+        ? 'Exemple : <strong>1500 hrs sur E195-E2</strong> — minimum pour upgrade capitaine sur ce type. Cumulo compte les heures bloc des vols dont le type contient « E195-E2 » (insensible à la casse).'
+        : 'Example: <strong>1500 hrs on E195-E2</strong> — minimum for captain upgrade on that type. Cumulo counts block hours from flights whose aircraft type contains "E195-E2" (case-insensitive match).'
+    }</div>
   `;
 
   return {
@@ -315,18 +369,53 @@ function _drillMilestone(s, profile, fr, F) {
   };
 }
 
+// Compute how many hours the pilot has accumulated in the goal category.
+// `s` is the totalsWithOpening object (Dashboard already merges brought-
+// forward into the aggregate keys). For 'aircraft' goals we iterate
+// flights because there's no per-type aggregate in s.
+function _dashGoalAchievedHours(kind, context, s) {
+  if (!kind || kind === 'total') return +s.total || +s.block || 0;
+  if (kind === 'pic')   return +s.pic   || 0;
+  if (kind === 'sic')   return +s.sic   || 0;
+  if (kind === 'night') return +s.night || 0;
+  if (kind === 'xc')    return +s.xc    || 0;
+  if (kind === 'me')    return +s.me    || 0;
+  if (kind === 'aircraft') {
+    if (!context || !Array.isArray(flights)) return 0;
+    const needle = context.toUpperCase().trim();
+    return flights.reduce((sum, f) => {
+      const type = (f.type || '').toUpperCase();
+      return type.includes(needle) ? sum + (+f.block || 0) : sum;
+    }, 0);
+  }
+  return 0;
+}
+
 // Save handler — called from the milestone drill-down editor.
 function saveMilestoneGoal() {
-  const el = document.getElementById('dashGoalInput');
-  if (!el) return;
-  const v = +el.value || 0;
+  const valEl  = document.getElementById('dashGoalInput');
+  const kindEl = document.getElementById('dashGoalKind');
+  const ctxEl  = document.getElementById('dashGoalContext');
+  if (!valEl) return;
+  const v       = +valEl.value || 0;
+  const kind    = (kindEl && kindEl.value) || 'total';
+  const context = kind === 'aircraft' ? (ctxEl ? ctxEl.value.trim() : '') : '';
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  if (kind === 'aircraft' && !context) {
+    if (typeof showToast === 'function') {
+      showToast(fr ? 'Indiquez le type d\'aéronef (ex. E195-E2)' : 'Enter the aircraft type (e.g. E195-E2)', 'error');
+    }
+    return;
+  }
   const profile = DB.loadProfile();
   profile.personalGoalHrs = v > 0 ? v : 0;
+  profile.personalGoalKind = v > 0 ? kind : 'total';
+  profile.personalGoalContext = v > 0 ? context : '';
   DB.saveProfile(profile);
   if (typeof showToast === 'function') {
-    const fr = (typeof getLang === 'function') && getLang() === 'fr';
+    const label = kind === 'aircraft' && context ? ` ${fr ? 'sur' : 'on'} ${context}` : '';
     showToast(v > 0
-      ? (fr ? `Objectif fixé à ${v.toLocaleString()} hrs` : `Goal set to ${v.toLocaleString()} hrs`)
+      ? (fr ? `Objectif : ${v.toLocaleString()} hrs${label}` : `Goal set: ${v.toLocaleString()} hrs${label}`)
       : (fr ? 'Objectif effacé' : 'Goal cleared'),
       'success');
   }
@@ -337,6 +426,8 @@ function saveMilestoneGoal() {
 function clearMilestoneGoal() {
   const profile = DB.loadProfile();
   profile.personalGoalHrs = 0;
+  profile.personalGoalKind = 'total';
+  profile.personalGoalContext = '';
   DB.saveProfile(profile);
   if (typeof showToast === 'function') {
     const fr = (typeof getLang === 'function') && getLang() === 'fr';

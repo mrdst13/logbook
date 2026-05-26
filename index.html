@@ -84,36 +84,9 @@
  }
  nav.top, .hero, .section, footer, .trust-bar { position: relative; z-index: 1; }
 
- /* ─── Drifting cumulus behind the hero ──────────────────────────
-    Three SVG clouds drift slowly left → right at different speeds
-    (parallax). Pure CSS animation, ~60-90s loop, on the hero only.
-    Subtle scale + opacity at the edges so they "fade in" and "fade
-    out" rather than pop. Respects prefers-reduced-motion. */
- .hero-clouds {
-   position: absolute;
-   inset: 0;
-   pointer-events: none;
-   overflow: hidden;
-   z-index: 0;
- }
- .hero-cloud {
-   position: absolute;
-   opacity: 0;
-   color: rgba(255, 255, 255, 0.85);
- }
- .hero-cloud svg { display: block; width: 100%; height: 100%; }
- @keyframes cloudDrift {
-   0%   { transform: translateX(-30vw) scale(0.9); opacity: 0; }
-   15%  { opacity: 1; }
-   85%  { opacity: 1; }
-   100% { transform: translateX(130vw) scale(1.05); opacity: 0; }
- }
- .hero-cloud-1 { top: 8%;  width: 220px; height: 90px;  animation: cloudDrift 70s linear infinite; }
- .hero-cloud-2 { top: 32%; width: 320px; height: 130px; animation: cloudDrift 95s linear -25s infinite; color: rgba(255, 255, 255, 0.92); }
- .hero-cloud-3 { top: 58%; width: 180px; height: 72px;  animation: cloudDrift 60s linear -45s infinite; color: rgba(255, 255, 255, 0.70); }
- @media (prefers-reduced-motion: reduce) {
-   .hero-cloud { animation: none !important; opacity: 0.7; transform: translateX(20vw); }
- }
+ /* Hero clouds removed 2026-05-26 — the drifting SVG cumulus crossed
+    the hero text and read as a UFO/blob bug, not atmosphere. The
+    atmospheric body backdrop + blobs are enough sky-mood on their own. */
  .hero { position: relative; padding-top: 56px; padding-bottom: 48px; }
 
  /* ─── "See the app" section — SVG dashboard mockup ──────────────
@@ -274,36 +247,6 @@
 </nav>
 
 <section class="hero">
- <!-- Drifting cumulus clouds — pure SVG, animated via CSS keyframes.
-      The brand IS cumulus. Three layers drift at different speeds
-      (parallax) so the sky feels alive without being noisy. -->
- <div class="hero-clouds" aria-hidden="true">
-   <div class="hero-cloud hero-cloud-1">
-     <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
-       <ellipse cx="60"  cy="60" rx="50" ry="22" fill="currentColor"/>
-       <ellipse cx="110" cy="48" rx="55" ry="28" fill="currentColor"/>
-       <ellipse cx="160" cy="58" rx="45" ry="22" fill="currentColor"/>
-       <ellipse cx="120" cy="65" rx="65" ry="18" fill="currentColor"/>
-     </svg>
-   </div>
-   <div class="hero-cloud hero-cloud-2">
-     <svg viewBox="0 0 320 130" xmlns="http://www.w3.org/2000/svg">
-       <ellipse cx="80"  cy="80" rx="65" ry="28" fill="currentColor"/>
-       <ellipse cx="155" cy="65" rx="75" ry="38" fill="currentColor"/>
-       <ellipse cx="230" cy="78" rx="60" ry="30" fill="currentColor"/>
-       <ellipse cx="160" cy="92" rx="100" ry="25" fill="currentColor"/>
-     </svg>
-   </div>
-   <div class="hero-cloud hero-cloud-3">
-     <svg viewBox="0 0 180 72" xmlns="http://www.w3.org/2000/svg">
-       <ellipse cx="50"  cy="46" rx="40" ry="18" fill="currentColor"/>
-       <ellipse cx="92"  cy="38" rx="44" ry="22" fill="currentColor"/>
-       <ellipse cx="130" cy="46" rx="38" ry="18" fill="currentColor"/>
-       <ellipse cx="92"  cy="52" rx="60" ry="14" fill="currentColor"/>
-     </svg>
-   </div>
- </div>
-
  <div class="canada-banner">
  Your flight data stays in Canada. No US Patriot Act exposure.
  </div>

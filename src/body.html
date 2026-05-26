@@ -649,7 +649,7 @@
    <div class="import-track">
      <div class="import-track-eyebrow">Track A · Supported airline formats</div>
      <div class="import-track-title">Automated — iCal sync + PDF roster</div>
-     <div class="import-track-desc">If your airline publishes a <code>webcal://</code> roster feed, connect it once and Cumulo pulls every new flight automatically. The monthly PDF roster from the same system fills in captain names. Currently supports one specific roster system — others on the way.</div>
+     <div class="import-track-desc">If your airline publishes a <code>webcal://</code> roster feed, connect it once and Cumulo pulls every new flight automatically. The monthly PDF roster from the same system fills in your crew's names (whichever seat you fly). Currently supports one specific roster system — others on the way.</div>
    </div>
    <div class="import-track">
      <div class="import-track-eyebrow">Track B · Every other pilot</div>
@@ -675,7 +675,7 @@
  <!-- ─── Card: Monthly PDF roster (airline crew-scheduling export) ─── -->
  <div class="form-card import-card" id="import-navblue">
  <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Track A · Common</span></div>
- <div class="form-card-desc">Drop your monthly <strong>roster PDF</strong> from your airline's crew-scheduling system. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). Currently supports one specific roster format — if yours doesn't parse, use the Photo OCR card below instead. 100% local.</div>
+ <div class="form-card-desc">Drop your monthly <strong>roster PDF</strong> from your airline's crew-scheduling system. Cumulo reads it and either imports your flights (first time) or fills in the crew names iCal can't carry (already sync'd). Currently supports one specific roster format — if yours doesn't parse, use the Photo OCR card below instead. 100% local.</div>
  <div class="drop-zone" onclick="document.getElementById('navbluePdfUnified').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
    ondragleave="this.classList.remove('dragover')"
