@@ -639,28 +639,43 @@
    </div>
  </div>
 
- <!-- ─── Hero CTA: continuous auto-sync ───────────────────────── -->
+ <!-- ─── Two-track explainer ──────────────────────────────────────
+      The import options today fall into two groups: airline-specific
+      paths that target the Navblue system (used by Porter), and
+      generic paths that work for any pilot regardless of carrier.
+      We surface this upfront so non-Navblue pilots aren't left
+      scrolling looking for their path. -->
+ <div class="import-tracks">
+   <div class="import-track">
+     <div class="import-track-eyebrow">Track A · Navblue airlines (Porter)</div>
+     <div class="import-track-title">Automated — iCal sync + PDF roster</div>
+     <div class="import-track-desc">If your airline uses Navblue and publishes a <code>webcal://</code> roster feed, set up auto-sync once and Cumulo pulls every new flight. The monthly PDF roster fills in captain names.</div>
+   </div>
+   <div class="import-track">
+     <div class="import-track-eyebrow">Track B · Any other airline</div>
+     <div class="import-track-title">Photo · CSV · manual</div>
+     <div class="import-track-desc">Native PDF parsers for CrewTrac (Jazz), Sabre (WestJet) or AIMS (Air Canada) are not built yet. For now: photograph any logbook or roster page (AI reads it), import a CSV from your previous logbook app, or log each flight manually.</div>
+   </div>
+ </div>
+
+ <!-- ─── Hero CTA: Navblue iCal auto-sync ─────────────────────── -->
  <div class="form-card import-hero">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;border:0;padding-bottom:var(--s-2);margin-bottom:var(--s-2);">
-   <span>Set up auto-sync first</span>
-   <span class="eyebrow" style="color:var(--accent);">RECOMMENDED</span>
+   <span>Set up Navblue auto-sync</span>
+   <span class="eyebrow" style="color:var(--accent);">TRACK A · RECOMMENDED</span>
  </div>
  <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);">
-   Configure Navblue iCal once. After that, your roster syncs automatically every time you open Cumulo — no manual import needed.
+   For pilots at airlines that publish a Navblue <code>webcal://</code> roster feed (Porter does). Configure once — your roster syncs automatically on every app open.
  </div>
  <div>
    <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);">Set up auto-sync →</button>
  </div>
  </div>
 
- <!-- ─── Card: Monthly PDF roster (primary import) ─────────────────────
-      Single drop zone + one auto-detect handler. The wrapper picks the
-      right code path based on context: if there are existing iCal-sourced
-      flights, treat as crew-name backfill; otherwise treat as fresh import.
-      Pilot doesn't have to remember which sub-button to click. -->
+ <!-- ─── Card: Navblue HrRosterReport PDF ─────────────────────── -->
  <div class="form-card import-card" id="import-navblue">
- <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Common</span></div>
- <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). 100% local — nothing uploaded.</div>
+ <div class="form-card-title">Navblue HrRosterReport PDF <span class="import-card-tag">Track A · Common</span></div>
+ <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). Targets the Navblue format specifically — other airlines' PDFs won't parse correctly here, use the Photo OCR card below instead. 100% local.</div>
  <div class="drop-zone" onclick="document.getElementById('navbluePdfUnified').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
    ondragleave="this.classList.remove('dragover')"
@@ -677,10 +692,10 @@
  <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
  </div>
 
- <!-- ─── Card: Photo of paper logbook ──────────────────────────── -->
+ <!-- ─── Card: Photo OCR (works for any airline / any layout) ─── -->
  <div class="form-card import-card">
- <div class="form-card-title">Photo of a paper logbook page <span class="import-card-tag import-card-tag-quiet">Occasional</span></div>
- <div class="form-card-desc">Snap one page from your paper logbook. AI reads every column. For the odd page missing from a PDF roster — not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
+ <div class="form-card-title">Photo of a logbook or roster page <span class="import-card-tag import-card-tag-quiet">Track B · Any airline</span></div>
+ <div class="form-card-desc">Snap any logbook page — paper, or even your CrewTrac / Sabre / AIMS roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if you're not on a Navblue airline. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
  <div class="drop-zone" id="photoZone"
    onclick="document.getElementById('photoInput').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -693,10 +708,10 @@
  <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
  </div>
 
- <!-- ─── Card: CSV migration from another logbook app ──────────── -->
+ <!-- ─── Card: CSV migration (any airline, one-time) ──────────── -->
  <div class="form-card import-card">
- <div class="form-card-title">Migrate from another logbook app <span class="import-card-tag import-card-tag-quiet">One-time</span></div>
- <div class="form-card-desc">CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens a column-mapping wizard. 100% local.</div>
+ <div class="form-card-title">Migrate from another logbook app <span class="import-card-tag import-card-tag-quiet">Track B · One-time</span></div>
+ <div class="form-card-desc">CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens a column-mapping wizard. The best path if you're switching from another logbook app to Cumulo. 100% local.</div>
  <div id="csvDropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click()"
    ondragover="event.preventDefault(); this.classList.add('dragover');"
    ondragleave="this.classList.remove('dragover');"
