@@ -798,6 +798,46 @@ input:invalid:not(:placeholder-shown):not(:focus) {
   align-items: center;
   gap: var(--s-2);
 }
+/* Sub-heading line under a form-card-title — a one-liner explaining what
+   this card is for. Sits between the title and the form fields, gives
+   the user immediate context without forcing them to read the field
+   help-text. Pattern from Stripe / Notion settings. */
+.form-card-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-top: calc(var(--s-4) * -1 + 2px);
+  margin-bottom: var(--s-4);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Danger-zone variant of form-card. Clearly signals destructive content
+   without dominating the page like an alert banner. Pattern from GitHub
+   repo settings → Danger zone. */
+.form-card-danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.form-card-danger .form-card-title { border-bottom-color: rgba(220,42,42,0.25); }
+.form-card-danger .form-card-desc  { border-bottom-color: rgba(220,42,42,0.25); }
+
+/* form-card used as <details> — summary becomes the clickable title row */
+.form-card-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  padding: var(--s-4) var(--s-6);
+}
+.form-card-summary::-webkit-details-marker { display: none; }
+.form-card-summary svg {
+  color: var(--text-muted);
+  transition: transform var(--motion-fast) var(--ease-quiet);
+}
+details[open] .form-card-summary svg { transform: rotate(180deg); }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
 .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }

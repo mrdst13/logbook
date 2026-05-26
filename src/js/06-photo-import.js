@@ -1,3 +1,68 @@
+// ─────────────────────────────────────────────────────────────────
+// IMPORT PAGE — recent-imports strip
+// Renders a small banner at the top of the Import page showing the most
+// recent import activity (Navblue iCal sync OR PDF/CSV import audit log,
+// whichever is fresher). Gives the page visible state so it doesn't
+// look identical before vs after an import.
+// ─────────────────────────────────────────────────────────────────
+function renderImportRecentStrip() {
+  const strip = document.getElementById('importRecentStrip');
+  if (!strip) return;
+  const summaryEl = document.getElementById('importRecentSummary');
+  const whenEl = document.getElementById('importRecentWhen');
+
+  let bestTs = 0;
+  let bestSummary = '';
+
+  // Navblue iCal last sync timestamp
+  try {
+    const navTs = +localStorage.getItem('cumulo_navblue_last_sync') || 0;
+    if (navTs > bestTs) {
+      bestTs = navTs;
+      bestSummary = 'Navblue iCal sync';
+    }
+  } catch {}
+
+  // PDF / CSV audit log (last entry = most recent)
+  try {
+    const log = JSON.parse(localStorage.getItem('cumulo_import_log_v1') || '[]');
+    if (Array.isArray(log) && log.length > 0) {
+      const last = log[log.length - 1];
+      const ts = last.timestamp ? new Date(last.timestamp).getTime() : 0;
+      if (ts > bestTs) {
+        bestTs = ts;
+        const n = last.flightCount || last.imported || last.count || 0;
+        const src = last.source || last.importType || 'file';
+        bestSummary = n > 0
+          ? `${n} flight${n !== 1 ? 's' : ''} from ${src}`
+          : `Import from ${src}`;
+      }
+    }
+  } catch {}
+
+  if (bestTs === 0) {
+    strip.style.display = 'none';
+    return;
+  }
+
+  if (summaryEl) summaryEl.textContent = bestSummary;
+  if (whenEl) whenEl.textContent = '· ' + _importRelTime(bestTs);
+  strip.style.display = 'flex';
+}
+
+// Relative-time helper for the import strip — bilingual.
+function _importRelTime(ts) {
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1)    return fr ? "à l'instant" : 'just now';
+  if (mins < 60)   return fr ? `il y a ${mins} min` : `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)    return fr ? `il y a ${hrs} h` : `${hrs} h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30)   return fr ? `il y a ${days} jour${days !== 1 ? 's' : ''}` : `${days} day${days !== 1 ? 's' : ''} ago`;
+  return new Date(ts).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 // ═══════════════════════════════════════════
 // IMPORT — PHOTO (AI)
 // ═══════════════════════════════════════════

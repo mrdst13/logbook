@@ -622,94 +622,116 @@
  <div class="page-header">
  <div>
  <div class="page-title" data-i18n="page.import.title">Import</div>
- <div class="page-sub" data-i18n="page.import.sub">Photo · PDF roster · CSV from another logbook</div>
+ <div class="page-sub" data-i18n="page.import.sub">Bring flights into Cumulo from a PDF roster, photo, or another logbook app.</div>
  </div>
  </div>
 
- <!-- Photo / Scan — AI reads a paper logbook page -->
- <div class="form-card settings-card">
- <div class="settings-card-head">
+ <!-- Recent imports strip — gives visible state after operations. Hidden
+      until at least one import has happened (filled by JS in 01-router.js
+      when entering this page). -->
+ <div id="importRecentStrip" class="import-recent" style="display:none;">
+   <div class="import-recent-eyebrow">LAST IMPORT</div>
+   <div class="import-recent-body">
+     <div><span id="importRecentSummary">—</span> <span class="import-recent-when" id="importRecentWhen"></span></div>
+     <div class="import-recent-actions">
+       <a href="#" onclick="undoLastOperation();return false;" class="import-recent-link">Undo</a>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Continuous auto-sync hero CTA ──────────────────────────
+      The most powerful option lives in Settings → Sync. New users never
+      find it. Pulling a discoverability link to the top of Import. -->
+ <div class="form-card import-hero">
+ <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;border:0;padding-bottom:var(--s-2);margin-bottom:var(--s-2);">
+   <span>Already flying for an airline?</span>
+   <span class="eyebrow" style="color:var(--accent);">RECOMMENDED</span>
+ </div>
+ <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);">
+   Navblue iCal <strong>auto-syncs your roster</strong> every time you open Cumulo — no manual import needed. Set it up once.
+ </div>
  <div>
- <div class="settings-card-title" data-i18n="import.photoTitle">Photo / scan of paper logbook</div>
- <div class="settings-card-desc" data-i18n-html="import.photoDescHtml">Take a photo of a page from your paper logbook. AI reads all fields automatically.</div>
+   <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);">Set up auto-sync →</button>
  </div>
  </div>
+
+ <!-- ─── Card 1: Navblue PDF roster (merged: initial + crew backfill) ──── -->
+ <div class="form-card import-card" id="import-navblue">
+ <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Common</span></div>
+ <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo extracts all completed flights with crew names and merges them into your logbook. Pre-iCal-sync? It imports as new. Post-iCal-sync? It enriches existing flights with captain names. 100% local — nothing uploaded.</div>
+ <div class="import-actions-grid">
+   <div>
+     <div class="import-action-label">Import flights from PDF</div>
+     <div class="import-action-sub">First time using Cumulo or backfilling missing months</div>
+     <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){var i=document.getElementById('navbluePdf');var dt=new DataTransfer();dt.items.add(f);i.files=dt.files;parseNavbluePDF(i);}">
+       <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
+       <span class="drop-title">Select roster PDF or drop here</span>
+       <span class="drop-sub">Porter / Navblue monthly roster</span>
+     </div>
+     <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
+   </div>
+   <div>
+     <div class="import-action-label">Add captain names to synced flights</div>
+     <div class="import-action-sub">Already using iCal auto-sync? PDF fills in the crew names iCal doesn't carry</div>
+     <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
+       ondragover="event.preventDefault(); this.classList.add('dragover');"
+       ondragleave="this.classList.remove('dragover');"
+       ondrop="handleRosterDrop(event);">
+       <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+       <span class="drop-title">Backfill captain names</span>
+       <span class="drop-sub">Same PDF — different intent</span>
+     </div>
+     <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
+     <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
+   </div>
+ </div>
+ </div>
+
+ <!-- ─── Card 2: Photo of paper logbook ────────────────────────── -->
+ <div class="form-card import-card">
+ <div class="form-card-title">Photo of a paper logbook page <span class="import-card-tag import-card-tag-quiet">Occasional</span></div>
+ <div class="form-card-desc">Snap a photo of one page from your paper logbook. AI reads every column. Useful for the odd page that wasn't in your PDF roster — not meant for re-typing your whole career (use brought-forward in Profile for that).</div>
  <div class="drop-zone" id="photoZone"
- onclick="document.getElementById('photoInput').click()"
- ondragover="event.preventDefault();this.classList.add('dragover')"
- ondragleave="this.classList.remove('dragover')"
- ondrop="handleDrop(event,'photo')">
- <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg></span>
- <span class="drop-title" data-i18n="import.photoDrop">Select photo or drop here</span>
- <span class="drop-sub" data-i18n="import.photoFileHint">JPG · PNG · HEIC</span>
+   onclick="document.getElementById('photoInput').click()"
+   ondragover="event.preventDefault();this.classList.add('dragover')"
+   ondragleave="this.classList.remove('dragover')"
+   ondrop="handleDrop(event,'photo')">
+   <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg></span>
+   <span class="drop-title">Select photo or drop here</span>
+   <span class="drop-sub">JPG · PNG · HEIC — one page at a time</span>
  </div>
  <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
  </div>
 
- <!-- Navblue PDF — AI parses your full roster -->
- <div class="form-card settings-card">
- <div class="settings-card-head">
- <div>
- <div class="settings-card-title" data-i18n="import.navblueCardTitle">Navblue PDF roster (initial import)</div>
- <div class="settings-card-desc" data-i18n-html="import.navblueInstrHtml">Upload your Navblue HrRosterReport PDF. AI reads the format and imports only real flights. Skips: VAC, GD, SDO, REAX, HTL, PER, LM, BO.</div>
- </div>
- </div>
- <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()"
- ondragover="event.preventDefault();this.classList.add('dragover')"
- ondragleave="this.classList.remove('dragover')"
- ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){var i=document.getElementById('navbluePdf');var dt=new DataTransfer();dt.items.add(f);i.files=dt.files;parseNavbluePDF(i);}">
- <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
- <span class="drop-title" data-i18n="import.navblueClickToSelect">Select Navblue PDF or drop here</span>
- <span class="drop-sub" data-i18n="import.navblueFileHint">Roster_XXXX_MMMYYYY.pdf</span>
- </div>
- <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
- </div>
-
- <!-- Crew names backfill — local PDF parser, used AFTER iCal sync -->
- <div class="form-card settings-card">
- <div class="settings-card-head">
- <div>
- <div class="settings-card-title" data-i18n="sync.roster.title">Crew names from PDF roster (post iCal-sync)</div>
- <div class="settings-card-desc" data-i18n="sync.roster.desc">iCal doesn't include captain names. Drop your HrRosterReport PDF — Cumulo extracts and merges captain names into the flights already synced from iCal. 100% client-side, nothing uploaded.</div>
- </div>
- </div>
- <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
- ondragover="event.preventDefault(); this.classList.add('dragover');"
- ondragleave="this.classList.remove('dragover');"
- ondrop="handleRosterDrop(event);">
- <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
- <span class="drop-title" data-i18n="sync.roster.dropTitle">Select roster PDF or drop here</span>
- <span class="drop-sub" data-i18n="sync.roster.dropSub">HRROSTERREPORT_*.PDF</span>
- </div>
- <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
- <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
- </div>
-
- <!-- CSV from another logbook app -->
- <div class="form-card settings-card">
- <div class="settings-card-head">
- <div>
- <div class="settings-card-title" data-i18n="sync.csv.title">Migrate from another logbook app (CSV)</div>
- <div class="settings-card-desc" data-i18n="sync.csv.desc">Drop a CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens the universal column-mapping wizard. 100% client-side, nothing uploaded.</div>
- </div>
- </div>
+ <!-- ─── Card 3: CSV from another logbook app ─────────────────── -->
+ <div class="form-card import-card">
+ <div class="form-card-title">Migrate from another logbook app <span class="import-card-tag import-card-tag-quiet">One-time</span></div>
+ <div class="form-card-desc" data-i18n="sync.csv.desc">Drop a CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens the universal column-mapping wizard. 100% client-side — nothing uploaded.</div>
  <div id="csvDropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click()"
- ondragover="event.preventDefault(); this.classList.add('dragover');"
- ondragleave="this.classList.remove('dragover');"
- ondrop="handleCsvDrop(event);">
- <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span>
- <span class="drop-title" data-i18n="sync.csv.dropTitle">Select CSV or drop here</span>
- <span class="drop-sub" data-i18n="sync.csv.dropSub">FOREFLIGHT · LOGTEN · MYFLIGHTBOOK · OTHER</span>
+   ondragover="event.preventDefault(); this.classList.add('dragover');"
+   ondragleave="this.classList.remove('dragover');"
+   ondrop="handleCsvDrop(event);">
+   <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span>
+   <span class="drop-title">Select CSV or drop here</span>
+   <span class="drop-sub">ForeFlight · LogTen Pro · MyFlightbook · other</span>
  </div>
  <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(this.files[0])">
- <div style="margin-top:var(--s-2); font-size:11px; color:var(--text-muted); line-height:1.5;" data-i18n="sync.csv.note">
- Imports are stored as-is — Cumulo never invents data. Fields not present in the source CSV are saved as 0. Use the "Hide empty columns" toggle in Profile to clean the table view. The PDF export for Transport Canada always shows the full 38 columns regardless of import source.
+ <div class="help-text" style="margin-top:var(--s-3);" data-i18n="sync.csv.note">
+   Imports are stored as-is — Cumulo never invents data. Fields not present in the source CSV are saved as 0. Use "Hide empty columns" in Profile to clean the table view. The PDF export for Transport Canada always shows all 38 columns regardless of source.
  </div>
+ </div>
+
+ <!-- Common reassurance footer — answers the implicit "what happens next?" -->
+ <div class="import-footer">
+   Every import opens a <strong>preview</strong> before anything is saved. Cumulo snapshots automatically — you can always Undo from <a href="#" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('data'),60);return false;" style="color:var(--accent);font-weight:600;">Settings → Data → Recovery</a>.
  </div>
 
  <div class="ai-box" id="aiBox">
- <div class="ai-spinner"></div>
- <div class="ai-msg" id="aiMsg" data-i18n="import.aiAnalyzing">ANALYZING LOGBOOK IMAGE...</div>
+   <div class="ai-spinner"></div>
+   <div class="ai-msg" id="aiMsg" data-i18n="import.aiAnalyzing">ANALYZING LOGBOOK IMAGE...</div>
  </div>
 
  <!-- importPreview moved to a floating modal overlay (see below, before #toast) -->
@@ -838,7 +860,9 @@
  <nav class="settings-subnav" aria-label="Profile sections">
    <a href="#profile-type"      class="settings-subnav-chip" data-i18n="profile.subnav.type">Pilot type</a>
    <a href="#profile-bf"        class="settings-subnav-chip" data-i18n="profile.subnav.bf">Brought-forward</a>
-   <a href="#profile-identity"  class="settings-subnav-chip" data-i18n="profile.subnav.identity">Identity &amp; license</a>
+   <a href="#profile-identity"  class="settings-subnav-chip" data-i18n="profile.subnav.identity">Identity</a>
+   <a href="#profile-ops"       class="settings-subnav-chip">Operational</a>
+   <a href="#profile-display"   class="settings-subnav-chip">Display</a>
    <a href="#profile-signature" class="settings-subnav-chip" data-i18n="profile.subnav.signature">Signature</a>
  </nav>
 
@@ -873,8 +897,10 @@
  <div id="openingBalancesSection"></div>
  </div>
 
+ <!-- ─── Card: Identity (who you are) ────────────────────────── -->
  <div class="form-card" id="profile-identity">
- <div class="form-card-title" data-i18n="profile.section.identity">Pilot information</div>
+ <div class="form-card-title" data-i18n="profile.section.identity">Pilot identity</div>
+ <div class="form-card-desc">Name, rank, airline, and licence details. These appear on every PDF export.</div>
  <div class="form-grid">
  <div class="form-group">
  <label data-i18n="profile.fname">First name</label>
@@ -976,11 +1002,19 @@
  <label data-i18n="profile.fleet">Primary fleet</label>
  <input type="text" id="p-fleet" placeholder="e.g. C172, B737, E190">
  </div>
+ </div>
+ </div>
+
+ <!-- ─── Card: Operational preferences ──────────────────────── -->
+ <div class="form-card" id="profile-ops">
+ <div class="form-card-title">Operational preferences</div>
+ <div class="form-card-desc">How Cumulo behaves when it imports flights or recognizes flight numbers.</div>
+ <div class="form-grid">
  <div class="form-group col-span-2">
  <label data-i18n="profile.codes">Operator codes (for flight number recognition)</label>
  <input type="text" id="p-operatorCodes" placeholder="PD, AC, QK, WS, TS" style="font-family:var(--font-mono);">
  <div class="help-text" data-i18n-html="profile.codesHintHtml">
- Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The dropdown above auto-fills this for you.
+ Comma-separated airline IATA codes. Cumulo recognizes flights matching these prefixes when syncing iCal / PDF rosters. The Airline dropdown above auto-fills this for you.
  </div>
  </div>
  <div class="form-group col-span-2">
@@ -990,27 +1024,7 @@
  <span class="col-option-label" data-i18n="profile.ifr.label">Count 1 IFR approach per flight on sync (705 line operations)</span>
  </label>
  <div class="help-text" data-i18n-html="profile.ifr.descHtml">
- Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.
- </div>
- </div>
- <div class="form-group col-span-2">
- <label data-i18n="profile.captain.title">Crew name privacy (PIPEDA / Loi 25)</label>
- <label class="col-option" style="margin-top:6px;">
- <input type="checkbox" id="p-consentCaptainNames" />
- <span class="col-option-label" data-i18n="profile.captain.label">Keep full crew names when syncing or sharing (I have crew consent)</span>
- </label>
- <div class="help-text" data-i18n-html="profile.captain.descHtml">
- How Cumulo handles your crew names — see Privacy tab and the public Security page for the full model.
- </div>
- </div>
- <div class="form-group col-span-2">
- <label data-i18n="profile.display.title">Display preferences</label>
- <label class="col-option" style="margin-top:6px;">
- <input type="checkbox" id="p-hideZeroColumns" />
- <span class="col-option-label" data-i18n="profile.display.label">Hide empty columns on screen (sum = 0 across all flights)</span>
- </label>
- <div class="help-text" data-i18n-html="profile.display.descHtml">
- Cleaner logbook view — any column where every flight shows 0 is hidden from the table on screen. The PDF export for Transport Canada always keeps all 38 columns regardless of this setting.
+ Under 705 ops, virtually every flight terminates with an instrument approach. When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually. Existing flights and your manual entries are never overwritten.
  </div>
  </div>
  <div class="form-group col-span-2">
@@ -1030,6 +1044,21 @@
  <div class="help-text" data-i18n-html="profile.acConfigs.descHtml">
  Check the configurations you fly. Used to filter aircraft type suggestions and currency tracking (TC requires separate currency for floats, skis, tailwheel per CAR 401.05).
  </div>
+ </div>
+ </div>
+ </div>
+
+ <!-- ─── Card: Display preferences ──────────────────────────── -->
+ <div class="form-card" id="profile-display">
+ <div class="form-card-title">Display preferences</div>
+ <div class="form-card-desc">How the logbook table looks on screen. PDF exports are unaffected — they always show all 38 TC columns.</div>
+ <div class="form-grid">
+ <div class="form-group col-span-2">
+ <label class="col-option">
+ <input type="checkbox" id="p-hideZeroColumns" />
+ <span class="col-option-label" data-i18n="profile.display.label">Hide empty columns on screen (sum = 0 across all flights)</span>
+ </label>
+ <div class="help-text">Cleaner logbook view — any column where every flight shows 0 is hidden from the table. The PDF export for Transport Canada always keeps all 38 columns.</div>
  </div>
  </div>
  </div>
@@ -1054,20 +1083,65 @@
  </div>
  </div>
 
- <!-- SECTION 0 — PRIVACY & TRUST (visible signals) -->
+ <!-- ═══════════════════════════════════════════ -->
+ <!-- SECTION — PRIVACY (toggles + data-ownership actions) -->
  <!-- ═══════════════════════════════════════════ -->
  <div class="settings-section" data-settings-pane="privacy" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.privacy">Privacy &amp; Trust</div>
 
- <!-- Canadian data residency card — visible promise. -->
- <div class="form-card settings-card trust-card">
- <div class="settings-card-head">
- <div class="settings-card-icon"></div>
- <div>
- <div class="settings-card-title" data-i18n="trust.canada.title">Your flight data stays in Canada</div>
- <div class="settings-card-sub" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.</div>
+ <!-- Sub-nav chips for the Privacy pane sections -->
+ <nav class="settings-subnav" aria-label="Privacy sections">
+   <a href="#priv-consent" class="settings-subnav-chip">Crew names</a>
+   <a href="#priv-export"  class="settings-subnav-chip">Export</a>
+   <a href="#priv-delete"  class="settings-subnav-chip">Delete</a>
+   <a href="#priv-trust"   class="settings-subnav-chip">Why your data is safe</a>
+ </nav>
+
+ <!-- ─── Card: PIPEDA consent for crew names ─────────────────── -->
+ <div class="form-card" id="priv-consent">
+ <div class="form-card-title" data-i18n="profile.captain.title">Crew name privacy (PIPEDA / Loi 25)</div>
+ <div class="form-card-desc">Captain and co-pilot names are personal information under federal + Québec privacy law. By default Cumulo anonymizes them before sending anything to the cloud or exporting outside this device.</div>
+ <div class="form-group col-span-2">
+ <label class="col-option">
+ <input type="checkbox" id="p-consentCaptainNames" />
+ <span class="col-option-label" data-i18n="profile.captain.label">Keep full crew names when syncing or sharing (I have crew consent)</span>
+ </label>
+ <div class="help-text" data-i18n-html="profile.captain.descHtml">
+ Local PDFs always keep full names (Transport Canada needs them on YOUR copy). What changes with this toggle: cloud sync + shared exports. Off = anonymized to initials. On = full names — only enable if you've obtained explicit consent from your crew.
  </div>
  </div>
+ </div>
+
+ <!-- ─── Card: Data ownership actions ────────────────────────── -->
+ <div class="form-card" id="priv-export">
+ <div class="form-card-title">Your data is yours</div>
+ <div class="form-card-desc">Cumulo is local-first. Everything you log is yours to export, archive or migrate elsewhere at any time.</div>
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
+ <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="trust.export.title">Export all my data</div>
+ <div class="settings-row-desc" data-i18n="trust.export.desc">Download a full JSON copy of every flight, your profile, and your import audit log.</div>
+ </div>
+ <button class="btn btn-outline" onclick="backupData()" data-i18n="trust.export.btn">Export</button>
+ </div>
+ </div>
+
+ <!-- ─── Card: Delete (clearly separated as a destructive action) ─ -->
+ <div class="form-card form-card-danger" id="priv-delete">
+ <div class="form-card-title" style="color:var(--danger);">Delete my data + purge</div>
+ <div class="form-card-desc" data-i18n="trust.delete.desc">Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days. Cannot be undone — export a JSON backup first.</div>
+ <div style="display:flex;justify-content:flex-end;margin-top:var(--s-3);">
+ <button class="btn btn-danger" onclick="deleteAccountPurge()" data-i18n="trust.delete.btn">Delete + Purge</button>
+ </div>
+ </div>
+
+ <!-- ─── Card: Why your data is safe (demoted to collapsible) ─── -->
+ <details class="form-card" id="priv-trust" style="padding:0;">
+ <summary class="form-card-summary">
+ <span style="font-weight:600;font-size:14px;color:var(--text);" data-i18n="trust.canada.title">Why your data is safe</span>
+ <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+ </summary>
+ <div style="padding:0 var(--s-6) var(--s-6);">
+ <div class="settings-card-sub" style="margin-bottom:var(--s-3);" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.</div>
  <div class="trust-bullets">
  <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.encrypted">Encrypted end-to-end</span></div>
  <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.canadian">Stored in Montréal</span></div>
@@ -1075,46 +1149,35 @@
  <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.yours">Your data, your ownership — export anytime</span></div>
  </div>
  <div style="margin-top:var(--s-3); font-size:12px;">
- <a href="security.html" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600;" data-i18n="trust.whitepaper"> Read the full security whitepaper →</a>
+ <a href="security.html" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:none; font-weight:600;" data-i18n="trust.whitepaper">Read the full security whitepaper →</a>
  </div>
  </div>
-
- <!-- Export all my data — already prominent. -->
- <div class="settings-row">
- <div class="settings-row-icon"></div>
- <div class="settings-row-info">
- <div class="settings-row-title" data-i18n="trust.export.title">Export all my data</div>
- <div class="settings-row-desc" data-i18n="trust.export.desc">Download a full JSON copy of every flight, your profile, and your import audit log. Your data is yours — take it with you anytime.</div>
- </div>
- <button class="btn btn-outline" onclick="backupData()" data-i18n="trust.export.btn"> Export</button>
- </div>
-
- <!-- Delete account + purge — honest danger button, not buried. -->
- <div class="settings-row">
- <div class="settings-row-icon"></div>
- <div class="settings-row-info">
- <div class="settings-row-title" data-i18n="trust.delete.title">Delete my data + purge</div>
- <div class="settings-row-desc" data-i18n="trust.delete.desc">Permanently delete every flight, your profile, and your sync history from this device. When Supabase sync is enabled, this will also wipe your cloud copy within 30 days.</div>
- </div>
- <button class="btn btn-danger" onclick="deleteAccountPurge()" data-i18n="trust.delete.btn">Delete + Purge</button>
- </div>
+ </details>
  </div>
 
  <!-- ═══════════════════════════════════════════ -->
- <!-- SECTION — SYNC (continuous; one-shot imports live in the Import page) -->
+ <!-- SECTION — SYNC (continuous auto-sync, one-shot imports live in Import) -->
  <!-- ═══════════════════════════════════════════ -->
  <div class="settings-section" data-settings-pane="sync" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.sync">Sync</div>
 
- <!-- Navblue iCal Auto-Sync -->
- <div class="form-card settings-card settings-card-accent">
- <div class="settings-card-head">
- <div>
- <div class="settings-card-title" data-i18n="sync.navblue.title">Navblue iCal auto-sync</div>
- <div class="settings-card-desc" data-i18n="sync.navblue.desc">Fetches your roster automatically — completed flights with real block hours. For one-shot file imports (Photo, PDF, CSV), use the Import page.</div>
+ <!-- Status banner — explains the difference between Sync (this page) and
+      Import (the other page). Pilots got confused when Photo / PDF / CSV
+      were in Sync; clarity wins. -->
+ <div class="form-card" style="background:var(--bg-subtle);border-style:dashed;">
+ <div class="form-card-title" style="border:0;margin-bottom:var(--s-2);padding-bottom:0;">Continuous auto-sync</div>
+ <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.55;">
+ This pane configures sources that <strong>fetch your roster automatically</strong> when you open Cumulo or refocus the tab. For one-shot file imports (Photo, PDF, CSV) use the <a href="#" onclick="showPage('import');return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Import page</a> instead.
  </div>
+ </div>
+
+ <!-- ─── Card: Navblue iCal auto-sync ────────────────────────── -->
+ <div class="form-card" id="sync-navblue">
+ <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;">
+ <span data-i18n="sync.navblue.title">Navblue iCal auto-sync</span>
  <span id="navblueStatus" class="eyebrow"></span>
  </div>
+ <div class="form-card-desc" data-i18n="sync.navblue.desc">Fetches your roster automatically — completed flights with real block hours. Re-syncs on app open and tab refocus.</div>
  <div class="form-group" style="margin-bottom:var(--s-3);">
  <label for="navblueUrl" data-i18n="sync.navblue.urlLabel">iCal URL</label>
  <input type="url" id="navblueUrl"
@@ -1133,45 +1196,52 @@
 
 
  <!-- ═══════════════════════════════════════════ -->
- <!-- SECTION 3 — DATA MAINTENANCE -->
+ <!-- SECTION — DATA MAINTENANCE (recovery + danger zone) -->
  <!-- ═══════════════════════════════════════════ -->
  <div class="settings-section" data-settings-pane="data" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.data">Data &amp; Maintenance</div>
 
- <div class="settings-row">
- <div class="settings-row-icon"></div>
+ <!-- Sub-nav chips for the Data pane -->
+ <nav class="settings-subnav" aria-label="Data sections">
+   <a href="#data-recovery" class="settings-subnav-chip">Recovery</a>
+   <a href="#data-danger"   class="settings-subnav-chip" style="color:var(--danger);">Danger zone</a>
+ </nav>
+
+ <!-- ─── Card: Recovery (reversible operations) ──────────────── -->
+ <div class="form-card" id="data-recovery">
+ <div class="form-card-title">Recovery</div>
+ <div class="form-card-desc">Reversible operations. Cumulo automatically snapshots your data before every bulk import or sync, so you can always go back.</div>
+
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
  <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="settings.undo.title">Undo last bulk operation</div>
- <div class="settings-row-desc" data-i18n="settings.undo.desc">Cumulo snapshots automatically before each iCal sync. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.</div>
+ <div class="settings-row-desc" data-i18n="settings.undo.desc">Restores the snapshot taken before your most recent iCal sync, PDF import, or CSV import.</div>
  </div>
  <button class="btn btn-outline" onclick="undoLastOperation()" id="undoBtn">Undo</button>
  </div>
 
- <!-- Download backup JSON moved out — it duplicated Privacy → "Export all
-      my data" (same backupData() handler). Privacy is the canonical home
-      for data ownership / portability. Keep Restore here since it's a
-      maintenance op, not a data-ownership op. -->
-
- <div class="settings-row">
- <div class="settings-row-icon"></div>
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
  <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="settings.restore.title">Restore from JSON backup</div>
- <div class="settings-row-desc" data-i18n="settings.restore.desc">Load a previously downloaded backup file.</div>
+ <div class="settings-row-desc" data-i18n="settings.restore.desc">Load a previously exported backup file (from Privacy → Export). A preview opens before any data is overwritten.</div>
  </div>
  <button class="btn btn-outline" onclick="document.getElementById('restoreFile').click()">Restore</button>
  <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)">
  </div>
+ </div>
 
- <!-- Clear all flights — folded in from the former Reset tab. Danger styling
-      on the row alone, so it stays visually separate without needing its
-      own tab for a single action. -->
- <div class="settings-row settings-row-danger" style="margin-top:var(--s-5);">
- <div class="settings-row-icon"></div>
+ <!-- ─── Card: Danger zone (destructive operations) ─────────── -->
+ <div class="form-card form-card-danger" id="data-danger">
+ <div class="form-card-title" style="color:var(--danger);">Danger zone</div>
+ <div class="form-card-desc">Permanent destructive operations. <strong>Export a JSON backup first</strong> if you're not sure.</div>
+
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
  <div class="settings-row-info">
  <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all flights</div>
- <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong></div>
+ <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone.</strong></div>
  </div>
  <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear all</button>
+ </div>
  </div>
  </div>
 

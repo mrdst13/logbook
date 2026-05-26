@@ -25,6 +25,7 @@ function showPage(id) {
 
   if (id === 'dashboard') renderDashboard();
   if (id === 'logbook') renderLogbook();
+  if (id === 'import' && typeof renderImportRecentStrip === 'function') renderImportRecentStrip();
   if (id === 'backup') {
     // Settings page: refresh dark-mode mirror (if the legacy toggle still exists).
     const toggle = document.getElementById('darkModeToggle');

@@ -137,6 +137,118 @@
 ═══════════════════════════════════════ */
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
 
+/* ─── Import page redesign (Stripe / Notion settings cadence) ────── */
+
+/* Recent imports strip — visible state after a successful op */
+.import-recent {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 10px 14px;
+  margin-bottom: var(--s-4);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+  border-radius: var(--r-md);
+  font-size: 13px;
+}
+.import-recent-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--success);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.import-recent-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  color: var(--text);
+}
+.import-recent-when {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.import-recent-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 12px;
+}
+.import-recent-actions { display: flex; gap: var(--s-3); }
+@media (max-width: 600px) {
+  .import-recent-body { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+
+/* Hero CTA pointing to Settings → Sync (the auto-sync, the most powerful) */
+.import-hero {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-surface) 100%);
+}
+
+/* Import cards — same form-card shell, but cards stack vertically with
+   stronger visual breathing room since each is a distinct intent. */
+.import-card { padding: var(--s-5) var(--s-6); }
+.import-card .form-card-title { display: flex; align-items: center; gap: var(--s-3); }
+
+/* Tag chips on each card title — "Common" / "Occasional" / "One-time" */
+.import-card-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-left: auto;
+}
+.import-card-tag-quiet {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+/* Side-by-side actions inside the merged Navblue PDF card */
+.import-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+}
+@media (max-width: 720px) {
+  .import-actions-grid { grid-template-columns: 1fr; }
+}
+.import-action-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.import-action-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: var(--s-2);
+}
+
+/* Footer reassurance block — answers "what happens after I drop?" */
+.import-footer {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+
+
 /* Drop zones — compact list-row affordance. The pattern from Linear,
    Stripe, Notion: a "Select file" button-like row, no giant placeholder.
    The whole row is droppable; the dashed border only appears DURING a
