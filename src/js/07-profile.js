@@ -28,6 +28,19 @@ function highlightProfileTypeCard(type) {
 function adaptFormToProfile(type) {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+
+  // PPC + LOFT fields: relevant for 705 line pilots only. Other profile
+  // types (private/student/helicopter solo/instructor) don't have a
+  // Company PPC under CASS 725.106, so we hide the fields rather than
+  // leave them blank-confusing in the form.
+  const showPPC = (type === 'airline705');
+  if (showPPC) {
+    show('p-ppc-wrap');
+    show('p-loft-wrap');
+  } else {
+    hide('p-ppc-wrap');
+    hide('p-loft-wrap');
+  }
   const setLbl = (inputId, text) => {
     const el = document.getElementById(inputId);
     if (!el) return;
@@ -175,6 +188,11 @@ function loadProfile() {
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
+  // PPC + LOFT (705 line ops). The fields are always rendered in the DOM
+  // but their wrappers are hidden by adaptFormToProfile() when the pilot
+  // type doesn't use them (private / student / helicopter etc.).
+  sv('p-ppc', p.ppcDueDate);
+  sv('p-loft', p.loftDueDate);
   // IFR approach auto-count: default ON when the saved airline is a 705 operator,
   // OFF otherwise. Once the user explicitly saves a value, that value sticks.
   const autoCb = document.getElementById('p-autoCountIFR');
@@ -280,6 +298,10 @@ function saveProfile() {
     hideZeroColumns: !!document.getElementById('p-hideZeroColumns')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
+    // CASS 725.106 PPC + LOFT (705 line ops). Empty strings are fine — they
+    // mean "not tracking this for now" rather than "expired today".
+    ppcDueDate: gv('p-ppc'),
+    loftDueDate: gv('p-loft'),
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);

@@ -621,17 +621,71 @@ function _dashRenderSparkline(svgId, data) {
   `;
 }
 
-// ─── Validity rings (CAR 401.05 IFR + Recency + Medical) ─────
+// ─── Validity rings (profile-driven) ─────────────────────────
+// For airline 705 line pilots (multi-pilot ops): PPC | REC | MED
+//   PPC is the primary currency check under CASS 725.106 — it supersedes
+//   the generic 6-IFR-approaches/6-months rule (CAR 401.05(2)) which is
+//   intended for private/CPL pilots without a Company PPC.
+// For non-705 pilots (private/student/instructor/helicopter): IFR | REC | MED
+//   The generic CAR 401.05(2) rule applies; show the approach count.
 function _dashRenderValidityRings() {
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
+  const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+  const is705 = (profile.pilotType || 'airline705') === 'airline705';
 
-  // IFR: approaches in last 6 months / 6 required
-  const ifrCount = _dashApproachesIn6mo();
-  const ifrPct = Math.min(100, (ifrCount / 6) * 100);
-  const ifrColor = ifrCount >= 6 ? '#10A37F' : (ifrCount >= 4 ? '#B87C0C' : '#DC2A2A');
-  _dashRenderRing('dashRingIFR', ifrPct, ifrColor, 'IFR');
-  const ifrSub = document.getElementById('dashRingIFRSub');
-  if (ifrSub) ifrSub.textContent = `${ifrCount} / 6 ${lang === 'fr' ? 'appr.' : 'appr.'}`;
+  // Update the first ring's click handler to point at the correct drill-down
+  // panel ('ppc' for 705 line pilots, 'ifr' for everyone else). The ring's
+  // HTML is rendered once with onclick='openDashDrill("ifr")'; we patch it
+  // here so the route matches what the ring actually displays.
+  const ring1Block = document.getElementById('dashRingIFR')?.parentElement;
+  if (ring1Block) {
+    const targetKey = is705 ? 'ppc' : 'ifr';
+    ring1Block.setAttribute('onclick', `openDashDrill('${targetKey}')`);
+    ring1Block.setAttribute('onkeydown',
+      `if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('${targetKey}');}`);
+  }
+
+  if (is705) {
+    // ── PPC ring (replaces IFR for 705 line pilots) ──
+    const ppcDays = _dashPPCDaysRemaining(profile);
+    if (ppcDays === null) {
+      _dashRenderRing('dashRingIFR', 0, '#7C8497', 'PPC');
+      const sub = document.getElementById('dashRingIFRSub');
+      if (sub) sub.textContent = lang === 'fr' ? 'non défini' : 'not set';
+    } else {
+      // PPC validity: typically 6 months for multi-pilot 705. Treat 180 days
+      // as full ring; green > 60d, amber > 0, red ≤ 0 / overdue.
+      const ppcPct = Math.max(0, Math.min(100, (ppcDays / 180) * 100));
+      const ppcColor = ppcDays > 60 ? '#10A37F' : (ppcDays > 0 ? '#B87C0C' : '#DC2A2A');
+      _dashRenderRing('dashRingIFR', ppcPct, ppcColor, 'PPC');
+      const sub = document.getElementById('dashRingIFRSub');
+      if (sub) sub.textContent = ppcDays > 0
+        ? `${ppcDays} ${lang === 'fr' ? 'j' : 'd'}`
+        : (lang === 'fr' ? 'Expiré' : 'Expired');
+    }
+    // Update the cap label (was "6 MOS" for IFR, change to "CASS 725")
+    const capEl = document.querySelector('#dashRingIFR ~ .dash-ring-cap, #dashRingIFR + .dash-ring-sub + .dash-ring-cap');
+    // (DOM order is .dash-ring → .dash-ring-sub → .dash-ring-cap — easier
+    // to update via the parent block.)
+    const blockEl = document.getElementById('dashRingIFR')?.parentElement;
+    if (blockEl) {
+      const cap = blockEl.querySelector('.dash-ring-cap');
+      if (cap) cap.textContent = 'CASS 725';
+    }
+  } else {
+    // ── IFR ring (generic CAR 401.05(2) for non-705 pilots) ──
+    const ifrCount = _dashApproachesIn6mo();
+    const ifrPct = Math.min(100, (ifrCount / 6) * 100);
+    const ifrColor = ifrCount >= 6 ? '#10A37F' : (ifrCount >= 4 ? '#B87C0C' : '#DC2A2A');
+    _dashRenderRing('dashRingIFR', ifrPct, ifrColor, 'IFR');
+    const ifrSub = document.getElementById('dashRingIFRSub');
+    if (ifrSub) ifrSub.textContent = `${ifrCount} / 6 ${lang === 'fr' ? 'appr.' : 'appr.'}`;
+    const blockEl = document.getElementById('dashRingIFR')?.parentElement;
+    if (blockEl) {
+      const cap = blockEl.querySelector('.dash-ring-cap');
+      if (cap) cap.textContent = '6 MOS';
+    }
+  }
 
   // Recency: 5 landings in last 6 months (CAR 401.05(2))
   const ldgCount = _dashLandingsIn6mo();
@@ -714,6 +768,25 @@ function _dashMedicalDaysRemaining() {
   const p = (typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {};
   if (!p.medical) return null;
   const exp = new Date(p.medical + 'T00:00:00');
+  if (isNaN(exp.getTime())) return null;
+  return Math.ceil((exp - Date.now()) / 86400000);
+}
+
+// Days until PPC (Pilot Proficiency Check) expiry under CASS 725.106.
+// Returns null when the pilot hasn't entered a date (= we don't know, not
+// "expired today"). The caller decides how to display the unknown state.
+function _dashPPCDaysRemaining(profile) {
+  const p = profile || ((typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {});
+  if (!p.ppcDueDate) return null;
+  const exp = new Date(p.ppcDueDate + 'T00:00:00');
+  if (isNaN(exp.getTime())) return null;
+  return Math.ceil((exp - Date.now()) / 86400000);
+}
+
+function _dashLOFTDaysRemaining(profile) {
+  const p = profile || ((typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {});
+  if (!p.loftDueDate) return null;
+  const exp = new Date(p.loftDueDate + 'T00:00:00');
   if (isNaN(exp.getTime())) return null;
   return Math.ceil((exp - Date.now()) / 86400000);
 }
@@ -815,21 +888,38 @@ function _dashRenderNextColumn() {
   const ifrCount = _dashApproachesIn6mo();
   const ifrDays = _dashIFRDaysRemaining();
   const ldgCount = _dashLandingsIn6mo();
+  // PPC only matters for 705 line pilots (multi-pilot ops under CASS 725.106).
+  const statusProfile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+  const is705ForStatus = (statusProfile.pilotType || 'airline705') === 'airline705';
+  const ppcDays = is705ForStatus ? _dashPPCDaysRemaining(statusProfile) : null;
 
   // Priority order: expired/imminent first, then soft warnings, then OK pill.
-  // Each STATUS card routes to its matching drill-down (medical / ifr /
+  // Each STATUS card routes to its matching drill-down (medical / ppc / ifr /
   // recency) so the pilot can see the source data behind the warning.
   if (medDays !== null && medDays <= 0) {
     cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
       title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
       sub: fr ? 'Doit être renouvelé' : 'Must be renewed', chip: 'MED',
       onclick: "openDashDrill('medical')" });
+  } else if (ppcDays !== null && ppcDays <= 0) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
+      title: fr ? 'PPC · expiré' : 'PPC · expired',
+      sub: fr ? 'Doit être renouvelé · CASS 725.106' : 'Must be renewed · CASS 725.106',
+      chip: 'PPC',
+      onclick: "openDashDrill('ppc')" });
   } else if (medDays !== null && medDays <= 30) {
     cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
       title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
       sub: fr ? `Dans ${medDays} jours` : `In ${medDays} days`, chip: 'MED',
       onclick: "openDashDrill('medical')" });
-  } else if (ifrCount < 6) {
+  } else if (ppcDays !== null && ppcDays <= 30) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
+      title: fr ? `PPC dans ${ppcDays} j` : `PPC in ${ppcDays} days`,
+      sub: fr ? 'CASS 725.106 · multi-pilot 705' : 'CASS 725.106 · multi-pilot 705',
+      chip: 'PPC',
+      onclick: "openDashDrill('ppc')" });
+  } else if (!is705ForStatus && ifrCount < 6) {
+    // IFR 6-in-6mo only matters for non-705 pilots (no Company PPC to supersede)
     const need = 6 - ifrCount;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
       title: fr ? `Validité IFR · ${ifrCount}/6 appr.` : `IFR currency · ${ifrCount}/6 appr.`,
@@ -848,20 +938,34 @@ function _dashRenderNextColumn() {
       title: fr ? 'Médical · 60 jours' : 'Medical · 60 days',
       sub: fr ? `Renouvellement dans ${medDays} jours` : `Renewal in ${medDays} days`, chip: 'MED',
       onclick: "openDashDrill('medical')" });
-  } else if (ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
+  } else if (ppcDays !== null && ppcDays <= 60) {
+    cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
+      title: fr ? `PPC · ${ppcDays} j` : `PPC · ${ppcDays} days`,
+      sub: fr ? 'Renouvellement à planifier · CASS 725.106' : 'Plan renewal · CASS 725.106',
+      chip: 'PPC',
+      onclick: "openDashDrill('ppc')" });
+  } else if (!is705ForStatus && ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
     cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
       title: fr ? 'Validité IFR · 30 jours' : 'IFR currency · 30 days',
       sub: fr ? `Approche-limite expire dans ${ifrDays} jours` : `Window expires in ${ifrDays} days`, chip: 'IFR',
       onclick: "openDashDrill('ifr')" });
   } else {
     // All-current OK pill → open the drill-down for the closest-to-expiring
-    // validity (whichever is most useful to inspect proactively).
+    // validity. For 705 line pilots, PPC + MED are the primary checks; for
+    // others, IFR + MED.
     let target = 'medical';
     let minDays = medDays !== null ? medDays : Infinity;
-    if (ifrDays !== null && ifrDays >= 0 && ifrDays < minDays) { target = 'ifr'; minDays = ifrDays; }
+    if (is705ForStatus) {
+      if (ppcDays !== null && ppcDays >= 0 && ppcDays < minDays) { target = 'ppc'; minDays = ppcDays; }
+    } else {
+      if (ifrDays !== null && ifrDays >= 0 && ifrDays < minDays) { target = 'ifr'; minDays = ifrDays; }
+    }
+    const okSub = is705ForStatus
+      ? (fr ? 'PPC · REC · MED — vérifié à l\'instant' : 'PPC · REC · MED — just verified')
+      : (fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified');
     cards.push({ tone: 'quiet', kicker: fr ? 'STATUT' : 'STATUS',
       title: fr ? 'Toutes validités à jour' : 'All validities current',
-      sub: fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified', chip: 'OK',
+      sub: okSub, chip: 'OK',
       onclick: `openDashDrill('${target}')` });
   }
 

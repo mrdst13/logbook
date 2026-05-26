@@ -4599,6 +4599,19 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <label data-i18n="profile.fleet">Primary fleet</label>
  <input type="text" id="p-fleet" placeholder="e.g. C172, B737, E190">
  </div>
+ <!-- PPC + LOFT — surface for 705 line ops pilots. Hidden on profile types
+      where it doesn't apply (private, student, helicopter). Toggled by
+      adaptFormToProfile() / loadProfile() based on profile.pilotType. -->
+ <div class="form-group" id="p-ppc-wrap">
+   <label>PPC expiry <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(Pilot Proficiency Check)</span></label>
+   <input type="date" id="p-ppc">
+   <div class="help-text">CASS 725.106 — every 6 months for multi-pilot 705 ops. Cumulo uses this instead of the IFR 6-in-6mo rule for line pilots.</div>
+ </div>
+ <div class="form-group" id="p-loft-wrap">
+   <label>LOFT due <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(optional)</span></label>
+   <input type="date" id="p-loft">
+   <div class="help-text">Line Oriented Flight Training (CASS 725.124). Leave empty if your operator doesn't schedule LOFT separately from your PPC.</div>
+ </div>
  </div>
  </div>
 
@@ -6086,17 +6099,71 @@ function _dashRenderSparkline(svgId, data) {
   `;
 }
 
-// ─── Validity rings (CAR 401.05 IFR + Recency + Medical) ─────
+// ─── Validity rings (profile-driven) ─────────────────────────
+// For airline 705 line pilots (multi-pilot ops): PPC | REC | MED
+//   PPC is the primary currency check under CASS 725.106 — it supersedes
+//   the generic 6-IFR-approaches/6-months rule (CAR 401.05(2)) which is
+//   intended for private/CPL pilots without a Company PPC.
+// For non-705 pilots (private/student/instructor/helicopter): IFR | REC | MED
+//   The generic CAR 401.05(2) rule applies; show the approach count.
 function _dashRenderValidityRings() {
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
+  const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+  const is705 = (profile.pilotType || 'airline705') === 'airline705';
 
-  // IFR: approaches in last 6 months / 6 required
-  const ifrCount = _dashApproachesIn6mo();
-  const ifrPct = Math.min(100, (ifrCount / 6) * 100);
-  const ifrColor = ifrCount >= 6 ? '#10A37F' : (ifrCount >= 4 ? '#B87C0C' : '#DC2A2A');
-  _dashRenderRing('dashRingIFR', ifrPct, ifrColor, 'IFR');
-  const ifrSub = document.getElementById('dashRingIFRSub');
-  if (ifrSub) ifrSub.textContent = `${ifrCount} / 6 ${lang === 'fr' ? 'appr.' : 'appr.'}`;
+  // Update the first ring's click handler to point at the correct drill-down
+  // panel ('ppc' for 705 line pilots, 'ifr' for everyone else). The ring's
+  // HTML is rendered once with onclick='openDashDrill("ifr")'; we patch it
+  // here so the route matches what the ring actually displays.
+  const ring1Block = document.getElementById('dashRingIFR')?.parentElement;
+  if (ring1Block) {
+    const targetKey = is705 ? 'ppc' : 'ifr';
+    ring1Block.setAttribute('onclick', `openDashDrill('${targetKey}')`);
+    ring1Block.setAttribute('onkeydown',
+      `if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('${targetKey}');}`);
+  }
+
+  if (is705) {
+    // ── PPC ring (replaces IFR for 705 line pilots) ──
+    const ppcDays = _dashPPCDaysRemaining(profile);
+    if (ppcDays === null) {
+      _dashRenderRing('dashRingIFR', 0, '#7C8497', 'PPC');
+      const sub = document.getElementById('dashRingIFRSub');
+      if (sub) sub.textContent = lang === 'fr' ? 'non défini' : 'not set';
+    } else {
+      // PPC validity: typically 6 months for multi-pilot 705. Treat 180 days
+      // as full ring; green > 60d, amber > 0, red ≤ 0 / overdue.
+      const ppcPct = Math.max(0, Math.min(100, (ppcDays / 180) * 100));
+      const ppcColor = ppcDays > 60 ? '#10A37F' : (ppcDays > 0 ? '#B87C0C' : '#DC2A2A');
+      _dashRenderRing('dashRingIFR', ppcPct, ppcColor, 'PPC');
+      const sub = document.getElementById('dashRingIFRSub');
+      if (sub) sub.textContent = ppcDays > 0
+        ? `${ppcDays} ${lang === 'fr' ? 'j' : 'd'}`
+        : (lang === 'fr' ? 'Expiré' : 'Expired');
+    }
+    // Update the cap label (was "6 MOS" for IFR, change to "CASS 725")
+    const capEl = document.querySelector('#dashRingIFR ~ .dash-ring-cap, #dashRingIFR + .dash-ring-sub + .dash-ring-cap');
+    // (DOM order is .dash-ring → .dash-ring-sub → .dash-ring-cap — easier
+    // to update via the parent block.)
+    const blockEl = document.getElementById('dashRingIFR')?.parentElement;
+    if (blockEl) {
+      const cap = blockEl.querySelector('.dash-ring-cap');
+      if (cap) cap.textContent = 'CASS 725';
+    }
+  } else {
+    // ── IFR ring (generic CAR 401.05(2) for non-705 pilots) ──
+    const ifrCount = _dashApproachesIn6mo();
+    const ifrPct = Math.min(100, (ifrCount / 6) * 100);
+    const ifrColor = ifrCount >= 6 ? '#10A37F' : (ifrCount >= 4 ? '#B87C0C' : '#DC2A2A');
+    _dashRenderRing('dashRingIFR', ifrPct, ifrColor, 'IFR');
+    const ifrSub = document.getElementById('dashRingIFRSub');
+    if (ifrSub) ifrSub.textContent = `${ifrCount} / 6 ${lang === 'fr' ? 'appr.' : 'appr.'}`;
+    const blockEl = document.getElementById('dashRingIFR')?.parentElement;
+    if (blockEl) {
+      const cap = blockEl.querySelector('.dash-ring-cap');
+      if (cap) cap.textContent = '6 MOS';
+    }
+  }
 
   // Recency: 5 landings in last 6 months (CAR 401.05(2))
   const ldgCount = _dashLandingsIn6mo();
@@ -6179,6 +6246,25 @@ function _dashMedicalDaysRemaining() {
   const p = (typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {};
   if (!p.medical) return null;
   const exp = new Date(p.medical + 'T00:00:00');
+  if (isNaN(exp.getTime())) return null;
+  return Math.ceil((exp - Date.now()) / 86400000);
+}
+
+// Days until PPC (Pilot Proficiency Check) expiry under CASS 725.106.
+// Returns null when the pilot hasn't entered a date (= we don't know, not
+// "expired today"). The caller decides how to display the unknown state.
+function _dashPPCDaysRemaining(profile) {
+  const p = profile || ((typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {});
+  if (!p.ppcDueDate) return null;
+  const exp = new Date(p.ppcDueDate + 'T00:00:00');
+  if (isNaN(exp.getTime())) return null;
+  return Math.ceil((exp - Date.now()) / 86400000);
+}
+
+function _dashLOFTDaysRemaining(profile) {
+  const p = profile || ((typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {});
+  if (!p.loftDueDate) return null;
+  const exp = new Date(p.loftDueDate + 'T00:00:00');
   if (isNaN(exp.getTime())) return null;
   return Math.ceil((exp - Date.now()) / 86400000);
 }
@@ -6280,21 +6366,38 @@ function _dashRenderNextColumn() {
   const ifrCount = _dashApproachesIn6mo();
   const ifrDays = _dashIFRDaysRemaining();
   const ldgCount = _dashLandingsIn6mo();
+  // PPC only matters for 705 line pilots (multi-pilot ops under CASS 725.106).
+  const statusProfile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+  const is705ForStatus = (statusProfile.pilotType || 'airline705') === 'airline705';
+  const ppcDays = is705ForStatus ? _dashPPCDaysRemaining(statusProfile) : null;
 
   // Priority order: expired/imminent first, then soft warnings, then OK pill.
-  // Each STATUS card routes to its matching drill-down (medical / ifr /
+  // Each STATUS card routes to its matching drill-down (medical / ppc / ifr /
   // recency) so the pilot can see the source data behind the warning.
   if (medDays !== null && medDays <= 0) {
     cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
       title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
       sub: fr ? 'Doit être renouvelé' : 'Must be renewed', chip: 'MED',
       onclick: "openDashDrill('medical')" });
+  } else if (ppcDays !== null && ppcDays <= 0) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
+      title: fr ? 'PPC · expiré' : 'PPC · expired',
+      sub: fr ? 'Doit être renouvelé · CASS 725.106' : 'Must be renewed · CASS 725.106',
+      chip: 'PPC',
+      onclick: "openDashDrill('ppc')" });
   } else if (medDays !== null && medDays <= 30) {
     cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
       title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
       sub: fr ? `Dans ${medDays} jours` : `In ${medDays} days`, chip: 'MED',
       onclick: "openDashDrill('medical')" });
-  } else if (ifrCount < 6) {
+  } else if (ppcDays !== null && ppcDays <= 30) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
+      title: fr ? `PPC dans ${ppcDays} j` : `PPC in ${ppcDays} days`,
+      sub: fr ? 'CASS 725.106 · multi-pilot 705' : 'CASS 725.106 · multi-pilot 705',
+      chip: 'PPC',
+      onclick: "openDashDrill('ppc')" });
+  } else if (!is705ForStatus && ifrCount < 6) {
+    // IFR 6-in-6mo only matters for non-705 pilots (no Company PPC to supersede)
     const need = 6 - ifrCount;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
       title: fr ? `Validité IFR · ${ifrCount}/6 appr.` : `IFR currency · ${ifrCount}/6 appr.`,
@@ -6313,20 +6416,34 @@ function _dashRenderNextColumn() {
       title: fr ? 'Médical · 60 jours' : 'Medical · 60 days',
       sub: fr ? `Renouvellement dans ${medDays} jours` : `Renewal in ${medDays} days`, chip: 'MED',
       onclick: "openDashDrill('medical')" });
-  } else if (ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
+  } else if (ppcDays !== null && ppcDays <= 60) {
+    cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
+      title: fr ? `PPC · ${ppcDays} j` : `PPC · ${ppcDays} days`,
+      sub: fr ? 'Renouvellement à planifier · CASS 725.106' : 'Plan renewal · CASS 725.106',
+      chip: 'PPC',
+      onclick: "openDashDrill('ppc')" });
+  } else if (!is705ForStatus && ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
     cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
       title: fr ? 'Validité IFR · 30 jours' : 'IFR currency · 30 days',
       sub: fr ? `Approche-limite expire dans ${ifrDays} jours` : `Window expires in ${ifrDays} days`, chip: 'IFR',
       onclick: "openDashDrill('ifr')" });
   } else {
     // All-current OK pill → open the drill-down for the closest-to-expiring
-    // validity (whichever is most useful to inspect proactively).
+    // validity. For 705 line pilots, PPC + MED are the primary checks; for
+    // others, IFR + MED.
     let target = 'medical';
     let minDays = medDays !== null ? medDays : Infinity;
-    if (ifrDays !== null && ifrDays >= 0 && ifrDays < minDays) { target = 'ifr'; minDays = ifrDays; }
+    if (is705ForStatus) {
+      if (ppcDays !== null && ppcDays >= 0 && ppcDays < minDays) { target = 'ppc'; minDays = ppcDays; }
+    } else {
+      if (ifrDays !== null && ifrDays >= 0 && ifrDays < minDays) { target = 'ifr'; minDays = ifrDays; }
+    }
+    const okSub = is705ForStatus
+      ? (fr ? 'PPC · REC · MED — vérifié à l\'instant' : 'PPC · REC · MED — just verified')
+      : (fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified');
     cards.push({ tone: 'quiet', kicker: fr ? 'STATUT' : 'STATUS',
       title: fr ? 'Toutes validités à jour' : 'All validities current',
-      sub: fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified', chip: 'OK',
+      sub: okSub, chip: 'OK',
       onclick: `openDashDrill('${target}')` });
   }
 
@@ -7685,6 +7802,19 @@ function highlightProfileTypeCard(type) {
 function adaptFormToProfile(type) {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+
+  // PPC + LOFT fields: relevant for 705 line pilots only. Other profile
+  // types (private/student/helicopter solo/instructor) don't have a
+  // Company PPC under CASS 725.106, so we hide the fields rather than
+  // leave them blank-confusing in the form.
+  const showPPC = (type === 'airline705');
+  if (showPPC) {
+    show('p-ppc-wrap');
+    show('p-loft-wrap');
+  } else {
+    hide('p-ppc-wrap');
+    hide('p-loft-wrap');
+  }
   const setLbl = (inputId, text) => {
     const el = document.getElementById(inputId);
     if (!el) return;
@@ -7832,6 +7962,11 @@ function loadProfile() {
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
+  // PPC + LOFT (705 line ops). The fields are always rendered in the DOM
+  // but their wrappers are hidden by adaptFormToProfile() when the pilot
+  // type doesn't use them (private / student / helicopter etc.).
+  sv('p-ppc', p.ppcDueDate);
+  sv('p-loft', p.loftDueDate);
   // IFR approach auto-count: default ON when the saved airline is a 705 operator,
   // OFF otherwise. Once the user explicitly saves a value, that value sticks.
   const autoCb = document.getElementById('p-autoCountIFR');
@@ -7937,6 +8072,10 @@ function saveProfile() {
     hideZeroColumns: !!document.getElementById('p-hideZeroColumns')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
+    // CASS 725.106 PPC + LOFT (705 line ops). Empty strings are fine — they
+    // mean "not tracking this for now" rather than "expired today".
+    ppcDueDate: gv('p-ppc'),
+    loftDueDate: gv('p-loft'),
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
@@ -15539,6 +15678,8 @@ function _dashDrillBuild(key, fr) {
   switch (key) {
     case 'hero': return _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn);
     case 'ifr': return _drillIFR(fr, addBtn, logbookBtn);
+    case 'ppc': return _drillPPC(profile, fr, settingsBtn);
+    case 'loft': return _drillLOFT(profile, fr, settingsBtn);
     case 'recency': return _drillRecency(fr, addBtn, logbookBtn);
     case 'medical': return _drillMedical(profile, fr, settingsBtn);
     case 'pic':   return _drillStripHours('pic',   s.pic,   fr, profile, F, logbookBtn);
@@ -15549,6 +15690,81 @@ function _dashDrillBuild(key, fr) {
     case 'ldg':   return _drillLanding(s, fr, addBtn);
     default: return null;
   }
+}
+
+// ─── PPC drill-down (705 line ops — CASS 725.106) ──────────────────
+function _drillPPC(profile, fr, settingsBtn) {
+  const ppcDate = profile.ppcDueDate || '';
+  const loftDate = profile.loftDueDate || '';
+  const today = new Date().toISOString().slice(0, 10);
+
+  let ppcDays = null;
+  if (ppcDate) {
+    const ms = (new Date(ppcDate).getTime() - new Date(today).getTime()) / 86400000;
+    ppcDays = Math.round(ms);
+  }
+  let loftDays = null;
+  if (loftDate) {
+    const ms = (new Date(loftDate).getTime() - new Date(today).getTime()) / 86400000;
+    loftDays = Math.round(ms);
+  }
+
+  const statusLabel = ppcDays === null ? (fr ? 'NON DÉFINI' : 'NOT SET')
+    : ppcDays > 60 ? (fr ? 'À JOUR' : 'CURRENT')
+    : ppcDays > 0 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
+    : (fr ? 'EXPIRÉ' : 'EXPIRED');
+
+  const statusClass = ppcDays === null ? 'warn'
+    : ppcDays > 60 ? 'ok' : ppcDays > 0 ? 'warn' : 'bad';
+
+  const rows = [
+    { k: fr ? 'PPC dû' : 'PPC due',
+      v: ppcDate || (fr ? 'non défini' : 'not set') },
+    { k: fr ? 'Jours restants' : 'Days remaining',
+      v: ppcDays === null ? '—' : (ppcDays > 0 ? ppcDays : (fr ? 'expiré' : 'expired')) },
+    { k: 'Status',
+      v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
+  ];
+
+  if (loftDate) {
+    rows.push({
+      k: fr ? 'LOFT dû' : 'LOFT due',
+      v: `${loftDate}${loftDays !== null ? ` (${loftDays > 0 ? loftDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}`
+    });
+  }
+
+  return {
+    eyebrow: fr ? 'CASS 725.106 · MULTI-PILOT 705' : 'CASS 725.106 · MULTI-PILOT 705',
+    title: fr ? 'Pilot Proficiency Check (PPC)' : 'Pilot Proficiency Check (PPC)',
+    body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
+      ? 'Pour les pilotes 705 multi-pilotes, le PPC tient lieu de validité IFR — il couvre déjà la compétence aux instruments dans son contenu standard (CASS 725.106(6)). Le 6-approches/6-mois (CAR 401.05(2)) reste pertinent pour les pilotes privés sans PPC d\'opérateur. Vérifiez la date exacte de renouvellement avec votre programme de formation Porter.'
+      : 'For multi-pilot 705 line operations, the PPC is the primary IFR + competency check — its standard content already covers instrument proficiency (CASS 725.106(6)). The generic 6-approaches/6-months rule (CAR 401.05(2)) applies more to private pilots without a Company PPC. Verify your exact renewal date with your Porter training schedule.'}</div>`,
+    foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
+  };
+}
+
+// ─── LOFT drill-down (Line Oriented Flight Training) ───────────────
+function _drillLOFT(profile, fr, settingsBtn) {
+  const loftDate = profile.loftDueDate || '';
+  const today = new Date().toISOString().slice(0, 10);
+  let loftDays = null;
+  if (loftDate) {
+    const ms = (new Date(loftDate).getTime() - new Date(today).getTime()) / 86400000;
+    loftDays = Math.round(ms);
+  }
+  const rows = [
+    { k: fr ? 'LOFT dû' : 'LOFT due', v: loftDate || (fr ? 'non défini' : 'not set') },
+    { k: fr ? 'Jours restants' : 'Days remaining',
+      v: loftDays === null ? '—' : (loftDays > 0 ? loftDays : (fr ? 'dépassé' : 'overdue')) },
+  ];
+  return {
+    eyebrow: fr ? 'CASS 725.124 · FORMATION RÉCURRENTE' : 'CASS 725.124 · RECURRENT TRAINING',
+    title: 'LOFT (Line Oriented Flight Training)',
+    body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
+      ? 'Le LOFT est de la formation orientée ligne — souvent combinée au PPC, parfois planifiée séparément selon le programme de l\'opérateur. Si Porter ne planifie pas de LOFT distinct du PPC, laissez ce champ vide.'
+      : 'LOFT is line-oriented recurrent training — often combined with the PPC, sometimes scheduled separately depending on the operator\'s program. If Porter doesn\'t schedule LOFT separately from your PPC, leave this field empty.'}</div>`,
+    foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
+  };
 }
 
 // ─── Hero (career total) drill-down ────────────────────────────────
@@ -16025,7 +16241,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-recalc-empty-strict';
+const BUILD_VERSION = 'v3a-2026-05-26-ppc-705';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
