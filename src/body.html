@@ -502,7 +502,7 @@
  </div>
  </div>
  <div class="help-text" data-i18n-html="flight.atdHelpHtml">
-        Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
+        Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. iCal feeds publish the schedule, not actual block-off / block-on. To populate actuals automatically, import your monthly PDF roster — most operators include real ATD/ATA in the PDF.
  </div>
  </div>
 
@@ -640,49 +640,49 @@
  </div>
 
  <!-- ─── Two-track explainer ──────────────────────────────────────
-      The import options today fall into two groups: airline-specific
-      paths that target the Navblue system (used by Porter), and
-      generic paths that work for any pilot regardless of carrier.
-      We surface this upfront so non-Navblue pilots aren't left
-      scrolling looking for their path. -->
+      Two groups of import paths today: paths that target the iCal +
+      monthly PDF roster format Cumulo's parser currently understands,
+      and generic paths that work for any pilot regardless of carrier
+      system. We surface this upfront so pilots whose airline isn't in
+      the supported list aren't left scrolling for their option. -->
  <div class="import-tracks">
    <div class="import-track">
-     <div class="import-track-eyebrow">Track A · Navblue airlines (Porter)</div>
+     <div class="import-track-eyebrow">Track A · Supported airline formats</div>
      <div class="import-track-title">Automated — iCal sync + PDF roster</div>
-     <div class="import-track-desc">If your airline uses Navblue and publishes a <code>webcal://</code> roster feed, set up auto-sync once and Cumulo pulls every new flight. The monthly PDF roster fills in captain names.</div>
+     <div class="import-track-desc">If your airline publishes a <code>webcal://</code> roster feed, connect it once and Cumulo pulls every new flight automatically. The monthly PDF roster from the same system fills in captain names. Currently supports one specific roster system — others on the way.</div>
    </div>
    <div class="import-track">
-     <div class="import-track-eyebrow">Track B · Any other airline</div>
+     <div class="import-track-eyebrow">Track B · Every other pilot</div>
      <div class="import-track-title">Photo · CSV · manual</div>
      <div class="import-track-desc">Native PDF parsers for other airline roster formats are not built yet. For now: photograph any logbook or roster page (AI reads it), import a CSV from your previous logbook app, or log each flight manually.</div>
    </div>
  </div>
 
- <!-- ─── Hero CTA: Navblue iCal auto-sync ─────────────────────── -->
+ <!-- ─── Hero CTA: iCal auto-sync ─────────────────────────────── -->
  <div class="form-card import-hero">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;border:0;padding-bottom:var(--s-2);margin-bottom:var(--s-2);">
-   <span>Set up Navblue auto-sync</span>
+   <span>Set up iCal auto-sync</span>
    <span class="eyebrow" style="color:var(--accent);">TRACK A · RECOMMENDED</span>
  </div>
  <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);">
-   For pilots at airlines that publish a Navblue <code>webcal://</code> roster feed (Porter does). Configure once — your roster syncs automatically on every app open.
+   For pilots whose airline publishes a <code>webcal://</code> roster feed. Configure once — your roster syncs automatically every time you open Cumulo.
  </div>
  <div>
    <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);">Set up auto-sync →</button>
  </div>
  </div>
 
- <!-- ─── Card: Navblue HrRosterReport PDF ─────────────────────── -->
+ <!-- ─── Card: Monthly PDF roster (airline crew-scheduling export) ─── -->
  <div class="form-card import-card" id="import-navblue">
- <div class="form-card-title">Navblue HrRosterReport PDF <span class="import-card-tag">Track A · Common</span></div>
- <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). Targets the Navblue format specifically — other airlines' PDFs won't parse correctly here, use the Photo OCR card below instead. 100% local.</div>
+ <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Track A · Common</span></div>
+ <div class="form-card-desc">Drop your monthly <strong>roster PDF</strong> from your airline's crew-scheduling system. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). Currently supports one specific roster format — if yours doesn't parse, use the Photo OCR card below instead. 100% local.</div>
  <div class="drop-zone" onclick="document.getElementById('navbluePdfUnified').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
    ondragleave="this.classList.remove('dragover')"
    ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){handleMonthlyRosterPDF(f);}">
    <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
    <span class="drop-title">Select roster PDF or drop here</span>
-   <span class="drop-sub">Porter / Navblue monthly roster · PDF</span>
+   <span class="drop-sub">Monthly roster · PDF</span>
  </div>
  <input type="file" id="navbluePdfUnified" accept=".pdf,application/pdf" style="display:none" onchange="if(this.files[0])handleMonthlyRosterPDF(this.files[0])">
  <!-- Hidden inputs kept for legacy handlers + the two drop-paths the
@@ -695,7 +695,7 @@
  <!-- ─── Card: Photo OCR (works for any airline / any layout) ─── -->
  <div class="form-card import-card">
  <div class="form-card-title">Photo of a logbook or roster page <span class="import-card-tag import-card-tag-quiet">Track B · Any airline</span></div>
- <div class="form-card-desc">Snap any logbook page — paper, or your monthly roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if you're not on a Navblue airline. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
+ <div class="form-card-desc">Snap any logbook page — paper, or your monthly roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if Cumulo doesn't parse your airline's roster format yet. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
  <div class="drop-zone" id="photoZone"
    onclick="document.getElementById('photoInput').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -1034,7 +1034,7 @@
  <span class="col-option-label" data-i18n="profile.ifr.label">Count 1 IFR approach per flight on sync (705 line operations)</span>
  </label>
  <div class="help-text" data-i18n-html="profile.ifr.descHtml">
- Under 705 ops, virtually every flight terminates with an instrument approach. When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually. Existing flights and your manual entries are never overwritten.
+ Under 705 ops, virtually every flight terminates with an instrument approach. When this is on, iCal sync sets <code>Approaches = 1</code> on each new flight, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually. Existing flights and your manual entries are never overwritten.
  </div>
  </div>
  <div class="form-group col-span-2">
@@ -1236,24 +1236,25 @@
  </div>
  </div>
 
- <!-- ─── Card: Navblue iCal auto-sync ────────────────────────── -->
+ <!-- ─── Card: iCal roster auto-sync ─────────────────────────── -->
  <div class="form-card" id="sync-navblue">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;">
- <span data-i18n="sync.navblue.title">Navblue iCal auto-sync</span>
+ <span>iCal roster auto-sync</span>
  <span id="navblueStatus" class="eyebrow"></span>
  </div>
- <div class="form-card-desc" data-i18n="sync.navblue.desc">Fetches your roster automatically — completed flights with real block hours. Re-syncs on app open and tab refocus.</div>
+ <div class="form-card-desc">Fetches your roster automatically — completed flights with real block hours. Re-syncs on app open and tab refocus.</div>
  <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="navblueUrl" data-i18n="sync.navblue.urlLabel">iCal URL</label>
+ <label for="navblueUrl">iCal URL <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— from your airline's crew-scheduling system</span></label>
  <input type="url" id="navblueUrl"
- placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
+ placeholder="webcal://... or https://..."
  style="font-family:var(--font-mono); font-size:11px;">
+ <div class="help-text">If you can't find your iCal feed URL, check your airline's crew-scheduling portal — most publish a "subscribe to calendar" link in the roster section.</div>
  </div>
  <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
- <button class="btn btn-primary" onclick="saveNavblueUrl()" data-i18n="sync.navblue.saveBtn">Save URL</button>
- <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn" data-i18n="sync.navblue.syncBtn">Sync now</button>
+ <button class="btn btn-primary" onclick="saveNavblueUrl()">Save URL</button>
+ <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn">Sync now</button>
  <button class="btn btn-ghost btn-sm" onclick="showNavblueDiagnostic()" title="View raw iCal data — useful if crew names aren't appearing">Diagnostic</button>
- <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
+ <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()">Clear</button>
  </div>
  <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
  </div>
@@ -1303,7 +1304,7 @@
  <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
  <div class="settings-row-info">
  <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all flights</div>
- <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone.</strong></div>
+ <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and sync URL are kept. <strong>Cannot be undone.</strong></div>
  </div>
  <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear all</button>
  </div>

@@ -83,7 +83,9 @@ function _generatePDF() {
   const name = `${p.fname||''} ${p.lname||''}`.trim() || 'Pilot';
   const fullTitle = `${p.rank||'F/O'} ${name}`.trim();
   const license = p.license || '—';
-  const airline = p.airline || 'Porter Airlines';
+  // No "Porter Airlines" default — a TC PDF should show "—" for an unset
+  // operator (e.g. private/VFR pilot), not pretend the pilot is at Porter.
+  const airline = p.airline || '—';
   const base = p.base || 'YOW';
   const medical = p.medical || '—';
   const ecg = p.ecg || '—';

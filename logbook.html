@@ -4152,7 +4152,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
  <div class="help-text" data-i18n-html="flight.atdHelpHtml">
-        Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. The Navblue iCal sync does NOT auto-fill these (the iCal only publishes the schedule). To populate actuals automatically, import your monthly PDF roster — it contains the real ATD/ATA from Porter operations.
+        Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). <strong>Actual times only</strong> — never the scheduled time. iCal feeds publish the schedule, not actual block-off / block-on. To populate actuals automatically, import your monthly PDF roster — most operators include real ATD/ATA in the PDF.
  </div>
  </div>
 
@@ -4290,49 +4290,49 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <!-- ─── Two-track explainer ──────────────────────────────────────
-      The import options today fall into two groups: airline-specific
-      paths that target the Navblue system (used by Porter), and
-      generic paths that work for any pilot regardless of carrier.
-      We surface this upfront so non-Navblue pilots aren't left
-      scrolling looking for their path. -->
+      Two groups of import paths today: paths that target the iCal +
+      monthly PDF roster format Cumulo's parser currently understands,
+      and generic paths that work for any pilot regardless of carrier
+      system. We surface this upfront so pilots whose airline isn't in
+      the supported list aren't left scrolling for their option. -->
  <div class="import-tracks">
    <div class="import-track">
-     <div class="import-track-eyebrow">Track A · Navblue airlines (Porter)</div>
+     <div class="import-track-eyebrow">Track A · Supported airline formats</div>
      <div class="import-track-title">Automated — iCal sync + PDF roster</div>
-     <div class="import-track-desc">If your airline uses Navblue and publishes a <code>webcal://</code> roster feed, set up auto-sync once and Cumulo pulls every new flight. The monthly PDF roster fills in captain names.</div>
+     <div class="import-track-desc">If your airline publishes a <code>webcal://</code> roster feed, connect it once and Cumulo pulls every new flight automatically. The monthly PDF roster from the same system fills in captain names. Currently supports one specific roster system — others on the way.</div>
    </div>
    <div class="import-track">
-     <div class="import-track-eyebrow">Track B · Any other airline</div>
+     <div class="import-track-eyebrow">Track B · Every other pilot</div>
      <div class="import-track-title">Photo · CSV · manual</div>
      <div class="import-track-desc">Native PDF parsers for other airline roster formats are not built yet. For now: photograph any logbook or roster page (AI reads it), import a CSV from your previous logbook app, or log each flight manually.</div>
    </div>
  </div>
 
- <!-- ─── Hero CTA: Navblue iCal auto-sync ─────────────────────── -->
+ <!-- ─── Hero CTA: iCal auto-sync ─────────────────────────────── -->
  <div class="form-card import-hero">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;border:0;padding-bottom:var(--s-2);margin-bottom:var(--s-2);">
-   <span>Set up Navblue auto-sync</span>
+   <span>Set up iCal auto-sync</span>
    <span class="eyebrow" style="color:var(--accent);">TRACK A · RECOMMENDED</span>
  </div>
  <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);">
-   For pilots at airlines that publish a Navblue <code>webcal://</code> roster feed (Porter does). Configure once — your roster syncs automatically on every app open.
+   For pilots whose airline publishes a <code>webcal://</code> roster feed. Configure once — your roster syncs automatically every time you open Cumulo.
  </div>
  <div>
    <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);">Set up auto-sync →</button>
  </div>
  </div>
 
- <!-- ─── Card: Navblue HrRosterReport PDF ─────────────────────── -->
+ <!-- ─── Card: Monthly PDF roster (airline crew-scheduling export) ─── -->
  <div class="form-card import-card" id="import-navblue">
- <div class="form-card-title">Navblue HrRosterReport PDF <span class="import-card-tag">Track A · Common</span></div>
- <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). Targets the Navblue format specifically — other airlines' PDFs won't parse correctly here, use the Photo OCR card below instead. 100% local.</div>
+ <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Track A · Common</span></div>
+ <div class="form-card-desc">Drop your monthly <strong>roster PDF</strong> from your airline's crew-scheduling system. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). Currently supports one specific roster format — if yours doesn't parse, use the Photo OCR card below instead. 100% local.</div>
  <div class="drop-zone" onclick="document.getElementById('navbluePdfUnified').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
    ondragleave="this.classList.remove('dragover')"
    ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){handleMonthlyRosterPDF(f);}">
    <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
    <span class="drop-title">Select roster PDF or drop here</span>
-   <span class="drop-sub">Porter / Navblue monthly roster · PDF</span>
+   <span class="drop-sub">Monthly roster · PDF</span>
  </div>
  <input type="file" id="navbluePdfUnified" accept=".pdf,application/pdf" style="display:none" onchange="if(this.files[0])handleMonthlyRosterPDF(this.files[0])">
  <!-- Hidden inputs kept for legacy handlers + the two drop-paths the
@@ -4345,7 +4345,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ─── Card: Photo OCR (works for any airline / any layout) ─── -->
  <div class="form-card import-card">
  <div class="form-card-title">Photo of a logbook or roster page <span class="import-card-tag import-card-tag-quiet">Track B · Any airline</span></div>
- <div class="form-card-desc">Snap any logbook page — paper, or your monthly roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if you're not on a Navblue airline. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
+ <div class="form-card-desc">Snap any logbook page — paper, or your monthly roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if Cumulo doesn't parse your airline's roster format yet. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
  <div class="drop-zone" id="photoZone"
    onclick="document.getElementById('photoInput').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -4684,7 +4684,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <span class="col-option-label" data-i18n="profile.ifr.label">Count 1 IFR approach per flight on sync (705 line operations)</span>
  </label>
  <div class="help-text" data-i18n-html="profile.ifr.descHtml">
- Under 705 ops, virtually every flight terminates with an instrument approach. When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually. Existing flights and your manual entries are never overwritten.
+ Under 705 ops, virtually every flight terminates with an instrument approach. When this is on, iCal sync sets <code>Approaches = 1</code> on each new flight, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually. Existing flights and your manual entries are never overwritten.
  </div>
  </div>
  <div class="form-group col-span-2">
@@ -4886,24 +4886,25 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
 
- <!-- ─── Card: Navblue iCal auto-sync ────────────────────────── -->
+ <!-- ─── Card: iCal roster auto-sync ─────────────────────────── -->
  <div class="form-card" id="sync-navblue">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;">
- <span data-i18n="sync.navblue.title">Navblue iCal auto-sync</span>
+ <span>iCal roster auto-sync</span>
  <span id="navblueStatus" class="eyebrow"></span>
  </div>
- <div class="form-card-desc" data-i18n="sync.navblue.desc">Fetches your roster automatically — completed flights with real block hours. Re-syncs on app open and tab refocus.</div>
+ <div class="form-card-desc">Fetches your roster automatically — completed flights with real block hours. Re-syncs on app open and tab refocus.</div>
  <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="navblueUrl" data-i18n="sync.navblue.urlLabel">iCal URL</label>
+ <label for="navblueUrl">iCal URL <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— from your airline's crew-scheduling system</span></label>
  <input type="url" id="navblueUrl"
- placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
+ placeholder="webcal://... or https://..."
  style="font-family:var(--font-mono); font-size:11px;">
+ <div class="help-text">If you can't find your iCal feed URL, check your airline's crew-scheduling portal — most publish a "subscribe to calendar" link in the roster section.</div>
  </div>
  <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
- <button class="btn btn-primary" onclick="saveNavblueUrl()" data-i18n="sync.navblue.saveBtn">Save URL</button>
- <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn" data-i18n="sync.navblue.syncBtn">Sync now</button>
+ <button class="btn btn-primary" onclick="saveNavblueUrl()">Save URL</button>
+ <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn">Sync now</button>
  <button class="btn btn-ghost btn-sm" onclick="showNavblueDiagnostic()" title="View raw iCal data — useful if crew names aren't appearing">Diagnostic</button>
- <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
+ <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()">Clear</button>
  </div>
  <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
  </div>
@@ -4953,7 +4954,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
  <div class="settings-row-info">
  <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all flights</div>
- <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone.</strong></div>
+ <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and sync URL are kept. <strong>Cannot be undone.</strong></div>
  </div>
  <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear all</button>
  </div>
@@ -8053,9 +8054,13 @@ function loadProfile() {
   sv('p-license', p.license);
   sv('p-medical', p.medical);
   sv('p-ecg', p.ecg);
-  sv('p-base', p.base || 'YOW');
-  sv('p-fleet', p.fleet || 'E195-E2');
-  sv('p-operatorCodes', p.operatorCodes || 'PD');
+  // Profile fields default to EMPTY — never inject Porter / YOW / E195-E2 / PD
+  // defaults. Cumulo serves pilots at all Canadian operators (and private/VFR
+  // pilots with no operator at all), so pre-filling with one airline's
+  // particulars sends the wrong product positioning signal.
+  sv('p-base', p.base || '');
+  sv('p-fleet', p.fleet || '');
+  sv('p-operatorCodes', p.operatorCodes || '');
   // PPC (705 line ops). The wrapper is hidden by adaptFormToProfile()
   // when the pilot type doesn't use it (private / student / helicopter / instructor).
   // LOFT is intentionally NOT a separate field — operators define how LOFT
@@ -8162,7 +8167,7 @@ function saveProfile() {
     ecg: gv('p-ecg'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
-    operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
+    operatorCodes: (gv('p-operatorCodes') || '').toUpperCase().replace(/\s/g, ''),
     autoCountIFR: !!document.getElementById('p-autoCountIFR')?.checked,
     consentCaptainNames: !!document.getElementById('p-consentCaptainNames')?.checked,
     hideZeroColumns: !!document.getElementById('p-hideZeroColumns')?.checked,
@@ -8185,7 +8190,9 @@ function saveProfile() {
 function updateProfileDisplay(p) {
   const name = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`.trim();
   document.getElementById('profileNameDisp').textContent = name;
-  document.getElementById('profileRoleDisp').textContent = p.airline || 'Porter Airlines';
+  // Show the user's airline if set, otherwise their rank (no Porter default —
+   // a private pilot with no operator should see "Private Pilot", not Porter).
+  document.getElementById('profileRoleDisp').textContent = p.airline || p.rank || 'Pilot';
   document.querySelector('.pilot-name').textContent = name;
 }
 
@@ -9018,9 +9025,14 @@ async function syncNavblueNow(opts) {
     } catch (e) { /* non-fatal */ }
 
     const syncProfile = DB.loadProfile();
-    const isFO = (syncProfile.role || '').toLowerCase().includes('officer')
-              || (syncProfile.role || '').toLowerCase().includes('fo')
-              || true;  // default Martin = F/O
+    // Detect seat from profile.rank. F/O = SIC seat (block credits to
+    // meDayCop / meNightCop). Captain / PIC = PIC seat (credits to PIC
+    // columns). The check uses profile.rank since that's where the
+    // Settings dropdown writes the seat selection.
+    const rankLower = (syncProfile.rank || '').toLowerCase();
+    const isFO = !(rankLower === 'cpt.' || rankLower === 'cpt'
+                || rankLower === 'captain' || rankLower === 'pic'
+                || rankLower === 'commander');
     // Per-profile toggle: when set, fresh imported flights default to 1 IFR approach.
     // Falls back to 705-airline inference for profiles saved before the field existed.
     const autoCountIFR = (syncProfile.autoCountIFR !== undefined)
@@ -10551,7 +10563,9 @@ function _generatePDF() {
   const name = `${p.fname||''} ${p.lname||''}`.trim() || 'Pilot';
   const fullTitle = `${p.rank||'F/O'} ${name}`.trim();
   const license = p.license || '—';
-  const airline = p.airline || 'Porter Airlines';
+  // No "Porter Airlines" default — a TC PDF should show "—" for an unset
+  // operator (e.g. private/VFR pilot), not pretend the pilot is at Porter.
+  const airline = p.airline || '—';
   const base = p.base || 'YOW';
   const medical = p.medical || '—';
   const ecg = p.ecg || '—';
@@ -12877,7 +12891,7 @@ const STRINGS = {
  'settings.danger': 'Danger Zone',
  'settings.clear.btn': 'Clear All',
  'settings.clear.titleRed': 'Clear all data',
- 'settings.clear.descHtml': 'Permanently delete all flights. Your profile and Navblue URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong>',
+ 'settings.clear.descHtml': 'Permanently delete all flights. Your profile and sync URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong>',
  'preview.cancel.btn': 'Cancel',
  'preview.confirm.btn': 'Import',
  'preview.title': 'Review extracted flights',
@@ -12895,7 +12909,7 @@ const STRINGS = {
  'page.settings.title': 'Settings',
  'page.settings.sub': 'Sync · Display · Export · Data',
  'page.import.title': 'Import',
- 'page.import.sub': 'Photo scan or Navblue PDF',
+ 'page.import.sub': 'Photo scan, PDF roster, or CSV from another logbook',
  'page.recap.title': 'Year Recap',
  'page.recap.sub': 'Annual flight summary',
  'page.qa.title': 'Q&A',
@@ -12943,7 +12957,7 @@ const STRINGS = {
  'settings.clear.desc': 'Erase every flight and profile field. Cannot be undone.',
 
  // ─── Sync & Import cards
- 'sync.navblue.title': 'Navblue iCal Auto-Sync',
+ 'sync.navblue.title': 'iCal Roster Auto-Sync',
  'sync.navblue.desc': 'Fetches your roster automatically — completed flights with real block hours.',
  'sync.navblue.urlLabel': 'iCal URL',
  'sync.navblue.saveBtn': 'Save URL',
@@ -13163,11 +13177,11 @@ const STRINGS = {
  'lb.addFlight': ' Add Flight',
  'import.photoTitle': 'Photo / Scan',
  'import.photoDescHtml': 'Take a photo of your paper logbook page.<br>AI reads all fields automatically.',
- 'import.pdfTitle': 'Navblue Roster',
- 'import.pdfDescHtml': 'Upload your Navblue PDF roster.<br>AI extracts only real flights.',
- 'import.navblueCardTitle': ' Navblue Roster — Upload PDF',
- 'import.navblueInstrHtml': 'Upload your Navblue HrRosterReport PDF directly.<br>AI reads the format and imports only your real flights.<br><strong>Skips:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO',
- 'import.navblueClickToSelect':'Select Navblue PDF or drop here',
+ 'import.pdfTitle': 'Monthly Roster PDF',
+ 'import.pdfDescHtml': 'Upload your monthly PDF roster.<br>AI extracts only real flights.',
+ 'import.navblueCardTitle': 'Monthly Roster — Upload PDF',
+ 'import.navblueInstrHtml': 'Upload your monthly PDF roster directly.<br>AI reads the format and imports only your real flights.<br><strong>Skips non-flight codes:</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO',
+ 'import.navblueClickToSelect':'Select roster PDF or drop here',
  'import.navblueFileHint': 'Roster_XXXX_MMMYYYY.pdf',
  'import.photoDrop': 'Select photo or drop here',
  'import.photoFileHint': 'JPG · PNG · HEIC',
@@ -13210,7 +13224,7 @@ const STRINGS = {
  'onb.step1.title': 'Welcome to Cumulo',
  'onb.welcome.intro': 'A modern logbook built for Canadian pilots.',
  'onb.welcome.bullet1Html': '<strong>Built for Transport Canada.</strong> Columns, PDF format, night and cross-country math — done right out of the box.',
- 'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect Navblue iCal once. Cumulo pulls new flights every time you open the app.',
+ 'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect your airline\'s iCal feed once. Cumulo pulls new flights every time you open the app.',
  'onb.welcome.bullet3Html': '<strong>Bring forward your paper hours.</strong> Declare your career totals once, attest, then log new flights forward. No re-typing.',
  'onb.welcome.bullet4Html': '<strong>Stays in Canada.</strong> Encrypted, stored in Montréal, yours to export anytime.',
  'onb.welcome.footer': 'Setup takes about 2 minutes. Skip anything you don\'t need — you can finish it later in Settings.',
@@ -13239,8 +13253,8 @@ const STRINGS = {
  'onb.step4.optional': 'All fields are optional. Cumulo will show alerts if your medical is expiring soon.',
  'onb.step5.title': 'Connect your roster (optional)',
     'onb.step5.introHtml':   'Cumulo auto-syncs from <strong>Navblue N-Ops &amp; Crew</strong> when your airline publishes a <code>webcal://</code> roster feed (Porter does). Paste your URL below.<br><br>Pilots at other airlines: skip this step. After onboarding you can import via Photo OCR (any logbook page) or CSV from your previous logbook software (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog, or any other CSV via the column-mapping wizard). Native parsers for non-Navblue PDF rosters are not built yet.',
- 'onb.step5.url': 'Navblue iCal URL (optional)',
-    'onb.step5.howtoHtml':   '<strong>How to get the Navblue URL (Porter pilots):</strong><br>1. Log into Navblue N-Ops &amp; Crew → Roster → Subscribe to calendar<br>2. Copy the <code>webcal://</code> link<br>3. Paste it above (or skip and add it later in Settings)<br><br><strong>Pilots at other carriers:</strong> skip this step. After onboarding, use Import → Photo for AI-OCR of any logbook page, or Import → CSV if you\'re migrating from another logbook app.',
+ 'onb.step5.url': 'iCal URL (optional)',
+    'onb.step5.howtoHtml':   '<strong>How to find your iCal URL:</strong><br>1. Log into your airline\'s crew-scheduling portal → Roster<br>2. Look for "Subscribe to calendar" or an iCal / <code>webcal://</code> link<br>3. Copy it and paste above (or skip and add later in Settings)<br><br><strong>No iCal feed available?</strong> Skip this step. After onboarding, use Import → Photo for AI-OCR of any logbook or roster page, or Import → CSV if you\'re migrating from another logbook app.',
  'onb.step6.title': 'Choose your default view',
  'onb.step6.intro': 'Choose which columns appear by default in your logbook table and PDF export. You can change this anytime in Settings.',
  'onb.step6.compact': 'Compact (F/O airline 705)',
@@ -13288,11 +13302,11 @@ const STRINGS = {
  'toast.recalcSuccess': '{updated} flights had empty Night/XC fields filled in',
  'toast.urlSaved': 'iCal URL saved ✓',
  'toast.urlCleared': 'iCal URL cleared',
- 'toast.syncInProgress': 'Syncing Navblue…',
+ 'toast.syncInProgress': 'Syncing roster…',
  'toast.syncSuccess': 'Synced. {added} new, {merged} updated, {skipped} skipped.',
- 'toast.syncFailed': 'Sync failed — check your Navblue URL.',
+ 'toast.syncFailed': 'Sync failed — check your iCal URL.',
  'toast.rosterParsed': '{captains} captain names extracted from PDF ✓',
- 'toast.rosterFailed': 'Could not read PDF — make sure it\'s a Navblue HrRosterReport.',
+ 'toast.rosterFailed': 'Could not read PDF — currently Cumulo parses one specific roster format. If yours doesn\'t parse, try Photo OCR or CSV import.',
  'toast.darkModeOn': 'Dark mode on',
  'toast.darkModeOff': 'Light mode on',
  'toast.columnsReset': 'Column visibility reset to defaults',
@@ -13302,9 +13316,9 @@ const STRINGS = {
  'sig.statusLoaded': 'Signature saved.',
  'sig.statusJustSaved': 'Saved.',
  'toast.dateRequired': 'Date is required',
- 'toast.enterNavblueUrl': 'Enter a Navblue iCal URL first',
- 'toast.invalidNavblueDomain': 'URL must be a Navblue domain (navblue.cloud)',
- 'toast.saveUrlFirst': 'Save a Navblue URL first',
+ 'toast.enterNavblueUrl': 'Enter your iCal URL first',
+ 'toast.invalidNavblueDomain': 'URL not recognized — Cumulo currently accepts iCal feeds from one specific roster system. If yours is different, let us know which.',
+ 'toast.saveUrlFirst': 'Save your iCal URL first',
  'toast.alreadyUpToDate': 'Already up to date',
  'toast.photoParseFailed': 'Could not parse image — try a clearer photo',
  'toast.nothingSelected': 'Nothing selected to import',
@@ -13364,7 +13378,7 @@ const STRINGS = {
 
  // ─── Confirm dialogs
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
- 'confirm.removeNavblue': 'Remove the saved Navblue URL?',
+ 'confirm.removeNavblue': 'Remove the saved iCal URL?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
  'confirm.deleteFlight': 'Delete this flight? This cannot be undone (a snapshot is taken before delete — you can undo from Settings).',
  // 'confirm.recalc' — dead key. The bulk-recalc feature was removed for TC
@@ -13459,7 +13473,7 @@ const STRINGS = {
  'trust.delete.btn': 'Delete + Purge',
  'flight.atd': 'ATD (UTC) — actual departure',
  'flight.ata': 'ATA (UTC) — actual arrival',
-    'flight.atdHelpHtml':        'Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). Used for Night (RAC 101.01) and Cross-Country (CAR 401.34) calculations. When you sync from Navblue, Cumulo pre-fills these with the roster time — verify and adjust if the actual differs.',
+    'flight.atdHelpHtml':        'Format HHMM in UTC (e.g. <code>1235</code> = 12:35Z). Used for Night (RAC 101.01) and Cross-Country (CAR 401.34) calculations. When you sync from an iCal roster, Cumulo pre-fills these with the schedule time — verify and adjust if the actual differs.',
  'profile.type.helicopter': 'Helicopter',
  'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
  'profile.type.instructor': 'Instructor / CFI',
@@ -13494,7 +13508,7 @@ const STRINGS = {
  'settings.danger': 'Zone dangereuse',
  'settings.clear.btn': 'Tout effacer',
  'settings.clear.titleRed': 'Effacer toutes les données',
- 'settings.clear.descHtml': 'Supprime définitivement tous les vols. Profil et URL Navblue sont conservés. <strong>Action irréversible — téléchargez d’abord une sauvegarde JSON.</strong>',
+ 'settings.clear.descHtml': 'Supprime définitivement tous les vols. Profil et URL de synchro sont conservés. <strong>Action irréversible — téléchargez d’abord une sauvegarde JSON.</strong>',
  'preview.cancel.btn': 'Annuler',
  'preview.confirm.btn': 'Importer',
  'preview.title': 'Réviser les vols extraits',
@@ -13512,7 +13526,7 @@ const STRINGS = {
  'page.settings.title': 'Paramètres',
  'page.settings.sub': 'Synchronisation · Affichage · Exportation · Données',
  'page.import.title': 'Importer',
- 'page.import.sub': 'Scan photo ou PDF Navblue',
+ 'page.import.sub': 'Scan photo, PDF d’horaire, ou CSV d’un autre carnet',
  'page.recap.title': 'Sommaire annuel',
  'page.recap.sub': 'Synthèse des vols de l’année',
  'page.qa.title': 'Questions et réponses',
@@ -13560,7 +13574,7 @@ const STRINGS = {
  'settings.clear.desc': 'Supprime tous les vols et le profil. Action irréversible.',
 
  // ─── Cartes Sync & Import
- 'sync.navblue.title': 'Synchro auto iCal Navblue',
+ 'sync.navblue.title': 'Synchro auto iCal de l’horaire',
  'sync.navblue.desc': 'Récupère votre horaire automatiquement — vols terminés avec heures bloc réelles.',
  'sync.navblue.urlLabel': 'URL iCal',
  'sync.navblue.saveBtn': 'Enregistrer URL',
@@ -13780,11 +13794,11 @@ const STRINGS = {
  'lb.addFlight': ' Ajouter un vol',
  'import.photoTitle': 'Photo / Scan',
  'import.photoDescHtml': 'Prenez une photo de votre carnet papier.<br>L’IA lit tous les champs automatiquement.',
- 'import.pdfTitle': 'Horaire Navblue',
- 'import.pdfDescHtml': 'Téléversez votre PDF d’horaire Navblue.<br>L’IA n’extrait que les vols réels.',
- 'import.navblueCardTitle': ' Horaire Navblue — Téléverser PDF',
- 'import.navblueInstrHtml': 'Téléversez directement votre PDF HrRosterReport Navblue.<br>L’IA lit le format et importe seulement vos vrais vols.<br><strong>Ignore :</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO',
- 'import.navblueClickToSelect':'Choisir le PDF Navblue ou déposer',
+ 'import.pdfTitle': 'PDF d’horaire mensuel',
+ 'import.pdfDescHtml': 'Téléversez votre PDF d’horaire mensuel.<br>L’IA n’extrait que les vols réels.',
+ 'import.navblueCardTitle': 'Horaire mensuel — Téléverser PDF',
+ 'import.navblueInstrHtml': 'Téléversez directement votre PDF d’horaire mensuel.<br>L’IA lit le format et importe seulement vos vrais vols.<br><strong>Ignore les codes non-vol :</strong> VAC, GD, SDO, REAX, HTL, PER, LM, BO',
+ 'import.navblueClickToSelect':'Choisir le PDF d’horaire ou déposer',
  'import.navblueFileHint': 'Roster_XXXX_MMMYYYY.pdf',
  'import.photoDrop': 'Choisir une photo ou déposer',
  'import.photoFileHint': 'JPG · PNG · HEIC',
@@ -13827,7 +13841,7 @@ const STRINGS = {
  'onb.step1.title': 'Bienvenue dans Cumulo',
  'onb.welcome.intro': 'Un carnet de vol moderne, conçu pour les pilotes canadiens.',
  'onb.welcome.bullet1Html': '<strong>Conforme Transports Canada.</strong> Colonnes, format PDF, calcul nuit et voyage — prêt dès la sortie de la boîte.',
- 'onb.welcome.bullet2Html': '<strong>Synchronise votre horaire.</strong> Branchez iCal Navblue une fois. Cumulo récupère les nouveaux vols à chaque ouverture de l\'app.',
+ 'onb.welcome.bullet2Html': '<strong>Synchronise votre horaire.</strong> Branchez le flux iCal de votre compagnie une fois. Cumulo récupère les nouveaux vols à chaque ouverture de l\'app.',
  'onb.welcome.bullet3Html': '<strong>Reportez vos heures papier.</strong> Déclarez vos totaux carrière une fois, attestez, puis ajoutez les nouveaux vols. Aucune ressaisie.',
  'onb.welcome.bullet4Html': '<strong>Reste au Canada.</strong> Chiffré, stocké à Montréal, à vous d\'exporter quand vous voulez.',
  'onb.welcome.footer': 'La configuration prend environ 2 minutes. Passez ce qui ne s\'applique pas — vous pouvez compléter plus tard dans Paramètres.',
@@ -13856,8 +13870,8 @@ const STRINGS = {
  'onb.step4.optional': 'Tous les champs sont facultatifs. Cumulo affichera une alerte si votre médical approche de l’expiration.',
  'onb.step5.title': 'Connecter votre horaire (facultatif)',
     'onb.step5.introHtml':   'Cumulo synchronise automatiquement depuis <strong>Navblue N-Ops &amp; Crew</strong> quand votre compagnie publie un flux <code>webcal://</code> (Porter le fait). Collez votre URL ci-dessous.<br><br>Pilotes des autres compagnies : ignorez cette étape. Après l\'inscription, importez via Photo OCR (n\'importe quelle page de carnet) ou CSV depuis votre ancien logiciel (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog, ou tout autre CSV via l\'assistant de mappage). Les parseurs natifs pour les PDF non-Navblue ne sont pas encore construits.',
- 'onb.step5.url': 'URL iCal Navblue (facultatif)',
-    'onb.step5.howtoHtml':   '<strong>Comment obtenir l\'URL Navblue (pilotes Porter) :</strong><br>1. Connectez-vous à Navblue N-Ops &amp; Crew → Horaire → S\'abonner au calendrier<br>2. Copiez le lien <code>webcal://</code><br>3. Collez-le ci-dessus (ou ignorez et ajoutez-le plus tard dans Paramètres)<br><br><strong>Pilotes des autres compagnies :</strong> ignorez cette étape. Après l\'inscription, utilisez Import → Photo pour l\'OCR AI d\'une page de carnet, ou Import → CSV si vous migrez depuis un autre logiciel.',
+ 'onb.step5.url': 'URL iCal (facultatif)',
+    'onb.step5.howtoHtml':   '<strong>Comment trouver votre URL iCal :</strong><br>1. Connectez-vous au portail de planification de votre compagnie → Horaire<br>2. Cherchez « S\'abonner au calendrier » ou un lien iCal / <code>webcal://</code><br>3. Copiez-le et collez ci-dessus (ou ignorez et ajoutez plus tard dans Paramètres)<br><br><strong>Pas de flux iCal disponible ?</strong> Ignorez cette étape. Après l\'inscription, utilisez Import → Photo pour l\'OCR AI d\'une page de carnet ou d\'horaire, ou Import → CSV si vous migrez depuis un autre logiciel.',
  'onb.step6.title': 'Choisissez votre vue par défaut',
  'onb.step6.intro': 'Choisissez les colonnes à afficher par défaut dans le tableau et le PDF. Modifiable à tout moment dans Paramètres.',
  'onb.step6.compact': 'Compact (F/O 705)',
@@ -13905,11 +13919,11 @@ const STRINGS = {
  'toast.recalcSuccess': '{updated} vols avec Nuit/XC vides remplis',
  'toast.urlSaved': 'URL iCal enregistrée ✓',
  'toast.urlCleared': 'URL iCal effacée',
- 'toast.syncInProgress': 'Synchronisation Navblue…',
+ 'toast.syncInProgress': 'Synchronisation en cours…',
  'toast.syncSuccess': 'Synchronisé. {added} nouveaux, {merged} mis à jour, {skipped} ignorés.',
- 'toast.syncFailed': 'Synchronisation échouée — vérifiez l’URL Navblue.',
+ 'toast.syncFailed': 'Synchronisation échouée — vérifiez l’URL iCal.',
  'toast.rosterParsed': '{captains} noms de commandants extraits du PDF ✓',
- 'toast.rosterFailed': 'Impossible de lire le PDF — assurez-vous qu’il s’agit d’un HrRosterReport Navblue.',
+ 'toast.rosterFailed': 'Impossible de lire le PDF — Cumulo n’analyse qu’un format d’horaire spécifique pour l’instant. Si le vôtre ne fonctionne pas, essayez Photo OCR ou import CSV.',
  'toast.darkModeOn': 'Mode sombre activé',
  'toast.darkModeOff': 'Mode clair activé',
  'toast.columnsReset': 'Visibilité des colonnes réinitialisée',
@@ -13919,9 +13933,9 @@ const STRINGS = {
  'sig.statusLoaded': 'Signature enregistrée.',
  'sig.statusJustSaved': 'Enregistrée.',
  'toast.dateRequired': 'La date est requise',
- 'toast.enterNavblueUrl': 'Saisissez d’abord une URL iCal Navblue',
- 'toast.invalidNavblueDomain': 'L’URL doit être sur le domaine Navblue (navblue.cloud)',
- 'toast.saveUrlFirst': 'Enregistrez d’abord une URL Navblue',
+ 'toast.enterNavblueUrl': 'Saisissez d’abord votre URL iCal',
+ 'toast.invalidNavblueDomain': 'URL non reconnue — Cumulo accepte actuellement les flux iCal d’un système d’horaire spécifique. Si le vôtre est différent, dites-nous lequel.',
+ 'toast.saveUrlFirst': 'Enregistrez d’abord votre URL iCal',
  'toast.alreadyUpToDate': 'Déjà à jour',
  'toast.photoParseFailed': 'Image non lisible — essayez une photo plus nette',
  'toast.nothingSelected': 'Rien à importer',
@@ -13981,7 +13995,7 @@ const STRINGS = {
 
  // ─── Dialogues de confirmation
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
- 'confirm.removeNavblue': 'Supprimer l’URL Navblue enregistrée ?',
+ 'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlight': 'Supprimer ce vol ? Action irréversible (un instantané est pris avant la suppression — vous pouvez annuler depuis Paramètres).',
  // 'confirm.recalc' — clé morte. La fonctionnalité de recalcul en masse a
@@ -14076,7 +14090,7 @@ const STRINGS = {
  'trust.delete.btn': 'Supprimer + purger',
  'flight.atd': 'ATD (UTC) — départ réel',
  'flight.ata': 'ATA (UTC) — arrivée réelle',
-    'flight.atdHelpHtml':        'Format HHMM en UTC (ex. <code>1235</code> = 12h35Z). Utilisé pour les calculs Nuit (RAC 101.01) et Voyage (RAC 401.34). Lors de la synchronisation Navblue, Cumulo pré-remplit avec l\'heure de l\'horaire — vérifiez et ajustez si l\'heure réelle diffère.',
+    'flight.atdHelpHtml':        'Format HHMM en UTC (ex. <code>1235</code> = 12h35Z). Utilisé pour les calculs Nuit (RAC 101.01) et Voyage (RAC 401.34). Lors de la synchronisation iCal, Cumulo pré-remplit avec l\'heure de l\'horaire — vérifiez et ajustez si l\'heure réelle diffère.',
  'profile.type.helicopter': 'Hélicoptère',
  'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
  'profile.type.instructor': 'Instructeur / CFI',
@@ -16303,7 +16317,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-no-fab-pairings';
+const BUILD_VERSION = 'v3a-2026-05-26-all-pilots';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

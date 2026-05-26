@@ -825,9 +825,14 @@ async function syncNavblueNow(opts) {
     } catch (e) { /* non-fatal */ }
 
     const syncProfile = DB.loadProfile();
-    const isFO = (syncProfile.role || '').toLowerCase().includes('officer')
-              || (syncProfile.role || '').toLowerCase().includes('fo')
-              || true;  // default Martin = F/O
+    // Detect seat from profile.rank. F/O = SIC seat (block credits to
+    // meDayCop / meNightCop). Captain / PIC = PIC seat (credits to PIC
+    // columns). The check uses profile.rank since that's where the
+    // Settings dropdown writes the seat selection.
+    const rankLower = (syncProfile.rank || '').toLowerCase();
+    const isFO = !(rankLower === 'cpt.' || rankLower === 'cpt'
+                || rankLower === 'captain' || rankLower === 'pic'
+                || rankLower === 'commander');
     // Per-profile toggle: when set, fresh imported flights default to 1 IFR approach.
     // Falls back to 705-airline inference for profiles saved before the field existed.
     const autoCountIFR = (syncProfile.autoCountIFR !== undefined)

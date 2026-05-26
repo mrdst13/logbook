@@ -180,9 +180,13 @@ function loadProfile() {
   sv('p-license', p.license);
   sv('p-medical', p.medical);
   sv('p-ecg', p.ecg);
-  sv('p-base', p.base || 'YOW');
-  sv('p-fleet', p.fleet || 'E195-E2');
-  sv('p-operatorCodes', p.operatorCodes || 'PD');
+  // Profile fields default to EMPTY — never inject Porter / YOW / E195-E2 / PD
+  // defaults. Cumulo serves pilots at all Canadian operators (and private/VFR
+  // pilots with no operator at all), so pre-filling with one airline's
+  // particulars sends the wrong product positioning signal.
+  sv('p-base', p.base || '');
+  sv('p-fleet', p.fleet || '');
+  sv('p-operatorCodes', p.operatorCodes || '');
   // PPC (705 line ops). The wrapper is hidden by adaptFormToProfile()
   // when the pilot type doesn't use it (private / student / helicopter / instructor).
   // LOFT is intentionally NOT a separate field — operators define how LOFT
@@ -289,7 +293,7 @@ function saveProfile() {
     ecg: gv('p-ecg'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
-    operatorCodes: (gv('p-operatorCodes') || 'PD').toUpperCase().replace(/\s/g, ''),
+    operatorCodes: (gv('p-operatorCodes') || '').toUpperCase().replace(/\s/g, ''),
     autoCountIFR: !!document.getElementById('p-autoCountIFR')?.checked,
     consentCaptainNames: !!document.getElementById('p-consentCaptainNames')?.checked,
     hideZeroColumns: !!document.getElementById('p-hideZeroColumns')?.checked,
@@ -312,7 +316,9 @@ function saveProfile() {
 function updateProfileDisplay(p) {
   const name = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`.trim();
   document.getElementById('profileNameDisp').textContent = name;
-  document.getElementById('profileRoleDisp').textContent = p.airline || 'Porter Airlines';
+  // Show the user's airline if set, otherwise their rank (no Porter default —
+   // a private pilot with no operator should see "Private Pilot", not Porter).
+  document.getElementById('profileRoleDisp').textContent = p.airline || p.rank || 'Pilot';
   document.querySelector('.pilot-name').textContent = name;
 }
 
