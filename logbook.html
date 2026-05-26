@@ -497,7 +497,7 @@ nav {
 }
 nav::-webkit-scrollbar { width: 0; display: none; }
 
-.nav-group { margin-bottom: 2px; display: flex; flex-direction: column; gap: 2px; }
+.nav-group { margin-bottom: 2px; display: flex; flex-direction: column; gap: 1px; }
 
 .nav-label {
   font-family: var(--font-mono);
@@ -505,7 +505,9 @@ nav::-webkit-scrollbar { width: 0; display: none; }
   letter-spacing: 0.08em;
   color: var(--text-muted);
   text-transform: uppercase;
-  padding: var(--s-3) var(--s-3) var(--s-1);
+  /* Tightened: top 8px (was 12px), bottom 2px (was 4px). Linear-style
+     tight grouping — the group-label hugs its items, doesn't float. */
+  padding: 8px var(--s-3) 2px;
   font-weight: 500;
 }
 
@@ -523,7 +525,10 @@ nav::-webkit-scrollbar { width: 0; display: none; }
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: var(--s-2) var(--s-3);
+  /* Tightened: 6px vertical (was 8px). Keeps 12px horizontal for breathing
+     room next to the active-state accent bar. Still ≥36px row height on
+     mobile after font-size/line-height — within iOS HIG. */
+  padding: 6px var(--s-3);
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 13.5px;
@@ -556,7 +561,10 @@ nav::-webkit-scrollbar { width: 0; display: none; }
 .nav-divider {
   height: 1px;
   background: var(--border);
-  margin: var(--s-3) var(--s-2);
+  /* Tightened: 6px vertical margin (was 12px). Four dividers between
+     5 sections were producing 96px of dead vertical space — too airy
+     for a pro app. Now ~48px total, still clearly separating groups. */
+  margin: 6px var(--s-2);
   border: none;
 }
 
