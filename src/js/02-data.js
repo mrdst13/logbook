@@ -685,8 +685,15 @@ function _dashRenderLegs() {
     const dateStr = d
       ? d.toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short' }).toUpperCase().replace('.', '')
       : '—';
+    // Each leg is clickable — opens the same flight-detail modal used by
+    // the Logbook table. Falls back to no-op if id is missing (shouldn't
+    // happen in practice, but defensive in case of malformed data).
+    const fid = esc(f.id || '');
+    const clickAttr = fid
+      ? ` onclick="openFlightDetail('${fid}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openFlightDetail('${fid}');}"`
+      : '';
     return `
-    <div class="dash-leg">
+    <div class="dash-leg dash-clickable"${clickAttr}>
       <span class="dash-leg-date">${esc(dateStr)}</span>
       <span class="dash-leg-route">${esc(f.route || '—')}</span>
       <span class="dash-leg-reg">${esc(f.reg || '—')}</span>
@@ -762,41 +769,57 @@ function _dashRenderNextColumn() {
   const ldgCount = _dashLandingsIn6mo();
 
   // Priority order: expired/imminent first, then soft warnings, then OK pill.
+  // Each STATUS card routes to its matching drill-down (medical / ifr /
+  // recency) so the pilot can see the source data behind the warning.
   if (medDays !== null && medDays <= 0) {
     cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
       title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
-      sub: fr ? 'Doit être renouvelé' : 'Must be renewed', chip: 'MED' });
+      sub: fr ? 'Doit être renouvelé' : 'Must be renewed', chip: 'MED',
+      onclick: "openDashDrill('medical')" });
   } else if (medDays !== null && medDays <= 30) {
     cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
       title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
-      sub: fr ? `Dans ${medDays} jours` : `In ${medDays} days`, chip: 'MED' });
+      sub: fr ? `Dans ${medDays} jours` : `In ${medDays} days`, chip: 'MED',
+      onclick: "openDashDrill('medical')" });
   } else if (ifrCount < 6) {
     const need = 6 - ifrCount;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
       title: fr ? `Validité IFR · ${ifrCount}/6 appr.` : `IFR currency · ${ifrCount}/6 appr.`,
       sub: fr ? `${need} approche${need !== 1 ? 's' : ''} restante${need !== 1 ? 's' : ''} · CAR 401.05` : `${need} approach${need !== 1 ? 'es' : ''} to go · CAR 401.05`,
-      chip: 'IFR' });
+      chip: 'IFR',
+      onclick: "openDashDrill('ifr')" });
   } else if (ldgCount < 5) {
     const need = 5 - ldgCount;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
       title: fr ? `Validité passagers · ${ldgCount}/5 att.` : `Passenger recency · ${ldgCount}/5 ldg`,
       sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · CAR 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
-      chip: 'REC' });
+      chip: 'REC',
+      onclick: "openDashDrill('recency')" });
   } else if (medDays !== null && medDays <= 60) {
     cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
       title: fr ? 'Médical · 60 jours' : 'Medical · 60 days',
-      sub: fr ? `Renouvellement dans ${medDays} jours` : `Renewal in ${medDays} days`, chip: 'MED' });
+      sub: fr ? `Renouvellement dans ${medDays} jours` : `Renewal in ${medDays} days`, chip: 'MED',
+      onclick: "openDashDrill('medical')" });
   } else if (ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
     cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
       title: fr ? 'Validité IFR · 30 jours' : 'IFR currency · 30 days',
-      sub: fr ? `Approche-limite expire dans ${ifrDays} jours` : `Window expires in ${ifrDays} days`, chip: 'IFR' });
+      sub: fr ? `Approche-limite expire dans ${ifrDays} jours` : `Window expires in ${ifrDays} days`, chip: 'IFR',
+      onclick: "openDashDrill('ifr')" });
   } else {
+    // All-current OK pill → open the drill-down for the closest-to-expiring
+    // validity (whichever is most useful to inspect proactively).
+    let target = 'medical';
+    let minDays = medDays !== null ? medDays : Infinity;
+    if (ifrDays !== null && ifrDays >= 0 && ifrDays < minDays) { target = 'ifr'; minDays = ifrDays; }
     cards.push({ tone: 'quiet', kicker: fr ? 'STATUT' : 'STATUS',
       title: fr ? 'Toutes validités à jour' : 'All validities current',
-      sub: fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified', chip: 'OK' });
+      sub: fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified', chip: 'OK',
+      onclick: `openDashDrill('${target}')` });
   }
 
   // ─── Card 3: MILESTONE (always) ────────────────────────────
+  // Routes to the hero career-total drill — same data source, but framed
+  // as "where this number is going next" via the milestone target.
   const sRaw = calcStats();
   const totalHrs = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw).total : sRaw.total;
   const milestones = [100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000];
@@ -807,7 +830,8 @@ function _dashRenderNextColumn() {
     kicker: fr ? 'JALON' : 'MILESTONE',
     title: `${next} hrs ${fr ? 'total' : 'total'}`,
     sub: fr ? `Plus que ${remain} hrs` : `${remain} hrs to go`,
-    chip: '' + next
+    chip: '' + next,
+    onclick: "openDashDrill('hero')"
   });
 
   // Always display — cards.length is guaranteed ≥3 by the priority chain.
