@@ -1,4 +1,138 @@
 /* ═══════════════════════════════════════
+   BROUGHT-FORWARD EDITOR MODAL
+   Mirrors the TC paper logbook (TP 13076) reading order: Total hero →
+   Crew position → Conditions → Instrument → Landings → (optional)
+   Aircraft class. Each section is a <details> the pilot can collapse
+   when it doesn't apply.
+═══════════════════════════════════════ */
+.bf-modal .import-modal-body { padding: var(--s-5) var(--s-6); }
+
+.bf-group {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  margin-bottom: var(--s-3);
+  overflow: hidden;
+}
+.bf-group[open] { box-shadow: var(--shadow-xs); }
+.bf-group-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid transparent;
+  transition: background var(--motion-fast) var(--ease-quiet);
+}
+.bf-group[open] .bf-group-summary {
+  background: var(--bg-surface);
+  border-bottom-color: var(--border);
+}
+.bf-group-summary::-webkit-details-marker { display: none; }
+.bf-group-summary:hover { background: var(--bg-muted); }
+.bf-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.bf-group-caret {
+  color: var(--text-muted);
+  transition: transform var(--motion-fast) var(--ease-quiet);
+}
+.bf-group[open] .bf-group-caret { transform: rotate(180deg); }
+
+.bf-group-desc {
+  padding: 10px 16px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  background: var(--bg-surface);
+}
+
+.bf-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-3) 16px var(--s-4);
+  background: var(--bg-surface);
+}
+.bf-fields-hero { grid-template-columns: 1fr; }
+
+.bf-field label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+.bf-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+  transition: border-color var(--motion-fast) var(--ease-quiet),
+              box-shadow var(--motion-fast) var(--ease-quiet);
+}
+.bf-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Hero field — headline number, the first thing the pilot sees */
+.bf-hero-field label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--s-2);
+}
+.bf-hero-input {
+  height: 64px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  padding: 0 20px;
+}
+
+/* Attestation card — the legally-binding part */
+.bf-attest {
+  margin-top: var(--s-5);
+  padding: var(--s-5);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+}
+.bf-attest-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: var(--s-2);
+  color: var(--text);
+}
+.bf-attest-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+  .bf-modal .import-modal-body { padding: var(--s-4); }
+  .bf-fields-grid { grid-template-columns: 1fr 1fr; padding: var(--s-3) 12px; }
+  .bf-hero-input { font-size: 22px; height: 56px; }
+}
+
+/* ═══════════════════════════════════════
    IMPORT
 ═══════════════════════════════════════ */
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
