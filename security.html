@@ -1,260 +1,348 @@
 <!doctype html>
 <html lang="en">
 <head>
- <meta charset="utf-8">
- <title>Security &amp; Trust — Cumulo Flight Deck</title>
- <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
- <meta name="description" content="How Cumulo Flight Deck protects your pilot logbook data. Canadian data residency, end-to-end encryption, deletion policy, and what we will never do.">
- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
- <link rel="preconnect" href="https://fonts.googleapis.com">
- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
- <style>
- :root {
- /* Light theme — matches index.html. Same brand accent works on both. */
- --bg: #FFFFFF;
- --bg-surface: #F7F8FA;
- --bg-elev: #F1F3F7;
- --text: #0A0E1A;
- --text-mute: #5E6678;
- --accent: #3884FF;
- --canada-red: #DC2A2A;
- --green: #10A37F;
- --red: #DC2A2A;
- --border: rgba(15, 23, 42, 0.10);
- --r: 14px;
- }
- * { box-sizing: border-box; }
- html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.65; }
- a { color: var(--accent); text-decoration: none; }
- a:hover { text-decoration: underline; }
+<meta charset="utf-8">
+<title>Security — Cumulo Flight Deck</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How Cumulo protects your pilot logbook. Plain English, professional standards, no marketing.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="assets/cumulo-mark-cloud.svg">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.svg">
+<style>
+:root {
+  --bg: #FFFFFF;
+  --bg-surface: #F7F8FA;
+  --bg-elev: #F1F3F7;
+  --text: #0A0E1A;
+  --text-mute: #5E6678;
+  --accent: #3884FF;
+  --accent-soft: #E6EDFB;
+  --green: #10A37F;
+  --green-soft: #DDF4EC;
+  --border: rgba(15, 23, 42, 0.10);
+  --r: 12px;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
- nav.top { display:flex; align-items:center; justify-content:space-between; padding: 18px 28px; max-width: 1240px; margin: 0 auto; }
- .logo { display:flex; align-items:center; gap:10px; font-weight: 700; font-size: 17px; }
- .logo-mark { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display:grid; place-items:center; color: white; font-size: 18px; }
- .nav-links a { color: var(--text-mute); font-weight: 500; font-size: 14px; margin-left: 22px; }
- .nav-links a:hover { color: var(--text); text-decoration: none; }
+nav.top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; max-width: 1240px; margin: 0 auto;
+}
+.logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 17px; color: inherit; }
+.logo-mark {
+  display: inline-flex; width: 32px; height: 24px;
+  align-items: center; justify-content: center; color: var(--accent);
+}
+.logo-mark svg { width: 100%; height: 100%; display: block; }
+.nav-links a { color: var(--text-mute); font-weight: 500; font-size: 14px; margin-left: 22px; }
+.nav-links a:hover { color: var(--text); text-decoration: none; }
 
- main { max-width: 820px; margin: 40px auto; padding: 0 28px; }
- h1 { font-size: clamp(32px, 5vw, 48px); margin: 0 0 12px; letter-spacing: -0.02em; font-weight: 800; }
- .subtitle { color: var(--text-mute); font-size: 17px; margin-bottom: 40px; }
- h2 { font-size: 24px; margin: 48px 0 14px; letter-spacing: -0.01em; }
- h3 { font-size: 17px; margin: 28px 0 10px; color: var(--accent); }
- p { font-size: 15px; }
- ul { padding-left: 20px; }
- li { margin: 6px 0; font-size: 15px; }
- code { background: var(--bg-elev); padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+main {
+  max-width: 760px;
+  margin: 56px auto 80px;
+  padding: 0 28px;
+}
 
- .promise-card {
- background: var(--bg-surface);
- border-left: 4px solid var(--accent);
- border-radius: 0 var(--r) var(--r) 0;
- padding: 18px 22px;
- margin: 24px 0;
- }
- .promise-card-title { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
- .promise-card-body { color: var(--text-mute); font-size: 14px; }
+h1 {
+  font-size: clamp(36px, 5vw, 52px);
+  margin: 0 0 16px;
+  letter-spacing: -0.025em;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.subtitle {
+  color: var(--text-mute);
+  font-size: 18px;
+  margin-bottom: 56px;
+  line-height: 1.55;
+  max-width: 580px;
+}
+h2 {
+  font-size: 22px;
+  margin: 56px 0 16px;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+}
+p { font-size: 15.5px; color: var(--text); }
+p.mute { color: var(--text-mute); }
+strong { font-weight: 600; }
 
- .yesno {
- display: grid;
- grid-template-columns: 1fr;
- gap: 16px;
- margin: 24px 0;
- }
- @media (min-width: 700px) { .yesno { grid-template-columns: 1fr 1fr; } }
- .yes-card, .no-card {
- background: var(--bg-surface);
- border: 1px solid var(--border);
- border-radius: var(--r);
- padding: 22px;
- }
- .yes-card { border-color: rgba(41,196,111,0.3); }
- .no-card { border-color: rgba(255,59,59,0.3); }
- .yes-card .head { color: var(--green); font-weight: 700; margin-bottom: 12px; }
- .no-card .head { color: var(--red); font-weight: 700; margin-bottom: 12px; }
+.promises {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 36px 0 0;
+}
+@media (min-width: 640px) {
+  .promises { grid-template-columns: 1fr 1fr; }
+}
+.promise {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 22px 22px 20px;
+}
+.promise-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.promise-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.promise-body {
+  font-size: 13.5px;
+  color: var(--text-mute);
+  line-height: 1.55;
+}
 
- table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
- th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
- th { font-weight: 700; color: var(--text-mute); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.commits {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 28px 0;
+}
+@media (min-width: 640px) {
+  .commits { grid-template-columns: 1fr 1fr; gap: 18px; }
+}
+.commit-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 22px;
+}
+.commit-card h3 {
+  font-size: 14px;
+  margin: 0 0 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.commit-card.we-do h3 { color: var(--green); }
+.commit-card.we-dont h3 { color: var(--text); }
+.commit-card ul { margin: 0; padding-left: 18px; }
+.commit-card li { font-size: 14px; margin: 8px 0; line-height: 1.55; }
 
- .updated { color: var(--text-mute); font-size: 13px; font-style: italic; }
+details.tech {
+  margin: 64px 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+details.tech summary {
+  padding: 18px 22px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+details.tech summary::-webkit-details-marker { display: none; }
+details.tech summary::after {
+  content: "+";
+  color: var(--text-mute);
+  font-size: 18px;
+  font-weight: 400;
+}
+details.tech[open] summary::after { content: "−"; }
+details.tech .tech-body {
+  padding: 0 22px 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+details.tech .tech-body h4 {
+  font-size: 13px;
+  margin: 18px 0 6px;
+  color: var(--accent);
+  font-weight: 600;
+}
+details.tech .tech-body p,
+details.tech .tech-body li {
+  font-size: 13.5px;
+  color: var(--text-mute);
+  line-height: 1.6;
+}
+details.tech .tech-body code {
+  background: var(--bg-elev);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
 
- footer { border-top: 1px solid var(--border); margin-top: 80px; padding: 32px 28px; max-width: 1240px; margin-left: auto; margin-right: auto; }
- .footer-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-mute); }
- .footer-links a { color: var(--text-mute); margin-right: 18px; }
- </style>
+.contact-card {
+  margin: 48px 0 0;
+  padding: 24px;
+  background: var(--accent-soft);
+  border-radius: var(--r);
+  border: 1px solid var(--accent);
+}
+.contact-card h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+.contact-card p {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text);
+}
+
+footer {
+  border-top: 1px solid var(--border);
+  margin-top: 80px;
+  padding: 28px;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.footer-row {
+  display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--text-mute);
+}
+.footer-links a { color: var(--text-mute); margin-right: 18px; }
+
+.updated { color: var(--text-mute); font-size: 13px; margin-top: 16px; }
+</style>
 </head>
 <body>
 
 <nav class="top">
- <div class="logo">
- <div class="logo-mark">✈</div>
- <div>Cumulo Flight Deck</div>
- </div>
- <div class="nav-links">
- <a href="index.html">Home</a>
- <a href="security.html">Security</a>
- <a href="privacy-policy-v2-draft.html">Privacy</a>
- <a href="logbook.html">Open app →</a>
- </div>
+<a href="index.html" class="logo">
+  <span class="logo-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24" fill="currentColor"><path d="M7.2 15.2C7.2 11.1 10.5 7.8 14.6 7.8C17.5 7.8 20 9.5 21.2 12H22.2C24.8 12 27 14.2 27 16.8V17.6C27 18.2 26.5 18.7 25.9 18.7H6.1C5.5 18.7 5 18.2 5 17.6V16.8C5 15.9 5.7 15.2 6.6 15.2H7.2Z"/><rect x="4" y="19.5" width="24" height="2.5" rx="1.25"/></svg></span>
+  <span>Cumulo</span>
+</a>
+<div class="nav-links">
+  <a href="index.html">Home</a>
+  <a href="privacy.html">Privacy</a>
+  <a href="logbook.html">Open app →</a>
+</div>
 </nav>
 
 <main>
 
-<h1>Security &amp; Trust</h1>
-<p class="subtitle">How Cumulo Flight Deck protects your pilot logbook data. Honest, in plain English. No marketing.</p>
-<p class="updated">Last updated: 2026-05-14</p>
+<h1>Your logbook is yours.</h1>
+<p class="subtitle">Four commitments that govern how Cumulo handles the most sensitive professional record you keep.</p>
 
-<div class="promise-card">
- <div class="promise-card-title"> Plain-language promise</div>
- <div class="promise-card-body">
- Your pilot logbook is some of the most sensitive professional data you have. It records your career, your medical, your hours, who you flew with. Cumulo treats it that way. This page explains exactly how — no marketing, no fluff. If you find something here that doesn't match what we actually do, email <a href="mailto:flycumulo@gmail.com">flycumulo@gmail.com</a> and I'll fix it.
- </div>
+<div class="promises">
+  <div class="promise">
+    <div class="promise-eyebrow">Promise 1</div>
+    <div class="promise-title">Stored in Canada</div>
+    <div class="promise-body">Your cloud copy lives in Montréal, under Canadian law. Not the United States. Not Europe. Not subject to the Patriot Act or CLOUD Act.</div>
+  </div>
+  <div class="promise">
+    <div class="promise-eyebrow">Promise 2</div>
+    <div class="promise-title">Encrypted, end to end</div>
+    <div class="promise-body">Your data is encrypted while it travels and while it sits on disk. Only you can decrypt it with your account session.</div>
+  </div>
+  <div class="promise">
+    <div class="promise-eyebrow">Promise 3</div>
+    <div class="promise-title">You own every byte</div>
+    <div class="promise-body">Export to JSON or PDF anytime, one click. Delete everything from your phone with one tap. No exit lockout. No download fees.</div>
+  </div>
+  <div class="promise">
+    <div class="promise-eyebrow">Promise 4</div>
+    <div class="promise-title">Never sold, never trained on</div>
+    <div class="promise-body">Your flights will not be sold to airlines, insurers, brokers, or advertisers. They will not be used to train AI. Written commitment, not a preference.</div>
+  </div>
 </div>
 
 <h2>Where your data lives</h2>
+<p>Cumulo works <strong>local-first</strong>. Every flight you log is saved on your device immediately. Sync to the cloud is optional — when you enable it, a copy goes to a Canadian server in Montréal, encrypted in transit and at rest. You can leave at any time and take your data with you.</p>
 
-<p>Cumulo Flight Deck stores your flight data in two places:</p>
-<ul>
- <li><strong>On your device</strong> (browser localStorage, or future native app storage). This is the primary copy. The app works fully offline — you can add a flight in the cockpit between duties with no signal, and it persists locally.</li>
-  <li><strong>In the cloud, on Supabase</strong>, in the <code>ca-central-1</code> region — physically located in <strong>Montréal, Québec</strong>. This is the sync copy that lets you see your logbook on your phone, iPad, and laptop.</li>
-</ul>
+<h2>What we do, and what we don't</h2>
 
-<p>Both copies are <strong>yours</strong>. You can export everything to JSON or PDF at any time from Settings, with one click. You can delete everything from Settings → Privacy &amp; Trust → "Delete + Purge", which wipes both copies within 30 days.</p>
-
-<h3>Why Montréal matters</h3>
-<p>Hosting in Canada means your flight data is governed by Canadian law (<a href="https://laws-lois.justice.gc.ca/eng/acts/p-8.6/" target="_blank" rel="noopener">PIPEDA</a> federally + <a href="https://www.cai.gouv.qc.ca/loi-25-modernisation-protection-renseignements-personnels/" target="_blank" rel="noopener">Loi 25</a> in Québec) — <strong>not</strong> the US Patriot Act, FISA 702, or the CLOUD Act. For a Canadian pilot who flies into the US, this matters: your logbook records (including the names of crew members you flew with) cannot be compelled by US authorities through a US-based hosting provider.</p>
-
-<p>Cumulo does <strong>not</strong> use AWS US-East, Azure US, or any US-based cloud for your primary data. Some auxiliary services (like AI OCR via Anthropic API) are US-hosted, but those are opt-in features and their use is explicitly disclosed in the Privacy Policy.</p>
-
-<h2>Encryption</h2>
-
-<table>
- <thead><tr><th>Layer</th><th>What's used</th></tr></thead>
- <tbody>
- <tr><td><strong>In transit</strong> (your browser ↔ Cloudflare ↔ Supabase)</td><td>TLS 1.3 with modern cipher suites. HTTPS-only, HSTS enforced.</td></tr>
- <tr><td><strong>At rest</strong> (Supabase storage)</td><td>AES-256 encryption, managed keys, per Supabase's <a href="https://supabase.com/docs/guides/platform/security" target="_blank" rel="noopener">platform security model</a>.</td></tr>
- <tr><td><strong>On your device</strong> (localStorage)</td><td>Your device's standard OS-level encryption (FileVault, BitLocker, iOS Data Protection). Cumulo doesn't add an app-level layer here — your device's encryption is the right boundary.</td></tr>
- <tr><td><strong>Authentication</strong></td><td>Email + password + TOTP 2FA (Google Authenticator, Authy, 1Password). No SMS — SMS is vulnerable to SIM swap, NIST SP 800-63B deprecated it for good reason.</td></tr>
- </tbody>
-</table>
-
-<h2>Who can access your data</h2>
-
-<p><strong>Just you.</strong> Cumulo uses Supabase's <a href="https://supabase.com/docs/guides/database/postgres/row-level-security" target="_blank" rel="noopener">Row Level Security (RLS)</a> policies, which means each row in the database is tagged with your <code>user_id</code> and the database refuses queries that don't match. Even if someone breached Supabase's infrastructure, they could not read your data without your authenticated session.</p>
-
-<p>Operationally:</p>
-<ul>
- <li><strong>The Cumulo founder</strong> has access to the Supabase admin dashboard, but RLS policies are enforced the same way for admin queries. There is no "magic admin bypass" — admin access is logged.</li>
- <li><strong>Supabase staff</strong> can technically access the underlying infrastructure (encrypted storage, encrypted backups). They have a <a href="https://supabase.com/legal/dpa" target="_blank" rel="noopener">Data Processing Agreement</a> with Cumulo Inc. and operate under SOC 2 Type II controls.</li>
- <li><strong>Cloudflare</strong> proxies your HTTPS traffic (no decryption at the edge — Cumulo uses Full Strict TLS). They see metadata (IP, URL paths) for the duration of each request, then drop it.</li>
- <li><strong>Nobody else.</strong> Cumulo has no employees, no contractors, no support outsourcing. Just one Canadian pilot.</li>
-</ul>
-
-<h2>What we will and will NOT do with your data</h2>
-
-<div class="yesno">
- <div class="yes-card">
- <div class="head"> What we DO</div>
- <ul>
- <li>Store your flights, profile, and import audit log to make the app work.</li>
- <li>Calculate aggregated, anonymous usage analytics (signup count, retention, churn) to improve the product.</li>
- <li>Send transactional emails (password reset, billing, support replies).</li>
- <li>Process AI OCR requests through Anthropic API <strong>only when you click "Import paper logbook from photo"</strong> — the image leaves your device only at that moment, and is not stored by Anthropic per their <a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noopener">commercial terms</a>.</li>
- <li>Anonymize 3rd-party crew names (your captain or F/O on a given flight) when data leaves your device for cloud sync or shareable export — unless you've explicitly opted in to "I have crew consent" in your Profile.</li>
- </ul>
- </div>
- <div class="no-card">
- <div class="head"> What we DO NOT do</div>
- <ul>
- <li>We will <strong>never</strong> sell your data. Not to airlines, not to insurance, not to advertisers, not to data brokers. Not even anonymized. This is a written commitment.</li>
- <li>We will <strong>never</strong> serve advertising in Cumulo.</li>
- <li>We will <strong>never</strong> use your flight data to train AI models.</li>
- <li>We will <strong>never</strong> share your data with a third party, except: (a) Supabase + Cloudflare (necessary infra processors, contractually bound), (b) Stripe (when you pay — only billing info, not flight data), (c) law enforcement <strong>if</strong> we receive a valid Canadian warrant (which we will challenge, document publicly via a transparency report, and notify you of unless legally gagged).</li>
- <li>We will <strong>never</strong> read your logbook entries for any reason other than fixing a bug you reported and only with your explicit per-incident consent.</li>
- </ul>
- </div>
+<div class="commits">
+  <div class="commit-card we-do">
+    <h3>What we do</h3>
+    <ul>
+      <li>Keep your flights, profile, and a sync audit trail.</li>
+      <li>Send transactional emails only (password resets, billing receipts).</li>
+      <li>Process AI photo imports through Anthropic, only when you trigger it. The image leaves your device only at that moment and is not retained.</li>
+      <li>Anonymize crew names by default when data leaves your device, unless you've opted in explicitly.</li>
+    </ul>
+  </div>
+  <div class="commit-card we-dont">
+    <h3>What we don't do</h3>
+    <ul>
+      <li>Sell your data. To anyone. Ever.</li>
+      <li>Show advertising in the app.</li>
+      <li>Train AI models on your flights or profile.</li>
+      <li>Share data with third parties, except the infrastructure providers we contractually need (and a Canadian-warrant exception we'd disclose to you).</li>
+      <li>Read your logbook entries unless you ask us to help debug something, and only with your consent.</li>
+    </ul>
+  </div>
 </div>
 
-<h2>Backup &amp; recovery</h2>
+<h2>Your controls</h2>
+<p>From inside the app, you can export a complete JSON copy of everything you've logged, restore from any backup file, and permanently delete your data — local and cloud — in a single action. There is no "contact support to close your account" step. We don't believe in exit friction.</p>
 
-<ul>
- <li><strong>Cloud</strong>: Supabase performs automatic daily backups, retained 7 days (free tier) or 30 days (Pro tier).</li>
- <li><strong>Your control</strong>: at any time, click Settings → "Export all my data" to download a complete JSON snapshot. We recommend doing this monthly. The JSON is human-readable and can be re-imported on any device or kept as a personal cold backup.</li>
- <li><strong>If our service is offline</strong>, your local copy keeps working. The app is offline-first. You can keep logging flights, exporting PDFs, and your data stays intact until sync comes back online.</li>
- <li><strong>If Cumulo shuts down</strong> (worst case), we commit to a 90-day notice period during which the export feature stays online, plus a public announcement and one final automated export emailed to every paying user.</li>
-</ul>
+<details class="tech">
+  <summary>Technical details, for the curious</summary>
+  <div class="tech-body">
 
-<h2>Deletion policy</h2>
+    <h4>Hosting</h4>
+    <p>Cloud sync runs on Supabase in <code>ca-central-1</code> (Montréal, Québec). Static pages and the iCal proxy run on Cloudflare's edge network. Auxiliary services that briefly touch your data (Anthropic for OCR) are explicitly disclosed in the Privacy Policy and are opt-in per feature.</p>
 
-<p>You can permanently delete your data at any time:</p>
-<ul>
- <li><strong>Local wipe</strong>: Settings → Privacy &amp; Trust → "Delete + Purge". Instant. Reloads the app to a fresh-install state.</li>
- <li><strong>Cloud wipe</strong>: same action triggers a deletion request on Supabase. Your rows are marked for deletion immediately and physically purged within 30 days (this window exists for accidental-recovery, after which it's gone).</li>
- <li><strong>Trial expiry</strong>: if your 30-day trial ends without subscribing, your account locks but your data is preserved for 12 months in case you come back. After 12 months, the data is auto-purged with three warning emails (J-30, J-7, J-1).</li>
- <li><strong>Account closure</strong>: when you cancel, you keep access until the end of your billing period. After that, the trial-expiry policy above applies.</li>
-</ul>
+    <h4>Encryption</h4>
+    <p>Transit: TLS 1.3 with modern ciphers, HSTS enforced. At rest: AES-256, managed by Supabase. On your device: relies on your operating system's disk encryption (FileVault, BitLocker, iOS Data Protection).</p>
 
-<h2>Captain &amp; co-pilot names — the third-party privacy story</h2>
+    <h4>Access control</h4>
+    <p>Database rows are tagged with your user ID and enforced by Postgres row-level security. There is no admin bypass — Cumulo's own queries follow the same policies. Authentication uses email and password with optional TOTP two-factor (no SMS, which is vulnerable to SIM swap).</p>
 
-<p>This is the most legally nuanced piece. Your roster imports often capture the names of <em>other</em> pilots you flew with (your captain when you're F/O, or the F/O when you're captain). Those people haven't consented to being in your Cumulo account. Cumulo handles this in four contexts:</p>
+    <h4>Crew names &amp; PIPEDA</h4>
+    <p>Crew names on shared exports are anonymized to initials by default. You can opt in to full names in Settings → Privacy if you have crew consent or if the recipient is Transport Canada. Personal logbook (your device) and your private cloud backup always keep full names — that's protected by PIPEDA s.7(1)(b) and Loi 25 art. 12 as a personal record required by other law (CAR 401.08).</p>
 
-<ul>
- <li><strong>On your device</strong>: full names are stored, exactly as you wrote in your paper logbook. Your personal logbook is a personal-use exception under PIPEDA s.4(2)(b) and Loi 25 art. 1 — Cumulo as the software vendor is not a "data controller" while data stays on your device.</li>
- <li><strong>TC PDF export (ramp check, ATPL submission)</strong>: full names. PIPEDA s.7(3)(c.1)(i) explicitly permits regulatory disclosure, and TP 14052 expects identifiable PIC references.</li>
- <li><strong>Cloud sync</strong>: by default, third-party crew names are anonymized to initials (e.g. "J.S." for John Smith) when leaving your device. You can override via Profile → "Keep full crew names when syncing" — but only if you've actually obtained your crew's consent.</li>
- <li><strong>Shareable PDF export, JSON backup, share-with-anyone</strong>: same anonymization rule as cloud sync.</li>
-</ul>
+    <h4>Incident notification</h4>
+    <p>If a breach affects your data, you will be emailed directly within 72 hours of discovery if it meets the PIPEDA "real risk of significant harm" threshold or Loi 25 equivalent. The Office of the Privacy Commissioner of Canada (and the CAI for Québec users) will be notified per legal requirements.</p>
 
-<p>Your own name is <strong>never</strong> anonymized — it's not third-party data.</p>
+    <h4>If Cumulo shuts down</h4>
+    <p>You'll receive at least 90 days of notice. Export will remain online throughout. A final automated JSON backup will be emailed to every active user. Your local copy will keep working.</p>
 
-<h2>Incident response</h2>
+  </div>
+</details>
 
-<p>If a security incident affects your data:</p>
-<ul>
- <li><strong>Within 72 hours</strong> of discovery, Cumulo will assess whether the incident meets the "real risk of significant harm" threshold (PIPEDA) or "risk of serious injury" threshold (Loi 25).</li>
- <li><strong>If yes</strong>: you will be emailed directly with: what happened, what data was affected, what we've done, and what you should do. The Office of the Privacy Commissioner of Canada and (for Québec users) the Commission d'accès à l'information will be notified per legal requirements.</li>
- <li><strong>Transparency report</strong>: every breach, every government data request, every subpoena will be logged in a public transparency report published annually on this page — except where a legal gag order prevents it.</li>
-</ul>
-
-<h2>Open-source roadmap</h2>
-
-<p>The Cumulo Flight Deck frontend is currently closed-source while the product is being commercially validated. There's a path to open-sourcing the client (TC compliance calculations, PDF export, parser code) in the future — at which point anyone can audit the trust claims on this page independently. This is a "when the business is sustainable, not before" decision. <a href="mailto:flycumulo@gmail.com?subject=Open%20source%20interest">Let me know</a> if open-source matters to you.</p>
-
-<h2>How to verify these claims</h2>
-
-<ol>
-  <li><strong>Network inspection</strong>: open browser DevTools → Network. Every request is HTTPS. The only third-party hosts called are: <code>cdn.jsdelivr.net</code> (libraries Chart.js / jsPDF / pdf.js / Supabase SDK), <code>fonts.googleapis.com</code> + <code>fonts.gstatic.com</code> (Inter font), <code>logbook-api.martindaoust33.workers.dev</code> (Cloudflare Worker proxy for Anthropic API + Navblue iCal CORS), and your Supabase project URL.</li>
- <li><strong>Subprocessors</strong>: full list in the <a href="privacy-policy-v2-draft.html">Privacy Policy §5</a>.</li>
- <li><strong>Export your data</strong>: Settings → Export. The JSON shows exactly what's stored. No hidden fields.</li>
-  <li><strong>Audit log</strong>: every import operation writes a timestamped entry to localStorage key <code>cumulo_import_log_v1</code>. Read it yourself.</li>
-</ol>
-
-<h2>Contact</h2>
-
-<p>Found a security issue? Email <a href="mailto:flycumulo@gmail.com">flycumulo@gmail.com</a> with subject "Security". I read every one personally and reply within 48 hours. If the issue is urgent (active exploitation), put "URGENT" in the subject line.</p>
-
-<p>For non-security questions: same email, no urgency flag.</p>
-
-<div class="promise-card">
- <div class="promise-card-title"> The honesty principle</div>
- <div class="promise-card-body">
- Most "Security" pages are written by marketing departments. This one isn't. If you spot a claim that you think is misleading, exaggerated, or just wrong, please tell me — I'd rather fix the page than defend a bad sentence. Trust is built sentence by sentence, not by adjective.
- </div>
+<div class="contact-card">
+  <h3>Found something off?</h3>
+  <p>Email <a href="mailto:flycumulo@gmail.com">flycumulo@gmail.com</a>. Security issues get a reply within 48 hours. If a sentence here doesn't match what we actually do, tell us — we'll fix it.</p>
 </div>
+
+<p class="updated">Last updated: 2026-05-26</p>
 
 </main>
 
 <footer>
- <div class="footer-row">
- <div>© 2026 Cumulo. Built in Canada .</div>
- <div class="footer-links">
- <a href="index.html">Home</a>
- <a href="security.html">Security</a>
- <a href="privacy-policy-v2-draft.html">Privacy</a>
- <a href="mailto:flycumulo@gmail.com">Contact</a>
- </div>
- </div>
+<div class="footer-row">
+  <div>© 2026 Cumulo · Built in Canada</div>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="security.html">Security</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="mailto:flycumulo@gmail.com">Contact</a>
+  </div>
+</div>
 </footer>
 
 </body>
