@@ -1088,6 +1088,109 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* ─── Dashboard clickable tiles + drill-down modal ──────────────
+   Every interactive tile on the Dashboard signals it: cursor change,
+   subtle hover lift, focus ring for keyboard users. The drill-down
+   content reuses .import-overlay / .import-modal styling for the
+   shell — these classes only style the inner content (label/value
+   rows, contributing-flights list, regulatory note). */
+.dash-clickable {
+  cursor: pointer;
+  border-radius: var(--r-md);
+  transition: background var(--motion-fast) var(--ease-quiet),
+              transform var(--motion-fast) var(--ease-quiet);
+  outline: none;
+}
+.dash-clickable:hover {
+  background: var(--bg-subtle);
+}
+.dash-clickable:active {
+  transform: scale(0.985);
+}
+.dash-clickable:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Strip items already have a 2px colored left-border + tight padding — give
+   the hover state a slightly different treatment so it doesn't feel like the
+   2px border just doubled. */
+.dash-strip-item.dash-clickable { padding: 4px 4px 4px 14px; margin-left: -4px; }
+.dash-strip-item.dash-clickable:hover { background: var(--bg-subtle); }
+
+/* Drill-down inner content (overlay shell from import-overlay/-modal) */
+.dash-drill-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0 0 var(--s-4);
+}
+.dash-drill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dash-drill-row:last-child { border-bottom: none; }
+.dash-drill-row dt {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.dash-drill-row dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.dash-drill-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: var(--s-4) 0 var(--s-2);
+}
+.dash-drill-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.dash-drill-list li {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.dash-drill-list li:last-child { border-bottom: none; }
+.dash-drill-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+.dash-drill-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.dash-drill-pill.ok   { background: var(--success-soft); color: var(--success); }
+.dash-drill-pill.warn { background: var(--warning-soft); color: var(--warning); }
+.dash-drill-pill.bad  { background: var(--danger-soft);  color: var(--danger); }
+
 /* ─── Q2 Empty state — ghosted dashboard ──────────────────────────
    Active when body.no-data (set by renderDashboard when flights.length===0
    AND no opening balances). Tones the whole hero so a brand-new install
@@ -3095,7 +3198,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="dash-card dash-hero">
  <div class="eyebrow" data-i18n="dash.heroEyebrow">TOTAL BLOCK HOURS · CAREER</div>
  <div class="dash-hero-body">
- <div class="dash-hero-num-block">
+ <div class="dash-hero-num-block dash-clickable" onclick="openDashDrill('hero')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('hero');}">
  <div class="dash-hero-num">
  <span class="dash-hero-num-val" id="dashHeroNum">0.0</span>
  <span class="dash-hero-num-unit" data-i18n="hero.unitHours">hrs</span>
@@ -3118,17 +3221,17 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="dash-card dash-validities">
  <div class="eyebrow" data-i18n="dash.validitiesEyebrow">CURRENT VALIDITIES</div>
  <div class="dash-rings">
- <div class="dash-ring-block">
+ <div class="dash-ring-block dash-clickable" onclick="openDashDrill('ifr')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('ifr');}">
  <div class="dash-ring" id="dashRingIFR"><!-- SVG written by JS --></div>
  <div class="dash-ring-sub" id="dashRingIFRSub">— / 6 appr.</div>
  <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
  </div>
- <div class="dash-ring-block">
+ <div class="dash-ring-block dash-clickable" onclick="openDashDrill('recency')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('recency');}">
  <div class="dash-ring" id="dashRingREC"></div>
  <div class="dash-ring-sub" id="dashRingRECSub">— / 5 ldg</div>
  <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
  </div>
- <div class="dash-ring-block" id="dashRingMedBlock">
+ <div class="dash-ring-block dash-clickable" id="dashRingMedBlock" onclick="openDashDrill('medical')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('medical');}">
  <div class="dash-ring" id="dashRingMED"></div>
  <div class="dash-ring-sub" id="dashRingMEDSub">—</div>
  <div class="dash-ring-cap mono" data-i18n="dash.ringCapCat1">CAT 1</div>
@@ -3154,27 +3257,27 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
        different role from the deleted rainbow tiles (large numbers, color
        was dominant). -->
  <div class="dash-card dash-strip">
- <div class="dash-strip-item" style="border-color:var(--success);">
+ <div class="dash-strip-item dash-clickable" style="border-color:var(--success);" onclick="openDashDrill('pic')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('pic');}">
  <div class="eyebrow" data-i18n="dash.strip.pic">PIC</div>
  <div class="dash-strip-val" id="dashStripPIC">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
  </div>
- <div class="dash-strip-item" style="border-color:var(--accent);">
+ <div class="dash-strip-item dash-clickable" style="border-color:var(--accent);" onclick="openDashDrill('sic')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('sic');}">
  <div class="eyebrow" data-i18n="dash.strip.sic">SIC</div>
  <div class="dash-strip-val" id="dashStripSIC">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
  </div>
- <div class="dash-strip-item" style="border-color:#6366F1;">
+ <div class="dash-strip-item dash-clickable" style="border-color:#6366F1;" onclick="openDashDrill('night')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('night');}">
  <div class="eyebrow" data-i18n="dash.strip.night">NIGHT</div>
  <div class="dash-strip-val" id="dashStripNIGHT">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
  </div>
- <div class="dash-strip-item" style="border-color:var(--accent);">
+ <div class="dash-strip-item dash-clickable" style="border-color:var(--accent);" onclick="openDashDrill('multi')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('multi');}">
  <div class="eyebrow" data-i18n="dash.strip.multi">MULTI</div>
  <div class="dash-strip-val" id="dashStripMULTI">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
  </div>
- <div class="dash-strip-item" style="border-color:var(--accent);">
+ <div class="dash-strip-item dash-clickable" style="border-color:var(--accent);" onclick="openDashDrill('xc')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('xc');}">
  <div class="eyebrow" data-i18n="dash.strip.xc">XC</div>
  <div class="dash-strip-val" id="dashStripXC">0.0<span class="dash-strip-unit" data-i18n="hero.unitHours">hrs</span></div>
  </div>
- <div class="dash-strip-item" style="border-color:#E08A2A;">
+ <div class="dash-strip-item dash-clickable" style="border-color:#E08A2A;" onclick="openDashDrill('ldg')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('ldg');}">
  <div class="eyebrow" data-i18n="dash.strip.ldg">LDG</div>
  <div class="dash-strip-val" id="dashStripLDG">0</div>
  </div>
@@ -4157,6 +4260,25 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <button class="btn btn-ghost" id="onbBackBtn" onclick="onboardingBack()" style="display:none;" data-i18n="onb.back">← Back</button>
  <button class="btn btn-primary" id="onbNextBtn" onclick="onboardingNext()" data-i18n="onb.continue">Continue →</button>
  </div>
+ </div>
+</div>
+
+<!-- DASHBOARD DRILL-DOWN MODAL — click any tile on Dashboard to see source -->
+<div class="import-overlay" id="dashDrillOverlay" onclick="if(event.target===this)closeDashDrill()">
+ <div class="import-modal" style="max-width:520px;">
+ <div class="import-modal-head">
+ <div>
+ <div class="eyebrow" id="dashDrillEyebrow" style="margin-bottom:4px;">DETAIL</div>
+ <div class="t-title-2" id="dashDrillTitle">—</div>
+ </div>
+ <button class="icon-btn" onclick="closeDashDrill()" aria-label="Close" title="Close">
+   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+ </button>
+ </div>
+ <div class="import-modal-body">
+ <div id="dashDrillBody"></div>
+ </div>
+ <div class="import-modal-foot" id="dashDrillFoot"></div>
  </div>
 </div>
 
@@ -14349,11 +14471,341 @@ async function commitOpeningBalances() {
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? (filterVal || '') : '');
   renderOpeningBalancesSection('openingBalancesSection');
 }
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD DRILL-DOWN PANELS
+// ─────────────────────────────────────────────────────────────────
+// Every tile on the Dashboard is clickable. Click → modal opens
+// showing the SOURCE data behind the number (which flights, which
+// dates, which profile fields). Each panel also offers a one-click
+// path to the page where the data is actually edited (Settings →
+// Profile for the medical, Logbook for the flight list, etc.).
+//
+// Design intent: the Dashboard is a SUMMARY. Pilots want to know
+// "where does that number come from?" — and the answer should be
+// one tap away, not buried in a settings page or a debugger.
+// ═══════════════════════════════════════════════════════════════════
+
+function openDashDrill(key) {
+  const overlay = document.getElementById('dashDrillOverlay');
+  if (!overlay) return;
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const titleEl = document.getElementById('dashDrillTitle');
+  const eyebrowEl = document.getElementById('dashDrillEyebrow');
+  const bodyEl = document.getElementById('dashDrillBody');
+  const footEl = document.getElementById('dashDrillFoot');
+
+  const ctx = _dashDrillBuild(key, fr);
+  if (!ctx) return;
+
+  if (eyebrowEl) eyebrowEl.textContent = ctx.eyebrow;
+  if (titleEl)   titleEl.textContent   = ctx.title;
+  if (bodyEl)    bodyEl.innerHTML      = ctx.body;
+  if (footEl)    footEl.innerHTML      = ctx.foot || '';
+
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDashDrill() {
+  const overlay = document.getElementById('dashDrillOverlay');
+  if (overlay) overlay.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// Build the eyebrow / title / body HTML for each drill-down key.
+// Returns { eyebrow, title, body, foot } or null if key unknown.
+function _dashDrillBuild(key, fr) {
+  const rawS = (typeof calcStats === 'function') ? calcStats() : {};
+  const s = (typeof totalsWithOpening === 'function') ? totalsWithOpening(rawS) : rawS;
+  const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+
+  const F = (typeof fmt === 'function') ? fmt : (x => (Math.round((+x||0)*10)/10).toFixed(1));
+  const settingsBtn = (label) => `<button class="btn btn-ghost" onclick="closeDashDrill();showPage('backup');setTimeout(()=>{if(typeof showSettingsTab==='function')showSettingsTab('profile');},0);">${label}</button>`;
+  const logbookBtn = (label) => `<button class="btn btn-ghost" onclick="closeDashDrill();showPage('logbook');">${label}</button>`;
+  const addBtn = (label) => `<button class="btn btn-primary" onclick="closeDashDrill();showPage('add');">${label}</button>`;
+
+  switch (key) {
+    case 'hero': return _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn);
+    case 'ifr': return _drillIFR(fr, addBtn, logbookBtn);
+    case 'recency': return _drillRecency(fr, addBtn, logbookBtn);
+    case 'medical': return _drillMedical(profile, fr, settingsBtn);
+    case 'pic':   return _drillStripHours('pic',   s.pic,   fr, profile, F, logbookBtn);
+    case 'sic':   return _drillStripHours('sic',   s.sic,   fr, profile, F, logbookBtn);
+    case 'night': return _drillStripHours('night', s.night, fr, profile, F, logbookBtn);
+    case 'multi': return _drillStripHours('multi', s.me,    fr, profile, F, logbookBtn);
+    case 'xc':    return _drillStripHours('xc',    s.xc,    fr, profile, F, logbookBtn);
+    case 'ldg':   return _drillLanding(s, fr, addBtn);
+    default: return null;
+  }
+}
+
+// ─── Hero (career total) drill-down ────────────────────────────────
+function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
+  const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+  const bfTotal = (() => {
+    if (!hasBF || typeof loadOpeningBalances !== 'function') return 0;
+    const ob = loadOpeningBalances();
+    return (+ob.balances.total || +ob.balances.block || 0);
+  })();
+  const loggedHere = Math.max(0, (s.block || s.total || 0) - bfTotal);
+  const flightCount = Array.isArray(flights) ? flights.length : 0;
+
+  const rows = [
+    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> hrs` },
+    { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} hrs` : '—' },
+    { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} hrs (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
+    { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} hrs` },
+  ];
+
+  return {
+    eyebrow: fr ? 'TOTAL CARRIÈRE · DÉTAIL' : 'CAREER TOTAL · BREAKDOWN',
+    title: fr ? 'D’où vient ce chiffre ?' : 'Where does this number come from?',
+    body: _drillRowsHtml(rows) + (hasBF
+      ? `<div class="dash-drill-note">${fr
+          ? 'Heures reportées de votre carnet papier — attestation conservée (CAR 401.08(2)(h)).'
+          : 'Carried over from your paper logbook — attestation kept on file (CAR 401.08(2)(h)).'}</div>`
+      : `<div class="dash-drill-note">${fr
+          ? 'Vous n’avez pas déclaré d’heures reportées. Si vous avez un carnet papier, déclarez vos totaux une fois dans Profil → Heures reportées.'
+          : 'No brought-forward hours declared. If you have a paper logbook, declare cumulative totals once in Profile → Brought-forward.'}</div>`),
+    foot: `${logbookBtn(fr ? 'Voir tous les vols' : 'See all flights')} ${settingsBtn(fr ? 'Heures reportées' : 'Brought-forward')}`
+  };
+}
+
+// ─── IFR currency drill-down ───────────────────────────────────────
+function _drillIFR(fr, addBtn, logbookBtn) {
+  const count = (typeof _dashApproachesIn6mo === 'function') ? _dashApproachesIn6mo() : 0;
+  const need = Math.max(0, 6 - count);
+  const status = count >= 6
+    ? (fr ? 'À JOUR' : 'CURRENT')
+    : count >= 4 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
+
+  // Last 6 months of approaches, grouped by date — gives the pilot a visual
+  // confirmation of which flights count toward the 6-in-6 minimum.
+  const cutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const contributing = (Array.isArray(flights) ? flights : [])
+    .filter(f => f.date >= cutoff && (+f.approaches || 0) > 0)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    .slice(0, 10);
+
+  const rows = [
+    { k: fr ? 'Approches IFR dans 6 mois' : 'IFR approaches in 6 months', v: `<strong>${count}</strong> / 6` },
+    { k: fr ? 'Manquantes pour ÷à jour'    : 'Needed to be current',       v: need > 0 ? `${need}` : (fr ? 'aucune' : 'none') },
+    { k: 'Status', v: `<span class="dash-drill-pill ${count >= 6 ? 'ok' : count >= 4 ? 'warn' : 'bad'}">${status}</span>` },
+  ];
+
+  let list = '';
+  if (contributing.length) {
+    list = `<div class="dash-drill-sub">${fr ? 'Vols qui comptent (10 plus récents)' : 'Contributing flights (most recent 10)'}</div>
+      <ul class="dash-drill-list">${contributing.map(f =>
+        `<li>${esc(f.date || '—')} · ${esc(f.flightNum || '')} · ${esc(f.route || '—')} · <span class="mono">${+f.approaches || 0} appr.</span></li>`
+      ).join('')}</ul>`;
+  } else {
+    list = `<div class="dash-drill-note">${fr
+      ? 'Aucune approche logguée dans les 6 derniers mois.'
+      : 'No approaches logged in the past 6 months.'}</div>`;
+  }
+
+  return {
+    eyebrow: fr ? 'CAR 401.05(2) · INSTRUMENTS' : 'CAR 401.05(2) · INSTRUMENTS',
+    title: fr ? 'Validité IFR' : 'IFR Currency',
+    body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
+      ? 'Règle : 6 approches IFR (ILS / RNAV / VOR / visuelle après IAP) dans les 6 derniers mois.'
+      : 'Rule: 6 IFR approaches (ILS / RNAV / VOR / visual after IAP) in the past 6 months.'}</div>`,
+    foot: `${logbookBtn(fr ? 'Voir le carnet' : 'See logbook')} ${addBtn(fr ? 'Enregistrer un vol' : 'Log a flight')}`
+  };
+}
+
+// ─── Recency drill-down (5 landings / 6 months) ────────────────────
+function _drillRecency(fr, addBtn, logbookBtn) {
+  const count = (typeof _dashLandingsIn6mo === 'function') ? _dashLandingsIn6mo() : 0;
+  const need = Math.max(0, 5 - count);
+  const status = count >= 5 ? (fr ? 'À JOUR' : 'CURRENT')
+                : count >= 3 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
+                : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
+
+  const cutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const contributing = (Array.isArray(flights) ? flights : [])
+    .filter(f => f.date >= cutoff && ((+f.ldgDay || 0) + (+f.ldgNight || 0)) > 0)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    .slice(0, 10);
+
+  const rows = [
+    { k: fr ? 'Atterrissages dans 6 mois' : 'Landings in 6 months', v: `<strong>${count}</strong> / 5` },
+    { k: fr ? 'Manquants pour à jour'      : 'Needed to be current',  v: need > 0 ? `${need}` : (fr ? 'aucun' : 'none') },
+    { k: 'Status', v: `<span class="dash-drill-pill ${count >= 5 ? 'ok' : count >= 3 ? 'warn' : 'bad'}">${status}</span>` },
+  ];
+
+  let list = '';
+  if (contributing.length) {
+    list = `<div class="dash-drill-sub">${fr ? 'Vols qui comptent' : 'Contributing flights'}</div>
+      <ul class="dash-drill-list">${contributing.map(f => {
+        const d = +f.ldgDay || 0, n = +f.ldgNight || 0;
+        return `<li>${esc(f.date || '—')} · ${esc(f.flightNum || '')} · ${esc(f.route || '—')} · <span class="mono">${d}D ${n}N</span></li>`;
+      }).join('')}</ul>`;
+  }
+
+  return {
+    eyebrow: fr ? 'CAR 401.05(1) · ATTERRISSAGES' : 'CAR 401.05(1) · LANDINGS',
+    title: fr ? 'Validité décollages / atterrissages' : 'Takeoff / Landing Recency',
+    body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
+      ? 'Règle : 5 décollages + 5 atterrissages dans les 6 derniers mois pour transporter des passagers.'
+      : 'Rule: 5 takeoffs + 5 landings in the past 6 months to carry passengers.'}</div>`,
+    foot: `${logbookBtn(fr ? 'Voir le carnet' : 'See logbook')} ${addBtn(fr ? 'Enregistrer un vol' : 'Log a flight')}`
+  };
+}
+
+// ─── Medical drill-down ─────────────────────────────────────────────
+function _drillMedical(profile, fr, settingsBtn) {
+  const med = profile.medical || '';
+  const ecg = profile.ecg || '';
+  const today = new Date().toISOString().slice(0, 10);
+
+  let medDays = null;
+  if (med) {
+    const ms = (new Date(med).getTime() - new Date(today).getTime()) / 86400000;
+    medDays = Math.round(ms);
+  }
+  let ecgDays = null;
+  if (ecg) {
+    const ms = (new Date(ecg).getTime() - new Date(today).getTime()) / 86400000;
+    ecgDays = Math.round(ms);
+  }
+
+  const statusLabel = medDays === null ? (fr ? 'NON DÉFINI' : 'NOT SET')
+    : medDays > 60 ? (fr ? 'À JOUR' : 'CURRENT')
+    : medDays > 0 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
+    : (fr ? 'EXPIRÉ' : 'EXPIRED');
+
+  const statusClass = medDays === null ? 'warn'
+    : medDays > 60 ? 'ok' : medDays > 0 ? 'warn' : 'bad';
+
+  const rows = [
+    { k: fr ? 'Date d’expiration' : 'Expiry date', v: med || (fr ? 'non définie' : 'not set') },
+    { k: fr ? 'Jours restants'     : 'Days remaining', v: medDays === null ? '—' : (medDays > 0 ? medDays : (fr ? 'expiré' : 'expired')) },
+    { k: 'Status', v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
+    { k: fr ? 'ECG dû'             : 'ECG due', v: ecg ? `${ecg}${ecgDays !== null ? ` (${ecgDays > 0 ? ecgDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}` : '—' },
+  ];
+
+  return {
+    eyebrow: fr ? 'CERTIFICAT MÉDICAL · TC' : 'TRANSPORT CANADA · CAT 1',
+    title: fr ? 'Validité médicale' : 'Medical Validity',
+    body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
+      ? 'CAT 1 (vol commercial) : 12 mois si < 40 ans, 6 mois ensuite. L’ECG accompagne le médical à intervalles définis par TC.'
+      : 'Category 1 (commercial flight): 12 months if under 40, 6 months thereafter. ECG accompanies the medical at TC-defined intervals.'}</div>`,
+    foot: settingsBtn(fr ? 'Mettre à jour dans Profil' : 'Update in Profile')
+  };
+}
+
+// ─── Stat strip hours drill-down (PIC / SIC / Night / Multi / XC) ──
+function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
+  const labels = {
+    pic:   { fr: 'Heures PIC',         en: 'PIC hours',         desc: { fr: 'Pilote aux commandes — capitaine pour 705, instructeur pour FTO, vol solo pour student.', en: 'Pilot-in-command time — captain for 705 ops, instructor for FTO, solo for student.' } },
+    sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
+    night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol après l’heure officielle de coucher du soleil (RAC 101.01).', en: 'Flight time after official sunset (CAR 101.01).' } },
+    multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
+    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 50 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 50 NM from departure point (CAR 401.34). Auto-calculated.' } },
+  };
+  const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
+  const title = fr ? meta.fr : meta.en;
+
+  // Source flights: top 5 most recent flights contributing > 0 to this metric.
+  const cont = _topContributing(kind, 8);
+
+  const rows = [
+    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(value)}</strong> hrs` },
+  ];
+  // Show brought-forward portion if any
+  if (typeof getOpening === 'function') {
+    const openingKey = kind === 'multi' ? null : kind;  // me/multi has no single opening key
+    if (openingKey) {
+      const op = getOpening(openingKey);
+      if (op > 0) rows.push({ k: fr ? 'dont reportées' : 'of which brought-forward', v: `${F(op)} hrs` });
+    }
+  }
+
+  let list = '';
+  if (cont.length) {
+    list = `<div class="dash-drill-sub">${fr ? 'Vols les plus récents qui contribuent' : 'Most recent contributing flights'}</div>
+      <ul class="dash-drill-list">${cont.map(c =>
+        `<li>${esc(c.date || '—')} · ${esc(c.label || '')} · <span class="mono">+${F(c.hrs)} hrs</span></li>`
+      ).join('')}</ul>`;
+  } else {
+    list = `<div class="dash-drill-note">${fr ? 'Aucun vol ne contribue actuellement.' : 'No flights currently contribute.'}</div>`;
+  }
+
+  return {
+    eyebrow: title.toUpperCase(),
+    title: title,
+    body: rows.length ? _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr ? meta.desc.fr : meta.desc.en}</div>` : list,
+    foot: logbookBtn(fr ? 'Voir le carnet' : 'See logbook')
+  };
+}
+
+// Helper: pick the most-recent flights contributing > 0 to a given metric.
+function _topContributing(kind, limit) {
+  if (!Array.isArray(flights)) return [];
+  const out = [];
+  for (let i = flights.length - 1; i >= 0; i--) {
+    const f = flights[i];
+    let hrs = 0;
+    switch (kind) {
+      case 'pic':   hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0); break;
+      case 'sic':   hrs = (+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0)+(+f.picus||0); break;
+      case 'night': hrs = (+f.meNightPic||0)+(+f.meNightCop||0)+(+f.meNightDual||0)+(+f.heliNightPic||0)+(+f.heliNightCop||0)+(+f.heliNightDual||0)+(+f.seNight||0); break;
+      case 'multi': hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0); break;
+      case 'xc':    hrs = (+f.xcDayPic||0)+(+f.xcNightPic||0)+(+f.xcDayCop||0)+(+f.xcNightCop||0)+(+f.xcDayDual||0)+(+f.xcNightDual||0); break;
+    }
+    if (hrs > 0) {
+      out.push({
+        date: f.date,
+        label: `${f.flightNum || ''} ${f.route || ''}`.trim() || (f.type || '—'),
+        hrs
+      });
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+// ─── Landings drill-down ────────────────────────────────────────────
+function _drillLanding(s, fr, addBtn) {
+  const day = (Array.isArray(flights) ? flights : []).reduce((a, f) => a + (+f.ldgDay || 0), 0);
+  const night = (Array.isArray(flights) ? flights : []).reduce((a, f) => a + (+f.ldgNight || 0), 0);
+  const opDay = (typeof getOpening === 'function') ? getOpening('ldgDay') : 0;
+  const opNight = (typeof getOpening === 'function') ? getOpening('ldgNight') : 0;
+
+  const rows = [
+    { k: fr ? 'Atterrissages totaux'    : 'Total landings', v: `<strong>${s.ldg || 0}</strong>` },
+    { k: fr ? 'Jour'                     : 'Day',           v: `${day + opDay}${opDay > 0 ? ` (${opDay} ${fr ? 'reportés' : 'brought-fwd'})` : ''}` },
+    { k: fr ? 'Nuit'                     : 'Night',         v: `${night + opNight}${opNight > 0 ? ` (${opNight} ${fr ? 'reportés' : 'brought-fwd'})` : ''}` },
+  ];
+
+  return {
+    eyebrow: fr ? 'ATTERRISSAGES' : 'LANDINGS',
+    title: fr ? 'Atterrissages — détail' : 'Landings — breakdown',
+    body: _drillRowsHtml(rows),
+    foot: addBtn(fr ? 'Enregistrer un vol' : 'Log a flight')
+  };
+}
+
+// ─── Shared HTML helpers ────────────────────────────────────────────
+function _drillRowsHtml(rows) {
+  return `<dl class="dash-drill-rows">${rows.map(r =>
+    `<div class="dash-drill-row"><dt>${esc(r.k)}</dt><dd>${r.v}</dd></div>`
+  ).join('')}</dl>`;
+}
+
+// Close on Escape — symmetric with flight-detail modal behavior.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const ov = document.getElementById('dashDrillOverlay');
+  if (ov && ov.classList.contains('show')) closeDashDrill();
+});
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-25-auto-sync-q7';
+const BUILD_VERSION = 'v3a-2026-05-25-dash-drilldown';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

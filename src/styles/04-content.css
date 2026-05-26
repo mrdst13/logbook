@@ -463,6 +463,109 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* ─── Dashboard clickable tiles + drill-down modal ──────────────
+   Every interactive tile on the Dashboard signals it: cursor change,
+   subtle hover lift, focus ring for keyboard users. The drill-down
+   content reuses .import-overlay / .import-modal styling for the
+   shell — these classes only style the inner content (label/value
+   rows, contributing-flights list, regulatory note). */
+.dash-clickable {
+  cursor: pointer;
+  border-radius: var(--r-md);
+  transition: background var(--motion-fast) var(--ease-quiet),
+              transform var(--motion-fast) var(--ease-quiet);
+  outline: none;
+}
+.dash-clickable:hover {
+  background: var(--bg-subtle);
+}
+.dash-clickable:active {
+  transform: scale(0.985);
+}
+.dash-clickable:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Strip items already have a 2px colored left-border + tight padding — give
+   the hover state a slightly different treatment so it doesn't feel like the
+   2px border just doubled. */
+.dash-strip-item.dash-clickable { padding: 4px 4px 4px 14px; margin-left: -4px; }
+.dash-strip-item.dash-clickable:hover { background: var(--bg-subtle); }
+
+/* Drill-down inner content (overlay shell from import-overlay/-modal) */
+.dash-drill-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0 0 var(--s-4);
+}
+.dash-drill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dash-drill-row:last-child { border-bottom: none; }
+.dash-drill-row dt {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.dash-drill-row dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.dash-drill-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: var(--s-4) 0 var(--s-2);
+}
+.dash-drill-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.dash-drill-list li {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.dash-drill-list li:last-child { border-bottom: none; }
+.dash-drill-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+.dash-drill-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.dash-drill-pill.ok   { background: var(--success-soft); color: var(--success); }
+.dash-drill-pill.warn { background: var(--warning-soft); color: var(--warning); }
+.dash-drill-pill.bad  { background: var(--danger-soft);  color: var(--danger); }
+
 /* ─── Q2 Empty state — ghosted dashboard ──────────────────────────
    Active when body.no-data (set by renderDashboard when flights.length===0
    AND no opening balances). Tones the whole hero so a brand-new install
