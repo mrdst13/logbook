@@ -910,10 +910,14 @@ async function syncNavblueNow(opts) {
       }
     });
 
-    // Persist any merged changes (so the recalc below sees them)
+    // Persist any merged changes (so the fill-empty pass below sees them)
     if (mergedCount > 0) DB.save(flights);
 
-    // Auto-recalc night/XC for the now-enriched existing flights
+    // Fill empty Night/XC slots on enriched flights — STRICT only-fill-empty,
+    // never overwrites a pilot-typed value. See recalculateFlightDayNightXC()
+    // header comment for the CAR 401.08 contemporaneous-record rationale.
+    // The variable is still called `recalcStats` for compatibility with the
+    // toast messaging below; semantically it's "fillStats" now.
     let recalcStats = { updated: 0, skippedNoUTC: 0, skippedNoCoords: 0, skippedNoBlock: 0 };
     if (mergedCount > 0 || fresh.length === 0) {
       recalcStats = recalculateAllFlightsInternal();
@@ -928,7 +932,7 @@ async function syncNavblueNow(opts) {
         `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
       ];
       if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
-      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
+      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} had empty Night/XC fields filled in (pilot-entered values never modified)`);
       if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
       if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
       details.innerHTML = detailLines.join('<br>');

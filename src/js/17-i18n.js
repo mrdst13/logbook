@@ -445,7 +445,7 @@ const STRINGS = {
  'toast.noSnapshot': 'No snapshot to restore — Cumulo only saves snapshots before bulk operations.',
  'toast.snapshotNotFound': 'Snapshot not found',
  'toast.snapshotRestored': 'Restored {n} flights from {age} state',
- 'toast.recalcSuccess': '{updated} recalculated',
+ 'toast.recalcSuccess': '{updated} flights had empty Night/XC fields filled in',
  'toast.urlSaved': 'iCal URL saved ✓',
  'toast.urlCleared': 'iCal URL cleared',
  'toast.syncInProgress': 'Syncing Navblue…',
@@ -520,14 +520,17 @@ const STRINGS = {
  'toast.captainsAddedPl': '{n} captain names added.',
  'toast.pdfExportedPages': 'PDF exported ({pages} pages) ✓',
  'toast.syncFreshEnriched': '{fresh} new + {merged} enriched',
- 'toast.syncEnrichedRecalc': '{merged} existing flights enriched + {updated} recalculated ✓',
+ 'toast.syncEnrichedRecalc': '{merged} existing flights enriched · {updated} had empty Night/XC filled in (your edits never touched) ✓',
 
  // ─── Confirm dialogs
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
  'confirm.removeNavblue': 'Remove the saved Navblue URL?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
  'confirm.deleteFlight': 'Delete this flight? This cannot be undone (a snapshot is taken before delete — you can undo from Settings).',
- 'confirm.recalc': 'Recalculate night-time and cross-country for all imported flights?\n\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.\n\nA snapshot will be saved automatically — you can undo this from Settings if needed.',
+ // 'confirm.recalc' — dead key. The bulk-recalc feature was removed for TC
+ // compliance (overwriting pilot-typed values violates CAR 401.08
+ // contemporaneous-record). Internal post-iCal-sync filling of EMPTY
+ // Night/XC slots only is still active, but does not prompt the user.
  'confirm.resetCols': 'Reset all column visibility to defaults? Your data is not affected.',
  'confirm.restoreSnapshot': 'Restore logbook to state before "{op}" ({age})?\n\nCurrent: {curN} flights\nSnapshot: {snapN} flights\n\nThe current state will be saved as a new snapshot — you can always undo again.',
 
@@ -1059,7 +1062,7 @@ const STRINGS = {
  'toast.noSnapshot': 'Aucun instantané à restaurer — Cumulo ne sauvegarde un instantané qu’avant les opérations en lot.',
  'toast.snapshotNotFound': 'Instantané introuvable',
  'toast.snapshotRestored': '{n} vols restaurés depuis l’état d’il y a {age}',
- 'toast.recalcSuccess': '{updated} recalculés',
+ 'toast.recalcSuccess': '{updated} vols avec Nuit/XC vides remplis',
  'toast.urlSaved': 'URL iCal enregistrée ✓',
  'toast.urlCleared': 'URL iCal effacée',
  'toast.syncInProgress': 'Synchronisation Navblue…',
@@ -1134,14 +1137,17 @@ const STRINGS = {
  'toast.captainsAddedPl': '{n} noms de commandants ajoutés.',
  'toast.pdfExportedPages': 'PDF exporté ({pages} pages) ✓',
  'toast.syncFreshEnriched': '{fresh} nouveaux + {merged} enrichis',
- 'toast.syncEnrichedRecalc': '{merged} vols existants enrichis + {updated} recalculés ✓',
+ 'toast.syncEnrichedRecalc': '{merged} vols existants enrichis · {updated} avec Nuit/XC vides remplis (vos saisies intactes) ✓',
 
  // ─── Dialogues de confirmation
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
  'confirm.removeNavblue': 'Supprimer l’URL Navblue enregistrée ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlight': 'Supprimer ce vol ? Action irréversible (un instantané est pris avant la suppression — vous pouvez annuler depuis Paramètres).',
- 'confirm.recalc': 'Recalculer la nuit et le voyage pour tous les vols importés ?\n\nLes répartitions jour/nuit actuelles seront écrasées avec lever/coucher astronomique.\n\nUn instantané sera enregistré automatiquement — vous pourrez annuler depuis Paramètres au besoin.',
+ // 'confirm.recalc' — clé morte. La fonctionnalité de recalcul en masse a
+ // été retirée pour conformité TC (écraser des valeurs saisies par le pilote
+ // viole CAR 401.08). Le remplissage interne des champs Nuit/XC VIDES après
+ // sync iCal est toujours actif mais ne demande pas confirmation.
  'confirm.resetCols': 'Réinitialiser la visibilité des colonnes ? Vos données ne sont pas affectées.',
  'confirm.restoreSnapshot': 'Restaurer le carnet à l’état avant « {op} » ({age}) ?\n\nActuel : {curN} vols\nInstantané : {snapN} vols\n\nL’état actuel sera enregistré comme nouvel instantané — vous pourrez toujours annuler à nouveau.',
 

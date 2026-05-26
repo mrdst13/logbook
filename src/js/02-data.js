@@ -27,9 +27,22 @@ function calcStats() {
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  Re-calculate night/XC for an existing flight using known coords + STD time.
-//  Returns a new flight object with the updated fields, or the original if
-//  we don't have enough info to compute.
+//  Compute Night / XC / landings for a flight that was missing them.
+//
+//  STRICT POLICY (TC CAR 401.08 contemporaneous-record protection):
+//  this function NEVER overwrites a value the pilot has already entered.
+//  It only fills empty slots — for the role detected on the flight, and
+//  only for slots that are currently 0/undefined. If every role-relevant
+//  slot is already populated, the function returns the flight unchanged.
+//
+//  Old behavior (pre-2026-05-26): the function unconditionally wrote the
+//  great-circle result into the role's day/night/XC slots, which would
+//  overwrite a manually-typed value. That was unsafe and the sync UI
+//  reporting it as "Night/XC recalculated" sounded like falsification.
+//  Removed.
+//
+//  Returns either the same `f` (if no change is safe), or a NEW object
+//  with only the empty slots filled in.
 // ─────────────────────────────────────────────────────────────────
 function recalculateFlightDayNightXC(f) {
   // Need ICAO codes + a UTC departure time + block hours
@@ -66,40 +79,60 @@ function recalculateFlightDayNightXC(f) {
   const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
   const isXC = isCrossCountry(depICAO, arrICAO);
 
-  // Detect role: if existing has any meDayPic/meNightPic > 0 OR meDayDual > 0 it's PIC/Dual,
-  // otherwise default to F/O (cop). Override with role-detection: if pic name field present and meDayPic was set, keep.
+  // Detect role from the flight's existing data. If the pilot has typed
+  // a value in any role's day/night/XC slots, that role is "active" and
+  // we never touch it again. Default to cop (F/O) for typical Porter use.
   let role = 'cop';
   if ((+f.meDayPic||0) + (+f.meNightPic||0) > 0) role = 'pic';
   else if ((+f.meDayDual||0) + (+f.meNightDual||0) > 0) role = 'dual';
 
+  // Build a CANDIDATE output, then conditionally apply only-empty fills.
+  // Pre-existing role-relevant values block the fill for that slot entirely.
   const out = { ...f };
   out.dep_icao = depICAO;
   out.arr_icao = arrICAO;
 
+  // _isEmpty: true iff the slot is currently 0 / undefined / null.
+  // We DON'T compare against the candidate value — even a great-circle
+  // result of 0 still counts as a calculated value worth recording into
+  // an empty slot (it tells the pilot "we checked, the night portion is 0").
+  const _isEmpty = (v) => v === undefined || v === null || +v === 0;
+  let touched = false;
+
   if (role === 'cop') {
-    out.meDayCop = split.dayHours; out.meNightCop = split.nightHours;
-    out.meDayPic = 0; out.meNightPic = 0;
-    out.xcDayCop = isXC ? split.dayHours : 0;
-    out.xcNightCop = isXC ? split.nightHours : 0;
-    out.xcDayPic = 0; out.xcNightPic = 0;
+    if (_isEmpty(f.meDayCop))   { out.meDayCop   = split.dayHours;             touched = true; }
+    if (_isEmpty(f.meNightCop)) { out.meNightCop = split.nightHours;           touched = true; }
+    if (_isEmpty(f.xcDayCop))   { out.xcDayCop   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f.xcNightCop)) { out.xcNightCop = isXC ? split.nightHours : 0; touched = true; }
   } else if (role === 'pic') {
-    out.meDayPic = split.dayHours; out.meNightPic = split.nightHours;
-    out.xcDayPic = isXC ? split.dayHours : 0;
-    out.xcNightPic = isXC ? split.nightHours : 0;
-  } else {
-    out.meDayDual = split.dayHours; out.meNightDual = split.nightHours;
-    out.xcDayDual = isXC ? split.dayHours : 0;
-    out.xcNightDual = isXC ? split.nightHours : 0;
+    if (_isEmpty(f.meDayPic))   { out.meDayPic   = split.dayHours;             touched = true; }
+    if (_isEmpty(f.meNightPic)) { out.meNightPic = split.nightHours;           touched = true; }
+    if (_isEmpty(f.xcDayPic))   { out.xcDayPic   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f.xcNightPic)) { out.xcNightPic = isXC ? split.nightHours : 0; touched = true; }
+  } else { // dual
+    if (_isEmpty(f.meDayDual))   { out.meDayDual   = split.dayHours;             touched = true; }
+    if (_isEmpty(f.meNightDual)) { out.meNightDual = split.nightHours;           touched = true; }
+    if (_isEmpty(f.xcDayDual))   { out.xcDayDual   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f.xcNightDual)) { out.xcNightDual = isXC ? split.nightHours : 0; touched = true; }
   }
 
-  // Landing day/night based on arrival
-  if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
-    out.ldgDay = 0; out.ldgNight = (+f.ldgNight || +f.ldgDay || 1);
-  } else {
-    out.ldgNight = 0; out.ldgDay = (+f.ldgDay || +f.ldgNight || 1);
+  // Landing day/night based on arrival — same only-fill-empty rule.
+  // The OLD behavior reset ldgDay/ldgNight to {0,1} or {1,0} regardless of
+  // existing values; that could erase a pilot's manual entry. Now we only
+  // fill if both landing slots are currently empty.
+  if (_isEmpty(f.ldgDay) && _isEmpty(f.ldgNight)) {
+    if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
+      out.ldgNight = 1; out.ldgDay = 0;
+    } else {
+      out.ldgDay = 1; out.ldgNight = 0;
+    }
+    touched = true;
   }
 
-  return out;
+  // If nothing was actually changed (all role-relevant slots were already
+  // populated), return the original reference so the caller's "did this
+  // change?" check stays accurate.
+  return touched ? out : f;
 }
 
 // ─────────────────────────────────────────────────────────────────

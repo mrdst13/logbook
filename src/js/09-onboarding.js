@@ -112,19 +112,21 @@ function onboardingNext() {
     onbData.fname = document.getElementById('onb-fname')?.value?.trim() || '';
     onbData.lname = document.getElementById('onb-lname')?.value?.trim() || '';
     onbData.rank = document.getElementById('onb-rank')?.value || 'F/O';
+    // Operator codes are auto-derived from the airline choice — pilots don't
+    // know what "IATA carrier codes" mean on day 1, asking them is pure friction.
+    // They can edit codes later via Settings → Profile → Operational.
     const airSel = document.getElementById('onb-airline-select');
     const airVal = airSel?.value || '';
     if (airVal === 'other') {
       onbData.airline = document.getElementById('onb-airline-custom')?.value?.trim() || '';
-      onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+      onbData.operatorCodes = '';   // user fills in Settings later
     } else if (airVal && airVal !== 'none') {
       const [name, code] = airVal.split('|');
       onbData.airline = name || '';
-      const typedCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
-      onbData.operatorCodes = typedCodes || code || '';
+      onbData.operatorCodes = code || '';
     } else {
       onbData.airline = '';
-      onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+      onbData.operatorCodes = '';
     }
     onbData.base = document.getElementById('onb-base')?.value?.trim() || '';
     if (!onbData.fname || !onbData.lname) {
@@ -188,6 +190,16 @@ function renderOnboardingStep() {
   document.getElementById('onbStepNum').textContent = _onbDisplayStepNumber();
   const totalEl = document.getElementById('onbStepTotal');
   if (totalEl) totalEl.textContent = _onbVisibleStepCount();
+
+  // Progress bar — visual feedback. Each step except step 1 (Welcome)
+  // counts as progress. The bar fills from 0% at step 1 to 100% at finish.
+  const progressFill = document.getElementById('onbProgressFill');
+  if (progressFill) {
+    const cur = _onbDisplayStepNumber();
+    const total = _onbVisibleStepCount();
+    const pct = total > 1 ? Math.round(((cur - 1) / (total - 1)) * 100) : 0;
+    progressFill.style.width = pct + '%';
+  }
 
   const titleKeys = {
     1: 'onb.step1.title',  // Welcome
@@ -327,14 +339,10 @@ function renderOnboardingStep() {
           </select>
           <input type="text" id="onb-airline-custom" placeholder="Type airline name" style="display:none;margin-top:6px;" />
         </div>
-        <div class="form-group col-span-2">
-          <label>${esc(t('onb.step2.codes'))}</label>
-          <input type="text" id="onb-codes" placeholder="e.g. AC, PD, WS" style="font-family:var(--font-mono);text-transform:uppercase;" />
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-            ${t('onb.step2.codesHintHtml')}
-          </div>
-        </div>
       </div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
+        Operator codes (the IATA prefixes Cumulo uses to recognize your flights) are filled in automatically from your airline choice. You can edit them later in Settings.
+      </p>
     `;
     if (onbData.fname) document.getElementById('onb-fname').value = onbData.fname;
     if (onbData.lname) document.getElementById('onb-lname').value = onbData.lname;
@@ -353,7 +361,6 @@ function renderOnboardingStep() {
         custom.value = onbData.airline;
       }
     }
-    if (onbData.operatorCodes) document.getElementById('onb-codes').value = onbData.operatorCodes;
   }
 
   // ─── Step 3: Pilot type ───────────────────────────────────────────
@@ -427,8 +434,11 @@ function renderOnboardingStep() {
       <div class="form-group">
         <label>${esc(t('onb.step5.url'))}</label>
         <input type="url" id="onb-navblue"
-               placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
-               style="font-family:var(--font-mono); font-size:11px;" />
+               placeholder="Paste your Navblue iCal URL here"
+               style="font-family:var(--font-mono); font-size:12px; height:44px;" />
+        <div style="font-size:11px; color:var(--text-muted); margin-top:4px; line-height:1.5;">
+          Starts with <code style="font-family:var(--font-mono);background:var(--bg-subtle);padding:1px 4px;border-radius:3px;">webcal://</code> or <code style="font-family:var(--font-mono);background:var(--bg-subtle);padding:1px 4px;border-radius:3px;">https://</code> · You can also skip and set this up later in Settings.
+        </div>
       </div>
       <div style="margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.6;">
         ${t('onb.step5.howtoHtml')}

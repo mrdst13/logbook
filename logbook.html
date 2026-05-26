@@ -2852,6 +2852,49 @@ select {
   .import-modal-foot .btn { width: 100%; justify-content: center; }
 }
 
+/* ─── Onboarding wizard polish ─────────────────────────────────────
+   Visual progress bar at the top of the modal — gives the pilot a
+   sense of momentum vs just reading "Step 2 of 6" in tiny text.
+   Animates as the step changes; respects reduced-motion via the
+   tokens system in 01-tokens.css. */
+.onb-progress {
+  height: 3px;
+  background: var(--bg-subtle);
+  position: relative;
+  overflow: hidden;
+}
+.onb-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width var(--motion-slow) var(--ease-stable);
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+/* Tighten the modal a touch on phones — taller inputs (44pt iOS HIG),
+   bigger pilot-type card tap area, less vertical padding so more
+   content fits above the fold. */
+@media (max-width: 600px) {
+  .onb-modal .import-modal-head { padding: var(--s-4); }
+  .onb-modal .import-modal-body { padding: var(--s-4); }
+  .onb-modal .import-modal-body input[type="text"],
+  .onb-modal .import-modal-body input[type="url"],
+  .onb-modal .import-modal-body input[type="date"],
+  .onb-modal .import-modal-body select {
+    min-height: 44px;          /* Apple HIG min tap target */
+    font-size: 16px;           /* ≥16px stops iOS Safari from zooming on focus */
+  }
+  /* Pilot-type cards: vertical stack on phones, larger tap area */
+  .onb-modal .profile-type-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .onb-modal .profile-type-card {
+    padding: 14px 16px;
+    min-height: 56px;
+  }
+}
+
 /* ═══════════════════════════════════════
    REVIEW TABLE (import preview)
 ═══════════════════════════════════════ */
@@ -4819,7 +4862,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
 <!-- ONBOARDING WIZARD (shown on first launch — no profile set) -->
 <div class="import-overlay" id="onboardingOverlay" onclick="if(event.target===this)skipOnboarding()">
- <div class="import-modal" style="max-width:560px;">
+ <div class="import-modal onb-modal" style="max-width:560px;">
+ <!-- Progress bar — visual progress indicator above the head row. Pattern
+      from Stripe / Typeform — gives the user a sense of "I'm 30% done"
+      without making them read a step counter. -->
+ <div class="onb-progress" aria-hidden="true">
+   <div class="onb-progress-fill" id="onbProgressFill" style="width:0%;"></div>
+ </div>
  <div class="import-modal-head">
  <div>
  <div class="eyebrow" style="margin-bottom:4px;"><span data-i18n="onb.step">Step</span> <span id="onbStepNum">1</span> <span data-i18n="onb.of">of</span> <span id="onbStepTotal">5</span></div>
@@ -5403,9 +5452,22 @@ function calcStats() {
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  Re-calculate night/XC for an existing flight using known coords + STD time.
-//  Returns a new flight object with the updated fields, or the original if
-//  we don't have enough info to compute.
+//  Compute Night / XC / landings for a flight that was missing them.
+//
+//  STRICT POLICY (TC CAR 401.08 contemporaneous-record protection):
+//  this function NEVER overwrites a value the pilot has already entered.
+//  It only fills empty slots — for the role detected on the flight, and
+//  only for slots that are currently 0/undefined. If every role-relevant
+//  slot is already populated, the function returns the flight unchanged.
+//
+//  Old behavior (pre-2026-05-26): the function unconditionally wrote the
+//  great-circle result into the role's day/night/XC slots, which would
+//  overwrite a manually-typed value. That was unsafe and the sync UI
+//  reporting it as "Night/XC recalculated" sounded like falsification.
+//  Removed.
+//
+//  Returns either the same `f` (if no change is safe), or a NEW object
+//  with only the empty slots filled in.
 // ─────────────────────────────────────────────────────────────────
 function recalculateFlightDayNightXC(f) {
   // Need ICAO codes + a UTC departure time + block hours
@@ -5442,40 +5504,60 @@ function recalculateFlightDayNightXC(f) {
   const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
   const isXC = isCrossCountry(depICAO, arrICAO);
 
-  // Detect role: if existing has any meDayPic/meNightPic > 0 OR meDayDual > 0 it's PIC/Dual,
-  // otherwise default to F/O (cop). Override with role-detection: if pic name field present and meDayPic was set, keep.
+  // Detect role from the flight's existing data. If the pilot has typed
+  // a value in any role's day/night/XC slots, that role is "active" and
+  // we never touch it again. Default to cop (F/O) for typical Porter use.
   let role = 'cop';
   if ((+f.meDayPic||0) + (+f.meNightPic||0) > 0) role = 'pic';
   else if ((+f.meDayDual||0) + (+f.meNightDual||0) > 0) role = 'dual';
 
+  // Build a CANDIDATE output, then conditionally apply only-empty fills.
+  // Pre-existing role-relevant values block the fill for that slot entirely.
   const out = { ...f };
   out.dep_icao = depICAO;
   out.arr_icao = arrICAO;
 
+  // _isEmpty: true iff the slot is currently 0 / undefined / null.
+  // We DON'T compare against the candidate value — even a great-circle
+  // result of 0 still counts as a calculated value worth recording into
+  // an empty slot (it tells the pilot "we checked, the night portion is 0").
+  const _isEmpty = (v) => v === undefined || v === null || +v === 0;
+  let touched = false;
+
   if (role === 'cop') {
-    out.meDayCop = split.dayHours; out.meNightCop = split.nightHours;
-    out.meDayPic = 0; out.meNightPic = 0;
-    out.xcDayCop = isXC ? split.dayHours : 0;
-    out.xcNightCop = isXC ? split.nightHours : 0;
-    out.xcDayPic = 0; out.xcNightPic = 0;
+    if (_isEmpty(f.meDayCop))   { out.meDayCop   = split.dayHours;             touched = true; }
+    if (_isEmpty(f.meNightCop)) { out.meNightCop = split.nightHours;           touched = true; }
+    if (_isEmpty(f.xcDayCop))   { out.xcDayCop   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f.xcNightCop)) { out.xcNightCop = isXC ? split.nightHours : 0; touched = true; }
   } else if (role === 'pic') {
-    out.meDayPic = split.dayHours; out.meNightPic = split.nightHours;
-    out.xcDayPic = isXC ? split.dayHours : 0;
-    out.xcNightPic = isXC ? split.nightHours : 0;
-  } else {
-    out.meDayDual = split.dayHours; out.meNightDual = split.nightHours;
-    out.xcDayDual = isXC ? split.dayHours : 0;
-    out.xcNightDual = isXC ? split.nightHours : 0;
+    if (_isEmpty(f.meDayPic))   { out.meDayPic   = split.dayHours;             touched = true; }
+    if (_isEmpty(f.meNightPic)) { out.meNightPic = split.nightHours;           touched = true; }
+    if (_isEmpty(f.xcDayPic))   { out.xcDayPic   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f.xcNightPic)) { out.xcNightPic = isXC ? split.nightHours : 0; touched = true; }
+  } else { // dual
+    if (_isEmpty(f.meDayDual))   { out.meDayDual   = split.dayHours;             touched = true; }
+    if (_isEmpty(f.meNightDual)) { out.meNightDual = split.nightHours;           touched = true; }
+    if (_isEmpty(f.xcDayDual))   { out.xcDayDual   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f.xcNightDual)) { out.xcNightDual = isXC ? split.nightHours : 0; touched = true; }
   }
 
-  // Landing day/night based on arrival
-  if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
-    out.ldgDay = 0; out.ldgNight = (+f.ldgNight || +f.ldgDay || 1);
-  } else {
-    out.ldgNight = 0; out.ldgDay = (+f.ldgDay || +f.ldgNight || 1);
+  // Landing day/night based on arrival — same only-fill-empty rule.
+  // The OLD behavior reset ldgDay/ldgNight to {0,1} or {1,0} regardless of
+  // existing values; that could erase a pilot's manual entry. Now we only
+  // fill if both landing slots are currently empty.
+  if (_isEmpty(f.ldgDay) && _isEmpty(f.ldgNight)) {
+    if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
+      out.ldgNight = 1; out.ldgDay = 0;
+    } else {
+      out.ldgDay = 1; out.ldgNight = 0;
+    }
+    touched = true;
   }
 
-  return out;
+  // If nothing was actually changed (all role-relevant slots were already
+  // populated), return the original reference so the caller's "did this
+  // change?" check stays accurate.
+  return touched ? out : f;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -8731,10 +8813,14 @@ async function syncNavblueNow(opts) {
       }
     });
 
-    // Persist any merged changes (so the recalc below sees them)
+    // Persist any merged changes (so the fill-empty pass below sees them)
     if (mergedCount > 0) DB.save(flights);
 
-    // Auto-recalc night/XC for the now-enriched existing flights
+    // Fill empty Night/XC slots on enriched flights — STRICT only-fill-empty,
+    // never overwrites a pilot-typed value. See recalculateFlightDayNightXC()
+    // header comment for the CAR 401.08 contemporaneous-record rationale.
+    // The variable is still called `recalcStats` for compatibility with the
+    // toast messaging below; semantically it's "fillStats" now.
     let recalcStats = { updated: 0, skippedNoUTC: 0, skippedNoCoords: 0, skippedNoBlock: 0 };
     if (mergedCount > 0 || fresh.length === 0) {
       recalcStats = recalculateAllFlightsInternal();
@@ -8749,7 +8835,7 @@ async function syncNavblueNow(opts) {
         `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
       ];
       if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
-      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
+      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} had empty Night/XC fields filled in (pilot-entered values never modified)`);
       if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
       if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
       details.innerHTML = detailLines.join('<br>');
@@ -9004,19 +9090,21 @@ function onboardingNext() {
     onbData.fname = document.getElementById('onb-fname')?.value?.trim() || '';
     onbData.lname = document.getElementById('onb-lname')?.value?.trim() || '';
     onbData.rank = document.getElementById('onb-rank')?.value || 'F/O';
+    // Operator codes are auto-derived from the airline choice — pilots don't
+    // know what "IATA carrier codes" mean on day 1, asking them is pure friction.
+    // They can edit codes later via Settings → Profile → Operational.
     const airSel = document.getElementById('onb-airline-select');
     const airVal = airSel?.value || '';
     if (airVal === 'other') {
       onbData.airline = document.getElementById('onb-airline-custom')?.value?.trim() || '';
-      onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+      onbData.operatorCodes = '';   // user fills in Settings later
     } else if (airVal && airVal !== 'none') {
       const [name, code] = airVal.split('|');
       onbData.airline = name || '';
-      const typedCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
-      onbData.operatorCodes = typedCodes || code || '';
+      onbData.operatorCodes = code || '';
     } else {
       onbData.airline = '';
-      onbData.operatorCodes = document.getElementById('onb-codes')?.value?.trim().toUpperCase().replace(/\s/g, '') || '';
+      onbData.operatorCodes = '';
     }
     onbData.base = document.getElementById('onb-base')?.value?.trim() || '';
     if (!onbData.fname || !onbData.lname) {
@@ -9080,6 +9168,16 @@ function renderOnboardingStep() {
   document.getElementById('onbStepNum').textContent = _onbDisplayStepNumber();
   const totalEl = document.getElementById('onbStepTotal');
   if (totalEl) totalEl.textContent = _onbVisibleStepCount();
+
+  // Progress bar — visual feedback. Each step except step 1 (Welcome)
+  // counts as progress. The bar fills from 0% at step 1 to 100% at finish.
+  const progressFill = document.getElementById('onbProgressFill');
+  if (progressFill) {
+    const cur = _onbDisplayStepNumber();
+    const total = _onbVisibleStepCount();
+    const pct = total > 1 ? Math.round(((cur - 1) / (total - 1)) * 100) : 0;
+    progressFill.style.width = pct + '%';
+  }
 
   const titleKeys = {
     1: 'onb.step1.title',  // Welcome
@@ -9219,14 +9317,10 @@ function renderOnboardingStep() {
           </select>
           <input type="text" id="onb-airline-custom" placeholder="Type airline name" style="display:none;margin-top:6px;" />
         </div>
-        <div class="form-group col-span-2">
-          <label>${esc(t('onb.step2.codes'))}</label>
-          <input type="text" id="onb-codes" placeholder="e.g. AC, PD, WS" style="font-family:var(--font-mono);text-transform:uppercase;" />
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-            ${t('onb.step2.codesHintHtml')}
-          </div>
-        </div>
       </div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
+        Operator codes (the IATA prefixes Cumulo uses to recognize your flights) are filled in automatically from your airline choice. You can edit them later in Settings.
+      </p>
     `;
     if (onbData.fname) document.getElementById('onb-fname').value = onbData.fname;
     if (onbData.lname) document.getElementById('onb-lname').value = onbData.lname;
@@ -9245,7 +9339,6 @@ function renderOnboardingStep() {
         custom.value = onbData.airline;
       }
     }
-    if (onbData.operatorCodes) document.getElementById('onb-codes').value = onbData.operatorCodes;
   }
 
   // ─── Step 3: Pilot type ───────────────────────────────────────────
@@ -9319,8 +9412,11 @@ function renderOnboardingStep() {
       <div class="form-group">
         <label>${esc(t('onb.step5.url'))}</label>
         <input type="url" id="onb-navblue"
-               placeholder="webcal://poe.noc.vmc.navblue.cloud/RaidoMobile/RosterCalendarDownloader.ashx?Id=..."
-               style="font-family:var(--font-mono); font-size:11px;" />
+               placeholder="Paste your Navblue iCal URL here"
+               style="font-family:var(--font-mono); font-size:12px; height:44px;" />
+        <div style="font-size:11px; color:var(--text-muted); margin-top:4px; line-height:1.5;">
+          Starts with <code style="font-family:var(--font-mono);background:var(--bg-subtle);padding:1px 4px;border-radius:3px;">webcal://</code> or <code style="font-family:var(--font-mono);background:var(--bg-subtle);padding:1px 4px;border-radius:3px;">https://</code> · You can also skip and set this up later in Settings.
+        </div>
       </div>
       <div style="margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.6;">
         ${t('onb.step5.howtoHtml')}
@@ -12899,7 +12995,7 @@ const STRINGS = {
  'toast.noSnapshot': 'No snapshot to restore — Cumulo only saves snapshots before bulk operations.',
  'toast.snapshotNotFound': 'Snapshot not found',
  'toast.snapshotRestored': 'Restored {n} flights from {age} state',
- 'toast.recalcSuccess': '{updated} recalculated',
+ 'toast.recalcSuccess': '{updated} flights had empty Night/XC fields filled in',
  'toast.urlSaved': 'iCal URL saved ✓',
  'toast.urlCleared': 'iCal URL cleared',
  'toast.syncInProgress': 'Syncing Navblue…',
@@ -12974,14 +13070,17 @@ const STRINGS = {
  'toast.captainsAddedPl': '{n} captain names added.',
  'toast.pdfExportedPages': 'PDF exported ({pages} pages) ✓',
  'toast.syncFreshEnriched': '{fresh} new + {merged} enriched',
- 'toast.syncEnrichedRecalc': '{merged} existing flights enriched + {updated} recalculated ✓',
+ 'toast.syncEnrichedRecalc': '{merged} existing flights enriched · {updated} had empty Night/XC filled in (your edits never touched) ✓',
 
  // ─── Confirm dialogs
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
  'confirm.removeNavblue': 'Remove the saved Navblue URL?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
  'confirm.deleteFlight': 'Delete this flight? This cannot be undone (a snapshot is taken before delete — you can undo from Settings).',
- 'confirm.recalc': 'Recalculate night-time and cross-country for all imported flights?\n\nThis will overwrite existing day/night splits using astronomical sunrise/sunset.\n\nA snapshot will be saved automatically — you can undo this from Settings if needed.',
+ // 'confirm.recalc' — dead key. The bulk-recalc feature was removed for TC
+ // compliance (overwriting pilot-typed values violates CAR 401.08
+ // contemporaneous-record). Internal post-iCal-sync filling of EMPTY
+ // Night/XC slots only is still active, but does not prompt the user.
  'confirm.resetCols': 'Reset all column visibility to defaults? Your data is not affected.',
  'confirm.restoreSnapshot': 'Restore logbook to state before "{op}" ({age})?\n\nCurrent: {curN} flights\nSnapshot: {snapN} flights\n\nThe current state will be saved as a new snapshot — you can always undo again.',
 
@@ -13513,7 +13612,7 @@ const STRINGS = {
  'toast.noSnapshot': 'Aucun instantané à restaurer — Cumulo ne sauvegarde un instantané qu’avant les opérations en lot.',
  'toast.snapshotNotFound': 'Instantané introuvable',
  'toast.snapshotRestored': '{n} vols restaurés depuis l’état d’il y a {age}',
- 'toast.recalcSuccess': '{updated} recalculés',
+ 'toast.recalcSuccess': '{updated} vols avec Nuit/XC vides remplis',
  'toast.urlSaved': 'URL iCal enregistrée ✓',
  'toast.urlCleared': 'URL iCal effacée',
  'toast.syncInProgress': 'Synchronisation Navblue…',
@@ -13588,14 +13687,17 @@ const STRINGS = {
  'toast.captainsAddedPl': '{n} noms de commandants ajoutés.',
  'toast.pdfExportedPages': 'PDF exporté ({pages} pages) ✓',
  'toast.syncFreshEnriched': '{fresh} nouveaux + {merged} enrichis',
- 'toast.syncEnrichedRecalc': '{merged} vols existants enrichis + {updated} recalculés ✓',
+ 'toast.syncEnrichedRecalc': '{merged} vols existants enrichis · {updated} avec Nuit/XC vides remplis (vos saisies intactes) ✓',
 
  // ─── Dialogues de confirmation
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
  'confirm.removeNavblue': 'Supprimer l’URL Navblue enregistrée ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlight': 'Supprimer ce vol ? Action irréversible (un instantané est pris avant la suppression — vous pouvez annuler depuis Paramètres).',
- 'confirm.recalc': 'Recalculer la nuit et le voyage pour tous les vols importés ?\n\nLes répartitions jour/nuit actuelles seront écrasées avec lever/coucher astronomique.\n\nUn instantané sera enregistré automatiquement — vous pourrez annuler depuis Paramètres au besoin.',
+ // 'confirm.recalc' — clé morte. La fonctionnalité de recalcul en masse a
+ // été retirée pour conformité TC (écraser des valeurs saisies par le pilote
+ // viole CAR 401.08). Le remplissage interne des champs Nuit/XC VIDES après
+ // sync iCal est toujours actif mais ne demande pas confirmation.
  'confirm.resetCols': 'Réinitialiser la visibilité des colonnes ? Vos données ne sont pas affectées.',
  'confirm.restoreSnapshot': 'Restaurer le carnet à l’état avant « {op} » ({age}) ?\n\nActuel : {curN} vols\nInstantané : {snapN} vols\n\nL’état actuel sera enregistré comme nouvel instantané — vous pourrez toujours annuler à nouveau.',
 
@@ -15868,7 +15970,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-today-flights-quick-crew';
+const BUILD_VERSION = 'v3a-2026-05-26-recalc-safe-mobile-onboarding';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

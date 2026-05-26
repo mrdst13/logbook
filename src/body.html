@@ -1305,7 +1305,13 @@
 
 <!-- ONBOARDING WIZARD (shown on first launch — no profile set) -->
 <div class="import-overlay" id="onboardingOverlay" onclick="if(event.target===this)skipOnboarding()">
- <div class="import-modal" style="max-width:560px;">
+ <div class="import-modal onb-modal" style="max-width:560px;">
+ <!-- Progress bar — visual progress indicator above the head row. Pattern
+      from Stripe / Typeform — gives the user a sense of "I'm 30% done"
+      without making them read a step counter. -->
+ <div class="onb-progress" aria-hidden="true">
+   <div class="onb-progress-fill" id="onbProgressFill" style="width:0%;"></div>
+ </div>
  <div class="import-modal-head">
  <div>
  <div class="eyebrow" style="margin-bottom:4px;"><span data-i18n="onb.step">Step</span> <span id="onbStepNum">1</span> <span data-i18n="onb.of">of</span> <span id="onbStepTotal">5</span></div>

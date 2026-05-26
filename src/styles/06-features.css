@@ -567,6 +567,49 @@
   .import-modal-foot .btn { width: 100%; justify-content: center; }
 }
 
+/* ─── Onboarding wizard polish ─────────────────────────────────────
+   Visual progress bar at the top of the modal — gives the pilot a
+   sense of momentum vs just reading "Step 2 of 6" in tiny text.
+   Animates as the step changes; respects reduced-motion via the
+   tokens system in 01-tokens.css. */
+.onb-progress {
+  height: 3px;
+  background: var(--bg-subtle);
+  position: relative;
+  overflow: hidden;
+}
+.onb-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width var(--motion-slow) var(--ease-stable);
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+/* Tighten the modal a touch on phones — taller inputs (44pt iOS HIG),
+   bigger pilot-type card tap area, less vertical padding so more
+   content fits above the fold. */
+@media (max-width: 600px) {
+  .onb-modal .import-modal-head { padding: var(--s-4); }
+  .onb-modal .import-modal-body { padding: var(--s-4); }
+  .onb-modal .import-modal-body input[type="text"],
+  .onb-modal .import-modal-body input[type="url"],
+  .onb-modal .import-modal-body input[type="date"],
+  .onb-modal .import-modal-body select {
+    min-height: 44px;          /* Apple HIG min tap target */
+    font-size: 16px;           /* ≥16px stops iOS Safari from zooming on focus */
+  }
+  /* Pilot-type cards: vertical stack on phones, larger tap area */
+  .onb-modal .profile-type-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .onb-modal .profile-type-card {
+    padding: 14px 16px;
+    min-height: 56px;
+  }
+}
+
 /* ═══════════════════════════════════════
    REVIEW TABLE (import preview)
 ═══════════════════════════════════════ */
