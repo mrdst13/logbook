@@ -1097,18 +1097,73 @@
    <a href="#priv-trust"   class="settings-subnav-chip">Why your data is safe</a>
  </nav>
 
- <!-- ─── Card: PIPEDA consent for crew names ─────────────────── -->
+ <!-- ─── Card: PIPEDA crew-name disclosure ──────────────────────
+      Replaces the old binary "I have crew consent" checkbox. Pilots
+      were getting (wrongly) culpabilized by a question that suggested
+      they needed explicit consent for things they don't legally need
+      consent for (their own personal logbook, their own private cloud
+      backup). This new layout makes the legal position explicit:
+
+        - Personal logbook + private cloud = registre personnel
+          obligatoire (CAR 401.08), no consent required (PIPEDA s.7(1)(b),
+          Loi 25 art. 12 — collection required by other law)
+        - Shared exports = only place where the consent question
+          actually applies. Anonymized by default; opt-in to full names.
+        - Public surfaces = always anonymized, not user-configurable.
+
+      Reference: this is my reading of the regs, not legal advice.
+      Pilots with high-stakes exposure should talk to a PIPEDA lawyer.
+ -->
  <div class="form-card" id="priv-consent">
- <div class="form-card-title" data-i18n="profile.captain.title">Crew name privacy (PIPEDA / Loi 25)</div>
- <div class="form-card-desc">Captain and co-pilot names are personal information under federal + Québec privacy law. By default Cumulo anonymizes them before sending anything to the cloud or exporting outside this device.</div>
- <div class="form-group col-span-2">
- <label class="col-option">
- <input type="checkbox" id="p-consentCaptainNames" />
- <span class="col-option-label" data-i18n="profile.captain.label">Keep full crew names when syncing or sharing (I have crew consent)</span>
- </label>
- <div class="help-text" data-i18n-html="profile.captain.descHtml">
- Local PDFs always keep full names (Transport Canada needs them on YOUR copy). What changes with this toggle: cloud sync + shared exports. Off = anonymized to initials. On = full names — only enable if you've obtained explicit consent from your crew.
+ <div class="form-card-title">Crew name privacy</div>
+ <div class="form-card-desc">Crew names are personal information under PIPEDA and Loi 25. Here's exactly where your crew's names appear — and where they don't.</div>
+
+ <div class="privacy-disclosure">
+
+   <!-- Always-on: personal logbook (registre personnel — exempté) -->
+   <label class="privacy-row privacy-row-locked">
+     <input type="checkbox" checked disabled />
+     <div class="privacy-row-body">
+       <div class="privacy-row-title">My personal logbook (this device)</div>
+       <div class="privacy-row-desc">Full names always kept. Equivalent to a paper logbook — the regs (CAR 401.08) require you to track crew, and PIPEDA s.7(1)(b) exempts collection required by other law. No consent needed.</div>
+     </div>
+     <span class="privacy-row-pill privacy-row-pill-locked">ALWAYS ON</span>
+   </label>
+
+   <!-- Always-on when private: cloud backup (extension du carnet perso) -->
+   <label class="privacy-row privacy-row-locked">
+     <input type="checkbox" checked disabled />
+     <div class="privacy-row-body">
+       <div class="privacy-row-title">My private cloud backup (Canada)</div>
+       <div class="privacy-row-desc">Full names kept in your personal Supabase ca-central-1 backup. You're the only one with access — this is an extension of your personal logbook, not a transfer to a third party. Hosted in Montréal.</div>
+     </div>
+     <span class="privacy-row-pill privacy-row-pill-locked">ALWAYS ON</span>
+   </label>
+
+   <!-- The real choice: shared exports -->
+   <label class="privacy-row privacy-row-toggle">
+     <input type="checkbox" id="p-consentCaptainNames" />
+     <div class="privacy-row-body">
+       <div class="privacy-row-title">Shared exports (PDFs sent to others)</div>
+       <div class="privacy-row-desc"><strong>Off</strong> (default) → crew names anonymized to initials when you share a PDF outside this device. <strong>On</strong> → full names kept in shared PDFs. Only turn on if (a) you have crew consent, or (b) the recipient is Transport Canada / a regulator who already has the right to see them.</div>
+     </div>
+     <span class="privacy-row-pill privacy-row-pill-toggle">YOUR CHOICE</span>
+   </label>
+
+   <!-- Locked off: public / marketing -->
+   <label class="privacy-row privacy-row-locked privacy-row-locked-off">
+     <input type="checkbox" disabled />
+     <div class="privacy-row-body">
+       <div class="privacy-row-title">Public or marketing surfaces</div>
+       <div class="privacy-row-desc">Always anonymized. Cumulo never displays your crew's names on a public profile, landing page, social proof, or any shared link. Cannot be overridden.</div>
+     </div>
+     <span class="privacy-row-pill privacy-row-pill-locked">NEVER</span>
+   </label>
+
  </div>
+
+ <div class="help-text" style="margin-top:var(--s-4);border-top:1px solid var(--border);padding-top:var(--s-3);">
+   <strong>Not legal advice.</strong> This is Cumulo's reading of PIPEDA s.7 + Loi 25 art. 12 (collection required by another law) applied to a personal pilot logbook under CAR 401.08. If your situation involves high-stakes disclosure (legal proceedings, insurance claims, employer audits), consult a privacy lawyer.
  </div>
  </div>
 
