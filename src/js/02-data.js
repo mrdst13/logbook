@@ -993,46 +993,71 @@ function _dashRenderNextColumn() {
   }
 
   // ─── Card 3: MILESTONE (always) ────────────────────────────
-  // Routes to the hero career-total drill — same data source, but framed
-  // as "where this number is going next" via the milestone target.
-  // Personal goal (profile.personalGoalHrs) overrides the auto-milestone
-  // chain when set — lets the pilot track their own career target
-  // (e.g. ATPL submission at 1500, dispatch-required at specific airline).
+  // Typed goal aware: pilots care about SPECIFIC milestones (e.g.
+  // "1500 hrs on E195-E2" for captain upgrade), not just total career.
+  // When personalGoalKind === 'aircraft', the achieved counter sums
+  // block hours from flights matching the aircraft type substring.
+  // Otherwise falls back to the aggregate counter for the chosen kind.
   const sRaw = calcStats();
-  const totalHrs = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw).total : sRaw.total;
+  const sMerged = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw) : sRaw;
+  const totalHrs = +sMerged.total || +sMerged.block || 0;
   const profileForMilestone = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
-  const personalGoal = +profileForMilestone.personalGoalHrs || 0;
+  const personalGoal    = +profileForMilestone.personalGoalHrs || 0;
+  const personalKind    = profileForMilestone.personalGoalKind || 'total';
+  const personalContext = profileForMilestone.personalGoalContext || '';
   const milestones = [50, 100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000, 15000, 20000];
 
-  let next, prev;
-  if (personalGoal > totalHrs) {
-    // Pilot set their own goal — use that as the target, with the previous
-    // achieved milestone (or 0) as the baseline for the progress bar.
+  // Achieved hours in the relevant category — drives progress against
+  // a typed goal. For auto-mode, this is just totalHrs.
+  const achievedInCategory = personalGoal > 0
+    ? (typeof _dashGoalAchievedHours === 'function'
+        ? _dashGoalAchievedHours(personalKind, personalContext, sMerged)
+        : totalHrs)
+    : totalHrs;
+
+  let next, prev, label, achievedForBar;
+  if (personalGoal > 0 && personalGoal > achievedInCategory) {
+    // Typed personal goal active — track THIS counter, not total
     next = personalGoal;
-    prev = milestones.filter(m => m <= totalHrs).pop() || 0;
+    prev = milestones.filter(m => m <= achievedInCategory).pop() || 0;
+    achievedForBar = achievedInCategory;
+    // Build a category-aware sub-label
+    const kindWord = (k, ctx) => {
+      if (k === 'aircraft' && ctx) return fr ? `sur ${ctx}` : `on ${ctx}`;
+      return ({
+        'pic':   fr ? 'PIC'             : 'PIC',
+        'sic':   fr ? 'SIC'             : 'SIC',
+        'night': fr ? 'de nuit'         : 'night',
+        'xc':    fr ? 'voyage'          : 'cross-country',
+        'me':    fr ? 'multi-moteur'    : 'multi-engine',
+        'total': fr ? 'total'           : 'total',
+      }[k]) || '';
+    };
+    label = `${next.toLocaleString()} hrs ${kindWord(personalKind, personalContext)}`.trim();
   } else {
     next = milestones.find(m => totalHrs < m) || (milestones[milestones.length - 1] + 5000);
     prev = milestones.filter(m => m < next && m <= totalHrs).pop() || 0;
+    achievedForBar = totalHrs;
+    label = `${next.toLocaleString()} hrs`;
   }
-  const remain = Math.max(0, next - totalHrs);
+  const remain = Math.max(0, next - achievedForBar);
   // Progress within the current segment (prev → next). Clamps to [0, 100].
   const segmentPct = next > prev
-    ? Math.max(0, Math.min(100, ((totalHrs - prev) / (next - prev)) * 100))
+    ? Math.max(0, Math.min(100, ((achievedForBar - prev) / (next - prev)) * 100))
     : 0;
 
   cards.push({
     tone: 'quiet',
     kicker: fr ? 'JALON' : 'MILESTONE',
-    title: `${next.toLocaleString()} hrs`,
+    title: label,
     sub: fr ? `Plus que ${remain.toFixed(1)} hrs · ${segmentPct.toFixed(0)}%` : `${remain.toFixed(1)} hrs to go · ${segmentPct.toFixed(0)}%`,
-    chip: personalGoal > 0 && next === personalGoal ? (fr ? 'OBJECTIF' : 'GOAL') : ('' + next),
+    chip: personalGoal > 0 ? (fr ? 'OBJECTIF' : 'GOAL') : ('' + next),
     onclick: "openDashDrill('milestone')",
-    // Custom progress data the renderer below picks up.
     progress: {
       pct: segmentPct,
       prev: prev,
       next: next,
-      isPersonalGoal: (personalGoal > 0 && next === personalGoal),
+      isPersonalGoal: (personalGoal > 0),
     },
   });
 
