@@ -406,36 +406,11 @@ function setMini(id, val) {
   el.classList.toggle('zero', (+val) === 0);
 }
 
-// Hero number count-up animation. Plays once on first render of the
-// Dashboard, sets instantly on subsequent renders (re-renders happen
-// often — after every save/sync — and animating every time would be
-// nauseating). Respects prefers-reduced-motion: reduce → instant set.
-//
-// Pattern from Stripe / Mercury balance counters. Easing is a cubic
-// ease-out so the number "lands" rather than crashing in linearly.
-let _dashHeroAnimated = false;
-function _animateHeroNumber(el, target) {
-  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced || _dashHeroAnimated || target === 0) {
-    el.textContent = fmt(target);
-    _dashHeroAnimated = true;
-    return;
-  }
-  _dashHeroAnimated = true;
-  const duration = 900;
-  const start = performance.now();
-  // ease-out cubic — slows as it approaches the target.
-  const ease = (t) => 1 - Math.pow(1 - t, 3);
-  function tick(now) {
-    const elapsed = now - start;
-    const t = Math.min(1, elapsed / duration);
-    const value = target * ease(t);
-    el.textContent = fmt(value);
-    if (t < 1) requestAnimationFrame(tick);
-    else      el.textContent = fmt(target);   // make sure we land exactly
-  }
-  requestAnimationFrame(tick);
-}
+// Hero number count-up animation removed 2026-05-26 — Martin found the
+// numbers-running-up effect distracting. Hero now sets to target instantly.
+// Pattern lesson: motion that re-runs on every Dashboard re-render (after
+// every save/sync) is noisy; if we ever bring this back, gate it to ONCE
+// per page session AND don't re-fire on routine data refreshes.
 
 // ═══════════════════════════════════════════
 // DASHBOARD — Q9 2026 hero direction
@@ -470,7 +445,7 @@ function renderDashboard() {
 
   // (4a) Hero card: 88px career number + sparkline + delta pill
   const heroNumEl = document.getElementById('dashHeroNum');
-  if (heroNumEl) _animateHeroNumber(heroNumEl, +(s.block || s.total) || 0);
+  if (heroNumEl) heroNumEl.textContent = fmt(s.block || s.total);
   const delta = document.getElementById('dashHeroDelta');
   const deltaVal = document.getElementById('dashHeroDeltaVal');
   if (delta && deltaVal) {

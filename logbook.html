@@ -268,7 +268,25 @@ html, body { height: 100vh; height: 100dvh; overflow: hidden; }
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg-app);
+  /* ─── Atmospheric sky backdrop (2026-05-26) ─────────────────────
+     The brand is "Cumulo" — cumulus cloud. The backdrop should feel
+     like the sky from altitude: cooler/bluer at the top of the
+     viewport, fading to neutral by mid-page. Static, no motion (a
+     looping gradient would feel like a screensaver — wrong tone).
+     Subtle enough that on first glance the page reads as "white" /
+     "light", but the depth registers peripherally.
+
+     Pattern: linear-gradient on body, two soft radial glows via
+     pseudo-elements that suggest atmospheric layers.
+
+     Light mode values are calibrated for ≤6% perceived tint at the
+     top — anything stronger trips the consumer-SaaS dial that
+     Martin rejected earlier. */
+  background:
+    linear-gradient(180deg,
+      #EEF2F8 0%,                  /* horizon-blue tint at the very top */
+      var(--bg-app) 380px,         /* fades to the standard app bg */
+      var(--bg-app) 100%);
   color: var(--text);
   height: 100vh;
   height: 100dvh;
@@ -279,15 +297,69 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   transition: background var(--t-std) var(--ease-out), color var(--t-std) var(--ease-out);
+  position: relative;
 }
 
-/* Ambient color blobs DELETED (audit Dashboard P0 #1).
-   The 3 radial-gradient pseudo-elements (body::before, body::after,
-   .app-body::before) were producing blue/indigo/violet halos behind
-   the entire app — the most visible "consumer SaaS" tell. Linear /
-   Stripe / Patek / NetJets use none. Same removal for dark theme overrides. */
+/* Two soft atmospheric glow blobs, positioned in the upper third of
+   the viewport. Very low opacity — they're peripheral mood, never
+   foreground. Both are pure CSS (no JS, no canvas), zero perf cost.
+   Animation: static. (A loop would steal attention from data.)
 
-/* Make sure header / main / nav sit above the ambient blobs (z-index: 0).
+   Why pseudo-elements on <body> instead of a wrapper div: body already
+   has overflow:hidden + display:flex; the pseudo-elements sit behind
+   the flex children without breaking the layout. z-index: 0 keeps
+   them under header/main/nav (which are z-index: 1 below). */
+body::before {
+  content: '';
+  position: fixed;
+  top: -120px;
+  left: -10vw;
+  width: 60vw;
+  height: 420px;
+  background: radial-gradient(ellipse at center,
+    rgba(56, 132, 255, 0.10) 0%,
+    rgba(56, 132, 255, 0) 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: -80px;
+  right: -10vw;
+  width: 55vw;
+  height: 380px;
+  background: radial-gradient(ellipse at center,
+    rgba(91, 149, 255, 0.08) 0%,
+    rgba(91, 149, 255, 0) 70%);
+  filter: blur(50px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dark mode: deeper navy at the top fading to base dark, with the
+   atmospheric glows toned down because the dark surfaces already
+   carry depth via shadow. */
+:root[data-theme="dark"] body {
+  background:
+    linear-gradient(180deg,
+      #1F2436 0%,                  /* deeper navy at top — sky at altitude */
+      var(--bg-app) 420px,
+      var(--bg-app) 100%);
+}
+:root[data-theme="dark"] body::before {
+  background: radial-gradient(ellipse at center,
+    rgba(91, 149, 255, 0.10) 0%,
+    rgba(91, 149, 255, 0) 70%);
+}
+:root[data-theme="dark"] body::after {
+  background: radial-gradient(ellipse at center,
+    rgba(91, 149, 255, 0.08) 0%,
+    rgba(91, 149, 255, 0) 70%);
+}
+
+/* Make sure header / main / nav sit above the atmospheric layer (z-index: 0).
    DO NOT add .app-body here. A z-index on .app-body creates a stacking
    context that traps the mobile drawer (nav, fixed, z-99) below the
    nav-overlay (z-98) at the root level, eating all taps on the drawer.
@@ -833,12 +905,24 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .dash-row { display: grid; gap: var(--s-5); margin-bottom: var(--s-5); }
 .dash-row-main { grid-template-columns: 1.4fr 1fr; }
 
-/* Generic card surface — same as .card but namespaced so we can tune Q9 separately */
+/* Generic card surface — same as .card but namespaced so we can tune Q9 separately.
+   The shadow + inset top highlight combo gives cards a "floating over the
+   atmospheric sky backdrop" feel. Subtle — never heavy. */
 .dash-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   padding: 22px 26px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,        /* top highlight */
+    0 1px 2px rgba(15, 23, 42, 0.04),              /* close shadow */
+    0 8px 24px rgba(15, 23, 42, 0.03);             /* atmospheric drop */
+}
+:root[data-theme="dark"] .dash-card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .dash-card-head {
   display: flex;
@@ -6064,36 +6148,11 @@ function setMini(id, val) {
   el.classList.toggle('zero', (+val) === 0);
 }
 
-// Hero number count-up animation. Plays once on first render of the
-// Dashboard, sets instantly on subsequent renders (re-renders happen
-// often — after every save/sync — and animating every time would be
-// nauseating). Respects prefers-reduced-motion: reduce → instant set.
-//
-// Pattern from Stripe / Mercury balance counters. Easing is a cubic
-// ease-out so the number "lands" rather than crashing in linearly.
-let _dashHeroAnimated = false;
-function _animateHeroNumber(el, target) {
-  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced || _dashHeroAnimated || target === 0) {
-    el.textContent = fmt(target);
-    _dashHeroAnimated = true;
-    return;
-  }
-  _dashHeroAnimated = true;
-  const duration = 900;
-  const start = performance.now();
-  // ease-out cubic — slows as it approaches the target.
-  const ease = (t) => 1 - Math.pow(1 - t, 3);
-  function tick(now) {
-    const elapsed = now - start;
-    const t = Math.min(1, elapsed / duration);
-    const value = target * ease(t);
-    el.textContent = fmt(value);
-    if (t < 1) requestAnimationFrame(tick);
-    else      el.textContent = fmt(target);   // make sure we land exactly
-  }
-  requestAnimationFrame(tick);
-}
+// Hero number count-up animation removed 2026-05-26 — Martin found the
+// numbers-running-up effect distracting. Hero now sets to target instantly.
+// Pattern lesson: motion that re-runs on every Dashboard re-render (after
+// every save/sync) is noisy; if we ever bring this back, gate it to ONCE
+// per page session AND don't re-fire on routine data refreshes.
 
 // ═══════════════════════════════════════════
 // DASHBOARD — Q9 2026 hero direction
@@ -6128,7 +6187,7 @@ function renderDashboard() {
 
   // (4a) Hero card: 88px career number + sparkline + delta pill
   const heroNumEl = document.getElementById('dashHeroNum');
-  if (heroNumEl) _animateHeroNumber(heroNumEl, +(s.block || s.total) || 0);
+  if (heroNumEl) heroNumEl.textContent = fmt(s.block || s.total);
   const delta = document.getElementById('dashHeroDelta');
   const deltaVal = document.getElementById('dashHeroDeltaVal');
   if (delta && deltaVal) {
@@ -16612,7 +16671,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-wow-polish';
+const BUILD_VERSION = 'v3a-2026-05-26-sky-backdrop';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
