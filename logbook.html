@@ -5557,11 +5557,26 @@ function recalculateFlightDayNightXC(f) {
   out.dep_icao = depICAO;
   out.arr_icao = arrICAO;
 
-  // _isEmpty: true iff the slot is currently 0 / undefined / null.
-  // We DON'T compare against the candidate value — even a great-circle
-  // result of 0 still counts as a calculated value worth recording into
-  // an empty slot (it tells the pilot "we checked, the night portion is 0").
-  const _isEmpty = (v) => v === undefined || v === null || +v === 0;
+  // _isEmpty: true iff the slot has NEVER been populated.
+  //
+  // STRICT — undefined / null only. An explicit 0 is treated as "the pilot
+  // (or a prior fill) has already recorded a valid value for this slot,
+  // which happens to be zero". This matters because:
+  //
+  //   - navblueEventToFlight() returns a flight with explicit 0 values in
+  //     slots that don't apply to the role (e.g. xcDayPic = 0 for a cop
+  //     flight). Those are correct values, not gaps.
+  //   - After the first post-sync fill, a daytime-only flight has
+  //     meNightCop = 0 (correct — no night). If we treated 0 as empty,
+  //     every subsequent sync would re-touch the same 16 flights with the
+  //     same zero, inflating "X flights filled in" forever.
+  //   - A pilot who deliberately entered 0 (e.g. F/O on a vol they were
+  //     pure SIC on, so no PIC time) MUST have that value preserved.
+  //
+  // Strict check fixes all three. The only case it can't handle: a pilot
+  // who entered partial data with literal "—" or empty string. Those are
+  // edge cases that should be cleaned up at the form layer, not here.
+  const _isEmpty = (v) => v === undefined || v === null;
   let touched = false;
 
   if (role === 'cop') {
@@ -16010,7 +16025,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-welcome-polish';
+const BUILD_VERSION = 'v3a-2026-05-26-recalc-empty-strict';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
