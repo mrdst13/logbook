@@ -959,7 +959,10 @@ function _dashRenderNextColumn() {
     const okSub = is705ForStatus
       ? (fr ? 'PPC · REC · MED — vérifié à l\'instant' : 'PPC · REC · MED — just verified')
       : (fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified');
-    cards.push({ tone: 'quiet', kicker: fr ? 'STATUT' : 'STATUS',
+    // Green/success treatment when everything's current — encourages the
+    // pilot at a glance. Pattern from health/fitness apps where "all good"
+    // gets a positive visual rather than a muted neutral tone.
+    cards.push({ tone: 'success', kicker: fr ? 'STATUT' : 'STATUS',
       title: fr ? 'Toutes validités à jour' : 'All validities current',
       sub: okSub, chip: 'OK',
       onclick: `openDashDrill('${target}')` });
@@ -968,32 +971,73 @@ function _dashRenderNextColumn() {
   // ─── Card 3: MILESTONE (always) ────────────────────────────
   // Routes to the hero career-total drill — same data source, but framed
   // as "where this number is going next" via the milestone target.
+  // Personal goal (profile.personalGoalHrs) overrides the auto-milestone
+  // chain when set — lets the pilot track their own career target
+  // (e.g. ATPL submission at 1500, dispatch-required at specific airline).
   const sRaw = calcStats();
   const totalHrs = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw).total : sRaw.total;
-  const milestones = [100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000];
-  const next = milestones.find(m => totalHrs < m) || milestones[milestones.length - 1] + 5000;
-  const remain = Math.max(0, next - totalHrs).toFixed(1);
+  const profileForMilestone = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
+  const personalGoal = +profileForMilestone.personalGoalHrs || 0;
+  const milestones = [50, 100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000, 15000, 20000];
+
+  let next, prev;
+  if (personalGoal > totalHrs) {
+    // Pilot set their own goal — use that as the target, with the previous
+    // achieved milestone (or 0) as the baseline for the progress bar.
+    next = personalGoal;
+    prev = milestones.filter(m => m <= totalHrs).pop() || 0;
+  } else {
+    next = milestones.find(m => totalHrs < m) || (milestones[milestones.length - 1] + 5000);
+    prev = milestones.filter(m => m < next && m <= totalHrs).pop() || 0;
+  }
+  const remain = Math.max(0, next - totalHrs);
+  // Progress within the current segment (prev → next). Clamps to [0, 100].
+  const segmentPct = next > prev
+    ? Math.max(0, Math.min(100, ((totalHrs - prev) / (next - prev)) * 100))
+    : 0;
+
   cards.push({
     tone: 'quiet',
     kicker: fr ? 'JALON' : 'MILESTONE',
-    title: `${next} hrs ${fr ? 'total' : 'total'}`,
-    sub: fr ? `Plus que ${remain} hrs` : `${remain} hrs to go`,
-    chip: '' + next,
-    onclick: "openDashDrill('hero')"
+    title: `${next.toLocaleString()} hrs`,
+    sub: fr ? `Plus que ${remain.toFixed(1)} hrs · ${segmentPct.toFixed(0)}%` : `${remain.toFixed(1)} hrs to go · ${segmentPct.toFixed(0)}%`,
+    chip: personalGoal > 0 && next === personalGoal ? (fr ? 'OBJECTIF' : 'GOAL') : ('' + next),
+    onclick: "openDashDrill('milestone')",
+    // Custom progress data the renderer below picks up.
+    progress: {
+      pct: segmentPct,
+      prev: prev,
+      next: next,
+      isPersonalGoal: (personalGoal > 0 && next === personalGoal),
+    },
   });
 
   // Always display — cards.length is guaranteed ≥3 by the priority chain.
   el.style.display = '';
-  el.innerHTML = cards.map(c => `
-    <div class="dash-next-card" data-tone="${esc(c.tone)}"${c.onclick ? ` onclick="${c.onclick}" style="cursor:pointer"` : ''}>
-      <div class="dash-next-head">
-        <div class="eyebrow dash-next-kicker">${esc(c.kicker)}</div>
-        ${c.chip ? `<span class="dash-next-chip">${esc(c.chip)}</span>` : ''}
+  el.innerHTML = cards.map(c => {
+    // Optional progress bar — only when card.progress is supplied (Milestone).
+    const progressBar = c.progress
+      ? `<div class="dash-next-progress" aria-hidden="true">
+           <div class="dash-next-progress-fill" style="width:${c.progress.pct.toFixed(1)}%;"></div>
+         </div>
+         <div class="dash-next-progress-labels mono">
+           <span>${c.progress.prev.toLocaleString()}</span>
+           <span>${c.progress.next.toLocaleString()}</span>
+         </div>`
+      : '';
+    const personalAttr = c.progress && c.progress.isPersonalGoal ? ' data-personal-goal="true"' : '';
+    return `
+      <div class="dash-next-card" data-tone="${esc(c.tone)}"${personalAttr}${c.onclick ? ` onclick="${c.onclick}" style="cursor:pointer"` : ''}>
+        <div class="dash-next-head">
+          <div class="eyebrow dash-next-kicker">${esc(c.kicker)}</div>
+          ${c.chip ? `<span class="dash-next-chip">${esc(c.chip)}</span>` : ''}
+        </div>
+        <div class="dash-next-title">${esc(c.title)}</div>
+        <div class="dash-next-sub">${esc(c.sub)}</div>
+        ${progressBar}
       </div>
-      <div class="dash-next-title">${esc(c.title)}</div>
-      <div class="dash-next-sub">${esc(c.sub)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function _dashDaysSinceLastFlight() {

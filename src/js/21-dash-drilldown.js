@@ -57,6 +57,7 @@ function _dashDrillBuild(key, fr) {
     case 'ppc': return _drillPPC(profile, fr, settingsBtn);
     case 'recency': return _drillRecency(fr, addBtn, logbookBtn);
     case 'medical': return _drillMedical(profile, fr, settingsBtn);
+    case 'milestone': return _drillMilestone(s, profile, fr, F);
     case 'pic':   return _drillStripHours('pic',   s.pic,   fr, profile, F, logbookBtn);
     case 'sic':   return _drillStripHours('sic',   s.sic,   fr, profile, F, logbookBtn);
     case 'night': return _drillStripHours('night', s.night, fr, profile, F, logbookBtn);
@@ -264,6 +265,85 @@ function _drillMedical(profile, fr, settingsBtn) {
       : 'Category 1 (commercial flight): 12 months if under 40, 6 months thereafter. ECG accompanies the medical at TC-defined intervals.'}</div>`,
     foot: settingsBtn(fr ? 'Mettre à jour dans Profil' : 'Update in Profile')
   };
+}
+
+// ─── Milestone drill-down — set / clear personal career goal ──────
+// Lets the pilot pick their own target (e.g. 1500 hrs for ATPL, 3000
+// for a specific dispatch threshold) instead of always tracking the
+// auto-stepping default chain. Saves to profile.personalGoalHrs.
+function _drillMilestone(s, profile, fr, F) {
+  const totalHrs = +s.total || +s.block || 0;
+  const currentGoal = +profile.personalGoalHrs || 0;
+  const defaultMilestones = [50, 100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000, 15000, 20000];
+  const nextAuto = defaultMilestones.find(m => totalHrs < m) || (defaultMilestones[defaultMilestones.length - 1] + 5000);
+
+  const activeTarget = (currentGoal > totalHrs) ? currentGoal : nextAuto;
+  const remain = Math.max(0, activeTarget - totalHrs);
+  const pct = activeTarget > 0 ? Math.min(100, (totalHrs / activeTarget) * 100) : 0;
+
+  const rows = [
+    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(totalHrs)}</strong> hrs` },
+    { k: fr ? 'Prochain jalon (auto)' : 'Next milestone (auto)', v: `${nextAuto.toLocaleString()} hrs` },
+    { k: fr ? 'Objectif personnel' : 'Personal goal',
+      v: currentGoal > 0
+        ? `<strong>${currentGoal.toLocaleString()}</strong> hrs`
+        : (fr ? 'non défini' : 'not set') },
+    { k: fr ? 'Restant pour la cible' : 'Remaining to target', v: `${F(remain)} hrs` },
+    { k: fr ? 'Progression' : 'Progress', v: `<strong>${pct.toFixed(0)}%</strong>` },
+  ];
+
+  const editor = `
+    <div class="dash-drill-sub">${esc(fr ? 'Fixer un objectif personnel' : 'Set a personal goal')}</div>
+    <div style="display:flex; gap:var(--s-2); align-items:center;">
+      <input type="number" id="dashGoalInput" min="0" step="50"
+             placeholder="${esc(fr ? 'p.ex. 1500' : 'e.g. 1500')}"
+             value="${currentGoal || ''}"
+             style="flex:1; height:38px; padding:0 12px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);" />
+      <button class="btn btn-primary btn-sm" onclick="saveMilestoneGoal()">${esc(fr ? 'Enregistrer' : 'Save')}</button>
+      ${currentGoal > 0 ? `<button class="btn btn-ghost btn-sm" onclick="clearMilestoneGoal()">${esc(fr ? 'Effacer' : 'Clear')}</button>` : ''}
+    </div>
+    <div class="dash-drill-note" style="margin-top:var(--s-2);padding-top:var(--s-2);border-top:none;">${esc(fr
+      ? 'Quand un objectif personnel est défini, le Tableau de bord affiche la progression vers votre cible au lieu du jalon automatique suivant. Effacez pour revenir au mode automatique.'
+      : 'When a personal goal is set, the Dashboard tracks progress toward your target instead of the next auto-milestone. Clear to return to auto mode.')}</div>
+  `;
+
+  return {
+    eyebrow: fr ? 'JALON · OBJECTIF' : 'MILESTONE · GOAL',
+    title: fr ? 'Votre prochain jalon' : 'Your next milestone',
+    body: _drillRowsHtml(rows) + editor,
+    foot: ''
+  };
+}
+
+// Save handler — called from the milestone drill-down editor.
+function saveMilestoneGoal() {
+  const el = document.getElementById('dashGoalInput');
+  if (!el) return;
+  const v = +el.value || 0;
+  const profile = DB.loadProfile();
+  profile.personalGoalHrs = v > 0 ? v : 0;
+  DB.saveProfile(profile);
+  if (typeof showToast === 'function') {
+    const fr = (typeof getLang === 'function') && getLang() === 'fr';
+    showToast(v > 0
+      ? (fr ? `Objectif fixé à ${v.toLocaleString()} hrs` : `Goal set to ${v.toLocaleString()} hrs`)
+      : (fr ? 'Objectif effacé' : 'Goal cleared'),
+      'success');
+  }
+  closeDashDrill();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+function clearMilestoneGoal() {
+  const profile = DB.loadProfile();
+  profile.personalGoalHrs = 0;
+  DB.saveProfile(profile);
+  if (typeof showToast === 'function') {
+    const fr = (typeof getLang === 'function') && getLang() === 'fr';
+    showToast(fr ? 'Objectif effacé · retour mode auto' : 'Goal cleared · back to auto mode', 'success');
+  }
+  closeDashDrill();
+  if (typeof renderDashboard === 'function') renderDashboard();
 }
 
 // ─── Stat strip hours drill-down (PIC / SIC / Night / Multi / XC) ──

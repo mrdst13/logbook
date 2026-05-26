@@ -383,6 +383,14 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .dash-next-card[data-tone="primary"] { border-left: 3px solid var(--accent); }
 .dash-next-card[data-tone="warning"] { border-left: 3px solid var(--warning); }
 .dash-next-card[data-tone="quiet"]   { border-left: 3px solid var(--text-muted); }
+/* Success tone — "everything is current" state. Subtle green-soft tint
+   so it reads as positive at a glance, not just one more neutral card.
+   Pattern from Apple Health "all in range" / Strava "you crushed it"
+   feedback states. */
+.dash-next-card[data-tone="success"] {
+  border-left: 3px solid var(--success);
+  background: linear-gradient(180deg, var(--success-soft) 0%, var(--bg-surface) 100%);
+}
 .dash-next-head {
   display: flex;
   justify-content: space-between;
@@ -392,6 +400,7 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .dash-next-card[data-tone="primary"] .dash-next-kicker { color: var(--accent); }
 .dash-next-card[data-tone="warning"] .dash-next-kicker { color: var(--warning); }
 .dash-next-card[data-tone="quiet"]   .dash-next-kicker { color: var(--text-muted); }
+.dash-next-card[data-tone="success"] .dash-next-kicker { color: var(--success); }
 .dash-next-chip {
   font-family: var(--font-mono);
   font-size: 9.5px;
@@ -403,6 +412,7 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 .dash-next-card[data-tone="primary"] .dash-next-chip { background: var(--accent-soft); color: var(--accent); }
 .dash-next-card[data-tone="warning"] .dash-next-chip { background: var(--warning-soft); color: var(--warning); }
 .dash-next-card[data-tone="quiet"]   .dash-next-chip { background: var(--bg-subtle);   color: var(--text-secondary); }
+.dash-next-card[data-tone="success"] .dash-next-chip { background: var(--success); color: #FFFFFF; }
 .dash-next-title {
   font-size: 14px;
   font-weight: 600;
@@ -414,6 +424,37 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   font-size: 11.5px;
   color: var(--text-muted);
   margin-top: 3px;
+}
+
+/* Progress bar inside a next-column card (used by MILESTONE). The fill
+   animates from 0 to the target % when the card renders, giving the
+   pilot a small "you're moving forward" cue. Encouraging not bragging. */
+.dash-next-progress {
+  height: 6px;
+  background: var(--bg-subtle);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.dash-next-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, #5B95FF 100%);
+  border-radius: var(--r-pill);
+  transition: width var(--motion-slow) var(--ease-stable);
+}
+.dash-next-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* When a personal goal is set, the fill turns success-green to signal
+   "your own target", different from the default career-step milestone. */
+.dash-next-card[data-personal-goal="true"] .dash-next-progress-fill {
+  background: linear-gradient(90deg, var(--success) 0%, #34C997 100%);
 }
 
 /* Compact 6-col stat strip */
