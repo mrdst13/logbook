@@ -489,10 +489,16 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 }
 
 /* ─── Q5 — Settings sub-anchor chips (Profile pane) ──────────────
-   Sticky chip-bar that lets the pilot jump between the four big
-   sections of the Profile pane (Pilot type / Brought-forward /
-   Identity / Signature). Sits just under the main Settings tabs
-   so the visual hierarchy is preserved: pane → sub-anchor → card. */
+   Sticky chip-bar that lets the pilot jump between the big sections
+   of the Profile pane. Sits just under the main Settings tabs so the
+   visual hierarchy is preserved: pane → sub-anchor → card.
+
+   IMPORTANT (regression fix 2026-05-26): the container border-radius
+   used to be var(--r-pill) (999px), which produced an elliptical
+   crop when the chips wrapped onto a second line — six chips do that
+   on the new layout. Switched to var(--r-md) on the CONTAINER and
+   kept var(--r-pill) on the CHIPS individually. Clean rounded-rect
+   bar with pill chips inside, multi-row safe.  */
 .settings-subnav {
   position: sticky;
   /* Stays just below the sticky topbar (60px) and the settings tabs
@@ -508,7 +514,7 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
   backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   border: 1px solid var(--border);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-md);
   scroll-margin-top: 80px;
 }
 .settings-subnav-chip {

@@ -317,9 +317,20 @@ function updateProfileDisplay(p) {
   const name = `${p.rank||'F/O'} ${p.fname||''} ${p.lname||''}`.trim();
   document.getElementById('profileNameDisp').textContent = name;
   // Show the user's airline if set, otherwise their rank (no Porter default —
-   // a private pilot with no operator should see "Private Pilot", not Porter).
+  // a private pilot with no operator should see "Private Pilot", not Porter).
   document.getElementById('profileRoleDisp').textContent = p.airline || p.rank || 'Pilot';
   document.querySelector('.pilot-name').textContent = name;
+  // Avatar letter — first initial of fname, then lname, then fallback "P".
+  // The old hardcoded "P" survived since the first Cumulo build; with the
+  // de-Porterise pass we want every user's profile to feel personal, not
+  // like a generic "Pilot" badge.
+  const avatarEl = document.getElementById('profileAvatarLetter');
+  if (avatarEl) {
+    const initial = ((p.fname || '').trim()[0]
+                  || (p.lname || '').trim()[0]
+                  || 'P').toUpperCase();
+    avatarEl.textContent = initial;
+  }
 }
 
 // ═══════════════════════════════════════════
