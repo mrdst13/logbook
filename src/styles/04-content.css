@@ -463,6 +463,23 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* Logbook page Q9-style summary card — reuses .dash-card + .dash-hero-num
+   + .dash-hero-spark so the visual language matches the Dashboard exactly. */
+.lb-summary { padding: 24px 28px; }
+.lb-summary .dash-hero-num-val { font-size: 64px; }
+.lb-summary-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.lb-summary-meta strong { color: var(--text); font-weight: 600; }
+.lb-summary-meta .dash-warn-amber { color: var(--warning); font-weight: 600; }
+@media (max-width: 860px) {
+  .lb-summary .dash-hero-num-val { font-size: 48px; }
+}
+
 /* IFR Currency card (CAR 401.05 status display) */
 .cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
 .cur-label { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-secondary); }

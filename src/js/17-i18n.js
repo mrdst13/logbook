@@ -340,7 +340,9 @@ const STRINGS = {
 
  // ─── Logbook table totals & menu
  'lb.columnsBtn': 'Columns ▾',
- 'lb.exportBtn': ' Export PDF',
+ 'lb.exportBtn': 'Export PDF',
+ 'lb.summaryEyebrow': 'FLIGHTS · CAREER',
+ 'lb.flightsUnit': 'flights',
  'lb.totals': 'TOTALS',
  'lb.flightCount': '{n} flight',
  'lb.flightCountPl': '{n} flights',
@@ -945,7 +947,9 @@ const STRINGS = {
 
  // ─── Carnet
  'lb.columnsBtn': 'Colonnes ▾',
- 'lb.exportBtn': ' Exporter PDF',
+ 'lb.exportBtn': 'Exporter PDF',
+ 'lb.summaryEyebrow': 'VOLS · CARRIÈRE',
+ 'lb.flightsUnit': 'vols',
  'lb.totals': 'TOTAUX',
  'lb.flightCount': '{n} vol',
  'lb.flightCountPl': '{n} vols',

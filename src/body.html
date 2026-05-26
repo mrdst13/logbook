@@ -227,11 +227,34 @@
  <div class="page-header">
  <div>
  <div class="page-title" data-i18n="page.logbook.title">Logbook</div>
- <div class="page-sub" id="logbookSub">0 entries</div>
+ <div class="page-sub mono" id="logbookSub">—</div>
  </div>
  <div class="page-actions">
- <button class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn">Export PDF</button>
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="lb.addFlight">Add Flight</button>
+ <button id="exportPdfBtn" class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn">Export PDF</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log flight</button>
+ </div>
+ </div>
+
+ <!-- Q9-style summary card — big number + sparkline matching the Dashboard
+      visual language. Updates with the search filter so the displayed
+      count reflects what's actually in the table below. -->
+ <div class="dash-card lb-summary" style="margin-bottom:var(--s-5);">
+ <div class="eyebrow" id="lbSummaryEyebrow" data-i18n="lb.summaryEyebrow">FLIGHTS · CAREER</div>
+ <div class="dash-hero-body" style="margin-top:14px;">
+ <div class="dash-hero-num-block">
+ <div class="dash-hero-num">
+ <span class="dash-hero-num-val" id="lbSummaryCount">0</span>
+ <span class="dash-hero-num-unit" id="lbSummaryUnit" data-i18n="lb.flightsUnit">flights</span>
+ </div>
+ <div class="lb-summary-meta" id="lbSummaryMeta"></div>
+ </div>
+ <div class="dash-hero-spark">
+ <svg id="lbSparklineSvg" width="300" height="76" viewBox="0 0 300 76" preserveAspectRatio="none"></svg>
+ <div class="dash-hero-spark-labels">
+ <span class="mono" id="lbSparkStart">—</span>
+ <span class="mono" id="lbSparkEnd">—</span>
+ </div>
+ </div>
  </div>
  </div>
 

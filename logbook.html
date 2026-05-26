@@ -1035,6 +1035,23 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* Logbook page Q9-style summary card — reuses .dash-card + .dash-hero-num
+   + .dash-hero-spark so the visual language matches the Dashboard exactly. */
+.lb-summary { padding: 24px 28px; }
+.lb-summary .dash-hero-num-val { font-size: 64px; }
+.lb-summary-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.lb-summary-meta strong { color: var(--text); font-weight: 600; }
+.lb-summary-meta .dash-warn-amber { color: var(--warning); font-weight: 600; }
+@media (max-width: 860px) {
+  .lb-summary .dash-hero-num-val { font-size: 48px; }
+}
+
 /* IFR Currency card (CAR 401.05 status display) */
 .cur-item { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
 .cur-label { font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-secondary); }
@@ -2879,11 +2896,34 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="page-header">
  <div>
  <div class="page-title" data-i18n="page.logbook.title">Logbook</div>
- <div class="page-sub" id="logbookSub">0 entries</div>
+ <div class="page-sub mono" id="logbookSub">—</div>
  </div>
  <div class="page-actions">
- <button class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn">Export PDF</button>
- <button class="btn btn-primary" onclick="showPage('add')" data-i18n="lb.addFlight">Add Flight</button>
+ <button id="exportPdfBtn" class="btn btn-ghost" onclick="exportPDF()" data-i18n="lb.exportBtn">Export PDF</button>
+ <button class="btn btn-primary" onclick="showPage('add')" data-i18n="btn.logFlight">Log flight</button>
+ </div>
+ </div>
+
+ <!-- Q9-style summary card — big number + sparkline matching the Dashboard
+      visual language. Updates with the search filter so the displayed
+      count reflects what's actually in the table below. -->
+ <div class="dash-card lb-summary" style="margin-bottom:var(--s-5);">
+ <div class="eyebrow" id="lbSummaryEyebrow" data-i18n="lb.summaryEyebrow">FLIGHTS · CAREER</div>
+ <div class="dash-hero-body" style="margin-top:14px;">
+ <div class="dash-hero-num-block">
+ <div class="dash-hero-num">
+ <span class="dash-hero-num-val" id="lbSummaryCount">0</span>
+ <span class="dash-hero-num-unit" id="lbSummaryUnit" data-i18n="lb.flightsUnit">flights</span>
+ </div>
+ <div class="lb-summary-meta" id="lbSummaryMeta"></div>
+ </div>
+ <div class="dash-hero-spark">
+ <svg id="lbSparklineSvg" width="300" height="76" viewBox="0 0 300 76" preserveAspectRatio="none"></svg>
+ <div class="dash-hero-spark-labels">
+ <span class="mono" id="lbSparkStart">—</span>
+ <span class="mono" id="lbSparkEnd">—</span>
+ </div>
+ </div>
  </div>
  </div>
 
@@ -5016,67 +5056,121 @@ function _dashRenderLegs() {
 }
 
 // ─── Next column (proactive copilot cards) ─────────────────────
+// Always returns 3 cards with smart fallbacks so the right column never
+// looks empty next to the recent-legs list. Card priority:
+//   1. NEXT — Navblue CTA if not connected, else activity / next-flight stub
+//   2. STATUS — most concerning currency (IFR / REC / MED) or all-current pill
+//   3. MILESTONE — next career-hour threshold (always)
 function _dashRenderNextColumn() {
   const el = document.getElementById('dashNextColumn');
   if (!el) return;
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
+  const fr = lang === 'fr';
   const cards = [];
 
-  // Card 1: Next flight (requires iCal future events — not yet built).
-  // Until then, show "Connect Navblue" CTA if no iCal URL is configured.
+  // ─── Card 1: NEXT FLIGHT / ACTIVITY ────────────────────────
   const navblueKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';
   const navblueUrl = (() => { try { return localStorage.getItem(navblueKey); } catch { return null; } })();
   if (!navblueUrl) {
     cards.push({
       tone: 'primary',
-      kicker: lang === 'fr' ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
-      title: lang === 'fr' ? 'Connecter Navblue' : 'Connect Navblue',
-      sub: lang === 'fr' ? 'Synchro iCal pour voir vos prochains vols' : 'iCal sync to see your upcoming flights',
+      kicker: fr ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
+      title: fr ? 'Connecter Navblue' : 'Connect Navblue',
+      sub: fr ? 'Synchro iCal pour voir vos prochains vols' : 'iCal sync to see your upcoming flights',
       chip: 'iCal',
       onclick: "showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);"
     });
+  } else {
+    // Navblue connected — show activity insight instead.
+    const daysSinceLast = _dashDaysSinceLastFlight();
+    const flightsThisWeek = _dashFlightsThisWeek();
+    if (flightsThisWeek > 0) {
+      cards.push({
+        tone: 'primary',
+        kicker: fr ? 'CETTE SEMAINE' : 'THIS WEEK',
+        title: fr
+          ? `${flightsThisWeek} vol${flightsThisWeek !== 1 ? 's' : ''} enregistré${flightsThisWeek !== 1 ? 's' : ''}`
+          : `${flightsThisWeek} flight${flightsThisWeek !== 1 ? 's' : ''} logged`,
+        sub: fr ? 'Continuez la cadence.' : 'Keep the rhythm.',
+        chip: 'ACT'
+      });
+    } else if (daysSinceLast !== null && daysSinceLast > 0) {
+      cards.push({
+        tone: 'quiet',
+        kicker: fr ? 'DERNIER VOL' : 'LAST FLIGHT',
+        title: fr ? `Il y a ${daysSinceLast} jour${daysSinceLast !== 1 ? 's' : ''}` : `${daysSinceLast} day${daysSinceLast !== 1 ? 's' : ''} ago`,
+        sub: fr ? 'Inscrire un nouveau vol →' : 'Log a new flight →',
+        chip: 'LOG',
+        onclick: "showPage('add');"
+      });
+    } else {
+      cards.push({
+        tone: 'primary',
+        kicker: fr ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
+        title: fr ? 'Synchro Navblue active' : 'Navblue sync active',
+        sub: fr ? 'Roster auto-sync configuré' : 'Auto-sync configured',
+        chip: 'iCal',
+        onclick: "showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);"
+      });
+    }
   }
 
-  // Card 2: Expiring soon (medical or IFR)
+  // ─── Card 2: STATUS — most concerning currency ────────────
   const medDays = _dashMedicalDaysRemaining();
+  const ifrCount = _dashApproachesIn6mo();
   const ifrDays = _dashIFRDaysRemaining();
-  if (medDays !== null && medDays <= 60) {
-    cards.push({
-      tone: medDays <= 30 ? 'warning' : 'primary',
-      kicker: lang === 'fr' ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
-      title: lang === 'fr' ? 'Médical Catégorie 1' : 'Cat 1 Medical',
-      sub: medDays > 0
-        ? (lang === 'fr' ? `Dans ${medDays} jours` : `In ${medDays} days`)
-        : (lang === 'fr' ? 'Expiré' : 'Expired'),
-      chip: 'MED'
-    });
+  const ldgCount = _dashLandingsIn6mo();
+
+  // Priority order: expired/imminent first, then soft warnings, then OK pill.
+  if (medDays !== null && medDays <= 0) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
+      title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
+      sub: fr ? 'Doit être renouvelé' : 'Must be renewed', chip: 'MED' });
+  } else if (medDays !== null && medDays <= 30) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
+      title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
+      sub: fr ? `Dans ${medDays} jours` : `In ${medDays} days`, chip: 'MED' });
+  } else if (ifrCount < 6) {
+    const need = 6 - ifrCount;
+    cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
+      title: fr ? `Validité IFR · ${ifrCount}/6 appr.` : `IFR currency · ${ifrCount}/6 appr.`,
+      sub: fr ? `${need} approche${need !== 1 ? 's' : ''} restante${need !== 1 ? 's' : ''} · CAR 401.05` : `${need} approach${need !== 1 ? 'es' : ''} to go · CAR 401.05`,
+      chip: 'IFR' });
+  } else if (ldgCount < 5) {
+    const need = 5 - ldgCount;
+    cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
+      title: fr ? `Validité passagers · ${ldgCount}/5 att.` : `Passenger recency · ${ldgCount}/5 ldg`,
+      sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · CAR 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
+      chip: 'REC' });
+  } else if (medDays !== null && medDays <= 60) {
+    cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
+      title: fr ? 'Médical · 60 jours' : 'Medical · 60 days',
+      sub: fr ? `Renouvellement dans ${medDays} jours` : `Renewal in ${medDays} days`, chip: 'MED' });
   } else if (ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
-    cards.push({
-      tone: 'warning',
-      kicker: lang === 'fr' ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
-      title: lang === 'fr' ? 'Renouvellement IFR' : 'IFR renewal',
-      sub: lang === 'fr' ? `Dans ${ifrDays} jours · CAR 401.05` : `In ${ifrDays} days · CAR 401.05`,
-      chip: 'ATTN'
-    });
+    cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
+      title: fr ? 'Validité IFR · 30 jours' : 'IFR currency · 30 days',
+      sub: fr ? `Approche-limite expire dans ${ifrDays} jours` : `Window expires in ${ifrDays} days`, chip: 'IFR' });
+  } else {
+    cards.push({ tone: 'quiet', kicker: fr ? 'STATUT' : 'STATUS',
+      title: fr ? 'Toutes validités à jour' : 'All validities current',
+      sub: fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified', chip: 'OK' });
   }
 
-  // Card 3: Career milestone progression
+  // ─── Card 3: MILESTONE (always) ────────────────────────────
   const sRaw = calcStats();
   const totalHrs = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw).total : sRaw.total;
   const milestones = [100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000];
-  const next = milestones.find(m => totalHrs < m);
-  if (next) {
-    const remain = (next - totalHrs).toFixed(1);
-    cards.push({
-      tone: 'quiet',
-      kicker: lang === 'fr' ? 'JALON' : 'MILESTONE',
-      title: `${next} hrs ${lang === 'fr' ? 'total' : 'total'}`,
-      sub: lang === 'fr' ? `Plus que ${remain} hrs` : `${remain} hrs to go`,
-      chip: '' + next
-    });
-  }
+  const next = milestones.find(m => totalHrs < m) || milestones[milestones.length - 1] + 5000;
+  const remain = Math.max(0, next - totalHrs).toFixed(1);
+  cards.push({
+    tone: 'quiet',
+    kicker: fr ? 'JALON' : 'MILESTONE',
+    title: `${next} hrs ${fr ? 'total' : 'total'}`,
+    sub: fr ? `Plus que ${remain} hrs` : `${remain} hrs to go`,
+    chip: '' + next
+  });
 
-  if (cards.length === 0) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  // Always display — cards.length is guaranteed ≥3 by the priority chain.
   el.style.display = '';
   el.innerHTML = cards.map(c => `
     <div class="dash-next-card" data-tone="${esc(c.tone)}"${c.onclick ? ` onclick="${c.onclick}" style="cursor:pointer"` : ''}>
@@ -5088,6 +5182,28 @@ function _dashRenderNextColumn() {
       <div class="dash-next-sub">${esc(c.sub)}</div>
     </div>
   `).join('');
+}
+
+function _dashDaysSinceLastFlight() {
+  if (!Array.isArray(flights) || flights.length === 0) return null;
+  const last = flights
+    .filter(f => f.date)
+    .map(f => f.date)
+    .sort((a, b) => b.localeCompare(a))[0];
+  if (!last) return null;
+  const lastDate = new Date(last + 'T00:00:00');
+  return Math.max(0, Math.floor((Date.now() - lastDate) / 86400000));
+}
+
+function _dashFlightsThisWeek() {
+  if (!Array.isArray(flights)) return 0;
+  const now = new Date();
+  const monday = new Date(now);
+  const day = monday.getDay() || 7;
+  monday.setDate(monday.getDate() - (day - 1));
+  monday.setHours(0, 0, 0, 0);
+  const cutoff = monday.toISOString().slice(0, 10);
+  return flights.filter(f => f.date && f.date >= cutoff).length;
 }
 
 // ─── Stat strip cell helper ────────────────────────────────────
@@ -5269,7 +5385,22 @@ let filterVal = '';
 function renderLogbook(filter='') {
   filterVal = filter;
   const s = calcStats();
-  document.getElementById('logbookSub').textContent = flights.length + ' entries · ' + fmt(s.total) + ' hrs total';
+  const sMerged = (typeof totalsWithOpening === 'function') ? totalsWithOpening(s) : s;
+  const lang = (typeof getLang === 'function') ? getLang() : 'en';
+  const fr = lang === 'fr';
+
+  // ─── Page-sub: current date in mono (matches Dashboard greeting style) ───
+  const sub = document.getElementById('logbookSub');
+  if (sub) {
+    const now = new Date();
+    const wday = now.toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { weekday: 'long' }).toUpperCase();
+    const date = now.toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase().replace('.', '');
+    sub.textContent = `${wday} · ${date}`;
+  }
+
+  // ─── Q9-style summary card ──────────────────────────────────────────
+  // Updates with the active filter so the count reflects what's in the table.
+  _renderLogbookSummary(s, sMerged, filter, fr);
 
   let list = [...flights].sort((a,b) => b.date.localeCompare(a.date));
   if (filter) {
@@ -5436,6 +5567,152 @@ function closeFlightDetail() {
 }
 
 function filterTable(val) { renderLogbook(val); }
+
+// ─── Logbook Q9-style summary card ──────────────────────────────────
+// Reuses .dash-card + .dash-hero-num + sparkline from the Dashboard so the
+// visual language matches across pages. Updates with the active filter:
+// the displayed count + sparkline reflect what's in the table below.
+function _renderLogbookSummary(s, sMerged, filter, fr) {
+  // Resolve which flights to summarize. With filter active, summarize the
+  // filtered subset (so the big number always matches the table rows).
+  let list = flights;
+  if (filter) {
+    const q = filter.toLowerCase();
+    list = flights.filter(f =>
+      (f.route || '').toLowerCase().includes(q) ||
+      (f.reg   || '').toLowerCase().includes(q) ||
+      (f.pic   || '').toLowerCase().includes(q) ||
+      (f.type  || '').toLowerCase().includes(q)
+    );
+  }
+
+  const count = list.length;
+  const totalHrs = list.reduce((sum, f) => sum + (+f.block || +f.total || 0), 0);
+  // Career hours include brought-forward; filter view stays subset-only.
+  const careerHrs = filter ? totalHrs : (sMerged && sMerged.total) || totalHrs;
+
+  // Hero count + unit
+  const countEl = document.getElementById('lbSummaryCount');
+  const unitEl  = document.getElementById('lbSummaryUnit');
+  if (countEl) countEl.textContent = String(count);
+  if (unitEl) {
+    unitEl.textContent = fr
+      ? (count === 1 ? 'vol' : 'vols')
+      : (count === 1 ? 'flight' : 'flights');
+  }
+
+  // Eyebrow — "FILTERED RESULTS" when search is active, else "FLIGHTS · CAREER"
+  const eyebrowEl = document.getElementById('lbSummaryEyebrow');
+  if (eyebrowEl) {
+    eyebrowEl.textContent = filter
+      ? (fr ? `RÉSULTATS · FILTRÉ « ${filter.toUpperCase()} »` : `RESULTS · FILTERED "${filter.toUpperCase()}"`)
+      : (fr ? 'VOLS · CARRIÈRE' : 'FLIGHTS · CAREER');
+  }
+
+  // Meta sub-line: hours total · this month · last flight
+  const metaEl = document.getElementById('lbSummaryMeta');
+  if (metaEl) {
+    const monthCount = _lbCurrentMonthCount(list);
+    const lastDate = _lbLastFlightDate(list);
+    const parts = [];
+    parts.push(fr
+      ? `<strong>${_lbFmt(careerHrs)}</strong> hrs ${filter ? 'filtrées' : 'au total'}`
+      : `<strong>${_lbFmt(careerHrs)}</strong> hrs ${filter ? 'filtered' : 'total'}`);
+    if (!filter && monthCount > 0) {
+      parts.push(fr
+        ? `<strong>${monthCount}</strong> ce mois-ci`
+        : `<strong>${monthCount}</strong> this month`);
+    }
+    if (lastDate) {
+      const d = new Date(lastDate + 'T12:00:00');
+      const fmtted = d.toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short', year: 'numeric' });
+      parts.push(fr ? `Dernier vol · ${fmtted}` : `Last flight · ${fmtted}`);
+    }
+    metaEl.innerHTML = parts.join(' · ');
+  }
+
+  // Sparkline — monthly distribution of the (filtered) flight subset's
+  // BLOCK hours over the last 12 months.
+  _renderLbSparkline('lbSparklineSvg', list);
+
+  // Spark labels — first/last month of the 12-month window
+  const labels = _lbMonthLabels(12, fr);
+  const startEl = document.getElementById('lbSparkStart');
+  const endEl   = document.getElementById('lbSparkEnd');
+  if (startEl) startEl.textContent = labels[0];
+  if (endEl)   endEl.textContent   = labels[labels.length - 1];
+}
+
+function _lbFmt(n) {
+  return (typeof fmt === 'function') ? fmt(n) : (Math.round(n * 10) / 10).toFixed(1);
+}
+
+function _lbCurrentMonthCount(list) {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return list.filter(f => f.date && f.date.startsWith(ym)).length;
+}
+
+function _lbLastFlightDate(list) {
+  if (!list.length) return null;
+  return list.filter(f => f.date).map(f => f.date).sort((a, b) => b.localeCompare(a))[0] || null;
+}
+
+function _lbMonthLabels(months, fr) {
+  const out = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+    out.push(d.toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }).toUpperCase().replace('.', ''));
+  }
+  return out;
+}
+
+function _renderLbSparkline(svgId, list) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const w = 300, h = 70;
+  // Bucket by YYYY-MM, last 12 months
+  const buckets = {};
+  list.forEach(f => {
+    if (!f.date) return;
+    const ym = f.date.slice(0, 7);
+    buckets[ym] = (buckets[ym] || 0) + (+f.block || +f.total || 0);
+  });
+  const data = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    data.push(buckets[ym] || 0);
+  }
+  if (data.every(v => !v)) {
+    svg.innerHTML = `<text x="${w/2}" y="${h/2 + 4}" text-anchor="middle" fill="#5E6678" font-family="monospace" font-size="11">—</text>`;
+    return;
+  }
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = (max - min) || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return [x, y];
+  });
+  const path = pts.map((p, i) => (i === 0 ? `M${p[0].toFixed(1)},${p[1].toFixed(1)}` : `L${p[0].toFixed(1)},${p[1].toFixed(1)}`)).join(' ');
+  const areaPath = `${path} L${w},${h} L0,${h} Z`;
+  const last = pts[pts.length - 1];
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="${svgId}-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3884FF" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#3884FF" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPath}" fill="url(#${svgId}-grad)"/>
+    <path d="${path}" fill="none" stroke="#3884FF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="#3884FF" stroke="#FFFFFF" stroke-width="2"/>
+  `;
+}
 
 // ═══════════════════════════════════════════
 // FORM — SAVE / EDIT / DELETE
@@ -11240,7 +11517,9 @@ const STRINGS = {
 
  // ─── Logbook table totals & menu
  'lb.columnsBtn': 'Columns ▾',
- 'lb.exportBtn': ' Export PDF',
+ 'lb.exportBtn': 'Export PDF',
+ 'lb.summaryEyebrow': 'FLIGHTS · CAREER',
+ 'lb.flightsUnit': 'flights',
  'lb.totals': 'TOTALS',
  'lb.flightCount': '{n} flight',
  'lb.flightCountPl': '{n} flights',
@@ -11845,7 +12124,9 @@ const STRINGS = {
 
  // ─── Carnet
  'lb.columnsBtn': 'Colonnes ▾',
- 'lb.exportBtn': ' Exporter PDF',
+ 'lb.exportBtn': 'Exporter PDF',
+ 'lb.summaryEyebrow': 'VOLS · CARRIÈRE',
+ 'lb.flightsUnit': 'vols',
  'lb.totals': 'TOTAUX',
  'lb.flightCount': '{n} vol',
  'lb.flightCountPl': '{n} vols',

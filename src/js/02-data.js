@@ -684,67 +684,121 @@ function _dashRenderLegs() {
 }
 
 // ─── Next column (proactive copilot cards) ─────────────────────
+// Always returns 3 cards with smart fallbacks so the right column never
+// looks empty next to the recent-legs list. Card priority:
+//   1. NEXT — Navblue CTA if not connected, else activity / next-flight stub
+//   2. STATUS — most concerning currency (IFR / REC / MED) or all-current pill
+//   3. MILESTONE — next career-hour threshold (always)
 function _dashRenderNextColumn() {
   const el = document.getElementById('dashNextColumn');
   if (!el) return;
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
+  const fr = lang === 'fr';
   const cards = [];
 
-  // Card 1: Next flight (requires iCal future events — not yet built).
-  // Until then, show "Connect Navblue" CTA if no iCal URL is configured.
+  // ─── Card 1: NEXT FLIGHT / ACTIVITY ────────────────────────
   const navblueKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';
   const navblueUrl = (() => { try { return localStorage.getItem(navblueKey); } catch { return null; } })();
   if (!navblueUrl) {
     cards.push({
       tone: 'primary',
-      kicker: lang === 'fr' ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
-      title: lang === 'fr' ? 'Connecter Navblue' : 'Connect Navblue',
-      sub: lang === 'fr' ? 'Synchro iCal pour voir vos prochains vols' : 'iCal sync to see your upcoming flights',
+      kicker: fr ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
+      title: fr ? 'Connecter Navblue' : 'Connect Navblue',
+      sub: fr ? 'Synchro iCal pour voir vos prochains vols' : 'iCal sync to see your upcoming flights',
       chip: 'iCal',
       onclick: "showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);"
     });
+  } else {
+    // Navblue connected — show activity insight instead.
+    const daysSinceLast = _dashDaysSinceLastFlight();
+    const flightsThisWeek = _dashFlightsThisWeek();
+    if (flightsThisWeek > 0) {
+      cards.push({
+        tone: 'primary',
+        kicker: fr ? 'CETTE SEMAINE' : 'THIS WEEK',
+        title: fr
+          ? `${flightsThisWeek} vol${flightsThisWeek !== 1 ? 's' : ''} enregistré${flightsThisWeek !== 1 ? 's' : ''}`
+          : `${flightsThisWeek} flight${flightsThisWeek !== 1 ? 's' : ''} logged`,
+        sub: fr ? 'Continuez la cadence.' : 'Keep the rhythm.',
+        chip: 'ACT'
+      });
+    } else if (daysSinceLast !== null && daysSinceLast > 0) {
+      cards.push({
+        tone: 'quiet',
+        kicker: fr ? 'DERNIER VOL' : 'LAST FLIGHT',
+        title: fr ? `Il y a ${daysSinceLast} jour${daysSinceLast !== 1 ? 's' : ''}` : `${daysSinceLast} day${daysSinceLast !== 1 ? 's' : ''} ago`,
+        sub: fr ? 'Inscrire un nouveau vol →' : 'Log a new flight →',
+        chip: 'LOG',
+        onclick: "showPage('add');"
+      });
+    } else {
+      cards.push({
+        tone: 'primary',
+        kicker: fr ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
+        title: fr ? 'Synchro Navblue active' : 'Navblue sync active',
+        sub: fr ? 'Roster auto-sync configuré' : 'Auto-sync configured',
+        chip: 'iCal',
+        onclick: "showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);"
+      });
+    }
   }
 
-  // Card 2: Expiring soon (medical or IFR)
+  // ─── Card 2: STATUS — most concerning currency ────────────
   const medDays = _dashMedicalDaysRemaining();
+  const ifrCount = _dashApproachesIn6mo();
   const ifrDays = _dashIFRDaysRemaining();
-  if (medDays !== null && medDays <= 60) {
-    cards.push({
-      tone: medDays <= 30 ? 'warning' : 'primary',
-      kicker: lang === 'fr' ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
-      title: lang === 'fr' ? 'Médical Catégorie 1' : 'Cat 1 Medical',
-      sub: medDays > 0
-        ? (lang === 'fr' ? `Dans ${medDays} jours` : `In ${medDays} days`)
-        : (lang === 'fr' ? 'Expiré' : 'Expired'),
-      chip: 'MED'
-    });
+  const ldgCount = _dashLandingsIn6mo();
+
+  // Priority order: expired/imminent first, then soft warnings, then OK pill.
+  if (medDays !== null && medDays <= 0) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRÉ' : 'EXPIRED',
+      title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
+      sub: fr ? 'Doit être renouvelé' : 'Must be renewed', chip: 'MED' });
+  } else if (medDays !== null && medDays <= 30) {
+    cards.push({ tone: 'warning', kicker: fr ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
+      title: fr ? 'Médical Catégorie 1' : 'Cat 1 Medical',
+      sub: fr ? `Dans ${medDays} jours` : `In ${medDays} days`, chip: 'MED' });
+  } else if (ifrCount < 6) {
+    const need = 6 - ifrCount;
+    cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
+      title: fr ? `Validité IFR · ${ifrCount}/6 appr.` : `IFR currency · ${ifrCount}/6 appr.`,
+      sub: fr ? `${need} approche${need !== 1 ? 's' : ''} restante${need !== 1 ? 's' : ''} · CAR 401.05` : `${need} approach${need !== 1 ? 'es' : ''} to go · CAR 401.05`,
+      chip: 'IFR' });
+  } else if (ldgCount < 5) {
+    const need = 5 - ldgCount;
+    cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
+      title: fr ? `Validité passagers · ${ldgCount}/5 att.` : `Passenger recency · ${ldgCount}/5 ldg`,
+      sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · CAR 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
+      chip: 'REC' });
+  } else if (medDays !== null && medDays <= 60) {
+    cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
+      title: fr ? 'Médical · 60 jours' : 'Medical · 60 days',
+      sub: fr ? `Renouvellement dans ${medDays} jours` : `Renewal in ${medDays} days`, chip: 'MED' });
   } else if (ifrDays !== null && ifrDays > 0 && ifrDays <= 30) {
-    cards.push({
-      tone: 'warning',
-      kicker: lang === 'fr' ? 'EXPIRE BIENTÔT' : 'EXPIRES SOON',
-      title: lang === 'fr' ? 'Renouvellement IFR' : 'IFR renewal',
-      sub: lang === 'fr' ? `Dans ${ifrDays} jours · CAR 401.05` : `In ${ifrDays} days · CAR 401.05`,
-      chip: 'ATTN'
-    });
+    cards.push({ tone: 'primary', kicker: fr ? 'À SURVEILLER' : 'WATCH',
+      title: fr ? 'Validité IFR · 30 jours' : 'IFR currency · 30 days',
+      sub: fr ? `Approche-limite expire dans ${ifrDays} jours` : `Window expires in ${ifrDays} days`, chip: 'IFR' });
+  } else {
+    cards.push({ tone: 'quiet', kicker: fr ? 'STATUT' : 'STATUS',
+      title: fr ? 'Toutes validités à jour' : 'All validities current',
+      sub: fr ? 'IFR · REC · MED — vérifié à l\'instant' : 'IFR · REC · MED — just verified', chip: 'OK' });
   }
 
-  // Card 3: Career milestone progression
+  // ─── Card 3: MILESTONE (always) ────────────────────────────
   const sRaw = calcStats();
   const totalHrs = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw).total : sRaw.total;
   const milestones = [100, 250, 500, 750, 1000, 1500, 2500, 5000, 10000];
-  const next = milestones.find(m => totalHrs < m);
-  if (next) {
-    const remain = (next - totalHrs).toFixed(1);
-    cards.push({
-      tone: 'quiet',
-      kicker: lang === 'fr' ? 'JALON' : 'MILESTONE',
-      title: `${next} hrs ${lang === 'fr' ? 'total' : 'total'}`,
-      sub: lang === 'fr' ? `Plus que ${remain} hrs` : `${remain} hrs to go`,
-      chip: '' + next
-    });
-  }
+  const next = milestones.find(m => totalHrs < m) || milestones[milestones.length - 1] + 5000;
+  const remain = Math.max(0, next - totalHrs).toFixed(1);
+  cards.push({
+    tone: 'quiet',
+    kicker: fr ? 'JALON' : 'MILESTONE',
+    title: `${next} hrs ${fr ? 'total' : 'total'}`,
+    sub: fr ? `Plus que ${remain} hrs` : `${remain} hrs to go`,
+    chip: '' + next
+  });
 
-  if (cards.length === 0) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  // Always display — cards.length is guaranteed ≥3 by the priority chain.
   el.style.display = '';
   el.innerHTML = cards.map(c => `
     <div class="dash-next-card" data-tone="${esc(c.tone)}"${c.onclick ? ` onclick="${c.onclick}" style="cursor:pointer"` : ''}>
@@ -756,6 +810,28 @@ function _dashRenderNextColumn() {
       <div class="dash-next-sub">${esc(c.sub)}</div>
     </div>
   `).join('');
+}
+
+function _dashDaysSinceLastFlight() {
+  if (!Array.isArray(flights) || flights.length === 0) return null;
+  const last = flights
+    .filter(f => f.date)
+    .map(f => f.date)
+    .sort((a, b) => b.localeCompare(a))[0];
+  if (!last) return null;
+  const lastDate = new Date(last + 'T00:00:00');
+  return Math.max(0, Math.floor((Date.now() - lastDate) / 86400000));
+}
+
+function _dashFlightsThisWeek() {
+  if (!Array.isArray(flights)) return 0;
+  const now = new Date();
+  const monday = new Date(now);
+  const day = monday.getDay() || 7;
+  monday.setDate(monday.getDate() - (day - 1));
+  monday.setHours(0, 0, 0, 0);
+  const cutoff = monday.toISOString().slice(0, 10);
+  return flights.filter(f => f.date && f.date >= cutoff).length;
 }
 
 // ─── Stat strip cell helper ────────────────────────────────────
