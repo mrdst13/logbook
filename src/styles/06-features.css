@@ -1,4 +1,73 @@
 /* ═══════════════════════════════════════
+   QUICK CREW-FILL MODAL
+   Opens automatically after an iCal/PDF import when the new flights
+   landed without crew names. Compact 2-column grid: flight metadata
+   on the left, crew-name input on the right. Enter advances to next
+   field; on last row, Enter saves and closes.
+═══════════════════════════════════════ */
+.qc-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--s-2);
+}
+.qc-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.qc-row:last-child { border-bottom: none; }
+.qc-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.qc-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.qc-route {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.qc-flight {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.qc-input {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+  transition: border-color var(--motion-fast) var(--ease-quiet),
+              box-shadow var(--motion-fast) var(--ease-quiet);
+}
+.qc-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+@media (max-width: 560px) {
+  .qc-row { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* ═══════════════════════════════════════
    BROUGHT-FORWARD EDITOR MODAL
    Mirrors the TC paper logbook (TP 13076) reading order: Total hero →
    Crew position → Conditions → Instrument → Landings → (optional)

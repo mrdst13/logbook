@@ -346,18 +346,28 @@ function confirmImport() {
   // and clear the redundant self-reference. A real third-party name
   // remains untouched and crewPosition defaults to 'SIC'.
   const importProfile = DB.loadProfile();
+  // Track the new flight IDs so we can offer quick crew-fill after save
+  // for any of them that landed crewless (typical for iCal-only imports).
+  const newIds = [];
   toImport.forEach(f => {
     const { selected, ...flightData } = f;  // strip the selected flag
     const resolved = (typeof resolveSelfReferences === 'function')
       ? resolveSelfReferences(flightData, importProfile)
       : flightData;
-    flights.push({ ...resolved, id: Date.now().toString() + Math.random() });
+    const newId = Date.now().toString() + Math.random();
+    flights.push({ ...resolved, id: newId });
+    newIds.push(newId);
   });
   DB.save(flights);
   pendingImport = [];
   closeImportOverlay();
   showToast(t(count === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count }), 'success');
-  showPage('logbook');
+
+  // Quick crew-fill — opens automatically if any of the new flights lack
+  // crew names. Returns true if it opened the modal (which navigates the
+  // user to the logbook page itself after save). Otherwise we navigate now.
+  const opened = (typeof openQuickCrewFill === 'function') && openQuickCrewFill(newIds);
+  if (!opened) showPage('logbook');
 }
 
 function cancelImport() {
