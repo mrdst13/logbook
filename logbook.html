@@ -4304,7 +4304,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
    <div class="import-track">
      <div class="import-track-eyebrow">Track B · Any other airline</div>
      <div class="import-track-title">Photo · CSV · manual</div>
-     <div class="import-track-desc">Native PDF parsers for CrewTrac (Jazz), Sabre (WestJet) or AIMS (Air Canada) are not built yet. For now: photograph any logbook or roster page (AI reads it), import a CSV from your previous logbook app, or log each flight manually.</div>
+     <div class="import-track-desc">Native PDF parsers for other airline roster formats are not built yet. For now: photograph any logbook or roster page (AI reads it), import a CSV from your previous logbook app, or log each flight manually.</div>
    </div>
  </div>
 
@@ -4345,7 +4345,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ─── Card: Photo OCR (works for any airline / any layout) ─── -->
  <div class="form-card import-card">
  <div class="form-card-title">Photo of a logbook or roster page <span class="import-card-tag import-card-tag-quiet">Track B · Any airline</span></div>
- <div class="form-card-desc">Snap any logbook page — paper, or even your CrewTrac / Sabre / AIMS roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if you're not on a Navblue airline. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
+ <div class="form-card-desc">Snap any logbook page — paper, or your monthly roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if you're not on a Navblue airline. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
  <div class="drop-zone" id="photoZone"
    onclick="document.getElementById('photoInput').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -11181,9 +11181,9 @@ const FAQS = [
  // ── Importing from other airlines ─────────────────────────────────
  {
  q: 'I don\'t fly for Porter — can I still import my roster?',
- a: 'Partly. Cumulo\'s iCal auto-sync and HrRosterReport PDF parser today both target the Navblue format used by Porter. Pilots at other carriers have three options: (1) take a phone photo of your monthly roster page — the AI OCR reads any layout, page by page; (2) import a CSV export from your previous logbook software — 5 native parsers (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus a generic column-mapping wizard for any other CSV; (3) log flights manually with auto-complete on aircraft type and crew names. Native parsers for CrewTrac, Sabre or AIMS PDFs are not built yet — let us know which one would help you most.',
+ a: 'Partly. Cumulo\'s iCal auto-sync and HrRosterReport PDF parser today both target the Navblue format used by Porter. Pilots at other carriers have three options: (1) take a phone photo of your monthly roster page — the AI OCR reads any layout, page by page; (2) import a CSV export from your previous logbook software — 5 native parsers (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus a generic column-mapping wizard for any other CSV; (3) log flights manually with auto-complete on aircraft type and crew names. Native parsers for other airline roster formats are not built yet — email flycumulo@gmail.com with an anonymized sample of your format if you\'d like one built.',
  qFr: 'Je ne vole pas pour Porter — puis-je quand même importer mon horaire ?',
- aFr: 'Partiellement. La synchro iCal automatique et le parser PDF HrRosterReport de Cumulo ciblent aujourd\'hui le format Navblue utilisé par Porter. Les pilotes d\'autres transporteurs ont trois options : (1) prendre une photo de la page de votre horaire mensuel — l\'OCR AI lit n\'importe quelle mise en page, une page à la fois ; (2) importer un CSV exporté depuis votre ancien logiciel de carnet — 5 parseurs natifs (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus un assistant de mappage de colonnes générique ; (3) entrer vos vols manuellement avec auto-complétion sur le type d\'aéronef et les noms d\'équipage. Les parseurs natifs pour les PDF CrewTrac, Sabre ou AIMS ne sont pas encore construits — dites-nous lequel vous aiderait le plus.'
+ aFr: 'Partiellement. La synchro iCal automatique et le parser PDF HrRosterReport de Cumulo ciblent aujourd\'hui le format Navblue utilisé par Porter. Les pilotes d\'autres transporteurs ont trois options : (1) prendre une photo de la page de votre horaire mensuel — l\'OCR AI lit n\'importe quelle mise en page, une page à la fois ; (2) importer un CSV exporté depuis votre ancien logiciel de carnet — 5 parseurs natifs (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus un assistant de mappage de colonnes générique ; (3) entrer vos vols manuellement avec auto-complétion sur le type d\'aéronef et les noms d\'équipage. Les parseurs natifs pour les autres formats d\'horaire de compagnies ne sont pas encore construits — écrivez à flycumulo@gmail.com avec un échantillon anonymisé de votre format si vous voulez qu\'on en construise un.'
  }
 ];
 
@@ -16303,7 +16303,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-import-tracks';
+const BUILD_VERSION = 'v3a-2026-05-26-no-fab-pairings';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
