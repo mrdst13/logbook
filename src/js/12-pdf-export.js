@@ -148,64 +148,81 @@ function _generatePDF() {
       doc.text(row[1], x, y + 6);
     });
 
-    // Cumulative totals summary (right block — gives the headline numbers).
-    // Fold brought-forward (opening balances from a paper logbook) into the
-    // totals so the cover reflects the pilot's TRUE cumulative — TP 14052
-    // explicitly supports "brought forward" / "previous balance" entries.
+    // ── Q6 — Hero career total + headline grid ─────────────────────
+    // Cover-page hierarchy goes from largest (career total in big numerals)
+    // down to the breakdown grid. Attestation legalese is demoted to the
+    // footer band so the inspector reads identity → totals first, fine print
+    // last (TP 14052 §6.3 — totals must be conspicuous on the cover sheet).
     const rawTotals = calcStats();
     const totals = (typeof totalsWithOpening === 'function') ? totalsWithOpening(rawTotals) : rawTotals;
     const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
-    const sumY = H - 50;
+
+    // Hero block: starts a bit higher to make room for the breakdown grid.
+    const heroY = H - 70;
     doc.setFillColor(...light);
-    doc.rect(cardX, sumY, cardW, 28, 'F');
-    doc.setTextColor(...textPrimary);
+    doc.rect(cardX, heroY, cardW, 40, 'F');
+
+    // Eyebrow + giant total on the left third
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    const totalsLabel = hasBF
-      ? 'CAREER TOTALS — incl. brought-forward (as of ' + new Date().toLocaleDateString('en-CA') + ')'
-      : 'CAREER TOTALS (as of ' + new Date().toLocaleDateString('en-CA') + ')';
-    doc.text(totalsLabel, cardX + 5, sumY + 6);
+    doc.setFontSize(8);
+    doc.setTextColor(...muted);
+    const eyebrow = 'CAREER FLIGHT TIME · AS OF ' + new Date().toLocaleDateString('en-CA').toUpperCase();
+    doc.text(eyebrow, cardX + 6, heroY + 7);
 
-    // Cover totals — show only categories the pilot actually has hours in
-    // (otherwise the heli/dual-given columns dilute visible space for line
-    // pilots). Heli + Dual Given appear iff > 0; otherwise omitted.
-    const headlineCols = [
-      ['Flight Time',     fmt(totals.total)],
-      ['PIC',             fmt(totals.pic)],
-      ['SIC',             fmt(totals.sic)],
-      ['Night',           fmt(totals.night)],
-      ['Multi-Engine',    fmt(totals.me)],
-    ];
-    if ((totals.heli || 0) > 0)      headlineCols.push(['Helicopter',  fmt(totals.heli)]);
-    if ((totals.dualGiven || 0) > 0) headlineCols.push(['Dual Given',  fmt(totals.dualGiven)]);
-    headlineCols.push(['Cross-Country',   fmt(totals.xc)]);
-    headlineCols.push(['Landings',        String(totals.ldg)]);
-    const slotW = cardW / headlineCols.length;
-    headlineCols.forEach((h, i) => {
-      const x = cardX + i * slotW;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(...muted);
-      doc.text(h[0].toUpperCase(), x + 5, sumY + 14);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...textPrimary);
-      doc.text(h[1], x + 5, sumY + 22);
-    });
+    // The "48px hero" — at 1pt ≈ 0.353mm, ~30pt PDF font reads visually
+    // like 48px on screen. Bold helvetica + tabular feel via monospace
+    // letter-tracking from jsPDF defaults.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(30);
+    doc.setTextColor(...textPrimary);
+    doc.text(`${fmt(totals.block || totals.total)} hrs`, cardX + 6, heroY + 24);
 
-    // Brought-forward attestation line. Visible to TC inspector: shows that
-    // some of the cumulative comes from a prior paper logbook, with the
-    // pilot's attestation date. TP 14052 supports this pattern explicitly.
+    // Breakdown line under the hero — shows brought-forward + logged-in-Cumulo
+    // composition. Inspector sees instantly where the cumulative comes from.
+    let breakdown;
     if (hasBF && typeof loadOpeningBalances === 'function') {
       const ob = loadOpeningBalances();
       const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
-      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(7);
-      doc.setTextColor(...muted);
-      const bfLine = `Brought forward from paper logbook: ${fmt(bfTotal)} hrs total · attested ${bfDate} by ${fullTitle}`;
-      doc.text(bfLine, cardX + 5, sumY + 30, { maxWidth: cardW - 10 });
+      const loggedHere = Math.max(0, (totals.block || totals.total || 0) - bfTotal);
+      breakdown = `+ ${fmt(bfTotal)} brought-forward (paper)   ·   + ${fmt(loggedHere)} logged in Cumulo`;
+    } else {
+      breakdown = `${flights.length} flight${flights.length !== 1 ? 's' : ''} logged in Cumulo`;
     }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...muted);
+    doc.text(breakdown, cardX + 6, heroY + 32);
+
+    // Headline breakdown grid — six columns on the right side of the hero.
+    // PIC / SIC / Night / Multi-Engine / Cross-Country / Landings.
+    // Heli + Dual Given inserted only when > 0 (avoids diluting line-pilot
+    // covers with empty-zero columns).
+    const breakdownCols = [
+      ['PIC',           fmt(totals.pic)],
+      ['SIC',           fmt(totals.sic)],
+      ['Night',         fmt(totals.night)],
+      ['Multi-Engine',  fmt(totals.me)],
+    ];
+    if ((totals.heli || 0) > 0)      breakdownCols.push(['Helicopter',  fmt(totals.heli)]);
+    if ((totals.dualGiven || 0) > 0) breakdownCols.push(['Dual Given',  fmt(totals.dualGiven)]);
+    breakdownCols.push(['Cross-Country', fmt(totals.xc)]);
+    breakdownCols.push(['Landings',      String(totals.ldg)]);
+
+    // Lay grid in the right ~58% of the hero band.
+    const gridStartX = cardX + cardW * 0.42;
+    const gridW = cardW - (gridStartX - cardX) - 6;
+    const slotW = gridW / breakdownCols.length;
+    breakdownCols.forEach((h, i) => {
+      const x = gridStartX + i * slotW;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...muted);
+      doc.text(h[0].toUpperCase(), x, heroY + 14);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...textPrimary);
+      doc.text(h[1], x, heroY + 24);
+    });
 
     // Footer (cover) — includes import provenance notice if any flights
     // came from a CSV import. CAR 401.08(2)(h) requires an attestation
@@ -223,15 +240,39 @@ function _generatePDF() {
       importedSet.get(key).count++;
     });
     const baseFooter = 'Generated by Cumulo · ' + new Date().toISOString().slice(0, 10);
-    if (importedSet.size === 0) {
+
+    // Q6 — attestation lives in the footer (demoted from the body so the
+    // hero hierarchy stays clean). CAR 401.08(2)(h) is still satisfied —
+    // the same pilot attestation appears below, just at footer weight.
+    let attestationLines = [];
+    if (hasBF && typeof loadOpeningBalances === 'function') {
+      const ob = loadOpeningBalances();
+      const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
+      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
+      attestationLines.push(
+        `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(2)(h))`
+      );
+    }
+    if (importedSet.size > 0) {
+      [...importedSet.values()].forEach(e => {
+        attestationLines.push(
+          `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + e.firstAt.slice(0, 10) : ''}`
+        );
+      });
+    }
+
+    if (attestationLines.length === 0) {
       doc.text(baseFooter, W / 2, H - 8, { align: 'center' });
     } else {
-      doc.text(baseFooter, W / 2, H - 14, { align: 'center' });
-      const lines = [...importedSet.values()].map(e =>
-        `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + e.firstAt.slice(0, 10) : ''}`
-      );
-      const provenance = lines.join('  ·  ');
-      doc.text(provenance, W / 2, H - 8, { align: 'center', maxWidth: W - 16 });
+      // Stack: provenance/attestation lines above, baseFooter at the very bottom.
+      doc.setFontSize(6.5);
+      const lineH = 3.6;
+      const startY = H - 8 - (attestationLines.length * lineH);
+      attestationLines.forEach((ln, i) => {
+        doc.text(ln, W / 2, startY + i * lineH, { align: 'center', maxWidth: W - 16 });
+      });
+      doc.setFontSize(7);
+      doc.text(baseFooter, W / 2, H - 4, { align: 'center' });
     }
   }
 

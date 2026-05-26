@@ -98,6 +98,30 @@ function adaptFormToProfile(type) {
       setLbl('f-copilot', 'Co-Pilot (F/O)');
     }
   }
+
+  // Q4 — profile-driven default state for the advanced fields wrapper.
+  // For an Airline 705 pilot, ME Day/Night PIC (or Co-Pilot) + Instrument
+  // are EVERY-FLIGHT fields. Hiding them behind a "Show advanced" toggle
+  // adds friction to the daily log. So: open by default + hide the toggle.
+  //
+  // For private/student/helicopter/instructor the wrapper stays collapsed
+  // by default (their core fields live outside) but the toggle remains so
+  // they can pull in extra breakdowns when needed.
+  const advWrap = document.getElementById('advancedFormFields');
+  const advBtn  = document.getElementById('formAdvancedToggle');
+  if (advWrap && advBtn) {
+    if (type === 'airline705') {
+      advWrap.style.display = '';
+      advBtn.style.display = 'none';
+    } else {
+      // Only force collapsed state when we're not currently editing — the
+      // edit flow may have legitimately expanded the wrapper to show data.
+      if (typeof editingId === 'undefined' || !editingId) {
+        advWrap.style.display = 'none';
+      }
+      advBtn.style.display = '';
+    }
+  }
 }
 
 // ═══════════════════════════════════════════

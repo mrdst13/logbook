@@ -135,12 +135,57 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --font-display: 'Inter', -apple-system, sans-serif;
 
-  /* V3A — Motion */
+  /* V3A — Motion (legacy) */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
   --t-micro: 150ms;
   --t-std: 220ms;
   --t-emphasis: 380ms;
+
+  /* ─── Q7 Motion tokens ──────────────────────────────────────────
+     Three named easings for the entire app — pick by intent, not feel.
+
+     --ease-quiet  : utility motion — hover states, tab switches, things
+                     the user shouldn't actively notice. Subtle decel.
+     --ease-stable : standard navigation — page transitions, dropdowns,
+                     forms appearing. Confident but not springy.
+     --ease-snap   : confirmation moments — Save morphing to "Saved ✓",
+                     dialogs settling, completion states. Crisp tail.
+
+     Durations stay separate from easings so we can pair, e.g., a slow
+     fade with --ease-quiet OR a fast settle with --ease-snap.
+  ───────────────────────────────────────────────────────────────── */
+  --ease-quiet:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-stable:   cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snap:     cubic-bezier(0.16, 1, 0.3, 1);
+
+  --motion-fast:   140ms;   /* hover, focus rings, tab underlines       */
+  --motion-base:   220ms;   /* default page transitions, dropdowns      */
+  --motion-slow:   380ms;   /* dialog enter/exit, sheet present         */
+  --motion-stagger: 60ms;   /* stagger between sibling reveals          */
+}
+
+/* Accessibility: respect prefers-reduced-motion. Collapses all the
+   transition tokens to near-instant so the cascade keeps working
+   without rewriting every transition rule. Anything that uses
+   --motion-* or --t-* will pick this up automatically. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-micro: 1ms;
+    --t-std: 1ms;
+    --t-emphasis: 1ms;
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+    --motion-stagger: 0ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ═══ DARK THEME ═══ */
@@ -1043,6 +1088,34 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* ─── Q2 Empty state — ghosted dashboard ──────────────────────────
+   Active when body.no-data (set by renderDashboard when flights.length===0
+   AND no opening balances). Tones the whole hero so a brand-new install
+   doesn't look broken or alarming — it looks expectant. */
+body.no-data .dash-hero-num-val,
+body.no-data .dash-strip-val,
+body.no-data .lb-summary .dash-hero-num-val {
+  color: var(--text-disabled);
+}
+body.no-data .dash-hero-delta { display: none !important; }
+body.no-data .dash-card {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+body.no-data .dash-strip-item { border-left-color: var(--text-disabled); }
+/* Validity rings shouldn't scream red when there's nothing to expire yet —
+   the pilot hasn't entered a medical date so we shouldn't tell them it's
+   "expired". Muted ghost ring + neutral label. */
+body.no-data .dash-ring circle.dash-ring-track { stroke: var(--border); }
+body.no-data .dash-ring circle.dash-ring-progress { stroke: var(--text-disabled); }
+body.no-data .dash-ring-label,
+body.no-data .dash-ring-sub { color: var(--text-disabled); }
+/* Sparkline: hide the line, keep the box for spacing — invites the first
+   flight to "fill it in" rather than presenting a flat zero baseline. */
+body.no-data .dash-hero-spark path,
+body.no-data .dash-hero-spark circle { opacity: 0.35; }
+
 /* Logbook page Q9-style summary card — reuses .dash-card + .dash-hero-num
    + .dash-hero-spark so the visual language matches the Dashboard exactly. */
 .lb-summary { padding: 24px 28px; }
@@ -1590,6 +1663,62 @@ tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132,
 @media (max-width: 600px) {
   .settings-tab { font-size: 12px; padding: 12px 14px; min-width: 64px; min-height: 44px; }
 }
+
+/* ─── Q5 — Settings sub-anchor chips (Profile pane) ──────────────
+   Sticky chip-bar that lets the pilot jump between the four big
+   sections of the Profile pane (Pilot type / Brought-forward /
+   Identity / Signature). Sits just under the main Settings tabs
+   so the visual hierarchy is preserved: pane → sub-anchor → card. */
+.settings-subnav {
+  position: sticky;
+  /* Stays just below the sticky topbar (60px) and the settings tabs
+     bar above. 76px lands the chip row right under the top tabs. */
+  top: 76px;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: var(--s-5);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  scroll-margin-top: 80px;
+}
+.settings-subnav-chip {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background var(--motion-fast) var(--ease-quiet),
+              color var(--motion-fast) var(--ease-quiet);
+  white-space: nowrap;
+}
+.settings-subnav-chip:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.settings-subnav-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Give anchored cards breathing room so they land below the sticky bar */
+#profile-type, #profile-bf, #profile-identity, #profile-signature {
+  scroll-margin-top: 140px;
+}
+@media (max-width: 600px) {
+  .settings-subnav { top: 64px; }
+  .settings-subnav-chip { font-size: 11.5px; padding: 6px 11px; }
+}
+/* Respect smooth scrolling for in-page anchors (reduced-motion media query
+   in 01-tokens.css resets this to auto for accessibility). */
+html { scroll-behavior: smooth; }
 
 /* ─── Help-text utility (replaces scattered inline font-size:11px styles) ─── */
 .help-text {
@@ -2503,6 +2632,126 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
   /* Nav item tap height */
   .nav-item { padding-top: 12px; padding-bottom: 12px; }
+}
+
+/* ─── Q3 — Mobile dense Logbook rows ────────────────────────────
+   At phone width, a 15+ column logbook table is unreadable. Transform
+   each <tr> into a typographic card stacking the essentials (date,
+   route, registration, block hours, landings). The rest of the columns
+   stay in DOM (so renderLogbook + totals math stays unchanged) but are
+   hidden visually. Tapping the card opens the full detail panel via
+   the existing openFlightDetail() handler. */
+@media (max-width: 700px) {
+  .logbook-compact { overflow-x: visible; }
+  .logbook-compact table {
+    display: block;
+    width: 100%;
+  }
+  .logbook-compact thead { display: none; }
+  .logbook-compact tbody,
+  .logbook-compact tfoot { display: block; width: 100%; }
+
+  .logbook-compact tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "date  block"
+      "route ldg"
+      "meta  meta";
+    column-gap: var(--s-3);
+    row-gap: 4px;
+    align-items: baseline;
+    padding: 12px 14px;
+    min-height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+  }
+  .logbook-compact tbody tr:active { background: var(--bg-subtle); }
+
+  /* Hide every cell by default; show only the whitelisted keys */
+  .logbook-compact tbody td { display: none; }
+
+  .logbook-compact tbody td[data-col-key="date"] {
+    display: block;
+    grid-area: date;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0;
+  }
+  .logbook-compact tbody td[data-col-key="route"] {
+    display: block;
+    grid-area: route;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0;
+    text-align: left !important;
+  }
+  .logbook-compact tbody td[data-col-key="reg"],
+  .logbook-compact tbody td[data-col-key="type"],
+  .logbook-compact tbody td[data-col-key="flightNum"] {
+    display: inline-block;
+    grid-area: meta;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 0 var(--s-2) 0 0;
+    text-align: left !important;
+  }
+  .logbook-compact tbody td[data-col-key="total"],
+  .logbook-compact tbody td[data-col-key="block"] {
+    display: block;
+    grid-area: block;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: right !important;
+    padding: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Show total only if present, otherwise fall back to block — when both
+     are visible the .total cell wins (it comes later in the grid). */
+  .logbook-compact tbody td[data-col-key="total"] + td[data-col-key="block"] {
+    display: none;
+  }
+  .logbook-compact tbody td[data-col-key="ldgDay"],
+  .logbook-compact tbody td[data-col-key="ldgNight"] {
+    display: inline-block;
+    grid-area: ldg;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 0;
+    text-align: right !important;
+  }
+  .logbook-compact tbody td[data-col-key="ldgDay"]::before  { content: "D "; opacity: 0.6; }
+  .logbook-compact tbody td[data-col-key="ldgNight"]::before { content: "·N "; opacity: 0.6; margin-left: 6px; }
+
+  /* Footer row (totals) also stacks; keep first cell visible with totals copy */
+  .logbook-compact tfoot tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 14px 14px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .logbook-compact tfoot tr td { display: none; padding: 0; }
+  .logbook-compact tfoot tr td:first-child { display: block; }
+  .logbook-compact tfoot tr td[data-col-key="total"],
+  .logbook-compact tfoot tr td[data-col-key="block"] {
+    display: block;
+    text-align: right !important;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tap target meets Apple HIG (44pt) */
+  .logbook-compact tbody tr { min-height: 64px; cursor: pointer; }
 }
 
 @media (max-width: 480px) {
@@ -3541,7 +3790,18 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
 
- <div class="form-card">
+ <!-- Q5 — Profile sub-anchor nav. Sticky chips that let the pilot jump to
+      a specific section without scrolling. Small footprint, decoupled from
+      the actual content order so we can re-arrange below without touching
+      the chip list. -->
+ <nav class="settings-subnav" aria-label="Profile sections">
+   <a href="#profile-type"      class="settings-subnav-chip" data-i18n="profile.subnav.type">Pilot type</a>
+   <a href="#profile-bf"        class="settings-subnav-chip" data-i18n="profile.subnav.bf">Brought-forward</a>
+   <a href="#profile-identity"  class="settings-subnav-chip" data-i18n="profile.subnav.identity">Identity &amp; license</a>
+   <a href="#profile-signature" class="settings-subnav-chip" data-i18n="profile.subnav.signature">Signature</a>
+ </nav>
+
+ <div class="form-card" id="profile-type">
  <div class="form-card-title" data-i18n="profile.section.type">Pilot type</div>
  <div class="profile-type-grid">
  <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
@@ -3568,11 +3828,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <!-- Brought-forward hours (paper logbook) — declared once with attestation. -->
- <div class="form-card" id="openingBalancesCard">
+ <div class="form-card" id="profile-bf">
  <div id="openingBalancesSection"></div>
  </div>
 
- <div class="form-card">
+ <div class="form-card" id="profile-identity">
  <div class="form-card-title" data-i18n="profile.section.identity">Pilot information</div>
  <div class="form-grid">
  <div class="form-group">
@@ -3733,7 +3993,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
 
- <div class="form-card">
+ <div class="form-card" id="profile-signature">
  <div class="form-card-title" data-i18n="profile.section.signature">Electronic signature</div>
  <p style="font-size:12px;color:var(--text-muted);margin-bottom:var(--s-3);line-height:1.5">
  Sign below. Your signature is saved locally and appears on PDF exports.
@@ -4407,14 +4667,10 @@ function showPage(id) {
     }
     // Populate PIC / Co-pilot autocomplete from the last 90 days of flights.
     if (typeof populateRecentNames === 'function') populateRecentNames();
-    // Reset advanced-fields toggle to collapsed state when opening a new entry
-    // (editingId is set when editing — keep state in that case).
-    if (!editingId) {
-      const adv = document.getElementById('advancedFormFields');
-      const btn = document.getElementById('formAdvancedToggle');
-      if (adv) adv.style.display = 'none';
-      if (btn) btn.textContent = t ? t('flight.showAdvanced') : 'Show advanced fields (ME · XC · Instrument)';
-    }
+    // Note: the advanced-fields wrapper open/closed state is now driven
+    // by adaptFormToProfile() (Q4 profile-driven form). Airline 705 pilots
+    // see ME/XC/Inst by default; everyone else gets a collapsed wrapper
+    // with the toggle button. No router-level override needed.
   }
 }
 
@@ -4789,11 +5045,20 @@ function renderDashboard() {
   // are activity/currency metrics, not career totals.
   const s = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw) : sRaw;
 
+  // Q2 — Empty-state ghosting. When the pilot has no flights AND no opening
+  // balances declared, paint the dashboard in a muted variant so it doesn't
+  // look like "you've flown 0 hours forever" (which would feel broken).
+  // The .no-data class on body lets CSS desaturate values, ghost the sparkline,
+  // mute the validity rings (no expiry to alarm about yet), and dashed-border
+  // the cards. Removed automatically as soon as one flight is logged.
+  const hasFlights = Array.isArray(flights) && flights.length > 0;
+  const hasOpening = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+  document.body.classList.toggle('no-data', !hasFlights && !hasOpening);
+
   // Discovery banner — only brand-new users see it.
   const bfBanner = document.getElementById('broughtForwardBanner');
   if (bfBanner) {
-    const isBrandNew = (flights.length === 0)
-      && (typeof hasOpeningBalances !== 'function' || !hasOpeningBalances());
+    const isBrandNew = !hasFlights && !hasOpening;
     bfBanner.style.display = isBrandNew ? 'flex' : 'none';
   }
 
@@ -5028,10 +5293,13 @@ function _dashRenderRing(containerId, pct, color, label) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const off = c * (1 - pct / 100);
+  // Classed circles (.dash-ring-track / .dash-ring-progress) so the
+  // empty-state CSS variant (body.no-data) can desaturate without
+  // touching the JS color logic.
   el.innerHTML = `
     <svg width="${size}" height="${size}">
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#E1E5EC" stroke-width="${stroke}"/>
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" stroke-linecap="round"/>
+      <circle class="dash-ring-track" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#E1E5EC" stroke-width="${stroke}"/>
+      <circle class="dash-ring-progress" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" stroke-linecap="round"/>
     </svg>
     <div class="dash-ring-label">${esc(label)}</div>
   `;
@@ -5468,9 +5736,11 @@ function renderLogbook(filter='') {
   // Render thead dynamically based on user column preferences.
   // The trailing "actions" column was removed — clicking a row opens the
   // detail panel which already exposes Edit + Delete. Less visual noise.
+  // data-col-key lets Q3 mobile CSS show/hide specific columns by key
+  // rather than nth-child (which would break when column order changes).
   if (thead) {
     thead.innerHTML = '<tr>' +
-      cols.map(c => `<th style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
+      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
     '</tr>';
   }
 
@@ -5504,7 +5774,7 @@ function renderLogbook(filter='') {
         display = esc(v);
       }
       const tdClass = c.decimal ? 'hrs' : '';
-      return `<td data-label="${esc(c.short)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
+      return `<td data-label="${esc(c.short)}" data-col-key="${esc(c.key)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
     }).join('');
 
     const fid = esc(f.id);
@@ -6549,6 +6819,30 @@ function adaptFormToProfile(type) {
       setLbl('f-copilot', 'Co-Pilot (F/O)');
     }
   }
+
+  // Q4 — profile-driven default state for the advanced fields wrapper.
+  // For an Airline 705 pilot, ME Day/Night PIC (or Co-Pilot) + Instrument
+  // are EVERY-FLIGHT fields. Hiding them behind a "Show advanced" toggle
+  // adds friction to the daily log. So: open by default + hide the toggle.
+  //
+  // For private/student/helicopter/instructor the wrapper stays collapsed
+  // by default (their core fields live outside) but the toggle remains so
+  // they can pull in extra breakdowns when needed.
+  const advWrap = document.getElementById('advancedFormFields');
+  const advBtn  = document.getElementById('formAdvancedToggle');
+  if (advWrap && advBtn) {
+    if (type === 'airline705') {
+      advWrap.style.display = '';
+      advBtn.style.display = 'none';
+    } else {
+      // Only force collapsed state when we're not currently editing — the
+      // edit flow may have legitimately expanded the wrapper to show data.
+      if (typeof editingId === 'undefined' || !editingId) {
+        advWrap.style.display = 'none';
+      }
+      advBtn.style.display = '';
+    }
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -6959,6 +7253,14 @@ function computeCellValue(f, key) {
 const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
 const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
 const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
+// Auto-sync gates — keep us from hammering the worker every page load.
+// On init: skip if last sync was less than 30 min ago.
+// On visibilitychange (tab refocus): skip if less than 15 min ago.
+// Pilots typically open the app a few times a day, so these intervals
+// catch new Navblue events within a meaningful window while keeping
+// the worker quiet on rapid navigations between tabs.
+const NAVBLUE_AUTO_SYNC_INIT_MS    = 30 * 60 * 1000;
+const NAVBLUE_AUTO_SYNC_FOCUS_MS   = 15 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────
 //  AIRPORT COORDS — needed for night-time (RAC 101.01) and
@@ -7482,14 +7784,30 @@ function updateNavblueStatus() {
   else status.textContent = `${Math.floor(minutes/1440)}D AGO`;
 }
 
-async function syncNavblueNow() {
+// opts.silent      — when true, suppress "already up to date" toast + button
+//                    state changes (used by auto-sync on app init / tab focus).
+//                    Fresh-flight modal still appears so the pilot is prompted
+//                    to review newly-detected events.
+// opts.suppressError — when true, network/parse errors only log to console
+//                    instead of toast-ing (avoids alarming the user during
+//                    silent background syncs).
+async function syncNavblueNow(opts) {
+  opts = opts || {};
+  const silent = !!opts.silent;
   const url = localStorage.getItem(NAVBLUE_URL_KEY);
-  if (!url) { showToast(t('toast.saveUrlFirst'), 'error'); return; }
+  if (!url) {
+    if (!silent) showToast(t('toast.saveUrlFirst'), 'error');
+    return;
+  }
 
+  // Settings → Sync pane may not be mounted (e.g. user is on Dashboard
+  // when auto-sync fires). All DOM refs below are null-safe.
   const btn = document.getElementById('syncNowBtn');
   const details = document.getElementById('navblueDetails');
-  btn.disabled = true;
-  btn.textContent = '⏳ Syncing...';
+  if (btn && !silent) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Syncing...';
+  }
 
   try {
     const resp = await fetch(WORKER_URL, {
@@ -7605,36 +7923,86 @@ async function syncNavblueNow() {
 
     localStorage.setItem(NAVBLUE_LAST_SYNC_KEY, Date.now().toString());
 
-    details.style.display = 'block';
-    const detailLines = [
-      `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
-    ];
-    if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
-    if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
-    if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
-    if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
-    details.innerHTML = detailLines.join('<br>');
+    if (details) {
+      details.style.display = 'block';
+      const detailLines = [
+        `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
+      ];
+      if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
+      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
+      if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
+      if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
+      details.innerHTML = detailLines.join('<br>');
+    }
 
     updateNavblueStatus();
     renderDashboard();
 
     if (fresh.length > 0) {
+      // Even in silent/auto-sync mode we surface the import-preview modal —
+      // this is the whole point of auto-sync: detect new flights and prompt
+      // the pilot. If no new flights, silent mode stays quiet.
       showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
       showToast(t('toast.syncFreshEnriched', { fresh: fresh.length, merged: mergedCount }));
     } else if (mergedCount > 0) {
       showToast(t('toast.syncEnrichedRecalc', { merged: mergedCount, updated: recalcStats.updated }), 'success');
-    } else {
+    } else if (!silent) {
       showToast(t('toast.alreadyUpToDate'));
     }
 
   } catch(e) {
     console.error('[Navblue Sync] Error:', e);
-    details.style.display = 'block';
-    details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
-    showToast(e.message || 'Sync failed', 'error');
+    if (details) {
+      details.style.display = 'block';
+      details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
+    }
+    // Silent auto-sync errors stay in the console — toasts would alarm the
+    // user when nothing actively triggered the sync. They'll see the next
+    // manual click fail loudly if the worker is truly down.
+    if (!silent) showToast(e.message || 'Sync failed', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '🔄 Sync now';
+    if (btn && !silent) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Sync now';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Auto-sync wrapper — called from 99-init.js on app boot and on
+// `visibilitychange` (tab refocus). Gated by elapsed-time thresholds
+// so we don't hammer the worker on every page load / tab switch.
+//
+// Why this exists: Martin's iCal sync was manual-only. Means he had
+// to remember to open Settings → Sync → click. With this wrapper, the
+// app silently checks for new VEVENTs whenever he opens it; if any
+// are found, the existing import-preview modal pops up to prompt
+// confirmation (same UX path as a manual sync, but kicked off
+// automatically). If nothing new, no toast, no noise.
+// ─────────────────────────────────────────────────────────────────
+function syncNavblueAuto(reason) {
+  try {
+    const url = localStorage.getItem(NAVBLUE_URL_KEY);
+    if (!url) return;  // not configured — nothing to do
+    const lastRaw = localStorage.getItem(NAVBLUE_LAST_SYNC_KEY);
+    const last = lastRaw ? +lastRaw : 0;
+    const elapsed = Date.now() - last;
+    const minInterval = (reason === 'focus') ? NAVBLUE_AUTO_SYNC_FOCUS_MS : NAVBLUE_AUTO_SYNC_INIT_MS;
+    if (last && elapsed < minInterval) {
+      console.log(`[Navblue Auto-Sync] Skipped (${reason}): last sync ${Math.round(elapsed/60000)}m ago, threshold ${minInterval/60000}m`);
+      return;
+    }
+    // Don't auto-sync while the import-preview modal is already open
+    // (avoids stacking two prompts on top of each other if the user
+    // happens to refocus the tab mid-review).
+    if (document.querySelector('.import-preview-modal, #importPreviewOverlay, .modal[data-import-preview]')) {
+      console.log('[Navblue Auto-Sync] Skipped: import preview already open');
+      return;
+    }
+    console.log(`[Navblue Auto-Sync] Triggering (${reason})`);
+    syncNavblueNow({ silent: true });
+  } catch (e) {
+    console.warn('[Navblue Auto-Sync] threw:', e);
   }
 }
 
@@ -9042,64 +9410,81 @@ function _generatePDF() {
       doc.text(row[1], x, y + 6);
     });
 
-    // Cumulative totals summary (right block — gives the headline numbers).
-    // Fold brought-forward (opening balances from a paper logbook) into the
-    // totals so the cover reflects the pilot's TRUE cumulative — TP 14052
-    // explicitly supports "brought forward" / "previous balance" entries.
+    // ── Q6 — Hero career total + headline grid ─────────────────────
+    // Cover-page hierarchy goes from largest (career total in big numerals)
+    // down to the breakdown grid. Attestation legalese is demoted to the
+    // footer band so the inspector reads identity → totals first, fine print
+    // last (TP 14052 §6.3 — totals must be conspicuous on the cover sheet).
     const rawTotals = calcStats();
     const totals = (typeof totalsWithOpening === 'function') ? totalsWithOpening(rawTotals) : rawTotals;
     const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
-    const sumY = H - 50;
+
+    // Hero block: starts a bit higher to make room for the breakdown grid.
+    const heroY = H - 70;
     doc.setFillColor(...light);
-    doc.rect(cardX, sumY, cardW, 28, 'F');
-    doc.setTextColor(...textPrimary);
+    doc.rect(cardX, heroY, cardW, 40, 'F');
+
+    // Eyebrow + giant total on the left third
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    const totalsLabel = hasBF
-      ? 'CAREER TOTALS — incl. brought-forward (as of ' + new Date().toLocaleDateString('en-CA') + ')'
-      : 'CAREER TOTALS (as of ' + new Date().toLocaleDateString('en-CA') + ')';
-    doc.text(totalsLabel, cardX + 5, sumY + 6);
+    doc.setFontSize(8);
+    doc.setTextColor(...muted);
+    const eyebrow = 'CAREER FLIGHT TIME · AS OF ' + new Date().toLocaleDateString('en-CA').toUpperCase();
+    doc.text(eyebrow, cardX + 6, heroY + 7);
 
-    // Cover totals — show only categories the pilot actually has hours in
-    // (otherwise the heli/dual-given columns dilute visible space for line
-    // pilots). Heli + Dual Given appear iff > 0; otherwise omitted.
-    const headlineCols = [
-      ['Flight Time',     fmt(totals.total)],
-      ['PIC',             fmt(totals.pic)],
-      ['SIC',             fmt(totals.sic)],
-      ['Night',           fmt(totals.night)],
-      ['Multi-Engine',    fmt(totals.me)],
-    ];
-    if ((totals.heli || 0) > 0)      headlineCols.push(['Helicopter',  fmt(totals.heli)]);
-    if ((totals.dualGiven || 0) > 0) headlineCols.push(['Dual Given',  fmt(totals.dualGiven)]);
-    headlineCols.push(['Cross-Country',   fmt(totals.xc)]);
-    headlineCols.push(['Landings',        String(totals.ldg)]);
-    const slotW = cardW / headlineCols.length;
-    headlineCols.forEach((h, i) => {
-      const x = cardX + i * slotW;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(...muted);
-      doc.text(h[0].toUpperCase(), x + 5, sumY + 14);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...textPrimary);
-      doc.text(h[1], x + 5, sumY + 22);
-    });
+    // The "48px hero" — at 1pt ≈ 0.353mm, ~30pt PDF font reads visually
+    // like 48px on screen. Bold helvetica + tabular feel via monospace
+    // letter-tracking from jsPDF defaults.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(30);
+    doc.setTextColor(...textPrimary);
+    doc.text(`${fmt(totals.block || totals.total)} hrs`, cardX + 6, heroY + 24);
 
-    // Brought-forward attestation line. Visible to TC inspector: shows that
-    // some of the cumulative comes from a prior paper logbook, with the
-    // pilot's attestation date. TP 14052 supports this pattern explicitly.
+    // Breakdown line under the hero — shows brought-forward + logged-in-Cumulo
+    // composition. Inspector sees instantly where the cumulative comes from.
+    let breakdown;
     if (hasBF && typeof loadOpeningBalances === 'function') {
       const ob = loadOpeningBalances();
       const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
-      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(7);
-      doc.setTextColor(...muted);
-      const bfLine = `Brought forward from paper logbook: ${fmt(bfTotal)} hrs total · attested ${bfDate} by ${fullTitle}`;
-      doc.text(bfLine, cardX + 5, sumY + 30, { maxWidth: cardW - 10 });
+      const loggedHere = Math.max(0, (totals.block || totals.total || 0) - bfTotal);
+      breakdown = `+ ${fmt(bfTotal)} brought-forward (paper)   ·   + ${fmt(loggedHere)} logged in Cumulo`;
+    } else {
+      breakdown = `${flights.length} flight${flights.length !== 1 ? 's' : ''} logged in Cumulo`;
     }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...muted);
+    doc.text(breakdown, cardX + 6, heroY + 32);
+
+    // Headline breakdown grid — six columns on the right side of the hero.
+    // PIC / SIC / Night / Multi-Engine / Cross-Country / Landings.
+    // Heli + Dual Given inserted only when > 0 (avoids diluting line-pilot
+    // covers with empty-zero columns).
+    const breakdownCols = [
+      ['PIC',           fmt(totals.pic)],
+      ['SIC',           fmt(totals.sic)],
+      ['Night',         fmt(totals.night)],
+      ['Multi-Engine',  fmt(totals.me)],
+    ];
+    if ((totals.heli || 0) > 0)      breakdownCols.push(['Helicopter',  fmt(totals.heli)]);
+    if ((totals.dualGiven || 0) > 0) breakdownCols.push(['Dual Given',  fmt(totals.dualGiven)]);
+    breakdownCols.push(['Cross-Country', fmt(totals.xc)]);
+    breakdownCols.push(['Landings',      String(totals.ldg)]);
+
+    // Lay grid in the right ~58% of the hero band.
+    const gridStartX = cardX + cardW * 0.42;
+    const gridW = cardW - (gridStartX - cardX) - 6;
+    const slotW = gridW / breakdownCols.length;
+    breakdownCols.forEach((h, i) => {
+      const x = gridStartX + i * slotW;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...muted);
+      doc.text(h[0].toUpperCase(), x, heroY + 14);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...textPrimary);
+      doc.text(h[1], x, heroY + 24);
+    });
 
     // Footer (cover) — includes import provenance notice if any flights
     // came from a CSV import. CAR 401.08(2)(h) requires an attestation
@@ -9117,15 +9502,39 @@ function _generatePDF() {
       importedSet.get(key).count++;
     });
     const baseFooter = 'Generated by Cumulo · ' + new Date().toISOString().slice(0, 10);
-    if (importedSet.size === 0) {
+
+    // Q6 — attestation lives in the footer (demoted from the body so the
+    // hero hierarchy stays clean). CAR 401.08(2)(h) is still satisfied —
+    // the same pilot attestation appears below, just at footer weight.
+    let attestationLines = [];
+    if (hasBF && typeof loadOpeningBalances === 'function') {
+      const ob = loadOpeningBalances();
+      const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
+      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
+      attestationLines.push(
+        `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(2)(h))`
+      );
+    }
+    if (importedSet.size > 0) {
+      [...importedSet.values()].forEach(e => {
+        attestationLines.push(
+          `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + e.firstAt.slice(0, 10) : ''}`
+        );
+      });
+    }
+
+    if (attestationLines.length === 0) {
       doc.text(baseFooter, W / 2, H - 8, { align: 'center' });
     } else {
-      doc.text(baseFooter, W / 2, H - 14, { align: 'center' });
-      const lines = [...importedSet.values()].map(e =>
-        `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + e.firstAt.slice(0, 10) : ''}`
-      );
-      const provenance = lines.join('  ·  ');
-      doc.text(provenance, W / 2, H - 8, { align: 'center', maxWidth: W - 16 });
+      // Stack: provenance/attestation lines above, baseFooter at the very bottom.
+      doc.setFontSize(6.5);
+      const lineH = 3.6;
+      const startY = H - 8 - (attestationLines.length * lineH);
+      attestationLines.forEach((ln, i) => {
+        doc.text(ln, W / 2, startY + i * lineH, { align: 'center', maxWidth: W - 16 });
+      });
+      doc.setFontSize(7);
+      doc.text(baseFooter, W / 2, H - 4, { align: 'center' });
     }
   }
 
@@ -11348,6 +11757,11 @@ const STRINGS = {
  'profile.section.identity': 'Pilot Identity',
  'profile.section.type': 'Pilot Type',
  'profile.section.opening': 'Brought-forward hours (paper logbook)',
+ // Q5 — Settings → Profile sub-anchor chips
+ 'profile.subnav.type': 'Pilot type',
+ 'profile.subnav.bf': 'Brought-forward',
+ 'profile.subnav.identity': 'Identity & license',
+ 'profile.subnav.signature': 'Signature',
  'profile.section.licence': 'Licence & Currency',
  'profile.section.airline': 'Airline & Operator',
  'profile.section.prefs': 'Preferences',
@@ -11955,6 +12369,11 @@ const STRINGS = {
 
  // ─── Profil
  'profile.section.identity': 'Identité pilote',
+ // Q5 — chips de sous-navigation
+ 'profile.subnav.type': 'Type de pilote',
+ 'profile.subnav.bf': 'Heures reportées',
+ 'profile.subnav.identity': 'Identité & licence',
+ 'profile.subnav.signature': 'Signature',
  'profile.section.type': 'Type de pilote',
  'profile.section.opening': 'Heures reportées (carnet papier)',
  'profile.section.licence': 'Licence et validité',
@@ -13934,7 +14353,7 @@ async function commitOpeningBalances() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v3';
+const BUILD_VERSION = 'v3a-2026-05-25-auto-sync-q7';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -13985,6 +14404,25 @@ function injectDemoBanner() {
  loadNavblueUI();
  // Update relative-time status every minute
  setInterval(updateNavblueStatus, 60000);
+
+ // ── Auto-sync Navblue iCal ──────────────────────────────────────
+ // Fire ~1.2s after init (don't block first paint or onboarding modal).
+ // The auto wrapper is itself gated by NAVBLUE_AUTO_SYNC_INIT_MS so it
+ // only actually hits the worker when the last sync is stale.
+ if (typeof syncNavblueAuto === 'function') {
+   setTimeout(() => syncNavblueAuto('init'), 1200);
+ }
+ // Re-sync when the user comes back to the tab after being away. The
+ // 'focus' threshold (15 min) is shorter than 'init' (30 min) because
+ // pilots often switch between tabs/apps and the friction of opening
+ // Settings to click Sync is exactly what we're removing here.
+ if (typeof syncNavblueAuto === 'function') {
+   document.addEventListener('visibilitychange', () => {
+     if (document.visibilityState === 'visible') {
+       syncNavblueAuto('focus');
+     }
+   });
+ }
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();

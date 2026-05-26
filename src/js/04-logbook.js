@@ -41,9 +41,11 @@ function renderLogbook(filter='') {
   // Render thead dynamically based on user column preferences.
   // The trailing "actions" column was removed — clicking a row opens the
   // detail panel which already exposes Edit + Delete. Less visual noise.
+  // data-col-key lets Q3 mobile CSS show/hide specific columns by key
+  // rather than nth-child (which would break when column order changes).
   if (thead) {
     thead.innerHTML = '<tr>' +
-      cols.map(c => `<th style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
+      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
     '</tr>';
   }
 
@@ -77,7 +79,7 @@ function renderLogbook(filter='') {
         display = esc(v);
       }
       const tdClass = c.decimal ? 'hrs' : '';
-      return `<td data-label="${esc(c.short)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
+      return `<td data-label="${esc(c.short)}" data-col-key="${esc(c.key)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
     }).join('');
 
     const fid = esc(f.id);

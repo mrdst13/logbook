@@ -231,6 +231,14 @@ function computeCellValue(f, key) {
 const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
 const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
 const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
+// Auto-sync gates — keep us from hammering the worker every page load.
+// On init: skip if last sync was less than 30 min ago.
+// On visibilitychange (tab refocus): skip if less than 15 min ago.
+// Pilots typically open the app a few times a day, so these intervals
+// catch new Navblue events within a meaningful window while keeping
+// the worker quiet on rapid navigations between tabs.
+const NAVBLUE_AUTO_SYNC_INIT_MS    = 30 * 60 * 1000;
+const NAVBLUE_AUTO_SYNC_FOCUS_MS   = 15 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────
 //  AIRPORT COORDS — needed for night-time (RAC 101.01) and
@@ -754,14 +762,30 @@ function updateNavblueStatus() {
   else status.textContent = `${Math.floor(minutes/1440)}D AGO`;
 }
 
-async function syncNavblueNow() {
+// opts.silent      — when true, suppress "already up to date" toast + button
+//                    state changes (used by auto-sync on app init / tab focus).
+//                    Fresh-flight modal still appears so the pilot is prompted
+//                    to review newly-detected events.
+// opts.suppressError — when true, network/parse errors only log to console
+//                    instead of toast-ing (avoids alarming the user during
+//                    silent background syncs).
+async function syncNavblueNow(opts) {
+  opts = opts || {};
+  const silent = !!opts.silent;
   const url = localStorage.getItem(NAVBLUE_URL_KEY);
-  if (!url) { showToast(t('toast.saveUrlFirst'), 'error'); return; }
+  if (!url) {
+    if (!silent) showToast(t('toast.saveUrlFirst'), 'error');
+    return;
+  }
 
+  // Settings → Sync pane may not be mounted (e.g. user is on Dashboard
+  // when auto-sync fires). All DOM refs below are null-safe.
   const btn = document.getElementById('syncNowBtn');
   const details = document.getElementById('navblueDetails');
-  btn.disabled = true;
-  btn.textContent = '⏳ Syncing...';
+  if (btn && !silent) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Syncing...';
+  }
 
   try {
     const resp = await fetch(WORKER_URL, {
@@ -877,36 +901,86 @@ async function syncNavblueNow() {
 
     localStorage.setItem(NAVBLUE_LAST_SYNC_KEY, Date.now().toString());
 
-    details.style.display = 'block';
-    const detailLines = [
-      `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
-    ];
-    if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
-    if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
-    if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
-    if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
-    details.innerHTML = detailLines.join('<br>');
+    if (details) {
+      details.style.display = 'block';
+      const detailLines = [
+        `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
+      ];
+      if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
+      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} got Night/XC recalculated`);
+      if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
+      if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
+      details.innerHTML = detailLines.join('<br>');
+    }
 
     updateNavblueStatus();
     renderDashboard();
 
     if (fresh.length > 0) {
+      // Even in silent/auto-sync mode we surface the import-preview modal —
+      // this is the whole point of auto-sync: detect new flights and prompt
+      // the pilot. If no new flights, silent mode stays quiet.
       showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
       showToast(t('toast.syncFreshEnriched', { fresh: fresh.length, merged: mergedCount }));
     } else if (mergedCount > 0) {
       showToast(t('toast.syncEnrichedRecalc', { merged: mergedCount, updated: recalcStats.updated }), 'success');
-    } else {
+    } else if (!silent) {
       showToast(t('toast.alreadyUpToDate'));
     }
 
   } catch(e) {
     console.error('[Navblue Sync] Error:', e);
-    details.style.display = 'block';
-    details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
-    showToast(e.message || 'Sync failed', 'error');
+    if (details) {
+      details.style.display = 'block';
+      details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
+    }
+    // Silent auto-sync errors stay in the console — toasts would alarm the
+    // user when nothing actively triggered the sync. They'll see the next
+    // manual click fail loudly if the worker is truly down.
+    if (!silent) showToast(e.message || 'Sync failed', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '🔄 Sync now';
+    if (btn && !silent) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Sync now';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Auto-sync wrapper — called from 99-init.js on app boot and on
+// `visibilitychange` (tab refocus). Gated by elapsed-time thresholds
+// so we don't hammer the worker on every page load / tab switch.
+//
+// Why this exists: Martin's iCal sync was manual-only. Means he had
+// to remember to open Settings → Sync → click. With this wrapper, the
+// app silently checks for new VEVENTs whenever he opens it; if any
+// are found, the existing import-preview modal pops up to prompt
+// confirmation (same UX path as a manual sync, but kicked off
+// automatically). If nothing new, no toast, no noise.
+// ─────────────────────────────────────────────────────────────────
+function syncNavblueAuto(reason) {
+  try {
+    const url = localStorage.getItem(NAVBLUE_URL_KEY);
+    if (!url) return;  // not configured — nothing to do
+    const lastRaw = localStorage.getItem(NAVBLUE_LAST_SYNC_KEY);
+    const last = lastRaw ? +lastRaw : 0;
+    const elapsed = Date.now() - last;
+    const minInterval = (reason === 'focus') ? NAVBLUE_AUTO_SYNC_FOCUS_MS : NAVBLUE_AUTO_SYNC_INIT_MS;
+    if (last && elapsed < minInterval) {
+      console.log(`[Navblue Auto-Sync] Skipped (${reason}): last sync ${Math.round(elapsed/60000)}m ago, threshold ${minInterval/60000}m`);
+      return;
+    }
+    // Don't auto-sync while the import-preview modal is already open
+    // (avoids stacking two prompts on top of each other if the user
+    // happens to refocus the tab mid-review).
+    if (document.querySelector('.import-preview-modal, #importPreviewOverlay, .modal[data-import-preview]')) {
+      console.log('[Navblue Auto-Sync] Skipped: import preview already open');
+      return;
+    }
+    console.log(`[Navblue Auto-Sync] Triggering (${reason})`);
+    syncNavblueNow({ silent: true });
+  } catch (e) {
+    console.warn('[Navblue Auto-Sync] threw:', e);
   }
 }
 

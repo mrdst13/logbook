@@ -369,11 +369,20 @@ function renderDashboard() {
   // are activity/currency metrics, not career totals.
   const s = (typeof totalsWithOpening === 'function') ? totalsWithOpening(sRaw) : sRaw;
 
+  // Q2 — Empty-state ghosting. When the pilot has no flights AND no opening
+  // balances declared, paint the dashboard in a muted variant so it doesn't
+  // look like "you've flown 0 hours forever" (which would feel broken).
+  // The .no-data class on body lets CSS desaturate values, ghost the sparkline,
+  // mute the validity rings (no expiry to alarm about yet), and dashed-border
+  // the cards. Removed automatically as soon as one flight is logged.
+  const hasFlights = Array.isArray(flights) && flights.length > 0;
+  const hasOpening = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+  document.body.classList.toggle('no-data', !hasFlights && !hasOpening);
+
   // Discovery banner — only brand-new users see it.
   const bfBanner = document.getElementById('broughtForwardBanner');
   if (bfBanner) {
-    const isBrandNew = (flights.length === 0)
-      && (typeof hasOpeningBalances !== 'function' || !hasOpeningBalances());
+    const isBrandNew = !hasFlights && !hasOpening;
     bfBanner.style.display = isBrandNew ? 'flex' : 'none';
   }
 
@@ -608,10 +617,13 @@ function _dashRenderRing(containerId, pct, color, label) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const off = c * (1 - pct / 100);
+  // Classed circles (.dash-ring-track / .dash-ring-progress) so the
+  // empty-state CSS variant (body.no-data) can desaturate without
+  // touching the JS color logic.
   el.innerHTML = `
     <svg width="${size}" height="${size}">
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#E1E5EC" stroke-width="${stroke}"/>
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" stroke-linecap="round"/>
+      <circle class="dash-ring-track" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#E1E5EC" stroke-width="${stroke}"/>
+      <circle class="dash-ring-progress" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" stroke-linecap="round"/>
     </svg>
     <div class="dash-ring-label">${esc(label)}</div>
   `;

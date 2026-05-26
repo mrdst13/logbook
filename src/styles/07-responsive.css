@@ -87,6 +87,126 @@
   .nav-item { padding-top: 12px; padding-bottom: 12px; }
 }
 
+/* ─── Q3 — Mobile dense Logbook rows ────────────────────────────
+   At phone width, a 15+ column logbook table is unreadable. Transform
+   each <tr> into a typographic card stacking the essentials (date,
+   route, registration, block hours, landings). The rest of the columns
+   stay in DOM (so renderLogbook + totals math stays unchanged) but are
+   hidden visually. Tapping the card opens the full detail panel via
+   the existing openFlightDetail() handler. */
+@media (max-width: 700px) {
+  .logbook-compact { overflow-x: visible; }
+  .logbook-compact table {
+    display: block;
+    width: 100%;
+  }
+  .logbook-compact thead { display: none; }
+  .logbook-compact tbody,
+  .logbook-compact tfoot { display: block; width: 100%; }
+
+  .logbook-compact tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "date  block"
+      "route ldg"
+      "meta  meta";
+    column-gap: var(--s-3);
+    row-gap: 4px;
+    align-items: baseline;
+    padding: 12px 14px;
+    min-height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+  }
+  .logbook-compact tbody tr:active { background: var(--bg-subtle); }
+
+  /* Hide every cell by default; show only the whitelisted keys */
+  .logbook-compact tbody td { display: none; }
+
+  .logbook-compact tbody td[data-col-key="date"] {
+    display: block;
+    grid-area: date;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0;
+  }
+  .logbook-compact tbody td[data-col-key="route"] {
+    display: block;
+    grid-area: route;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0;
+    text-align: left !important;
+  }
+  .logbook-compact tbody td[data-col-key="reg"],
+  .logbook-compact tbody td[data-col-key="type"],
+  .logbook-compact tbody td[data-col-key="flightNum"] {
+    display: inline-block;
+    grid-area: meta;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 0 var(--s-2) 0 0;
+    text-align: left !important;
+  }
+  .logbook-compact tbody td[data-col-key="total"],
+  .logbook-compact tbody td[data-col-key="block"] {
+    display: block;
+    grid-area: block;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: right !important;
+    padding: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Show total only if present, otherwise fall back to block — when both
+     are visible the .total cell wins (it comes later in the grid). */
+  .logbook-compact tbody td[data-col-key="total"] + td[data-col-key="block"] {
+    display: none;
+  }
+  .logbook-compact tbody td[data-col-key="ldgDay"],
+  .logbook-compact tbody td[data-col-key="ldgNight"] {
+    display: inline-block;
+    grid-area: ldg;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 0;
+    text-align: right !important;
+  }
+  .logbook-compact tbody td[data-col-key="ldgDay"]::before  { content: "D "; opacity: 0.6; }
+  .logbook-compact tbody td[data-col-key="ldgNight"]::before { content: "·N "; opacity: 0.6; margin-left: 6px; }
+
+  /* Footer row (totals) also stacks; keep first cell visible with totals copy */
+  .logbook-compact tfoot tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 14px 14px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .logbook-compact tfoot tr td { display: none; padding: 0; }
+  .logbook-compact tfoot tr td:first-child { display: block; }
+  .logbook-compact tfoot tr td[data-col-key="total"],
+  .logbook-compact tfoot tr td[data-col-key="block"] {
+    display: block;
+    text-align: right !important;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tap target meets Apple HIG (44pt) */
+  .logbook-compact tbody tr { min-height: 64px; cursor: pointer; }
+}
+
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--s-2); }
   .stat-card { padding: var(--s-3); }

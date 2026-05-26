@@ -51,14 +51,10 @@ function showPage(id) {
     }
     // Populate PIC / Co-pilot autocomplete from the last 90 days of flights.
     if (typeof populateRecentNames === 'function') populateRecentNames();
-    // Reset advanced-fields toggle to collapsed state when opening a new entry
-    // (editingId is set when editing — keep state in that case).
-    if (!editingId) {
-      const adv = document.getElementById('advancedFormFields');
-      const btn = document.getElementById('formAdvancedToggle');
-      if (adv) adv.style.display = 'none';
-      if (btn) btn.textContent = t ? t('flight.showAdvanced') : 'Show advanced fields (ME · XC · Instrument)';
-    }
+    // Note: the advanced-fields wrapper open/closed state is now driven
+    // by adaptFormToProfile() (Q4 profile-driven form). Airline 705 pilots
+    // see ME/XC/Inst by default; everyone else gets a collapsed wrapper
+    // with the toggle button. No router-level override needed.
   }
 }
 

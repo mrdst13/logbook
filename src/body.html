@@ -831,7 +831,18 @@
  </div>
  </div>
 
- <div class="form-card">
+ <!-- Q5 — Profile sub-anchor nav. Sticky chips that let the pilot jump to
+      a specific section without scrolling. Small footprint, decoupled from
+      the actual content order so we can re-arrange below without touching
+      the chip list. -->
+ <nav class="settings-subnav" aria-label="Profile sections">
+   <a href="#profile-type"      class="settings-subnav-chip" data-i18n="profile.subnav.type">Pilot type</a>
+   <a href="#profile-bf"        class="settings-subnav-chip" data-i18n="profile.subnav.bf">Brought-forward</a>
+   <a href="#profile-identity"  class="settings-subnav-chip" data-i18n="profile.subnav.identity">Identity &amp; license</a>
+   <a href="#profile-signature" class="settings-subnav-chip" data-i18n="profile.subnav.signature">Signature</a>
+ </nav>
+
+ <div class="form-card" id="profile-type">
  <div class="form-card-title" data-i18n="profile.section.type">Pilot type</div>
  <div class="profile-type-grid">
  <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
@@ -858,11 +869,11 @@
  </div>
 
  <!-- Brought-forward hours (paper logbook) — declared once with attestation. -->
- <div class="form-card" id="openingBalancesCard">
+ <div class="form-card" id="profile-bf">
  <div id="openingBalancesSection"></div>
  </div>
 
- <div class="form-card">
+ <div class="form-card" id="profile-identity">
  <div class="form-card-title" data-i18n="profile.section.identity">Pilot information</div>
  <div class="form-grid">
  <div class="form-group">
@@ -1023,7 +1034,7 @@
  </div>
  </div>
 
- <div class="form-card">
+ <div class="form-card" id="profile-signature">
  <div class="form-card-title" data-i18n="profile.section.signature">Electronic signature</div>
  <p style="font-size:12px;color:var(--text-muted);margin-bottom:var(--s-3);line-height:1.5">
  Sign below. Your signature is saved locally and appears on PDF exports.

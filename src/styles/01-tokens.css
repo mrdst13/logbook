@@ -101,11 +101,56 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --font-display: 'Inter', -apple-system, sans-serif;
 
-  /* V3A — Motion */
+  /* V3A — Motion (legacy) */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
   --t-micro: 150ms;
   --t-std: 220ms;
   --t-emphasis: 380ms;
+
+  /* ─── Q7 Motion tokens ──────────────────────────────────────────
+     Three named easings for the entire app — pick by intent, not feel.
+
+     --ease-quiet  : utility motion — hover states, tab switches, things
+                     the user shouldn't actively notice. Subtle decel.
+     --ease-stable : standard navigation — page transitions, dropdowns,
+                     forms appearing. Confident but not springy.
+     --ease-snap   : confirmation moments — Save morphing to "Saved ✓",
+                     dialogs settling, completion states. Crisp tail.
+
+     Durations stay separate from easings so we can pair, e.g., a slow
+     fade with --ease-quiet OR a fast settle with --ease-snap.
+  ───────────────────────────────────────────────────────────────── */
+  --ease-quiet:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-stable:   cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snap:     cubic-bezier(0.16, 1, 0.3, 1);
+
+  --motion-fast:   140ms;   /* hover, focus rings, tab underlines       */
+  --motion-base:   220ms;   /* default page transitions, dropdowns      */
+  --motion-slow:   380ms;   /* dialog enter/exit, sheet present         */
+  --motion-stagger: 60ms;   /* stagger between sibling reveals          */
+}
+
+/* Accessibility: respect prefers-reduced-motion. Collapses all the
+   transition tokens to near-instant so the cascade keeps working
+   without rewriting every transition rule. Anything that uses
+   --motion-* or --t-* will pick this up automatically. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-micro: 1ms;
+    --t-std: 1ms;
+    --t-emphasis: 1ms;
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+    --motion-stagger: 0ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 

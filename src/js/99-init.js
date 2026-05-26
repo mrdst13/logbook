@@ -2,7 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-25-pilot-grade-v3';
+const BUILD_VERSION = 'v3a-2026-05-25-auto-sync-q7';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -53,6 +53,25 @@ function injectDemoBanner() {
  loadNavblueUI();
  // Update relative-time status every minute
  setInterval(updateNavblueStatus, 60000);
+
+ // ── Auto-sync Navblue iCal ──────────────────────────────────────
+ // Fire ~1.2s after init (don't block first paint or onboarding modal).
+ // The auto wrapper is itself gated by NAVBLUE_AUTO_SYNC_INIT_MS so it
+ // only actually hits the worker when the last sync is stale.
+ if (typeof syncNavblueAuto === 'function') {
+   setTimeout(() => syncNavblueAuto('init'), 1200);
+ }
+ // Re-sync when the user comes back to the tab after being away. The
+ // 'focus' threshold (15 min) is shorter than 'init' (30 min) because
+ // pilots often switch between tabs/apps and the friction of opening
+ // Settings to click Sync is exactly what we're removing here.
+ if (typeof syncNavblueAuto === 'function') {
+   document.addEventListener('visibilitychange', () => {
+     if (document.visibilityState === 'visible') {
+       syncNavblueAuto('focus');
+     }
+   });
+ }
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();

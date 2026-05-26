@@ -123,6 +123,11 @@ const STRINGS = {
  'profile.section.identity': 'Pilot Identity',
  'profile.section.type': 'Pilot Type',
  'profile.section.opening': 'Brought-forward hours (paper logbook)',
+ // Q5 — Settings → Profile sub-anchor chips
+ 'profile.subnav.type': 'Pilot type',
+ 'profile.subnav.bf': 'Brought-forward',
+ 'profile.subnav.identity': 'Identity & license',
+ 'profile.subnav.signature': 'Signature',
  'profile.section.licence': 'Licence & Currency',
  'profile.section.airline': 'Airline & Operator',
  'profile.section.prefs': 'Preferences',
@@ -730,6 +735,11 @@ const STRINGS = {
 
  // ─── Profil
  'profile.section.identity': 'Identité pilote',
+ // Q5 — chips de sous-navigation
+ 'profile.subnav.type': 'Type de pilote',
+ 'profile.subnav.bf': 'Heures reportées',
+ 'profile.subnav.identity': 'Identité & licence',
+ 'profile.subnav.signature': 'Signature',
  'profile.section.type': 'Type de pilote',
  'profile.section.opening': 'Heures reportées (carnet papier)',
  'profile.section.licence': 'Licence et validité',

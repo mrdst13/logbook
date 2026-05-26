@@ -463,6 +463,34 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   .dash-hero-num-val { font-size: 56px; }
 }
 
+/* ─── Q2 Empty state — ghosted dashboard ──────────────────────────
+   Active when body.no-data (set by renderDashboard when flights.length===0
+   AND no opening balances). Tones the whole hero so a brand-new install
+   doesn't look broken or alarming — it looks expectant. */
+body.no-data .dash-hero-num-val,
+body.no-data .dash-strip-val,
+body.no-data .lb-summary .dash-hero-num-val {
+  color: var(--text-disabled);
+}
+body.no-data .dash-hero-delta { display: none !important; }
+body.no-data .dash-card {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+body.no-data .dash-strip-item { border-left-color: var(--text-disabled); }
+/* Validity rings shouldn't scream red when there's nothing to expire yet —
+   the pilot hasn't entered a medical date so we shouldn't tell them it's
+   "expired". Muted ghost ring + neutral label. */
+body.no-data .dash-ring circle.dash-ring-track { stroke: var(--border); }
+body.no-data .dash-ring circle.dash-ring-progress { stroke: var(--text-disabled); }
+body.no-data .dash-ring-label,
+body.no-data .dash-ring-sub { color: var(--text-disabled); }
+/* Sparkline: hide the line, keep the box for spacing — invites the first
+   flight to "fill it in" rather than presenting a flat zero baseline. */
+body.no-data .dash-hero-spark path,
+body.no-data .dash-hero-spark circle { opacity: 0.35; }
+
 /* Logbook page Q9-style summary card — reuses .dash-card + .dash-hero-num
    + .dash-hero-spark so the visual language matches the Dashboard exactly. */
 .lb-summary { padding: 24px 28px; }
