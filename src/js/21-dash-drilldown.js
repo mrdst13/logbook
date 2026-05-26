@@ -55,7 +55,6 @@ function _dashDrillBuild(key, fr) {
     case 'hero': return _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn);
     case 'ifr': return _drillIFR(fr, addBtn, logbookBtn);
     case 'ppc': return _drillPPC(profile, fr, settingsBtn);
-    case 'loft': return _drillLOFT(profile, fr, settingsBtn);
     case 'recency': return _drillRecency(fr, addBtn, logbookBtn);
     case 'medical': return _drillMedical(profile, fr, settingsBtn);
     case 'pic':   return _drillStripHours('pic',   s.pic,   fr, profile, F, logbookBtn);
@@ -71,18 +70,12 @@ function _dashDrillBuild(key, fr) {
 // ─── PPC drill-down (705 line ops — CASS 725.106) ──────────────────
 function _drillPPC(profile, fr, settingsBtn) {
   const ppcDate = profile.ppcDueDate || '';
-  const loftDate = profile.loftDueDate || '';
   const today = new Date().toISOString().slice(0, 10);
 
   let ppcDays = null;
   if (ppcDate) {
     const ms = (new Date(ppcDate).getTime() - new Date(today).getTime()) / 86400000;
     ppcDays = Math.round(ms);
-  }
-  let loftDays = null;
-  if (loftDate) {
-    const ms = (new Date(loftDate).getTime() - new Date(today).getTime()) / 86400000;
-    loftDays = Math.round(ms);
   }
 
   const statusLabel = ppcDays === null ? (fr ? 'NON DÉFINI' : 'NOT SET')
@@ -102,46 +95,19 @@ function _drillPPC(profile, fr, settingsBtn) {
       v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
   ];
 
-  if (loftDate) {
-    rows.push({
-      k: fr ? 'LOFT dû' : 'LOFT due',
-      v: `${loftDate}${loftDays !== null ? ` (${loftDays > 0 ? loftDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}`
-    });
-  }
-
   return {
     eyebrow: fr ? 'CASS 725.106 · MULTI-PILOT 705' : 'CASS 725.106 · MULTI-PILOT 705',
     title: fr ? 'Pilot Proficiency Check (PPC)' : 'Pilot Proficiency Check (PPC)',
     body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'Pour les pilotes 705 multi-pilotes, le PPC tient lieu de validité IFR — il couvre déjà la compétence aux instruments dans son contenu standard (CASS 725.106(6)). Le 6-approches/6-mois (CAR 401.05(2)) reste pertinent pour les pilotes privés sans PPC d\'opérateur. Vérifiez la date exacte de renouvellement avec votre programme de formation Porter.'
-      : 'For multi-pilot 705 line operations, the PPC is the primary IFR + competency check — its standard content already covers instrument proficiency (CASS 725.106(6)). The generic 6-approaches/6-months rule (CAR 401.05(2)) applies more to private pilots without a Company PPC. Verify your exact renewal date with your Porter training schedule.'}</div>`,
+      ? 'Le PPC est le contrôle de compétence requis sous CASS 725.106 pour les opérations 705 multi-pilotes. Cumulo l\'affiche comme la validité principale au lieu du compteur d\'approches générique IFR. Comment le PPC interagit avec les autres règles de validité (CAR 401.05, IPC, formation récurrente) : référez-vous à votre programme de formation approuvé par votre opérateur.'
+      : 'The PPC is the proficiency check required under CASS 725.106 for multi-pilot 705 operations. Cumulo surfaces it as your primary validity instead of the generic IFR-approach counter. How the PPC interacts with other currency rules (CAR 401.05, IPC, recurrent training) is defined by your operator\'s approved training program — refer to it for the specifics.'}</div>`,
     foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
   };
 }
 
-// ─── LOFT drill-down (Line Oriented Flight Training) ───────────────
-function _drillLOFT(profile, fr, settingsBtn) {
-  const loftDate = profile.loftDueDate || '';
-  const today = new Date().toISOString().slice(0, 10);
-  let loftDays = null;
-  if (loftDate) {
-    const ms = (new Date(loftDate).getTime() - new Date(today).getTime()) / 86400000;
-    loftDays = Math.round(ms);
-  }
-  const rows = [
-    { k: fr ? 'LOFT dû' : 'LOFT due', v: loftDate || (fr ? 'non défini' : 'not set') },
-    { k: fr ? 'Jours restants' : 'Days remaining',
-      v: loftDays === null ? '—' : (loftDays > 0 ? loftDays : (fr ? 'dépassé' : 'overdue')) },
-  ];
-  return {
-    eyebrow: fr ? 'CASS 725.124 · FORMATION RÉCURRENTE' : 'CASS 725.124 · RECURRENT TRAINING',
-    title: 'LOFT (Line Oriented Flight Training)',
-    body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'Le LOFT est de la formation orientée ligne — souvent combinée au PPC, parfois planifiée séparément selon le programme de l\'opérateur. Si Porter ne planifie pas de LOFT distinct du PPC, laissez ce champ vide.'
-      : 'LOFT is line-oriented recurrent training — often combined with the PPC, sometimes scheduled separately depending on the operator\'s program. If Porter doesn\'t schedule LOFT separately from your PPC, leave this field empty.'}</div>`,
-    foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
-  };
-}
+// LOFT panel intentionally removed — see _drillPPC() and feedback file for
+// why LOFT isn't a separate Cumulo field. Operators define how training
+// events relate to PPC currency in their approved training program.
 
 // ─── Hero (career total) drill-down ────────────────────────────────
 function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {

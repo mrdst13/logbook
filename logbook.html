@@ -4236,61 +4236,48 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
    </div>
  </div>
 
- <!-- ─── Continuous auto-sync hero CTA ──────────────────────────
-      The most powerful option lives in Settings → Sync. New users never
-      find it. Pulling a discoverability link to the top of Import. -->
+ <!-- ─── Hero CTA: continuous auto-sync ───────────────────────── -->
  <div class="form-card import-hero">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;border:0;padding-bottom:var(--s-2);margin-bottom:var(--s-2);">
-   <span>Already flying for an airline?</span>
+   <span>Set up auto-sync first</span>
    <span class="eyebrow" style="color:var(--accent);">RECOMMENDED</span>
  </div>
  <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);">
-   Navblue iCal <strong>auto-syncs your roster</strong> every time you open Cumulo — no manual import needed. Set it up once.
+   Configure Navblue iCal once. After that, your roster syncs automatically every time you open Cumulo — no manual import needed.
  </div>
  <div>
    <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);">Set up auto-sync →</button>
  </div>
  </div>
 
- <!-- ─── Card 1: Navblue PDF roster (merged: initial + crew backfill) ──── -->
+ <!-- ─── Card: Monthly PDF roster (primary import) ─────────────────────
+      Single drop zone + one auto-detect handler. The wrapper picks the
+      right code path based on context: if there are existing iCal-sourced
+      flights, treat as crew-name backfill; otherwise treat as fresh import.
+      Pilot doesn't have to remember which sub-button to click. -->
  <div class="form-card import-card" id="import-navblue">
  <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Common</span></div>
- <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo extracts all completed flights with crew names and merges them into your logbook. Pre-iCal-sync? It imports as new. Post-iCal-sync? It enriches existing flights with captain names. 100% local — nothing uploaded.</div>
- <div class="import-actions-grid">
-   <div>
-     <div class="import-action-label">Import flights from PDF</div>
-     <div class="import-action-sub">First time using Cumulo or backfilling missing months</div>
-     <div class="drop-zone" onclick="document.getElementById('navbluePdf').click()"
-       ondragover="event.preventDefault();this.classList.add('dragover')"
-       ondragleave="this.classList.remove('dragover')"
-       ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){var i=document.getElementById('navbluePdf');var dt=new DataTransfer();dt.items.add(f);i.files=dt.files;parseNavbluePDF(i);}">
-       <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
-       <span class="drop-title">Select roster PDF or drop here</span>
-       <span class="drop-sub">Porter / Navblue monthly roster</span>
-     </div>
-     <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
-   </div>
-   <div>
-     <div class="import-action-label">Add captain names to synced flights</div>
-     <div class="import-action-sub">Already using iCal auto-sync? PDF fills in the crew names iCal doesn't carry</div>
-     <div id="rosterDropZone" class="drop-zone" onclick="document.getElementById('rosterPdfInput').click()"
-       ondragover="event.preventDefault(); this.classList.add('dragover');"
-       ondragleave="this.classList.remove('dragover');"
-       ondrop="handleRosterDrop(event);">
-       <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
-       <span class="drop-title">Backfill captain names</span>
-       <span class="drop-sub">Same PDF — different intent</span>
-     </div>
-     <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
-     <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
-   </div>
+ <div class="form-card-desc">Drop your Porter / Navblue <strong>HrRosterReport PDF</strong>. Cumulo reads it and either imports your flights (first time) or fills in the captain names iCal can't carry (already sync'd). 100% local — nothing uploaded.</div>
+ <div class="drop-zone" onclick="document.getElementById('navbluePdfUnified').click()"
+   ondragover="event.preventDefault();this.classList.add('dragover')"
+   ondragleave="this.classList.remove('dragover')"
+   ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){handleMonthlyRosterPDF(f);}">
+   <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
+   <span class="drop-title">Select roster PDF or drop here</span>
+   <span class="drop-sub">Porter / Navblue monthly roster · PDF</span>
  </div>
+ <input type="file" id="navbluePdfUnified" accept=".pdf,application/pdf" style="display:none" onchange="if(this.files[0])handleMonthlyRosterPDF(this.files[0])">
+ <!-- Hidden inputs kept for legacy handlers + the two drop-paths the
+      unified wrapper routes to. -->
+ <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
+ <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
+ <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
  </div>
 
- <!-- ─── Card 2: Photo of paper logbook ────────────────────────── -->
+ <!-- ─── Card: Photo of paper logbook ──────────────────────────── -->
  <div class="form-card import-card">
  <div class="form-card-title">Photo of a paper logbook page <span class="import-card-tag import-card-tag-quiet">Occasional</span></div>
- <div class="form-card-desc">Snap a photo of one page from your paper logbook. AI reads every column. Useful for the odd page that wasn't in your PDF roster — not meant for re-typing your whole career (use brought-forward in Profile for that).</div>
+ <div class="form-card-desc">Snap one page from your paper logbook. AI reads every column. For the odd page missing from a PDF roster — not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
  <div class="drop-zone" id="photoZone"
    onclick="document.getElementById('photoInput').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -4303,10 +4290,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
  </div>
 
- <!-- ─── Card 3: CSV from another logbook app ─────────────────── -->
+ <!-- ─── Card: CSV migration from another logbook app ──────────── -->
  <div class="form-card import-card">
  <div class="form-card-title">Migrate from another logbook app <span class="import-card-tag import-card-tag-quiet">One-time</span></div>
- <div class="form-card-desc" data-i18n="sync.csv.desc">Drop a CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens the universal column-mapping wizard. 100% client-side — nothing uploaded.</div>
+ <div class="form-card-desc">CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens a column-mapping wizard. 100% local.</div>
  <div id="csvDropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click()"
    ondragover="event.preventDefault(); this.classList.add('dragover');"
    ondragleave="this.classList.remove('dragover');"
@@ -4599,18 +4586,13 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <label data-i18n="profile.fleet">Primary fleet</label>
  <input type="text" id="p-fleet" placeholder="e.g. C172, B737, E190">
  </div>
- <!-- PPC + LOFT — surface for 705 line ops pilots. Hidden on profile types
-      where it doesn't apply (private, student, helicopter). Toggled by
-      adaptFormToProfile() / loadProfile() based on profile.pilotType. -->
- <div class="form-group" id="p-ppc-wrap">
+ <!-- PPC — surface for 705 line ops pilots only. Hidden on profile types
+      where it doesn't apply (private/student/helicopter/instructor).
+      Toggled by adaptFormToProfile() based on profile.pilotType. -->
+ <div class="form-group col-span-2" id="p-ppc-wrap">
    <label>PPC expiry <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(Pilot Proficiency Check)</span></label>
    <input type="date" id="p-ppc">
-   <div class="help-text">CASS 725.106 — every 6 months for multi-pilot 705 ops. Cumulo uses this instead of the IFR 6-in-6mo rule for line pilots.</div>
- </div>
- <div class="form-group" id="p-loft-wrap">
-   <label>LOFT due <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(optional)</span></label>
-   <input type="date" id="p-loft">
-   <div class="help-text">Line Oriented Flight Training (CASS 725.124). Leave empty if your operator doesn't schedule LOFT separately from your PPC.</div>
+   <div class="help-text">CASS 725.106 — every 6 months for multi-pilot 705 ops. Update this date after each PPC. For how training events (LOFT, IPC, etc.) relate to your PPC currency, refer to your operator's approved training program.</div>
  </div>
  </div>
  </div>
@@ -6261,13 +6243,9 @@ function _dashPPCDaysRemaining(profile) {
   return Math.ceil((exp - Date.now()) / 86400000);
 }
 
-function _dashLOFTDaysRemaining(profile) {
-  const p = profile || ((typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {});
-  if (!p.loftDueDate) return null;
-  const exp = new Date(p.loftDueDate + 'T00:00:00');
-  if (isNaN(exp.getTime())) return null;
-  return Math.ceil((exp - Date.now()) / 86400000);
-}
+// LOFT is intentionally not tracked as a separate Cumulo field — operators
+// define in their approved training program whether/how a LOFT renews PPC
+// currency. When a LOFT happens, the pilot updates ppcDueDate. No helper.
 
 // ─── Recent legs typographic list ─────────────────────────────
 function _dashRenderLegs() {
@@ -7444,6 +7422,59 @@ function _importRelTime(ts) {
   return new Date(ts).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// ─────────────────────────────────────────────────────────────────
+// MONTHLY PDF ROSTER — unified handler
+// One drop zone, two code paths. The wrapper picks based on context:
+//   - If the pilot has zero flights yet, OR no iCal URL configured →
+//     treat as initial import → parseNavbluePDF()
+//   - If there's at least one flight tagged as Navblue-iCal-sourced →
+//     treat as crew-name backfill → handleRosterFile()
+//   - Otherwise (mixed state — has flights but none from iCal): default
+//     to crew-backfill (the more common case once a pilot has been using
+//     the app for a while) but log so we can tune later.
+//
+// Why a wrapper instead of asking the pilot to pick: Martin found the
+// old two-button layout confusing. The two intents live in the same
+// PDF, so the app should figure out which one the pilot needs. The
+// wrapper logs its decision to console so any wrong routing is debuggable.
+// ─────────────────────────────────────────────────────────────────
+function handleMonthlyRosterPDF(file) {
+  if (!file) return;
+  const hasFlights = Array.isArray(flights) && flights.length > 0;
+  const hasICalSourced = hasFlights && flights.some(f =>
+    Array.isArray(f.sources) && f.sources.includes('navblue-ics')
+  );
+  const hasICalUrl = (() => {
+    try { return !!localStorage.getItem('cumulo_navblue_url'); }
+    catch { return false; }
+  })();
+
+  if (!hasFlights || !hasICalUrl) {
+    // Fresh install or pilot hasn't set up iCal yet → initial import path.
+    console.log('[ImportRouter] Monthly PDF → initial import (parseNavbluePDF)');
+    const inputEl = document.getElementById('navbluePdf');
+    if (inputEl) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      inputEl.files = dt.files;
+      parseNavbluePDF(inputEl);
+    }
+    return;
+  }
+
+  if (hasICalSourced) {
+    console.log('[ImportRouter] Monthly PDF → crew-name backfill (handleRosterFile)');
+    handleRosterFile(file);
+    return;
+  }
+
+  // Pilot has flights but none from iCal — could be a CSV-imported user
+  // adding a PDF. Default to backfill (most common in this state) but log
+  // it so we can revisit if the heuristic is wrong.
+  console.log('[ImportRouter] Monthly PDF → crew-name backfill (default for mixed state)');
+  handleRosterFile(file);
+}
+
 // ═══════════════════════════════════════════
 // IMPORT — PHOTO (AI)
 // ═══════════════════════════════════════════
@@ -7803,18 +7834,13 @@ function adaptFormToProfile(type) {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
 
-  // PPC + LOFT fields: relevant for 705 line pilots only. Other profile
-  // types (private/student/helicopter solo/instructor) don't have a
-  // Company PPC under CASS 725.106, so we hide the fields rather than
-  // leave them blank-confusing in the form.
+  // PPC field: relevant for 705 line pilots only. Other profile types
+  // (private/student/helicopter solo/instructor) don't have a Company
+  // PPC under CASS 725.106, so we hide it rather than show a confusing
+  // blank field.
   const showPPC = (type === 'airline705');
-  if (showPPC) {
-    show('p-ppc-wrap');
-    show('p-loft-wrap');
-  } else {
-    hide('p-ppc-wrap');
-    hide('p-loft-wrap');
-  }
+  if (showPPC) show('p-ppc-wrap');
+  else        hide('p-ppc-wrap');
   const setLbl = (inputId, text) => {
     const el = document.getElementById(inputId);
     if (!el) return;
@@ -7962,11 +7988,13 @@ function loadProfile() {
   sv('p-base', p.base || 'YOW');
   sv('p-fleet', p.fleet || 'E195-E2');
   sv('p-operatorCodes', p.operatorCodes || 'PD');
-  // PPC + LOFT (705 line ops). The fields are always rendered in the DOM
-  // but their wrappers are hidden by adaptFormToProfile() when the pilot
-  // type doesn't use them (private / student / helicopter etc.).
+  // PPC (705 line ops). The wrapper is hidden by adaptFormToProfile()
+  // when the pilot type doesn't use it (private / student / helicopter / instructor).
+  // LOFT is intentionally NOT a separate field — operators define how LOFT
+  // relates to PPC currency in their approved training program. When a LOFT
+  // happens, the pilot updates the PPC date if their operator's program
+  // says it does (Porter or otherwise).
   sv('p-ppc', p.ppcDueDate);
-  sv('p-loft', p.loftDueDate);
   // IFR approach auto-count: default ON when the saved airline is a 705 operator,
   // OFF otherwise. Once the user explicitly saves a value, that value sticks.
   const autoCb = document.getElementById('p-autoCountIFR');
@@ -8072,10 +8100,10 @@ function saveProfile() {
     hideZeroColumns: !!document.getElementById('p-hideZeroColumns')?.checked,
     acConfigs: [...document.querySelectorAll('#p-acConfigs input[type=checkbox]:checked')].map(cb => cb.value),
     pilotType: existing.pilotType || 'airline705',
-    // CASS 725.106 PPC + LOFT (705 line ops). Empty strings are fine — they
-    // mean "not tracking this for now" rather than "expired today".
+    // CASS 725.106 PPC (705 line ops). Empty string = not tracking for now,
+    // not "expired today". LOFT is intentionally not a separate field; see
+    // loadProfile() for rationale.
     ppcDueDate: gv('p-ppc'),
-    loftDueDate: gv('p-loft'),
   };
   DB.saveProfile(p);
   updateProfileDisplay(p);
@@ -15679,7 +15707,6 @@ function _dashDrillBuild(key, fr) {
     case 'hero': return _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn);
     case 'ifr': return _drillIFR(fr, addBtn, logbookBtn);
     case 'ppc': return _drillPPC(profile, fr, settingsBtn);
-    case 'loft': return _drillLOFT(profile, fr, settingsBtn);
     case 'recency': return _drillRecency(fr, addBtn, logbookBtn);
     case 'medical': return _drillMedical(profile, fr, settingsBtn);
     case 'pic':   return _drillStripHours('pic',   s.pic,   fr, profile, F, logbookBtn);
@@ -15695,18 +15722,12 @@ function _dashDrillBuild(key, fr) {
 // ─── PPC drill-down (705 line ops — CASS 725.106) ──────────────────
 function _drillPPC(profile, fr, settingsBtn) {
   const ppcDate = profile.ppcDueDate || '';
-  const loftDate = profile.loftDueDate || '';
   const today = new Date().toISOString().slice(0, 10);
 
   let ppcDays = null;
   if (ppcDate) {
     const ms = (new Date(ppcDate).getTime() - new Date(today).getTime()) / 86400000;
     ppcDays = Math.round(ms);
-  }
-  let loftDays = null;
-  if (loftDate) {
-    const ms = (new Date(loftDate).getTime() - new Date(today).getTime()) / 86400000;
-    loftDays = Math.round(ms);
   }
 
   const statusLabel = ppcDays === null ? (fr ? 'NON DÉFINI' : 'NOT SET')
@@ -15726,46 +15747,19 @@ function _drillPPC(profile, fr, settingsBtn) {
       v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
   ];
 
-  if (loftDate) {
-    rows.push({
-      k: fr ? 'LOFT dû' : 'LOFT due',
-      v: `${loftDate}${loftDays !== null ? ` (${loftDays > 0 ? loftDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}`
-    });
-  }
-
   return {
     eyebrow: fr ? 'CASS 725.106 · MULTI-PILOT 705' : 'CASS 725.106 · MULTI-PILOT 705',
     title: fr ? 'Pilot Proficiency Check (PPC)' : 'Pilot Proficiency Check (PPC)',
     body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'Pour les pilotes 705 multi-pilotes, le PPC tient lieu de validité IFR — il couvre déjà la compétence aux instruments dans son contenu standard (CASS 725.106(6)). Le 6-approches/6-mois (CAR 401.05(2)) reste pertinent pour les pilotes privés sans PPC d\'opérateur. Vérifiez la date exacte de renouvellement avec votre programme de formation Porter.'
-      : 'For multi-pilot 705 line operations, the PPC is the primary IFR + competency check — its standard content already covers instrument proficiency (CASS 725.106(6)). The generic 6-approaches/6-months rule (CAR 401.05(2)) applies more to private pilots without a Company PPC. Verify your exact renewal date with your Porter training schedule.'}</div>`,
+      ? 'Le PPC est le contrôle de compétence requis sous CASS 725.106 pour les opérations 705 multi-pilotes. Cumulo l\'affiche comme la validité principale au lieu du compteur d\'approches générique IFR. Comment le PPC interagit avec les autres règles de validité (CAR 401.05, IPC, formation récurrente) : référez-vous à votre programme de formation approuvé par votre opérateur.'
+      : 'The PPC is the proficiency check required under CASS 725.106 for multi-pilot 705 operations. Cumulo surfaces it as your primary validity instead of the generic IFR-approach counter. How the PPC interacts with other currency rules (CAR 401.05, IPC, recurrent training) is defined by your operator\'s approved training program — refer to it for the specifics.'}</div>`,
     foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
   };
 }
 
-// ─── LOFT drill-down (Line Oriented Flight Training) ───────────────
-function _drillLOFT(profile, fr, settingsBtn) {
-  const loftDate = profile.loftDueDate || '';
-  const today = new Date().toISOString().slice(0, 10);
-  let loftDays = null;
-  if (loftDate) {
-    const ms = (new Date(loftDate).getTime() - new Date(today).getTime()) / 86400000;
-    loftDays = Math.round(ms);
-  }
-  const rows = [
-    { k: fr ? 'LOFT dû' : 'LOFT due', v: loftDate || (fr ? 'non défini' : 'not set') },
-    { k: fr ? 'Jours restants' : 'Days remaining',
-      v: loftDays === null ? '—' : (loftDays > 0 ? loftDays : (fr ? 'dépassé' : 'overdue')) },
-  ];
-  return {
-    eyebrow: fr ? 'CASS 725.124 · FORMATION RÉCURRENTE' : 'CASS 725.124 · RECURRENT TRAINING',
-    title: 'LOFT (Line Oriented Flight Training)',
-    body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'Le LOFT est de la formation orientée ligne — souvent combinée au PPC, parfois planifiée séparément selon le programme de l\'opérateur. Si Porter ne planifie pas de LOFT distinct du PPC, laissez ce champ vide.'
-      : 'LOFT is line-oriented recurrent training — often combined with the PPC, sometimes scheduled separately depending on the operator\'s program. If Porter doesn\'t schedule LOFT separately from your PPC, leave this field empty.'}</div>`,
-    foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
-  };
-}
+// LOFT panel intentionally removed — see _drillPPC() and feedback file for
+// why LOFT isn't a separate Cumulo field. Operators define how training
+// events relate to PPC currency in their approved training program.
 
 // ─── Hero (career total) drill-down ────────────────────────────────
 function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
@@ -16241,7 +16235,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-ppc-705';
+const BUILD_VERSION = 'v3a-2026-05-26-no-fab-import-tighten';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

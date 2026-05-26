@@ -783,13 +783,9 @@ function _dashPPCDaysRemaining(profile) {
   return Math.ceil((exp - Date.now()) / 86400000);
 }
 
-function _dashLOFTDaysRemaining(profile) {
-  const p = profile || ((typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {});
-  if (!p.loftDueDate) return null;
-  const exp = new Date(p.loftDueDate + 'T00:00:00');
-  if (isNaN(exp.getTime())) return null;
-  return Math.ceil((exp - Date.now()) / 86400000);
-}
+// LOFT is intentionally not tracked as a separate Cumulo field — operators
+// define in their approved training program whether/how a LOFT renews PPC
+// currency. When a LOFT happens, the pilot updates ppcDueDate. No helper.
 
 // ─── Recent legs typographic list ─────────────────────────────
 function _dashRenderLegs() {

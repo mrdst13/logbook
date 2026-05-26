@@ -63,6 +63,59 @@ function _importRelTime(ts) {
   return new Date(ts).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// ─────────────────────────────────────────────────────────────────
+// MONTHLY PDF ROSTER — unified handler
+// One drop zone, two code paths. The wrapper picks based on context:
+//   - If the pilot has zero flights yet, OR no iCal URL configured →
+//     treat as initial import → parseNavbluePDF()
+//   - If there's at least one flight tagged as Navblue-iCal-sourced →
+//     treat as crew-name backfill → handleRosterFile()
+//   - Otherwise (mixed state — has flights but none from iCal): default
+//     to crew-backfill (the more common case once a pilot has been using
+//     the app for a while) but log so we can tune later.
+//
+// Why a wrapper instead of asking the pilot to pick: Martin found the
+// old two-button layout confusing. The two intents live in the same
+// PDF, so the app should figure out which one the pilot needs. The
+// wrapper logs its decision to console so any wrong routing is debuggable.
+// ─────────────────────────────────────────────────────────────────
+function handleMonthlyRosterPDF(file) {
+  if (!file) return;
+  const hasFlights = Array.isArray(flights) && flights.length > 0;
+  const hasICalSourced = hasFlights && flights.some(f =>
+    Array.isArray(f.sources) && f.sources.includes('navblue-ics')
+  );
+  const hasICalUrl = (() => {
+    try { return !!localStorage.getItem('cumulo_navblue_url'); }
+    catch { return false; }
+  })();
+
+  if (!hasFlights || !hasICalUrl) {
+    // Fresh install or pilot hasn't set up iCal yet → initial import path.
+    console.log('[ImportRouter] Monthly PDF → initial import (parseNavbluePDF)');
+    const inputEl = document.getElementById('navbluePdf');
+    if (inputEl) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      inputEl.files = dt.files;
+      parseNavbluePDF(inputEl);
+    }
+    return;
+  }
+
+  if (hasICalSourced) {
+    console.log('[ImportRouter] Monthly PDF → crew-name backfill (handleRosterFile)');
+    handleRosterFile(file);
+    return;
+  }
+
+  // Pilot has flights but none from iCal — could be a CSV-imported user
+  // adding a PDF. Default to backfill (most common in this state) but log
+  // it so we can revisit if the heuristic is wrong.
+  console.log('[ImportRouter] Monthly PDF → crew-name backfill (default for mixed state)');
+  handleRosterFile(file);
+}
+
 // ═══════════════════════════════════════════
 // IMPORT — PHOTO (AI)
 // ═══════════════════════════════════════════
