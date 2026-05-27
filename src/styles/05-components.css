@@ -828,6 +828,57 @@ input:invalid:not(:placeholder-shown):not(:focus) {
 .form-card-danger .form-card-title { border-bottom-color: rgba(220,42,42,0.25); }
 .form-card-danger .form-card-desc  { border-bottom-color: rgba(220,42,42,0.25); }
 
+/* "Permanent actions" card — replaces the old "Danger zone".
+   Single clean card (no nested settings-row inside a danger card —
+   which created the weird double-bordered look Martin called out).
+   Border is a subtle warm-grey, NOT the loud red of form-card-danger.
+   The DESTRUCTIVE signal comes from the .btn-danger button only.
+   Pattern from Stripe / GitHub repo settings: "Permanent actions"
+   header, then a clean row per action with the danger color isolated
+   to the button. */
+.form-card-permanent {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-6);
+  margin-bottom: var(--s-4);
+  box-shadow: var(--shadow-xs);
+}
+.form-card-permanent .form-card-title {
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.form-card-permanent .form-card-desc {
+  color: var(--text-secondary);
+  border-bottom: none;
+}
+.permanent-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+}
+.permanent-action-info {
+  flex: 1;
+  min-width: 0;
+}
+.permanent-action-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.permanent-action-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .permanent-action-row { flex-direction: column; align-items: stretch; }
+  .permanent-action-row .btn { width: 100%; justify-content: center; }
+}
+
 /* form-card used as <details> — summary becomes the clickable title row */
 .form-card-summary {
   display: flex;

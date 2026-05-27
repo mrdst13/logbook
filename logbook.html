@@ -2338,6 +2338,57 @@ input:invalid:not(:placeholder-shown):not(:focus) {
 .form-card-danger .form-card-title { border-bottom-color: rgba(220,42,42,0.25); }
 .form-card-danger .form-card-desc  { border-bottom-color: rgba(220,42,42,0.25); }
 
+/* "Permanent actions" card — replaces the old "Danger zone".
+   Single clean card (no nested settings-row inside a danger card —
+   which created the weird double-bordered look Martin called out).
+   Border is a subtle warm-grey, NOT the loud red of form-card-danger.
+   The DESTRUCTIVE signal comes from the .btn-danger button only.
+   Pattern from Stripe / GitHub repo settings: "Permanent actions"
+   header, then a clean row per action with the danger color isolated
+   to the button. */
+.form-card-permanent {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-6);
+  margin-bottom: var(--s-4);
+  box-shadow: var(--shadow-xs);
+}
+.form-card-permanent .form-card-title {
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.form-card-permanent .form-card-desc {
+  color: var(--text-secondary);
+  border-bottom: none;
+}
+.permanent-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+}
+.permanent-action-info {
+  flex: 1;
+  min-width: 0;
+}
+.permanent-action-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.permanent-action-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .permanent-action-row { flex-direction: column; align-items: stretch; }
+  .permanent-action-row .btn { width: 100%; justify-content: center; }
+}
+
 /* form-card used as <details> — summary becomes the clickable title row */
 .form-card-summary {
   display: flex;
@@ -5172,15 +5223,19 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
 
- <!-- ─── Card: Danger zone (destructive operations) ─────────── -->
- <div class="form-card form-card-danger" id="data-danger">
- <div class="form-card-title" style="color:var(--danger);">Danger zone</div>
- <div class="form-card-desc">Permanent destructive operations. <strong>Export a JSON backup first</strong> if you're not sure.</div>
+ <!-- ─── Card: Permanent actions (destructive) ──────────────────
+      Renamed from "Danger zone" — Martin found it amateur. "Permanent
+      actions" is what banks / professional tools use and reads more
+      seriously. The card is flatter now: single row of title + desc +
+      button, no nested settings-row inside a form-card-danger. -->
+ <div class="form-card form-card-permanent" id="data-danger">
+ <div class="form-card-title">Permanent actions</div>
+ <div class="form-card-desc"><strong>Cannot be undone.</strong> Export a JSON backup first if you're not sure.</div>
 
- <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
- <div class="settings-row-info">
- <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all flights</div>
- <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and sync URL are kept. <strong>Cannot be undone.</strong></div>
+ <div class="permanent-action-row">
+ <div class="permanent-action-info">
+ <div class="permanent-action-title" data-i18n="settings.clear.titleRed">Clear all flights</div>
+ <div class="permanent-action-desc" data-i18n-html="settings.clear.descHtml">Permanently delete every flight from this device. Your profile and sync URL are kept.</div>
  </div>
  <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear all</button>
  </div>
@@ -13220,8 +13275,8 @@ const STRINGS = {
  'nav.versionLabel': 'Cumulo Flight Deck',
  'settings.danger': 'Danger Zone',
  'settings.clear.btn': 'Clear All',
- 'settings.clear.titleRed': 'Clear all data',
- 'settings.clear.descHtml': 'Permanently delete all flights. Your profile and sync URL are kept. <strong>Cannot be undone — download a JSON backup first.</strong>',
+ 'settings.clear.titleRed': 'Clear all flights',
+ 'settings.clear.descHtml': 'Permanently delete every flight from this device. Your profile and sync URL are kept.',
  'preview.cancel.btn': 'Cancel',
  'preview.confirm.btn': 'Import',
  'preview.title': 'Review extracted flights',
@@ -13837,8 +13892,8 @@ const STRINGS = {
  'nav.versionLabel': 'Cumulo Flight Deck',
  'settings.danger': 'Zone dangereuse',
  'settings.clear.btn': 'Tout effacer',
- 'settings.clear.titleRed': 'Effacer toutes les données',
- 'settings.clear.descHtml': 'Supprime définitivement tous les vols. Profil et URL de synchro sont conservés. <strong>Action irréversible — téléchargez d’abord une sauvegarde JSON.</strong>',
+ 'settings.clear.titleRed': 'Effacer tous les vols',
+ 'settings.clear.descHtml': 'Supprime définitivement tous les vols de cet appareil. Profil et URL de synchro sont conservés.',
  'preview.cancel.btn': 'Annuler',
  'preview.confirm.btn': 'Importer',
  'preview.title': 'Réviser les vols extraits',

@@ -1285,15 +1285,19 @@
  </div>
  </div>
 
- <!-- ─── Card: Danger zone (destructive operations) ─────────── -->
- <div class="form-card form-card-danger" id="data-danger">
- <div class="form-card-title" style="color:var(--danger);">Danger zone</div>
- <div class="form-card-desc">Permanent destructive operations. <strong>Export a JSON backup first</strong> if you're not sure.</div>
+ <!-- ─── Card: Permanent actions (destructive) ──────────────────
+      Renamed from "Danger zone" — Martin found it amateur. "Permanent
+      actions" is what banks / professional tools use and reads more
+      seriously. The card is flatter now: single row of title + desc +
+      button, no nested settings-row inside a form-card-danger. -->
+ <div class="form-card form-card-permanent" id="data-danger">
+ <div class="form-card-title">Permanent actions</div>
+ <div class="form-card-desc"><strong>Cannot be undone.</strong> Export a JSON backup first if you're not sure.</div>
 
- <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
- <div class="settings-row-info">
- <div class="settings-row-title" style="color:var(--danger);" data-i18n="settings.clear.titleRed">Clear all flights</div>
- <div class="settings-row-desc" data-i18n-html="settings.clear.descHtml">Permanently delete all flights. Your profile and sync URL are kept. <strong>Cannot be undone.</strong></div>
+ <div class="permanent-action-row">
+ <div class="permanent-action-info">
+ <div class="permanent-action-title" data-i18n="settings.clear.titleRed">Clear all flights</div>
+ <div class="permanent-action-desc" data-i18n-html="settings.clear.descHtml">Permanently delete every flight from this device. Your profile and sync URL are kept.</div>
  </div>
  <button class="btn btn-danger" onclick="clearAll()" data-i18n="settings.clear.btn">Clear all</button>
  </div>
