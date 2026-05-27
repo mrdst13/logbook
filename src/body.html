@@ -71,6 +71,9 @@
  <button type="button" class="nav-item" data-page="import">
  <span data-i18n="nav.import">Import</span>
  </button>
+ <button type="button" class="nav-item" data-page="bf">
+ <span data-i18n="nav.bf">Brought-forward</span>
+ </button>
  </div>
  <div class="nav-divider"></div>
  <div class="nav-group">
@@ -115,7 +118,7 @@
  <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;" data-i18n="dash.brought.title">Have a paper logbook?</div>
  <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;" data-i18n="dash.brought.desc">Declare your cumulative totals as brought-forward hours — no need to re-enter every flight. One attestation, then log new flights forward from today.</div>
  </div>
- <button class="btn btn-primary" onclick="showPage('backup'); setTimeout(()=>{showSettingsTab&&showSettingsTab('profile'); setTimeout(()=>openOpeningBalancesEditor&&openOpeningBalancesEditor(), 100);}, 50);" data-i18n="dash.brought.cta">Declare totals</button>
+ <button class="btn btn-primary" onclick="showPage('bf')" data-i18n="dash.brought.cta">Declare totals</button>
  </div>
 
  <!-- (3) Greeting bar — date + "Bonsoir Pilote" + sub + actions -->
@@ -737,6 +740,22 @@
  </div>
 
  <!-- importPreview moved to a floating modal overlay (see below, before #toast) -->
+ </div>
+
+ <!-- ── BROUGHT-FORWARD HOURS PAGE ── -->
+ <div id="page-bf" class="page">
+ <div class="page-header">
+ <div>
+ <div class="page-title" data-i18n="page.bf.title">Brought-forward hours</div>
+ <div class="page-sub" data-i18n="page.bf.sub">Paper logbook · CAR 401.08(2)(h)</div>
+ </div>
+ <div class="page-actions">
+ <button class="btn btn-ghost btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('profile'),50);">
+ ← Settings
+ </button>
+ </div>
+ </div>
+ <div id="bf-page-body"></div>
  </div>
 
  <!-- page-profile is now a redirect stub — real form lives in Settings → Profile (see #page-backup, data-settings-pane="profile"). -->

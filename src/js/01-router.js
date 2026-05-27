@@ -34,6 +34,7 @@ function showPage(id) {
   if (id === 'recap') { initRecapYears(); renderRecap(); }
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();
+  if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();
   if (id === 'add' && !editingId) {
     document.getElementById('formTitle').textContent = 'Log flight';
     clearForm();

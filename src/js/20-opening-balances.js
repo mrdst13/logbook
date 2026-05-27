@@ -14,13 +14,13 @@
 // a new attestation, and the prior one is archived in an append-only
 // audit log.
 //
-// Field schema mirrors TC paper logbook TP 13076 (Personal Pilot
-// Logbook). Pilots think in terms of "PIC carrière · SIC carrière ·
-// Night carrière" — not "ME Day PIC" et al. (those are per-flight
-// breakdowns derived from each leg). So the modal asks for the
-// AGGREGATE totals the pilot already keeps as running figures, stores
-// them under the same keys calcStats() produces (pic, sic, night, xc,
-// total, etc), and totalsWithOpening() just adds them straight in.
+// Storage: keys match either calcStats() aggregate output keys (pic,
+// sic, night, xc, me, heli, dualGiven, total, block …) OR raw
+// LOGBOOK_COLUMNS per-flight keys (meDayPic, meNightPic, …). The
+// totalsWithOpening() function handles both: aggregate keys are added
+// directly; raw column keys also feed the derived aggregates so the
+// Dashboard and TC PDF stay accurate even when only the detailed
+// breakdown is entered.
 //
 // Storage keys (localStorage):
 //   cumulo_opening_balances_v1  → { balances, attestedAt, hash }
@@ -30,94 +30,155 @@
 const OPENING_BALANCES_KEY = 'cumulo_opening_balances_v1';
 const OPENING_ATTEST_LOG_KEY = 'cumulo_opening_attest_log_v1';
 
-// ─── Field schema (in user-meaningful order) ─────────────────────────
-// Each entry uses AGGREGATE storage keys that match calcStats() output.
-// `hero: true` means it gets a bigger input (the Total carrière).
-// `integer: true` means count, not hours (landings, take-offs, approaches).
-// `desc{En,Fr}` is rendered as help-text under each group.
-function _bfGroups() {
+// ─── Page field schema ────────────────────────────────────────────
+// Mirrors LOGBOOK_COLUMNS groups + adds top-level career aggregates.
+// Pilot opens only the groups that match their paper logbook.
+// key       → stored in balances{}; matched against calcStats() keys
+//             or LOGBOOK_COLUMNS raw keys
+// hero      → larger input (total flight time)
+// integer   → count, not hours (landings, approaches)
+// aggregate → this key maps directly to a calcStats() output key,
+//             so totalsWithOpening() adds it directly without deriving
+function _bfPageGroups() {
   return [
+    // ── Top: career aggregates (most pilots fill only this section) ──
     {
-      id: 'main',
-      titleEn: 'Career flight time',
-      titleFr: 'Temps de vol — carrière',
-      descEn: 'The single biggest number in your paper logbook: total flight time as of today. This is what TC inspectors look at first.',
-      descFr: 'Le plus gros chiffre de votre carnet papier : temps de vol total à ce jour. C\'est ce que TC regarde en premier.',
+      id: 'career',
+      titleEn: 'Career totals',
+      titleFr: 'Totaux carrière',
+      descEn: 'The running totals from the bottom of your paper logbook. Fill these if you track PIC / SIC / Night as career aggregates. Leave blank if you prefer to fill the detailed breakdown below.',
+      descFr: 'Les totaux cumulatifs du bas de votre carnet papier. Remplissez si vous suivez PIC / SIC / Nuit comme totaux carrière. Laissez vide si vous préférez le détail ci-dessous.',
+      open: true,
       fields: [
-        { key: 'total', labelEn: 'Total Flight Time', labelFr: 'Temps de vol total', hero: true },
+        { key: 'total',      labelEn: 'Total Flight Time',         labelFr: 'Temps de vol total',        hero: true,  aggregate: true },
+        { key: 'block',      labelEn: 'Block Time',                labelFr: 'Temps bloc',                             aggregate: true },
+        { key: 'pic',        labelEn: 'PIC — Pilot in Command',    labelFr: 'PIC — Pilote aux commandes',             aggregate: true },
+        { key: 'sic',        labelEn: 'SIC — Co-Pilot / Second',  labelFr: 'SIC — Co-pilote / Second',               aggregate: true },
+        { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
+        { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
+        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Voyage (XC)',                            aggregate: true },
+        { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multi-moteur',                           aggregate: true },
+        { key: 'heli',       labelEn: 'Helicopter',                labelFr: 'Hélicoptère',                            aggregate: true },
+        { key: 'dualGiven',  labelEn: 'Dual Given (instructor)',  labelFr: 'Instruction donnée (CFI)',                aggregate: true },
       ],
     },
+    // ── Conditions ──
     {
-      id: 'crew',
-      titleEn: 'By crew position',
-      titleFr: 'Par position d\'équipage',
-      descEn: 'How most pilots actually track their hours — PIC, SIC, instruction received, instruction given.',
-      descFr: 'Comment les pilotes calculent leurs heures dans la vraie vie — PIC, SIC, instruction reçue, instruction donnée.',
-      fields: [
-        { key: 'pic',       labelEn: 'PIC — Pilot in Command',           labelFr: 'PIC — Pilote aux commandes' },
-        { key: 'sic',       labelEn: 'SIC — Co-Pilot / Second',          labelFr: 'SIC — Co-pilote / Second' },
-        { key: 'picus',     labelEn: 'PICUS — PIC under supervision',    labelFr: 'PICUS — PIC sous supervision' },
-        { key: 'dualGiven', labelEn: 'Dual Given (instructor)',          labelFr: 'Instruction donnée (CFI)' },
-      ],
-    },
-    {
-      id: 'cond',
-      titleEn: 'Conditions',
+      id: 'conditions',
+      titleEn: 'Flight conditions',
       titleFr: 'Conditions de vol',
-      descEn: 'Night and cross-country are tracked as separate cumulatives in every TC logbook.',
-      descFr: 'Nuit et voyage sont suivis comme totaux séparés dans tout carnet TC.',
+      descEn: 'Day / Night / VFR / IFR totals. Only fill if your paper logbook tracked these separately from the crew-position breakdown above.',
+      descFr: 'Totaux Jour / Nuit / VFR / IFR. Remplir seulement si votre carnet papier les suivait séparément du détail position ci-dessus.',
+      open: false,
       fields: [
-        { key: 'night', labelEn: 'Night',         labelFr: 'Nuit' },
-        { key: 'xc',    labelEn: 'Cross-Country', labelFr: 'Voyage (XC)' },
+        { key: 'day',        labelEn: 'Day',        labelFr: 'Jour' },
+        { key: 'night',      labelEn: 'Night',      labelFr: 'Nuit',   aggregate: true },
+        { key: 'vfr',        labelEn: 'VFR',        labelFr: 'VFR' },
+        { key: 'ifr',        labelEn: 'IFR',        labelFr: 'IFR' },
+        { key: 'duty',       labelEn: 'Duty Time',  labelFr: 'Temps de service' },
       ],
     },
+    // ── Engine class (Standard 421) ──
     {
-      id: 'inst',
+      id: 'engine',
+      titleEn: 'Engine class',
+      titleFr: 'Classe moteur',
+      descEn: 'Per-position ME / SE breakdown (Standard 421). Use this if your previous logbook tracked ME Day PIC, ME Night SIC, etc. individually.',
+      descFr: 'Détail ME / SE par position (Norme 421). Utilisez si votre carnet précédent distinguait ME Jour PIC, ME Nuit SIC, etc.',
+      open: false,
+      fields: [
+        { key: 'seDay',       labelEn: 'SE Day',         labelFr: 'SE Jour' },
+        { key: 'seNight',     labelEn: 'SE Night',       labelFr: 'SE Nuit' },
+        { key: 'meDayPic',    labelEn: 'ME Day PIC',     labelFr: 'ME Jour PIC' },
+        { key: 'meNightPic',  labelEn: 'ME Night PIC',   labelFr: 'ME Nuit PIC' },
+        { key: 'meDayCop',    labelEn: 'ME Day SIC',     labelFr: 'ME Jour SIC' },
+        { key: 'meNightCop',  labelEn: 'ME Night SIC',   labelFr: 'ME Nuit SIC' },
+        { key: 'meDayDual',   labelEn: 'ME Day Dual',    labelFr: 'ME Jour Dual' },
+        { key: 'meNightDual', labelEn: 'ME Night Dual',  labelFr: 'ME Nuit Dual' },
+      ],
+    },
+    // ── Helicopter ──
+    {
+      id: 'heli',
+      titleEn: 'Helicopter',
+      titleFr: 'Hélicoptère',
+      descEn: 'Rotorcraft time. Hover time is separate from total heli time.',
+      descFr: 'Temps voilure tournante. Le vol stationnaire est distinct du total hélico.',
+      open: false,
+      fields: [
+        { key: 'heliDayPic',    labelEn: 'Heli Day PIC',    labelFr: 'Heli Jour PIC' },
+        { key: 'heliNightPic',  labelEn: 'Heli Night PIC',  labelFr: 'Heli Nuit PIC' },
+        { key: 'heliDayCop',    labelEn: 'Heli Day SIC',    labelFr: 'Heli Jour SIC' },
+        { key: 'heliNightCop',  labelEn: 'Heli Night SIC',  labelFr: 'Heli Nuit SIC' },
+        { key: 'heliDayDual',   labelEn: 'Heli Day Dual',   labelFr: 'Heli Jour Dual' },
+        { key: 'heliNightDual', labelEn: 'Heli Night Dual', labelFr: 'Heli Nuit Dual' },
+        { key: 'hoverTime',     labelEn: 'Hover Time',      labelFr: 'Vol stationnaire' },
+      ],
+    },
+    // ── Cross-country ──
+    {
+      id: 'xc',
+      titleEn: 'Cross-country',
+      titleFr: 'Voyage (XC)',
+      descEn: 'XC Day and XC Night totals (Standard 421 / CAR 401.34). Only needed if your logbook tracked day/night XC separately.',
+      descFr: 'Totaux XC Jour et XC Nuit (Norme 421 / CAR 401.34). Seulement si votre carnet distinguait XC jour/nuit.',
+      open: false,
+      fields: [
+        { key: 'xcDay',   labelEn: 'XC Day',   labelFr: 'XC Jour' },
+        { key: 'xcNight', labelEn: 'XC Night', labelFr: 'XC Nuit' },
+      ],
+    },
+    // ── Instrument ──
+    {
+      id: 'instrument',
       titleEn: 'Instrument time',
       titleFr: 'Temps aux instruments',
-      descEn: 'Time on instruments only. Brought-forward IFR time does NOT affect your 6-approaches-in-6-months currency — only flights logged in Cumulo count for that.',
-      descFr: 'Temps aux instruments uniquement. Le temps IFR reporté n\'affecte PAS votre validité 6-approches-en-6-mois — seuls les vols enregistrés dans Cumulo comptent.',
+      descEn: 'Brought-forward IFR time does NOT affect your 6-approaches-in-6-months currency — only flights logged in Cumulo count for that.',
+      descFr: 'Le temps IFR reporté n\'affecte PAS votre validité 6-approches-en-6-mois — seuls les vols Cumulo comptent.',
+      open: false,
       fields: [
-        { key: 'instActual', labelEn: 'Actual (IMC)',                    labelFr: 'Réel (IMC)' },
-        { key: 'instHood',   labelEn: 'Hood (in flight, view-limiting)', labelFr: 'Cagoule (en vol)' },
-        { key: 'instSim',    labelEn: 'FFS / FTD (ground simulator)',    labelFr: 'FFS / FTD (simulateur sol)' },
+        { key: 'instActual',  labelEn: 'Actual (IMC)',              labelFr: 'Réel (IMC)' },
+        { key: 'instHood',    labelEn: 'Hood (view-limiting)',      labelFr: 'Cagoule (en vol)' },
+        { key: 'instSim',     labelEn: 'FFS / FTD (simulator)',     labelFr: 'FFS / FTD (simulateur)' },
+        { key: 'approaches',  labelEn: 'Approaches',                labelFr: 'Approches', integer: true },
       ],
     },
+    // ── Take-offs & Landings ──
     {
       id: 'tol',
       titleEn: 'Take-offs & Landings',
       titleFr: 'Décollages & atterrissages',
-      descEn: 'Count, not hours. Brought-forward landings do NOT affect 5-in-6-month recency.',
-      descFr: 'Compte, pas heures. Les atterrissages reportés n\'affectent PAS la validité 5/6mois.',
+      descEn: 'Count, not hours. Brought-forward landings do NOT affect 5-in-6-month recency — only Cumulo-logged flights count for currency.',
+      descFr: 'Compte, pas heures. Les atterrissages reportés n\'affectent PAS la validité 5/6mois — seuls les vols Cumulo comptent.',
+      open: false,
       fields: [
-        { key: 'toDay',    labelEn: 'T/O — Day',    labelFr: 'Déc. — Jour',  integer: true },
-        { key: 'toNight',  labelEn: 'T/O — Night',  labelFr: 'Déc. — Nuit',  integer: true },
+        { key: 'toDay',    labelEn: 'T/O — Day',        labelFr: 'Déc. — Jour',  integer: true },
+        { key: 'toNight',  labelEn: 'T/O — Night',      labelFr: 'Déc. — Nuit',  integer: true },
         { key: 'ldgDay',   labelEn: 'Landings — Day',   labelFr: 'Att. — Jour',  integer: true },
         { key: 'ldgNight', labelEn: 'Landings — Night', labelFr: 'Att. — Nuit',  integer: true },
       ],
     },
+    // ── Dual Given ──
     {
-      id: 'class',
-      titleEn: 'Aircraft class (optional)',
-      titleFr: 'Classe d\'aéronef (optionnel)',
-      descEn: 'Fill these ONLY if your paper logbook tracked Multi-Engine, Helicopter, or Hover time as separate cumulatives. Leave blank otherwise — most ATPL pilots already have ME captured via PIC + SIC above.',
-      descFr: 'Remplir SEULEMENT si votre carnet papier suivait Multi-moteur, Hélicoptère ou Vol stationnaire comme totaux distincts. Sinon laisser vide — la plupart des pilotes ATPL ont déjà leur ME dans PIC + SIC ci-dessus.',
-      collapsed: true,
+      id: 'dualGiven',
+      titleEn: 'Dual Given',
+      titleFr: 'Instruction donnée',
+      descEn: 'CFI / instructor time (CAR 421.34 ATPL credit). Day and night totals.',
+      descFr: 'Temps instructeur (CAR 421.34 crédit ATPL). Totaux jour et nuit.',
+      open: false,
       fields: [
-        { key: 'me',    labelEn: 'Multi-Engine — all positions',  labelFr: 'Multi-moteur — toutes positions' },
-        { key: 'heli',  labelEn: 'Helicopter — all positions',    labelFr: 'Hélicoptère — toutes positions' },
-        { key: 'hover', labelEn: 'Hover Time (helicopter only)',  labelFr: 'Vol stationnaire' },
+        { key: 'dualGivenDay',   labelEn: 'Dual Given — Day',   labelFr: 'Instruction — Jour' },
+        { key: 'dualGivenNight', labelEn: 'Dual Given — Night', labelFr: 'Instruction — Nuit' },
       ],
     },
   ];
 }
 
-// All keys the modal can write to. Used by commitOpeningBalances when
-// collecting values back from the form.
+// Flat list of all keys the page can write.
 function _bfAllKeys() {
   const out = [];
-  _bfGroups().forEach(g => g.fields.forEach(f => out.push(f.key)));
-  return out;
+  _bfPageGroups().forEach(g => g.fields.forEach(f => out.push(f.key)));
+  return [...new Set(out)];
 }
 
 // Load the current opening-balances record. Always returns a valid shape.
@@ -136,7 +197,6 @@ function loadOpeningBalances() {
 }
 
 // Quick accessor: how much was brought-forward for a given column key.
-// Returns 0 if not set. Safe to call before any opening balance is declared.
 function getOpening(key) {
   const { balances } = loadOpeningBalances();
   return +balances[key] || 0;
@@ -149,7 +209,6 @@ function hasOpeningBalances() {
 }
 
 // SHA-256 hex digest of the canonical JSON form of the balances object.
-// Canonical = keys sorted alphabetically, no whitespace. Used for integrity.
 async function _hashBalances(balances) {
   const sortedKeys = Object.keys(balances).sort();
   const canonical = JSON.stringify(balances, sortedKeys);
@@ -162,7 +221,6 @@ async function _hashBalances(balances) {
 
 // Persist the balances + attestation metadata + append to audit log.
 async function saveOpeningBalances(balances) {
-  // Strip zero values — sparse storage. Pilot saw "0" and didn't fill = noop.
   const clean = {};
   Object.keys(balances).forEach(k => {
     const v = +balances[k];
@@ -173,35 +231,87 @@ async function saveOpeningBalances(balances) {
   const record = { balances: clean, attestedAt, hash };
   localStorage.setItem(OPENING_BALANCES_KEY, JSON.stringify(record));
 
-  // Append to audit log (immutable history of every attestation)
   let log = [];
   try { log = JSON.parse(localStorage.getItem(OPENING_ATTEST_LOG_KEY) || '[]'); } catch { log = []; }
   if (!Array.isArray(log)) log = [];
-  log.push({
-    timestamp: attestedAt,
-    hash,
-    action: log.length === 0 ? 'attest' : 're-attest',
-    balances: clean,
-  });
+  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
   return record;
 }
 
-// Merge opening balances into a totals object (Dashboard hero, Logbook footer).
+// ─── totalsWithOpening ───────────────────────────────────────────
+// Merge opening balances into a totals object (Dashboard, Logbook footer).
+// Handles BOTH aggregate keys (pic, sic, night, xc, me, heli, dualGiven)
+// stored directly AND raw column keys (meDayPic, meNightPic, …) from
+// which the aggregates are derived on the fly.
 // Returns a NEW object — never mutates input.
 function totalsWithOpening(flightsTotals) {
   const { balances } = loadOpeningBalances();
   const merged = { ...flightsTotals };
+
+  // Step 1 — add every stored key directly to merged.
   Object.keys(balances).forEach(key => {
     merged[key] = (+merged[key] || 0) + (+balances[key] || 0);
   });
+
+  // Step 2 — derive aggregate keys from raw column keys when the
+  // aggregate was not stored as its own key. This handles pilots who
+  // filled the detailed Engine class / Helicopter / etc. breakdown
+  // instead of the career-summary section.
+  //
+  // Guard: only derive when the aggregate key itself was NOT present
+  // in balances (to prevent double-counting).
+
+  if (!balances.pic) {
+    const d = (+balances.meDayPic||0)+(+balances.meNightPic||0)
+            + (+balances.heliDayPic||0)+(+balances.heliNightPic||0);
+    if (d) merged.pic = (+merged.pic||0) + d;
+  }
+  if (!balances.sic) {
+    const d = (+balances.meDayCop||0)+(+balances.meNightCop||0)
+            + (+balances.heliDayCop||0)+(+balances.heliNightCop||0);
+    if (d) merged.sic = (+merged.sic||0) + d;
+  }
+  if (!balances.night) {
+    const d = (+balances.meNightPic||0)+(+balances.meNightCop||0)+(+balances.meNightDual||0)
+            + (+balances.heliNightPic||0)+(+balances.heliNightCop||0)+(+balances.heliNightDual||0);
+    if (d) merged.night = (+merged.night||0) + d;
+  }
+  if (!balances.me) {
+    const d = (+balances.meDayPic||0)+(+balances.meDayCop||0)+(+balances.meDayDual||0)
+            + (+balances.meNightPic||0)+(+balances.meNightCop||0)+(+balances.meNightDual||0);
+    if (d) merged.me = (+merged.me||0) + d;
+  }
+  if (!balances.heli) {
+    const d = (+balances.heliDayPic||0)+(+balances.heliDayCop||0)+(+balances.heliDayDual||0)
+            + (+balances.heliNightPic||0)+(+balances.heliNightCop||0)+(+balances.heliNightDual||0);
+    if (d) merged.heli = (+merged.heli||0) + d;
+  }
+  if (!balances.xc) {
+    const d = (+balances.xcDay||0)+(+balances.xcNight||0);
+    if (d) merged.xc = (+merged.xc||0) + d;
+  }
+  if (!balances.dualGiven) {
+    const d = (+balances.dualGivenDay||0)+(+balances.dualGivenNight||0);
+    if (d) merged.dualGiven = (+merged.dualGiven||0) + d;
+  }
+  if (!balances.ldg) {
+    const d = (+balances.ldgDay||0)+(+balances.ldgNight||0);
+    if (d) merged.ldg = (+merged.ldg||0) + d;
+  }
+  // Mirror total ↔ block when only one is present.
+  if (!balances.total && (+balances.block||0) > 0) {
+    merged.total = (+merged.total||0) + (+balances.block||0);
+  }
+  if (!balances.block && (+balances.total||0) > 0) {
+    merged.block = (+merged.block||0) + (+balances.total||0);
+  }
+
   return merged;
 }
 
-// Returns a short human-readable string describing the opening balance,
-// e.g. "1,234.5 hrs total carried forward — last attested 2026-05-21".
-// Used on Dashboard hero sub-line + Settings section summary.
+// Short human-readable summary (Dashboard hero sub-line + Settings card).
 function openingBalanceSummary() {
   const { balances, attestedAt } = loadOpeningBalances();
   const total = +balances.total || +balances.block || 0;
@@ -209,7 +319,8 @@ function openingBalanceSummary() {
   const fmtted = typeof fmt === 'function' ? fmt(total) : total.toFixed(1);
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
   const dateStr = attestedAt
-    ? new Date(attestedAt).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+    ? new Date(attestedAt).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA',
+        { year: 'numeric', month: 'short', day: 'numeric' })
     : '—';
   return lang === 'fr'
     ? `${fmtted} hrs reportées · attestées ${dateStr}`
@@ -217,10 +328,8 @@ function openingBalanceSummary() {
 }
 
 // ───────────────────────────────────────────────────────────────────
-// UI — Settings section + editor modal
+// UI — Settings section card (summary + "Open" button)
 // ───────────────────────────────────────────────────────────────────
-
-// Render the Brought-forward section inside Settings → Profile pane.
 function renderOpeningBalancesSection(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -256,51 +365,64 @@ function renderOpeningBalancesSection(containerId) {
   `;
 }
 
-// Open the editor modal. Renders the bf field schema grouped by section,
-// with values pre-filled from the current record.
+// Navigate to the brought-forward page (replaces the old modal).
 function openOpeningBalancesEditor() {
+  if (typeof showPage === 'function') showPage('bf');
+}
+
+// ───────────────────────────────────────────────────────────────────
+// UI — Full page renderer
+// Called by showPage('bf') via the router hook in 01-router.js.
+// ───────────────────────────────────────────────────────────────────
+function renderBroughtForwardPage() {
+  const container = document.getElementById('bf-page-body');
+  if (!container) return;
+
   const { balances } = loadOpeningBalances();
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
 
-  // Helicopter section default-expanded when the pilot is a heli pilot
-  // OR they've already declared heli hours (so editing finds them visible).
+  // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
-    || (+balances.heli || 0) > 0 || (+balances.hover || 0) > 0;
+    || Object.keys(balances).some(k => k.startsWith('heli') && (+balances[k]||0) > 0);
 
-  const groupsHtml = _bfGroups().map(g => {
+  const groups = _bfPageGroups();
+
+  const groupsHtml = groups.map(g => {
     const title = fr ? g.titleFr : g.titleEn;
     const desc  = fr ? g.descFr  : g.descEn;
-    // Force-expand the "class" group when heli is relevant; otherwise honor g.collapsed.
-    const collapsed = g.collapsed && !(g.id === 'class' && heliRelevant);
+    // Force-open heli group when relevant.
+    const isOpen = g.open || (g.id === 'heli' && heliRelevant);
+
+    const filledCount = g.fields.filter(f => (+balances[f.key]||0) > 0).length;
+    const badge = filledCount > 0
+      ? `<span class="bf-group-badge">${filledCount}</span>`
+      : '';
+
     const fieldsHtml = g.fields.map(f => {
       const label = fr ? f.labelFr : f.labelEn;
       const step  = f.integer ? '1' : '0.1';
       const ph    = f.integer ? '0' : '0.0';
-      const value = balances[f.key] != null ? balances[f.key] : '';
-      const heroCls = f.hero ? ' bf-hero-input' : '';
+      const value = balances[f.key] != null && +balances[f.key] > 0 ? balances[f.key] : '';
       return `
         <div class="form-group bf-field${f.hero ? ' bf-hero-field' : ''}">
           <label for="ob-${f.key}">${esc(label)}</label>
           <input type="number" id="ob-${esc(f.key)}" min="0" step="${step}"
                  value="${esc(value)}" placeholder="${ph}" inputmode="decimal"
-                 class="bf-input${heroCls}" />
+                 class="bf-input${f.hero ? ' bf-hero-input' : ''}" />
         </div>`;
     }).join('');
 
-    const descHtml = desc
-      ? `<div class="bf-group-desc">${esc(desc)}</div>`
-      : '';
-
     return `
-      <details class="bf-group" ${collapsed ? '' : 'open'}>
+      <details class="bf-group" ${isOpen ? 'open' : ''}>
         <summary class="bf-group-summary">
+          <svg class="bf-group-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           <span class="bf-group-title">${esc(title)}</span>
-          <svg class="bf-group-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          ${badge}
         </summary>
-        ${descHtml}
-        <div class="bf-fields-grid${g.id === 'main' ? ' bf-fields-hero' : ''}">${fieldsHtml}</div>
+        <div class="bf-group-desc">${esc(desc)}</div>
+        <div class="bf-fields-grid${g.id === 'career' ? ' bf-fields-hero' : ''}">${fieldsHtml}</div>
       </details>`;
   }).join('');
 
@@ -308,60 +430,66 @@ function openOpeningBalancesEditor() {
   const todayStr = new Date().toLocaleDateString(fr ? 'fr-CA' : 'en-CA',
     { year: 'numeric', month: 'long', day: 'numeric' });
 
-  const overlay = document.createElement('div');
-  overlay.className = 'import-overlay show';
-  overlay.id = '_obEditorOverlay';
-  overlay.innerHTML = `
-    <div class="import-modal bf-modal" style="max-width:780px;">
-      <div class="import-modal-head">
-        <div>
-          <div class="eyebrow" style="margin-bottom:4px;">${esc(fr ? 'CARNET PAPIER · CAR 401.08(2)(H)' : 'PAPER LOGBOOK · CAR 401.08(2)(H)')}</div>
-          <div class="t-title-2">${esc(fr ? 'Déclarer vos heures reportées' : 'Declare your brought-forward hours')}</div>
-          <div style="font-size:12.5px;color:var(--text-secondary);margin-top:6px;line-height:1.5;max-width:560px;">
-            ${esc(fr
-              ? 'Entrez seulement les totaux que vous suiviez dans votre carnet papier. Laissez vide ce qui ne s\'applique pas — le total brut suffit pour la plupart des pilotes. Les vols Cumulo s\'ajoutent par-dessus.'
-              : 'Enter only the totals you actually tracked in your paper logbook. Leave anything that doesn\'t apply blank — the raw total is enough for most pilots. Cumulo flights add on top.')}
-          </div>
-        </div>
-        <button class="icon-btn" onclick="document.getElementById('_obEditorOverlay').remove()" aria-label="Close" title="Close">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+  const hasAny = hasOpeningBalances();
+  const { attestedAt } = loadOpeningBalances();
+  const attestedStr = attestedAt
+    ? new Date(attestedAt).toLocaleDateString(fr ? 'fr-CA' : 'en-CA',
+        { year: 'numeric', month: 'short', day: 'numeric' })
+    : null;
+
+  container.innerHTML = `
+    <div class="bf-page-intro form-card">
+      <div class="form-card-title">${fr ? 'Heures reportées — carnet papier' : 'Brought-forward hours — paper logbook'}</div>
+      <div class="bf-intro-body">
+        <p>${fr
+          ? 'Déclarez les totaux cumulatifs de votre carnet papier ou système précédent. Ces heures s\'ajoutent à vos vols Cumulo sur le Tableau de bord, le Carnet et l\'export PDF TC.'
+          : 'Declare your cumulative totals from your paper logbook or prior electronic system. These hours add on top of your in-Cumulo flights on the Dashboard, Logbook table, and TC PDF export.'}</p>
+        <p class="bf-intro-tip"><strong>${fr ? 'Conseil' : 'Tip'}:</strong> ${fr
+          ? 'La plupart des pilotes n\'ont besoin que de la section <em>Totaux carrière</em> ci-dessous. Les sections de détail sont optionnelles — ouvrez seulement ce que votre carnet papier suivait.'
+          : 'Most pilots only need the <em>Career totals</em> section below. The detail sections are optional — only open what your paper logbook actually tracked.'}</p>
+        ${hasAny && attestedStr ? `<div class="bf-attest-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${fr ? `Attestées le ${attestedStr}` : `Attested ${attestedStr}`}</div>` : ''}
       </div>
-      <div class="import-modal-body">
-        ${groupsHtml}
-        <div class="bf-attest">
-          <div class="bf-attest-title">${esc(fr ? 'Attestation (CAR 401.08(2)(h))' : 'Attestation (CAR 401.08(2)(h))')}</div>
-          <div class="bf-attest-desc">
-            ${fr
-              ? `En cochant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier au <strong>${esc(todayStr)}</strong>. Stocké localement avec un hash SHA-256 pour l\'intégrité. Modifier exigera une nouvelle attestation ; l\'ancienne sera archivée dans le journal d\'audit.`
-              : `By attesting, you confirm these totals accurately reflect your paper logbook as of <strong>${esc(todayStr)}</strong>. Stored locally with a SHA-256 hash for integrity. Editing later requires a new attestation; the prior one is archived in the audit log.`}
-          </div>
-          <label class="col-option" style="margin:var(--s-3) 0;">
-            <input type="checkbox" id="ob-attest-chk" />
-            <span class="col-option-label">${esc(fr
-              ? 'J\'atteste que ces totaux correspondent à mon carnet papier au jour d\'aujourd\'hui.'
-              : 'I attest these totals match my paper logbook as of today.')}</span>
-          </label>
-          <div class="form-group">
-            <label for="ob-attest-name">${esc(fr ? 'Nom complet (signature dactylographiée)' : 'Full name (typed signature)')}</label>
-            <input type="text" id="ob-attest-name" placeholder="${esc(profileName || (fr ? 'Tapez votre nom complet' : 'Type your full name'))}" style="font-family:var(--font-mono);" />
-          </div>
-        </div>
+    </div>
+
+    <div class="bf-groups-wrap">
+      ${groupsHtml}
+    </div>
+
+    <div class="form-card bf-attest-card" id="bf-attest-section">
+      <div class="form-card-title">${fr ? 'Attestation (CAR 401.08(2)(h))' : 'Attestation (CAR 401.08(2)(h))'}</div>
+      <div class="bf-attest-desc">
+        ${fr
+          ? `En cochant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier au <strong>${esc(todayStr)}</strong>. Stocké localement avec un hash SHA-256. Toute modification exigera une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
+          : `By checking, you confirm these totals accurately reflect your paper logbook as of <strong>${esc(todayStr)}</strong>. Stored locally with a SHA-256 hash. Any edit requires a new attestation; the prior one is archived in the audit log.`}
       </div>
-      <div class="import-modal-foot">
-        <button class="btn btn-ghost" onclick="document.getElementById('_obEditorOverlay').remove()">${esc(fr ? 'Annuler' : 'Cancel')}</button>
-        <button class="btn btn-primary" onclick="commitOpeningBalances()">${esc(fr ? 'Sauvegarder & attester' : 'Save & attest')}</button>
+      <label class="col-option" style="margin:var(--s-3) 0;">
+        <input type="checkbox" id="ob-attest-chk" />
+        <span class="col-option-label">${fr
+          ? 'J\'atteste que ces totaux correspondent à mon carnet papier au jour d\'aujourd\'hui.'
+          : 'I attest these totals match my paper logbook as of today.'}</span>
+      </label>
+      <div class="form-group" style="max-width:320px;">
+        <label for="ob-attest-name">${fr ? 'Nom complet (signature dactylographiée)' : 'Full name (typed signature)'}</label>
+        <input type="text" id="ob-attest-name"
+               placeholder="${esc(profileName || (fr ? 'Tapez votre nom complet' : 'Type your full name'))}"
+               style="font-family:var(--font-mono);" />
+      </div>
+      <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Sauvegarder & attester' : 'Save & attest'}</button>
+        <button class="btn btn-ghost" onclick="showPage('backup')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
   `;
-  document.body.appendChild(overlay);
 }
 
-// Validate attestation, collect inputs, persist + audit. Called from the modal Save button.
+// ───────────────────────────────────────────────────────────────────
+// Validate, collect, persist. Called from the page Save button.
+// ───────────────────────────────────────────────────────────────────
 async function commitOpeningBalances() {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const attest = document.getElementById('ob-attest-chk');
   const nameEl = document.getElementById('ob-attest-name');
+
   if (!attest || !attest.checked) {
     if (typeof showToast === 'function') showToast(
       fr ? 'Cochez la case d\'attestation pour confirmer que ces totaux correspondent à votre carnet papier.'
@@ -394,12 +522,9 @@ async function commitOpeningBalances() {
     const v = +el.value || 0;
     if (v > 0) balances[k] = v;
   });
-  // Mirror Total → Block so the Logbook table footer's "Flight Time" column
-  // and the Dashboard hero (which prefers s.block) both reflect brought-forward.
-  // The two are equivalent for career-totals purposes (pilots write a single
-  // running total in their paper logbook — they don't track block separately
-  // until they fly the next leg in Cumulo).
-  if ((+balances.total || 0) > 0 && !(+balances.block || 0)) {
+
+  // Mirror Total → Block so Dashboard hero (prefers s.block) reflects BF.
+  if ((+balances.total||0) > 0 && !(+balances.block||0)) {
     balances.block = balances.total;
   }
 
@@ -413,14 +538,18 @@ async function commitOpeningBalances() {
     return;
   }
 
-  const ov = document.getElementById('_obEditorOverlay');
-  if (ov) ov.remove();
   if (typeof showToast === 'function') showToast(
     fr ? 'Totaux reportés attestés et sauvegardés.' : 'Brought-forward totals attested and saved.',
     'success');
 
-  // Refresh visible surfaces that show these totals.
+  // Refresh visible surfaces.
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? (filterVal || '') : '');
   renderOpeningBalancesSection('openingBalancesSection');
+
+  // Navigate back to Settings → Profile so the updated summary is visible.
+  if (typeof showPage === 'function') {
+    showPage('backup');
+    if (typeof showSettingsTab === 'function') setTimeout(() => showSettingsTab('profile'), 50);
+  }
 }
