@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
@@ -27,6 +28,27 @@ const JS_DIR = path.join(SRC, 'js');
 
 const checkMode = process.argv.includes('--check');
 const OUT = path.join(ROOT, checkMode ? 'logbook.built.html' : 'logbook.html');
+
+// Compute a deterministic build version: YYYY-MM-DD-<short-sha>.
+// Used to (a) stamp BUILD_VERSION inside the built logbook.html so the
+// pilot sees which deploy they're on (the small grey badge bottom-right),
+// and (b) cache-bust logbook.html links from the landing files so a
+// fresh deploy is never served behind a stale CDN/Service-Worker cache.
+//
+// Skipped in --check mode so the byte-identical diff still works for CI
+// verification builds.
+let buildVersion = null;
+if (!checkMode) {
+  let sha = 'nogit';
+  try {
+    sha = execSync('git -C "' + ROOT + '" rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch (e) {
+    sha = String(Date.now()).slice(-7); // fallback: timestamp suffix
+  }
+  const d = new Date();
+  const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  buildVersion = ymd + '-' + sha;
+}
 
 // Read head + body
 const head = fs.readFileSync(path.join(SRC, 'head.html'), 'utf8');
@@ -76,6 +98,17 @@ if (!checkMode) {
   body = body.replace(/console\.(log|info|debug)\s*\(/g, 'void(');
 }
 
+// Stamp BUILD_VERSION with the computed git+date version so the badge in
+// the bottom-right corner reflects the actual deploy the user is on.
+// 99-init.js ships with a hardcoded version literal — we overwrite it in
+// the assembled output without touching the source on disk.
+if (!checkMode && buildVersion) {
+  body = body.replace(
+    /const\s+BUILD_VERSION\s*=\s*['"][^'"]*['"]\s*;/,
+    "const BUILD_VERSION = '" + buildVersion + "';"
+  );
+}
+
 // Assemble
 const output = head + '<style>' + EOL + styles + '</style>' + EOL + body;
 
@@ -86,6 +119,54 @@ console.log(`  ${output.length.toLocaleString()} bytes`);
 console.log(`  ${output.split('\n').length.toLocaleString()} lines`);
 console.log(`  ${styleFiles.length} CSS files: ${styleFiles.join(', ')}`);
 console.log(`  ${jsFiles.length} JS files:  ${jsFiles.join(', ')}`);
+if (buildVersion) console.log(`  Build version: ${buildVersion}`);
+
+// Cache-bust every static landing page that links to logbook.html.
+//
+// Without this, a pilot whose browser (or Cloudflare's edge cache, or
+// their installed PWA shell) has cached an old logbook.html will keep
+// being served the stale bundle even after a fresh deploy. The fix is
+// to append ?v=<buildVersion> so the URL itself changes each release —
+// the browser / CDN treats it as a different resource and re-fetches.
+//
+// Landing files that we touch:
+//   index.html, demo.html, security.html, privacy.html
+//
+// Rewrite rule:
+//   logbook.html              → logbook.html?v=<buildVersion>
+//   logbook.html?demo=1       → logbook.html?demo=1&v=<buildVersion>
+//   logbook.html?v=<old>      → logbook.html?v=<buildVersion> (replace)
+//
+// We re-write the file ONLY if there's an actual change, so the git
+// working tree stays clean when nothing needs busting.
+if (!checkMode && buildVersion) {
+  const landingFiles = ['index.html', 'demo.html', 'security.html', 'privacy.html'];
+  let touched = 0;
+  for (const fname of landingFiles) {
+    const fpath = path.join(ROOT, fname);
+    if (!fs.existsSync(fpath)) continue;
+    const original = fs.readFileSync(fpath, 'utf8');
+    // Match logbook.html optionally followed by a ?query string.
+    // We deliberately do NOT match logbook.html#anchor since hash
+    // fragments don't affect the CDN cache key.
+    const rewritten = original.replace(
+      /logbook\.html(\?[^"'\s<>]*)?/g,
+      (match, query) => {
+        if (!query) return 'logbook.html?v=' + buildVersion;
+        // Strip any existing v=… so we don't accumulate stale ones
+        const cleaned = query.replace(/[?&]v=[^&]*/g, '').replace(/^&/, '?');
+        if (cleaned === '' || cleaned === '?') return 'logbook.html?v=' + buildVersion;
+        return 'logbook.html' + cleaned + '&v=' + buildVersion;
+      }
+    );
+    if (rewritten !== original) {
+      fs.writeFileSync(fpath, rewritten);
+      touched++;
+      console.log(`  cache-busted: ${fname}`);
+    }
+  }
+  if (!touched) console.log('  no landing files needed cache-bust');
+}
 
 if (checkMode) {
   const original = fs.readFileSync(path.join(ROOT, 'logbook.html'), 'utf8');
