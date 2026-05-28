@@ -3626,6 +3626,45 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 .alert-bar .alert-sub { font-size: 11px; font-family: var(--font-mono); font-weight: 400; opacity: 0.85; margin-top: 2px; }
 
 /* ═══════════════════════════════════════
+   YEAR RECAP — Fun facts row
+   4 relatable conversions (Earth tours, days in air, night %, movies).
+   Auto-fit grid, soft accent cards. Empty container collapses cleanly.
+═══════════════════════════════════════ */
+.recap-fun {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-3);
+  margin-bottom: 18px;
+}
+.recap-fun:empty { display: none; }
+.recap-fun-item {
+  padding: 16px 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  transition: transform var(--motion-fast, 140ms) var(--ease-quiet, ease-out);
+}
+.recap-fun-item:hover { transform: translateY(-2px); }
+.recap-fun-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+.recap-fun-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 8px;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+}
+.recap-fun-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ═══════════════════════════════════════
    RESPONSIVE (v3a)
 ═══════════════════════════════════════ */
 @media (max-width: 860px) {
@@ -4862,6 +4901,8 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <div class="stats-grid" id="recapStats" style="margin-bottom:20px;min-height:104px"></div>
+
+ <div class="recap-fun" id="recapFunFacts"></div>
 
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
  <div class="card">
@@ -12030,6 +12071,34 @@ function renderRecap() {
     });
   }
 
+  // Fun facts — pilot's year in relatable units
+  const ff = document.getElementById('recapFunFacts');
+  if (ff) {
+    if (total <= 0) {
+      ff.innerHTML = '';
+    } else {
+      const km = total * 800; // jet cruise ~800 km/h, rough order-of-magnitude
+      const earthCircum = 40075;
+      const earthTours = km / earthCircum;
+      const daysAir = total / 24;
+      const nightPct = total > 0 ? Math.round(night / total * 100) : 0;
+      const movies = Math.max(1, Math.round(total / 2));
+      const kmFmt = Math.round(km).toLocaleString(locale);
+      const facts = [
+        { emoji: '🌍', text: t('recap.fun.earth',   { n: earthTours.toFixed(2) }), sub: t('recap.fun.earthSub',   { km: kmFmt }) },
+        { emoji: '⏱',  text: t('recap.fun.days',    { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
+        { emoji: '🌙', text: t('recap.fun.night',   { pct: nightPct }),            sub: t('recap.fun.nightSub',   { h: fmt(night) }) },
+        { emoji: '🎬', text: t('recap.fun.movies',  { n: movies }),                sub: t('recap.fun.moviesSub') },
+      ];
+      ff.innerHTML = facts.map(f => `
+        <div class="recap-fun-item">
+          <div class="recap-fun-emoji">${f.emoji}</div>
+          <div class="recap-fun-text">${esc(f.text)}</div>
+          <div class="recap-fun-sub">${esc(f.sub)}</div>
+        </div>`).join('');
+    }
+  }
+
   // Top airports (from routes)
   const airports = {};
   yFlights.forEach(f => {
@@ -13791,6 +13860,15 @@ const STRINGS = {
  'recap.visitPl': '{n} visits',
  'recap.noAirports': 'No data for this year.',
  'recap.noRoutes': 'No routes for this year.',
+ // Fun facts row
+ 'recap.fun.earth':       '{n} times around the Earth',
+ 'recap.fun.earthSub':    '~{km} km traveled (jet cruise estimate)',
+ 'recap.fun.days':        '{n} days in the air',
+ 'recap.fun.daysSub':     'out of 365 days in the year',
+ 'recap.fun.night':       '{pct}% of your year after sunset',
+ 'recap.fun.nightSub':    '{h} h flown in the dark',
+ 'recap.fun.movies':      '{n} two-hour movies back-to-back',
+ 'recap.fun.moviesSub':   'the time you spent airborne',
 
  // ─── Common toast messages
  'toast.profileSaved': 'Profile saved ✓',
@@ -14411,6 +14489,15 @@ const STRINGS = {
  'recap.visitPl': '{n} visites',
  'recap.noAirports': 'Aucune donnée pour cette année.',
  'recap.noRoutes': 'Aucune route pour cette année.',
+ // Fun facts row
+ 'recap.fun.earth':       '{n} fois le tour de la Terre',
+ 'recap.fun.earthSub':    '~{km} km parcourus (estimation vitesse de croisière)',
+ 'recap.fun.days':        '{n} jours dans les airs',
+ 'recap.fun.daysSub':     'sur 365 jours dans l\'année',
+ 'recap.fun.night':       '{pct} % de ton année après le coucher du soleil',
+ 'recap.fun.nightSub':    '{h} h volées dans le noir',
+ 'recap.fun.movies':      '{n} films de 2 h d\'affilée',
+ 'recap.fun.moviesSub':   'le temps que tu as passé en vol',
 
  // ─── Avis (toasts)
  'toast.profileSaved': 'Profil enregistré ✓',

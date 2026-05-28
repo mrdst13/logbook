@@ -67,6 +67,34 @@ function renderRecap() {
     });
   }
 
+  // Fun facts — pilot's year in relatable units
+  const ff = document.getElementById('recapFunFacts');
+  if (ff) {
+    if (total <= 0) {
+      ff.innerHTML = '';
+    } else {
+      const km = total * 800; // jet cruise ~800 km/h, rough order-of-magnitude
+      const earthCircum = 40075;
+      const earthTours = km / earthCircum;
+      const daysAir = total / 24;
+      const nightPct = total > 0 ? Math.round(night / total * 100) : 0;
+      const movies = Math.max(1, Math.round(total / 2));
+      const kmFmt = Math.round(km).toLocaleString(locale);
+      const facts = [
+        { emoji: '🌍', text: t('recap.fun.earth',   { n: earthTours.toFixed(2) }), sub: t('recap.fun.earthSub',   { km: kmFmt }) },
+        { emoji: '⏱',  text: t('recap.fun.days',    { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
+        { emoji: '🌙', text: t('recap.fun.night',   { pct: nightPct }),            sub: t('recap.fun.nightSub',   { h: fmt(night) }) },
+        { emoji: '🎬', text: t('recap.fun.movies',  { n: movies }),                sub: t('recap.fun.moviesSub') },
+      ];
+      ff.innerHTML = facts.map(f => `
+        <div class="recap-fun-item">
+          <div class="recap-fun-emoji">${f.emoji}</div>
+          <div class="recap-fun-text">${esc(f.text)}</div>
+          <div class="recap-fun-sub">${esc(f.sub)}</div>
+        </div>`).join('');
+    }
+  }
+
   // Top airports (from routes)
   const airports = {};
   yFlights.forEach(f => {

@@ -431,6 +431,15 @@ const STRINGS = {
  'recap.visitPl': '{n} visits',
  'recap.noAirports': 'No data for this year.',
  'recap.noRoutes': 'No routes for this year.',
+ // Fun facts row
+ 'recap.fun.earth':       '{n} times around the Earth',
+ 'recap.fun.earthSub':    '~{km} km traveled (jet cruise estimate)',
+ 'recap.fun.days':        '{n} days in the air',
+ 'recap.fun.daysSub':     'out of 365 days in the year',
+ 'recap.fun.night':       '{pct}% of your year after sunset',
+ 'recap.fun.nightSub':    '{h} h flown in the dark',
+ 'recap.fun.movies':      '{n} two-hour movies back-to-back',
+ 'recap.fun.moviesSub':   'the time you spent airborne',
 
  // ─── Common toast messages
  'toast.profileSaved': 'Profile saved ✓',
@@ -1051,6 +1060,15 @@ const STRINGS = {
  'recap.visitPl': '{n} visites',
  'recap.noAirports': 'Aucune donnée pour cette année.',
  'recap.noRoutes': 'Aucune route pour cette année.',
+ // Fun facts row
+ 'recap.fun.earth':       '{n} fois le tour de la Terre',
+ 'recap.fun.earthSub':    '~{km} km parcourus (estimation vitesse de croisière)',
+ 'recap.fun.days':        '{n} jours dans les airs',
+ 'recap.fun.daysSub':     'sur 365 jours dans l\'année',
+ 'recap.fun.night':       '{pct} % de ton année après le coucher du soleil',
+ 'recap.fun.nightSub':    '{h} h volées dans le noir',
+ 'recap.fun.movies':      '{n} films de 2 h d\'affilée',
+ 'recap.fun.moviesSub':   'le temps que tu as passé en vol',
 
  // ─── Avis (toasts)
  'toast.profileSaved': 'Profil enregistré ✓',
