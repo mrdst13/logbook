@@ -5257,7 +5257,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
  </summary>
  <div style="padding:0 var(--s-6) var(--s-6);">
- <div class="settings-card-sub" style="margin-bottom:var(--s-3);" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.</div>
+ <div class="settings-card-sub" style="margin-bottom:var(--s-3);" data-i18n="trust.canada.sub">Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Stored exclusively in Canada — subject to Canadian privacy law (PIPEDA + Loi 25).</div>
  <div class="trust-bullets">
  <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.encrypted">Encrypted end-to-end</span></div>
  <div class="trust-bullet"><span class="trust-bullet-icon"></span><span data-i18n="trust.bullet.canadian">Stored in Montréal</span></div>
@@ -13408,7 +13408,7 @@ const STRINGS = {
  'page.dashboard.title': 'Dashboard',
  'page.dashboard.sub': 'Your flight summary',
  'page.logbook.title': 'Logbook',
- 'page.logbook.sub': 'All your flights · Transport Canada compliant',
+ 'page.logbook.sub': 'All your flights · Transport Canada PDF format',
  'page.add.title': 'Add Flight',
  'page.add.sub': 'Log a new flight or simulator session',
  'page.profile.title': 'Profile',
@@ -13735,7 +13735,7 @@ const STRINGS = {
  'onb.welcome.bullet1Html': '<strong>Built for Transport Canada.</strong> Columns, PDF format, night and cross-country math — done right out of the box.',
  'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect your airline\'s iCal feed once. Cumulo pulls new flights every time you open the app.',
  'onb.welcome.bullet3Html': '<strong>Bring forward your paper hours.</strong> Declare your career totals once, attest, then log new flights forward. No re-typing.',
- 'onb.welcome.bullet4Html': '<strong>Stays in Canada.</strong> Encrypted, stored in Montréal, yours to export anytime.',
+ 'onb.welcome.bullet4Html': '<strong>Local-first by default.</strong> Your logbook lives on your device. Optional cloud backup is hosted in Canada.',
  'onb.welcome.footer': 'Setup takes about 2 minutes. Skip anything you don\'t need — you can finish it later in Settings.',
  'onb.step2.title': 'Tell us about you',
  'onb.step2.intro': 'Cumulo is your personal pilot logbook. Let\'s set up your profile (you can change everything later).',
@@ -13968,7 +13968,7 @@ const STRINGS = {
  'settings.tab.danger':       'Reset',
  'settings.danger':           'Reset',
  'trust.canada.title': 'Your flight data stays in Canada',
- 'trust.canada.sub': 'Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Not accessible under the US Patriot Act. PIPEDA + Loi 25 compliant.',
+ 'trust.canada.sub': 'Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Stored exclusively in Canada — subject to Canadian privacy law (PIPEDA + Loi 25).',
  'trust.bullet.encrypted': 'Encrypted end-to-end',
  'trust.bullet.canadian': 'Stored in Montréal',
  'trust.bullet.nosale': 'We will never sell your data',
@@ -14028,7 +14028,7 @@ const STRINGS = {
  'page.dashboard.title': 'Tableau de bord',
  'page.dashboard.sub': 'Sommaire de vos vols',
  'page.logbook.title': 'Carnet de vol',
- 'page.logbook.sub': 'Tous vos vols · conforme Transports Canada',
+ 'page.logbook.sub': 'Tous vos vols · format Transports Canada',
  'page.add.title': 'Ajouter un vol',
  'page.add.sub': 'Inscrire un nouveau vol ou une séance de simulateur',
  'page.profile.title': 'Profil',
@@ -14352,10 +14352,10 @@ const STRINGS = {
  'onb.getStarted': 'Commencer →',
  'onb.step1.title': 'Bienvenue dans Cumulo',
  'onb.welcome.intro': 'Un carnet de vol moderne, conçu pour les pilotes canadiens.',
- 'onb.welcome.bullet1Html': '<strong>Conforme Transports Canada.</strong> Colonnes, format PDF, calcul nuit et voyage — prêt dès la sortie de la boîte.',
+ 'onb.welcome.bullet1Html': '<strong>Conçu pour Transports Canada.</strong> Colonnes, format PDF, calcul nuit et voyage — prêt dès la sortie de la boîte.',
  'onb.welcome.bullet2Html': '<strong>Synchronise votre horaire.</strong> Branchez le flux iCal de votre compagnie une fois. Cumulo récupère les nouveaux vols à chaque ouverture de l\'app.',
  'onb.welcome.bullet3Html': '<strong>Reportez vos heures papier.</strong> Déclarez vos totaux carrière une fois, attestez, puis ajoutez les nouveaux vols. Aucune ressaisie.',
- 'onb.welcome.bullet4Html': '<strong>Reste au Canada.</strong> Chiffré, stocké à Montréal, à vous d\'exporter quand vous voulez.',
+ 'onb.welcome.bullet4Html': '<strong>D\'abord local.</strong> Votre carnet vit sur votre appareil. La sauvegarde cloud optionnelle est hébergée au Canada.',
  'onb.welcome.footer': 'La configuration prend environ 2 minutes. Passez ce qui ne s\'applique pas — vous pouvez compléter plus tard dans Paramètres.',
  'onb.step2.title': 'Parlez-nous de vous',
  'onb.step2.intro': 'Cumulo est votre carnet de vol personnel. Configurons votre profil (modifiable plus tard).',
@@ -14588,7 +14588,7 @@ const STRINGS = {
  'settings.tab.danger':       'Réinitialiser',
  'settings.danger':           'Réinitialiser',
  'trust.canada.title': 'Vos données de vol restent au Canada',
- 'trust.canada.sub': 'Hébergées sur Supabase ca-central-1 (Montréal). Chiffrées en transit (TLS 1.3) et au repos (AES-256). Non accessibles sous le Patriot Act américain. Conforme LPRPDE + Loi 25.',
+ 'trust.canada.sub': 'Hébergées sur Supabase ca-central-1 (Montréal). Chiffrées en transit (TLS 1.3) et au repos (AES-256). Stockées exclusivement au Canada — soumises au droit canadien sur la vie privée (LPRPDE + Loi 25).',
  'trust.bullet.encrypted': 'Chiffrées bout en bout',
  'trust.bullet.canadian': 'Stockées à Montréal',
  'trust.bullet.nosale': 'Nous ne vendrons jamais vos données',
