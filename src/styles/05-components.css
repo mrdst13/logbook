@@ -752,6 +752,12 @@ input:invalid:not(:placeholder-shown):not(:focus) {
   .logbook-compact tbody td.row-actions::before { display: none; }
   .empty-row td { display: block !important; text-align: center !important; }
   .empty-row td::before { display: none; }
+
+  /* Sticky totals row is broken in card mode (sticky on display:block <tr>
+     inside display:block <tbody> doesn't anchor). Hide on phone widths —
+     the .lb-summary card at the top of the Logbook page already shows
+     YTD totals, so the pilot still has them on mobile. */
+  .totals-row { display: none; }
 }
 
 .reg-tag {
