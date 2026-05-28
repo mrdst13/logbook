@@ -436,10 +436,10 @@ const STRINGS = {
  'recap.fun.earthSub':    '~{km} km traveled (jet cruise estimate)',
  'recap.fun.days':        '{n} days in the air',
  'recap.fun.daysSub':     'out of 365 days in the year',
- 'recap.fun.night':       '{pct}% of your year after sunset',
- 'recap.fun.nightSub':    '{h} h flown in the dark',
- 'recap.fun.movies':      '{n} two-hour movies back-to-back',
- 'recap.fun.moviesSub':   'the time you spent airborne',
+ 'recap.fun.flights':     '{n} flights logged',
+ 'recap.fun.flightsSub':  'averaging {avg} h each',
+ 'recap.fun.aircraft':    '{n} different aircraft',
+ 'recap.fun.aircraftSub': 'your fleet for the year',
 
  // ─── Common toast messages
  'toast.profileSaved': 'Profile saved ✓',
@@ -1065,10 +1065,10 @@ const STRINGS = {
  'recap.fun.earthSub':    '~{km} km parcourus (estimation vitesse de croisière)',
  'recap.fun.days':        '{n} jours dans les airs',
  'recap.fun.daysSub':     'sur 365 jours dans l\'année',
- 'recap.fun.night':       '{pct} % de ton année après le coucher du soleil',
- 'recap.fun.nightSub':    '{h} h volées dans le noir',
- 'recap.fun.movies':      '{n} films de 2 h d\'affilée',
- 'recap.fun.moviesSub':   'le temps que tu as passé en vol',
+ 'recap.fun.flights':     '{n} vols enregistrés',
+ 'recap.fun.flightsSub':  'en moyenne {avg} h chacun',
+ 'recap.fun.aircraft':    '{n} aéronefs différents',
+ 'recap.fun.aircraftSub': 'ta flotte de l\'année',
 
  // ─── Avis (toasts)
  'toast.profileSaved': 'Profil enregistré ✓',

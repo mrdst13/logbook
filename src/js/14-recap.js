@@ -77,14 +77,15 @@ function renderRecap() {
       const earthCircum = 40075;
       const earthTours = km / earthCircum;
       const daysAir = total / 24;
-      const nightPct = total > 0 ? Math.round(night / total * 100) : 0;
-      const movies = Math.max(1, Math.round(total / 2));
+      const acTypes = [...new Set(yFlights.map(f => (f.type || '').trim()).filter(Boolean))];
+      const flightsCount = yFlights.length;
+      const avgLen = flightsCount > 0 ? total / flightsCount : 0;
       const kmFmt = Math.round(km).toLocaleString(locale);
       const facts = [
-        { emoji: '🌍', text: t('recap.fun.earth',   { n: earthTours.toFixed(2) }), sub: t('recap.fun.earthSub',   { km: kmFmt }) },
-        { emoji: '⏱',  text: t('recap.fun.days',    { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
-        { emoji: '🌙', text: t('recap.fun.night',   { pct: nightPct }),            sub: t('recap.fun.nightSub',   { h: fmt(night) }) },
-        { emoji: '🎬', text: t('recap.fun.movies',  { n: movies }),                sub: t('recap.fun.moviesSub') },
+        { emoji: '🌍', text: t('recap.fun.earth',    { n: earthTours.toFixed(2) }), sub: t('recap.fun.earthSub',    { km: kmFmt }) },
+        { emoji: '⏱',  text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
+        { emoji: '🛬', text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
+        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acTypes.length }),        sub: t('recap.fun.aircraftSub') },
       ];
       ff.innerHTML = facts.map(f => `
         <div class="recap-fun-item">
