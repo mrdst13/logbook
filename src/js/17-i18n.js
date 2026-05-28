@@ -375,7 +375,7 @@ const STRINGS = {
  'onb.welcome.bullet1Html': '<strong>Built for Transport Canada.</strong> Columns, PDF format, night and cross-country math — done right out of the box.',
  'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect your airline\'s iCal feed once. Cumulo pulls new flights every time you open the app.',
  'onb.welcome.bullet3Html': '<strong>Bring forward your paper hours.</strong> Declare your career totals once, attest, then log new flights forward. No re-typing.',
- 'onb.welcome.bullet4Html': '<strong>Local-first by default.</strong> Your logbook lives on your device. Optional cloud backup is hosted in Canada.',
+ 'onb.welcome.bullet4Html': '<strong>Your data stays on your device.</strong> Optional cloud backup is hosted in Canada.',
  'onb.welcome.footer': 'Setup takes about 2 minutes. Skip anything you don\'t need — you can finish it later in Settings.',
  'onb.step2.title': 'Tell us about you',
  'onb.step2.intro': 'Cumulo is your personal pilot logbook. Let\'s set up your profile (you can change everything later).',
