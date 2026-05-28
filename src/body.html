@@ -810,35 +810,13 @@
  </div>
  </div>
 
- <!-- ── YEAR RECAP ── -->
- <div id="page-recap" class="page">
- <div class="page-header">
- <div>
- <div class="page-title" data-i18n="page.recap.title">Year Recap</div>
- <div class="page-sub" data-i18n="page.recap.sub">Annual flight summary</div>
- </div>
- <div class="page-actions">
- <select id="recapYear" onchange="renderRecap()"></select>
- </div>
- </div>
-
- <div class="stats-grid" id="recapStats" style="margin-bottom:20px;min-height:104px"></div>
-
- <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
- <div class="card">
- <div class="card-header"><div class="card-title">Monthly Hours</div></div>
- <div style="padding:16px;min-height:160px"><canvas id="recapChart" height="130"></canvas></div>
- </div>
- <div class="card">
- <div class="card-header"><div class="card-title">Top Airports</div></div>
- <div id="recapAirports" style="padding:16px;font-size:13px;min-height:160px"></div>
- </div>
- </div>
-
- <div class="card">
- <div class="card-header"><div class="card-title">Top Routes</div></div>
- <div id="recapRoutes" style="padding:16px;font-size:13px;min-height:120px"></div>
- </div>
+ <!-- ── YEAR RECAP — Wrapped flow ── -->
+ <div id="page-recap" class="page page-recap-wrapped">
+   <div class="recap-toolbar">
+     <select id="recapYear" onchange="renderRecap()" aria-label="Year"></select>
+     <span class="recap-progress" id="recapProgress">1 / 10</span>
+   </div>
+   <div class="recap-cards" id="recapCards" tabindex="0"></div>
  </div>
 
  <!-- ── BACKUP ── -->
