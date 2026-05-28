@@ -49,8 +49,12 @@ C'est ta safety net. Même si tout le reste lâche, ton compte ne peut pas saign
 //   - Generic error messages                → no env/key leak via error reflection
 
 const ALLOWED_ORIGINS = new Set([
+  // Production
+  'https://flycumulo.ca',
+  'https://www.flycumulo.ca',
+  // Legacy GitHub Pages preview (kept while DNS migration finishes — remove after)
   'https://mrdst13.github.io',
-  // Dev origins — leave for now, remove once Cumulo is on its own domain:
+  // Dev origins:
   'http://localhost',
   'http://localhost:8080',
   'http://127.0.0.1',
@@ -75,7 +79,7 @@ function pickCorsOrigin(request) {
 
 function corsHeaders(origin) {
   return {
-    'Access-Control-Allow-Origin': origin || 'https://mrdst13.github.io',
+    'Access-Control-Allow-Origin': origin || 'https://flycumulo.ca',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Vary': 'Origin'

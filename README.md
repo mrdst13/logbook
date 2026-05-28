@@ -1,10 +1,10 @@
 # Cumulo Flight Deck
 
-**The pilot logbook built by a Canadian pilot, for Canadian pilots.**
+**A modern pilot logbook, built by a pilot.**
 
-A Transport Canada-compliant digital logbook for Canadian pilots. Auto-syncs from Navblue, calculates Night per RAC 101.01, Cross-Country per CAR 401.34, and exports a TP 14052-formatted PDF for ramp checks and ATPL submissions.
+A digital logbook with Transport Canada PDF format (TP 14052), automatic Night calculation per RAC 101.01, Cross-Country detection per CAR 401.34, and iCal roster sync for airlines that publish a webcal:// feed.
 
- Hosted in Canada (Supabase ca-central-1, Montréal). Encrypted end-to-end. PIPEDA + Loi 25 compliant.
+Local-first storage on your device. Optional cloud backup hosted in Canada — subject to Canadian privacy law.
 
 **Live**: [flycumulo.ca](https://flycumulo.ca) · [Demo (no signup)](https://flycumulo.ca/demo) · [Security whitepaper](https://flycumulo.ca/security)
 

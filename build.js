@@ -61,6 +61,21 @@ const SCRIPT_MARKER = '<!-- INJECT_JS -->';
 const scriptBlock = '<script>' + EOL + jsContent + EOL + '</script>';
 body = body.replace(SCRIPT_MARKER, scriptBlock);
 
+// Strip diagnostic console.log / console.info / console.debug from the
+// production build. console.warn and console.error stay — they signal real
+// problems and we want them visible in DevTools.
+//
+// We replace `console.X(` with `void(` rather than removing the line,
+// because removing leaves `if (cond) ;` artefacts and breaks expression-
+// level usage (e.g. `(console.log(x), x + 1)`). `void(...)` is a no-op
+// expression that swallows any argument list.
+//
+// Skipped in --check mode so byte-identical diffs still work for CI
+// verification of un-stripped builds.
+if (!checkMode) {
+  body = body.replace(/console\.(log|info|debug)\s*\(/g, 'void(');
+}
+
 // Assemble
 const output = head + '<style>' + EOL + styles + '</style>' + EOL + body;
 

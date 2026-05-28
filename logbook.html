@@ -5237,7 +5237,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
      <input type="checkbox" checked disabled />
      <div class="privacy-row-body">
        <div class="privacy-row-title">My private cloud backup (Canada)</div>
-       <div class="privacy-row-desc">Full names kept in your personal Supabase ca-central-1 backup. You're the only one with access — this is an extension of your personal logbook, not a transfer to a third party. Hosted in Montréal.</div>
+       <div class="privacy-row-desc">When optional cloud backup is enabled, full names are kept in your personal Canada-region backup. You're the only one with access — this is an extension of your personal logbook, not a transfer to a third party.</div>
      </div>
      <span class="privacy-row-pill privacy-row-pill-locked">ALWAYS ON</span>
    </label>
@@ -6176,7 +6176,7 @@ function snapshotBeforeOperation(operationName) {
   const history = loadSnapshots();
   history.unshift(snapshot);  // newest first
   saveSnapshots(history);
-  console.log(`[Snapshot] Saved before "${operationName}" — ${flights.length} flights · ${history.length} snapshots in history`);
+  void(`[Snapshot] Saved before "${operationName}" — ${flights.length} flights · ${history.length} snapshots in history`);
   return true;
 }
 
@@ -6345,7 +6345,7 @@ function recalculateAllFlights() {
   const toastType = result.updated > 0 && totalSkipped === 0 ? 'success'
                   : totalSkipped > 0 ? 'error' : 'success';
   showToast(parts.join(' · '), toastType);
-  console.log('[Recalc] Details:', result, 'flights:', flights.length);
+  void('[Recalc] Details:', result, 'flights:', flights.length);
 }
 
 function recalculateAllFlightsInternal() {
@@ -8056,7 +8056,7 @@ function handleMonthlyRosterPDF(file) {
 
   if (!hasFlights || !hasICalUrl) {
     // Fresh install or pilot hasn't set up iCal yet → initial import path.
-    console.log('[ImportRouter] Monthly PDF → initial import (parseNavbluePDF)');
+    void('[ImportRouter] Monthly PDF → initial import (parseNavbluePDF)');
     const inputEl = document.getElementById('navbluePdf');
     if (inputEl) {
       const dt = new DataTransfer();
@@ -8068,7 +8068,7 @@ function handleMonthlyRosterPDF(file) {
   }
 
   if (hasICalSourced) {
-    console.log('[ImportRouter] Monthly PDF → crew-name backfill (handleRosterFile)');
+    void('[ImportRouter] Monthly PDF → crew-name backfill (handleRosterFile)');
     handleRosterFile(file);
     return;
   }
@@ -8076,7 +8076,7 @@ function handleMonthlyRosterPDF(file) {
   // Pilot has flights but none from iCal — could be a CSV-imported user
   // adding a PDF. Default to backfill (most common in this state) but log
   // it so we can revisit if the heuristic is wrong.
-  console.log('[ImportRouter] Monthly PDF → crew-name backfill (default for mixed state)');
+  void('[ImportRouter] Monthly PDF → crew-name backfill (default for mixed state)');
   handleRosterFile(file);
 }
 
@@ -8193,8 +8193,8 @@ RULES:
     });
 
     const rawText = await resp.text();
-    console.log('[Navblue] Worker HTTP status:', resp.status);
-    console.log('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
+    void('[Navblue] Worker HTTP status:', resp.status);
+    void('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
 
     if (!resp.ok) {
       throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
@@ -8211,7 +8211,7 @@ RULES:
     }
 
     const text = data.content?.map(c => c.text || '').join('') || '';
-    console.log('[Navblue] AI response text (first 800 chars):', text.substring(0, 800));
+    void('[Navblue] AI response text (first 800 chars):', text.substring(0, 800));
 
     if (!text.trim()) {
       throw new Error('AI returned empty response. Check worker logs / API key.');
@@ -8240,7 +8240,7 @@ RULES:
     const today = new Date().toISOString().split('T')[0];
     // Strict: only flights from BEFORE today (today's flight may still be in progress)
     const filtered = extracted.filter(f => f.date && f.date < today && f.block > 0);
-    console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
+    void(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
 
     if (filtered.length === 0) {
       throw new Error(`AI extracted ${extracted.length} entries but none are completed (date must be before today and block > 0).`);
@@ -9406,7 +9406,7 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   // against real samples without breaking anything.
   const navblueCrew = extractNavblueCrew(desc);
   if (!navblueCrew.pic && !navblueCrew.copilot && desc.length > 0) {
-    console.log('[Navblue] No crew extracted from DESCRIPTION for', summary, '— sample:', desc.substring(0, 300));
+    void('[Navblue] No crew extracted from DESCRIPTION for', summary, '— sample:', desc.substring(0, 300));
   }
 
   // Map crew to logbook fields based on the user's seat.
@@ -9553,7 +9553,7 @@ async function syncNavblueNow(opts) {
     }
 
     const events = parseICS(icsText);
-    console.log(`[Navblue Sync] Parsed ${events.length} VEVENTs from iCal`);
+    void(`[Navblue Sync] Parsed ${events.length} VEVENTs from iCal`);
 
     // Diagnostic dump: stash the first three DESCRIPTION strings + a SUMMARY
     // sample so Martin can inspect via the "Navblue iCal diagnostic" button
@@ -9612,7 +9612,7 @@ async function syncNavblueNow(opts) {
         return false;
       });
 
-    console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (past-dated + today's completed)`);
+    void(`[Navblue Sync] ${mapped.length} flights eligible for import (past-dated + today's completed)`);
 
     // SNAPSHOT before any modification — pilot data is precious
     snapshotBeforeOperation('Navblue iCal sync');
@@ -9658,7 +9658,7 @@ async function syncNavblueNow(opts) {
       if (changed) {
         flights[match.idx] = merged;
         mergedCount++;
-        console.log(`[Sync] Merged ${match.matchType} match for ${f.date} ${f.flightNum} ${f.route}`);
+        void(`[Sync] Merged ${match.matchType} match for ${f.date} ${f.flightNum} ${f.route}`);
       }
     });
 
@@ -9744,17 +9744,17 @@ function syncNavblueAuto(reason) {
     const elapsed = Date.now() - last;
     const minInterval = (reason === 'focus') ? NAVBLUE_AUTO_SYNC_FOCUS_MS : NAVBLUE_AUTO_SYNC_INIT_MS;
     if (last && elapsed < minInterval) {
-      console.log(`[Navblue Auto-Sync] Skipped (${reason}): last sync ${Math.round(elapsed/60000)}m ago, threshold ${minInterval/60000}m`);
+      void(`[Navblue Auto-Sync] Skipped (${reason}): last sync ${Math.round(elapsed/60000)}m ago, threshold ${minInterval/60000}m`);
       return;
     }
     // Don't auto-sync while the import-preview modal is already open
     // (avoids stacking two prompts on top of each other if the user
     // happens to refocus the tab mid-review).
     if (document.querySelector('.import-preview-modal, #importPreviewOverlay, .modal[data-import-preview]')) {
-      console.log('[Navblue Auto-Sync] Skipped: import preview already open');
+      void('[Navblue Auto-Sync] Skipped: import preview already open');
       return;
     }
-    console.log(`[Navblue Auto-Sync] Triggering (${reason})`);
+    void(`[Navblue Auto-Sync] Triggering (${reason})`);
     syncNavblueNow({ silent: true });
   } catch (e) {
     console.warn('[Navblue Auto-Sync] threw:', e);
@@ -9790,7 +9790,7 @@ function showNavblueDiagnostic() {
   const overlay = document.getElementById('importPreview');
   if (!overlay) {
     // Fallback: dump to console + alert
-    console.log('[Navblue diagnostic]', dump);
+    void('[Navblue diagnostic]', dump);
     alert('Diagnostic data printed to console. Press Ctrl+Shift+J to view.');
     return;
   }
@@ -10365,7 +10365,7 @@ async function handleRosterFile(file) {
       allText += lines.join('\n') + '\n';
     }
 
-    console.log('[Roster] First 1500 chars of extracted text:\n' + allText.substring(0, 1500));
+    void('[Roster] First 1500 chars of extracted text:\n' + allText.substring(0, 1500));
 
     // Detect TimeMode header (Navblue PDFs can be downloaded in Local or UTC).
     // We extract ATD/ATA verbatim; if Local mode, the user should re-download
@@ -10377,7 +10377,7 @@ async function handleRosterFile(file) {
 
     // Parse the text to extract flight legs with their crew AND ATD/ATA actuals
     const extracted = parseNavblueRosterText(allText);
-    console.log(`[Roster] Extracted ${extracted.length} flights from PDF (TimeMode: ${pdfTimeMode})`);
+    void(`[Roster] Extracted ${extracted.length} flights from PDF (TimeMode: ${pdfTimeMode})`);
 
     if (extracted.length === 0) {
       details.innerHTML = `<span style="color:var(--danger);">No flight legs detected in this PDF. Make sure it's a Navblue HrRosterReport (not a different report).</span>`;
@@ -14048,7 +14048,7 @@ const STRINGS = {
  'settings.danger':           'Reset',
  'trust.canada.title': 'Your flight data stays in Canada',
  'trust.canada.sub': 'Hosted on Supabase ca-central-1 (Montréal). Encrypted in transit (TLS 1.3) and at rest (AES-256). Stored exclusively in Canada — subject to Canadian privacy law (PIPEDA + Loi 25).',
- 'trust.bullet.encrypted': 'Encrypted end-to-end',
+ 'trust.bullet.encrypted': 'Encrypted in transit + at rest',
  'trust.bullet.canadian': 'Stored in Montréal',
  'trust.bullet.nosale': 'We will never sell your data',
  'trust.bullet.yours': 'Your data, your ownership — export anytime',
@@ -14677,7 +14677,7 @@ const STRINGS = {
  'settings.danger':           'Réinitialiser',
  'trust.canada.title': 'Vos données de vol restent au Canada',
  'trust.canada.sub': 'Hébergées sur Supabase ca-central-1 (Montréal). Chiffrées en transit (TLS 1.3) et au repos (AES-256). Stockées exclusivement au Canada — soumises au droit canadien sur la vie privée (LPRPDE + Loi 25).',
- 'trust.bullet.encrypted': 'Chiffrées bout en bout',
+ 'trust.bullet.encrypted': 'Chiffrées en transit + au repos',
  'trust.bullet.canadian': 'Stockées à Montréal',
  'trust.bullet.nosale': 'Nous ne vendrons jamais vos données',
  'trust.bullet.yours': 'Vos données, votre propriété — exportables en tout temps',
@@ -14850,7 +14850,7 @@ const Auth = {
   // when SUPABASE_URL/KEY are empty — degrades to skeleton mode.
   async init() {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      console.log('[Auth] Skeleton mode — Supabase keys not configured. App falls back to localStorage-only.');
+      void('[Auth] Skeleton mode — Supabase keys not configured. App falls back to localStorage-only.');
       this._ready = false;
       return;
     }
@@ -14886,7 +14886,7 @@ const Auth = {
         }
       });
 
-      console.log('[Auth] Ready. Session:', this.isAuthenticated() ? this.user.email : 'none');
+      void('[Auth] Ready. Session:', this.isAuthenticated() ? this.user.email : 'none');
     } catch (e) {
       console.error('[Auth] init failed:', e);
       this._ready = false;
@@ -15681,7 +15681,7 @@ const Sync = {
     const startedAt = Date.now();
     const startCursor = (state && Number.isFinite(state.batchCursor)) ? state.batchCursor : 0;
     if (startCursor > 0) {
-      console.log(`[Sync] resuming migration at batch cursor ${startCursor}/${flights.length}`);
+      void(`[Sync] resuming migration at batch cursor ${startCursor}/${flights.length}`);
     }
     for (let i = startCursor; i < flights.length; i += MIGRATION_BATCH_SIZE) {
       const slice = flights.slice(i, i + MIGRATION_BATCH_SIZE);
@@ -15804,7 +15804,7 @@ const Sync = {
     }
     localStorage.setItem(PENDING_OPS_KEY, JSON.stringify(remaining));
     if (q.length !== remaining.length) {
-      console.log(`[Sync] drained ${q.length - remaining.length}/${q.length} queued ops`);
+      void(`[Sync] drained ${q.length - remaining.length}/${q.length} queued ops`);
     }
   },
 
@@ -15816,7 +15816,7 @@ const Sync = {
       const bk = JSON.parse(raw);
       if (bk.retainUntil && bk.retainUntil < Date.now()) {
         localStorage.removeItem(PREMIGRATION_BACKUP_KEY);
-        console.log('[Sync] premigration backup garbage-collected (>90d old)');
+        void('[Sync] premigration backup garbage-collected (>90d old)');
       }
     } catch (e) {
       console.warn('[Sync] gcPremigrationBackup failed:', e);

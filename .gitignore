@@ -1,0 +1,38 @@
+# ═══════════════════════════════════════════════════════════════════
+# Cumulo Flight Deck — .gitignore
+# ═══════════════════════════════════════════════════════════════════
+
+# Build verification artifact (only the canonical logbook.html is tracked)
+logbook.built.html
+
+# Local design / handoff bundles — generated locally, not for the repo
+claude-design-bundle/
+claude-design-bundle.zip
+design_handoff_cumulo_2026/
+drafts/
+
+# Claude Code local state (per-machine config + worktrees)
+.claude/
+
+# Dependencies / environment
+node_modules/
+.env
+.env.*
+
+# OS / IDE noise
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# Coverage / test output
+.nyc_output/
+coverage/
+
+# Private credential checklist (kept locally, never committed)
+private/
+*.private.md
