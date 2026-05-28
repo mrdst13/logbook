@@ -1,0 +1,22 @@
+/**
+ * Cumulo Worker — wrangler config
+ *
+ * Deploys to: https://logbook-api.martindaoust33.workers.dev
+ *
+ * Required env (set as Cloudflare Worker secret, NOT in this file):
+ *   ANTHROPIC_API_KEY — wrangler secret put ANTHROPIC_API_KEY
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "logbook-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-05-28",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true
+}
