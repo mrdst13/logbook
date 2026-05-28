@@ -482,8 +482,51 @@ function renderDashboard() {
   _dashSetStripVal('dashStripXC',    fmt(s.xc),    'hrs');
   _dashSetStripVal('dashStripLDG',   '' + s.ldg);
 
+  // Adapt visible KPIs to the pilot's actual work (hide SIC for solo pilots,
+  // hide MULTI for SE-only pilots, etc.). Runs after values are set so the
+  // hidden items keep correct data behind the scenes for future use.
+  _dashAdaptStripToPilotType(s);
+
   // Top-level alerts (medical expiring, currency lapsed, etc.) still useful
   renderAlerts();
+}
+
+// ─── Stat strip pilot-type adaptation ──────────────────────────
+// Pilot type drives which of the 6 stat-strip cards make sense:
+//   PIC    — universal (all pilots)
+//   SIC    — only meaningful in two-crew ops (airline 705)
+//   NIGHT  — universal
+//   MULTI  — only meaningful if pilot flies ME aircraft
+//   XC     — universal (every pilot cares about cross-country experience)
+//   LDG    — universal
+//
+// Decisions deliberately conservative: hide ONLY when 100 % certain the
+// metric is irrelevant. A bush pilot might still hop onto a Twin Otter
+// (multi-engine!) once a year, so we don't hide MULTI unless their entire
+// history has zero ME hours.
+function _dashAdaptStripToPilotType(stats) {
+  const p = (typeof DB !== 'undefined') ? (DB.loadProfile() || {}) : {};
+  const pilotType = p.pilotType || 'airline705';
+
+  const setStripItemVisible = (valId, visible) => {
+    const el = document.getElementById(valId);
+    if (!el) return;
+    const item = el.closest('.dash-strip-item');
+    if (item) item.style.display = visible ? '' : 'none';
+  };
+
+  // SIC: hide for solo-pilot operations (private, student, helicopter
+  // solo, instructor, anything that's not airline 705)
+  const showSIC = (pilotType === 'airline705');
+
+  // MULTI: hide ONLY if zero ME hours in the pilot's entire history.
+  // Airline pilots always see MULTI even when current company is SE.
+  const meTotal = (stats && +stats.me) || 0;
+  const showMULTI = (pilotType === 'airline705') || meTotal > 0;
+
+  setStripItemVisible('dashStripSIC', showSIC);
+  setStripItemVisible('dashStripMULTI', showMULTI);
+  // PIC / NIGHT / XC / LDG stay visible for every pilot type.
 }
 
 // ─── Greeting bar ──────────────────────────────────────────────
@@ -531,9 +574,13 @@ function _dashRenderGreeting() {
     const fr = lang === 'fr';
     const monthCount = _dashCurrentMonthFlights();
     const is705ForGreet = (p.pilotType || 'airline705') === 'airline705';
+    // tracksIFR = does this pilot actually fly instruments? Bush / float /
+    // private VFR / student pilots see no "Next IFR renewal" line.
+    const tracksIFR = is705ForGreet ||
+      (typeof needsIFRTracking === 'function' && needsIFRTracking(p));
     const primaryDays = is705ForGreet
       ? _dashPPCDaysRemaining(p)
-      : _dashIFRDaysRemaining();
+      : (tracksIFR ? _dashIFRDaysRemaining() : null);
     const primaryLabel = is705ForGreet ? 'PPC' : 'IFR';
     const parts = [];
     if (monthCount > 0) {

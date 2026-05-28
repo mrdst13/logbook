@@ -1,4 +1,36 @@
 // ═══════════════════════════════════════════
+// PILOT-TYPE ADAPTATION
+// Bush / float / private VFR / student pilots don't fly IFR. The
+// "0 / 6 approaches" alert + IFR currency renewal line are noise for
+// them. This helper returns true ONLY if the pilot actually flies
+// instruments — either because they're a 705 line pilot (every flight
+// shoots an approach) OR because they have a real IFR history.
+// ═══════════════════════════════════════════
+function needsIFRTracking(profile) {
+  const p = profile || (typeof DB !== 'undefined' ? DB.loadProfile() : {}) || {};
+  const pilotType = p.pilotType || 'airline705';
+
+  // 705 line pilots always need it — every flight under 705 ops is
+  // typically IFR, and approaches feed the CAR 401.05 currency counter.
+  if (pilotType === 'airline705') return true;
+
+  // For everyone else, infer from actual history: any approach or
+  // instrument time logged in the last 12 months = pilot is doing IFR
+  // and wants to track currency.
+  if (!Array.isArray(flights)) return false;
+  const today = new Date();
+  const cutoff = new Date(today); cutoff.setMonth(cutoff.getMonth() - 12);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+  return flights.some(f =>
+    f && f.date && f.date >= cutoffStr &&
+    ((+f.approaches || 0) > 0 ||
+     (+f.instActual || 0) > 0 ||
+     (+f.instHood   || 0) > 0 ||
+     (+f.instSim    || 0) > 0)
+  );
+}
+
+// ═══════════════════════════════════════════
 // FEATURE 5 — MEDICAL & RECENCY ALERTS
 // ═══════════════════════════════════════════
 function renderAlerts() {
@@ -51,13 +83,19 @@ function renderAlerts() {
   // IFR currency — only show if NOT current (<6 approaches in 6 months).
   // CAR 401.05 requires 6 instrument approaches in the preceding 6 months.
   // Counter is approaches only (integer count) — NOT instrument hours.
-  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
-  const cut6mStr = cutoff6m.toISOString().split('T')[0];
-  const appCount = flights
-    .filter(f => f.date >= cut6mStr)
-    .reduce((sum, f) => sum + (+f.approaches||0), 0);
-  if (appCount < 6) {
-    alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
+  //
+  // Hidden entirely for bush / private VFR / student / helicopter VFR
+  // pilots who don't fly IFR (no history in last 12 months). They never
+  // see "0 / 6 approaches" noise.
+  if (needsIFRTracking(p)) {
+    const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
+    const cut6mStr = cutoff6m.toISOString().split('T')[0];
+    const appCount = flights
+      .filter(f => f.date >= cut6mStr)
+      .reduce((sum, f) => sum + (+f.approaches||0), 0);
+    if (appCount < 6) {
+      alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
+    }
   }
 
   if (!alerts.length) { section.style.display = 'none'; return; }
