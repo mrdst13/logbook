@@ -15824,14 +15824,33 @@ const Sync = {
       });
     }
 
-    // 5. Signature verify — pull remote count back and compare.
-    const { count: remoteCount, error: cntErr } = await Auth.client
-      .from('flights').select('id', { count: 'exact', head: true })
+    // 5. Signature verify — pull the remote id-set back and diff against
+    //    local. The previous version just compared `remoteCount` to
+    //    `flights.length`, which is a coincidence test: a concurrent
+    //    insert from another device, or a partial-row write that landed
+    //    without all columns, could pass the count equality while the
+    //    data was actually wrong.
+    //
+    //    Now we compare actual id sets — every local id must appear in
+    //    the remote set, otherwise the migration is incomplete and we
+    //    don't mark it as done.
+    const { data: remoteIds, error: idsErr } = await Auth.client
+      .from('flights').select('id')
       .eq('user_id', userId);
-    if (cntErr) {
-      console.warn('[Sync] migration verify failed:', cntErr.message);
+    if (idsErr) {
+      console.warn('[Sync] migration verify failed:', idsErr.message);
     }
-    const signatureOK = !cntErr && remoteCount === flights.length;
+    const remoteCount = remoteIds ? remoteIds.length : 0;
+    const remoteIdSet = new Set((remoteIds || []).map(r => r.id));
+    const missingFromRemote = [];
+    for (const f of flights) {
+      if (f && f.id && !remoteIdSet.has(f.id)) missingFromRemote.push(f.id);
+    }
+    const signatureOK = !idsErr && missingFromRemote.length === 0;
+    if (!signatureOK && !idsErr) {
+      console.warn(`[Sync] migration verify: ${missingFromRemote.length} local flight id(s) not found in remote — first few:`,
+        missingFromRemote.slice(0, 5));
+    }
 
     // 6. Migration audit log (same standard as 16-csv-import.js)
     const log = JSON.parse(localStorage.getItem(MIGRATION_LOG_KEY) || '[]');
@@ -15842,7 +15861,10 @@ const Sync = {
       failedBatches,
       flightCountLocal: flights.length,
       remoteCount: remoteCount,
+      missingFromRemoteCount: missingFromRemote.length,
+      missingFromRemoteSample: missingFromRemote.slice(0, 10),
       signatureOK,
+      signature: signatureOK ? 'id-set-match' : (idsErr ? 'verify-error' : 'id-set-mismatch'),
       durationMs: Date.now() - startedAt,
       userId,
       deviceId: getDeviceId(),
@@ -15854,7 +15876,7 @@ const Sync = {
       this._saveMigrationState({
         completedAt: new Date().toISOString(),
         uploaded,
-        signature: 'count-match',
+        signature: 'id-set-match',
       });
       showToast(t('sync.migration.success', { n: uploaded }), 'success');
     } else {
