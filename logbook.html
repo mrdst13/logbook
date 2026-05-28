@@ -4143,8 +4143,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="pilot-name">Pilot</div>
  </div>
 
- <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
- Stays empty in skeleton mode (Supabase keys not yet configured). -->
+ <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js. -->
  <div class="auth-status-slot" id="authStatusSlot"></div>
 
  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
@@ -17360,7 +17359,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-05-28-e8319af';
+const BUILD_VERSION = '2026-05-28-0975f40';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
