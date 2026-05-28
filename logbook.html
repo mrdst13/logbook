@@ -1690,6 +1690,11 @@ tbody tr { cursor: pointer; }
 /* Zebra striping for readability — every other row gets a subtle tint. */
 tbody tr:nth-child(even) td { background: var(--bg-subtle); }
 tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132, 255, 0.08))); }
+/* Hover must win over the zebra stripe — without this rule, even rows
+   compose the hover tint on top of the zebra tint and the result reads
+   muddy compared to crisp blue on odd rows. Same accent-soft as the
+   default :hover, just promoted in specificity so :nth-child(even) loses. */
+tbody tr:nth-child(even):hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132, 255, 0.08))); }
 
 .empty-row td {
   text-align: center;
@@ -17355,7 +17360,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-05-28-bfe7725';
+const BUILD_VERSION = '2026-05-28-e8319af';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
