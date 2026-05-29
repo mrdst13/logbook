@@ -74,8 +74,10 @@
   .import-grid { grid-template-columns: 1fr; }
   main { padding: var(--s-5) var(--s-4) var(--s-10); }
 
-  /* Page title smaller */
-  .page-title { font-size: 22px; }
+  /* Q11 iOS large title — mobile bumps UP (not down). iOS HIG calls for
+     34px / 700; we settle at 30 / 700 / -0.025em as a compromise so the
+     title doesn't overpower the action buttons on the same row. */
+  .page-title { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
 
   /* Table cells tighter */
   th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
