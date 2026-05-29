@@ -113,7 +113,147 @@
    pointer-events: none;
    z-index: 0;
  }
- nav.top, .hero, .section, footer, .trust-bar { position: relative; z-index: 1; }
+ nav.top, .hero, .section, footer, .trust-bar, .hero-composite, .deep-section { position: relative; z-index: 1; }
+
+ /* ═══════════════════════════════════════════════════════════════
+    APPLE-STYLE DEEP-SCROLL (Pass A — hero composite + 2 sections)
+    Pattern: full-bleed sections that scroll-trigger reveal of inner
+    content via IntersectionObserver + CSS transitions. Each section
+    has a sticky container + scroll-distance > 1 viewport so the
+    inside content has time to animate before the next section
+    arrives. Matches apple.com/macbook-pro deep-scroll pattern.
+    ═══════════════════════════════════════════════════════════ */
+
+ /* Hero composite — MacBook + iPhone, real-app screenshots inside.
+    Sits below hero text + CTAs, replaces the old "SEE THE APP"
+    section. Subtle 2° rotation + soft drop shadow + fade-in on
+    page load (handled in IntersectionObserver below). */
+ .hero-composite {
+   max-width: 1280px;
+   margin: 64px auto 120px;
+   padding: 0 32px;
+   display: flex;
+   justify-content: center;
+   align-items: flex-end;
+   gap: -120px; /* iPhone overlaps MacBook on the right */
+   perspective: 1800px;
+   opacity: 0;
+   transform: translateY(40px);
+   transition: opacity 1.2s var(--ease-quiet), transform 1.2s var(--ease-quiet);
+ }
+ .hero-composite.in-view { opacity: 1; transform: translateY(0); }
+ .hero-composite .macbook {
+   flex: 0 0 auto;
+   width: min(880px, 70vw);
+   transform: rotateY(-4deg) rotateX(2deg);
+   filter: drop-shadow(0 40px 60px rgba(15, 32, 68, 0.18))
+           drop-shadow(0 8px 16px rgba(15, 32, 68, 0.08));
+ }
+ .hero-composite .iphone {
+   flex: 0 0 auto;
+   width: min(220px, 18vw);
+   margin-left: -120px;
+   margin-bottom: -40px;
+   transform: rotateY(8deg) rotateX(-2deg);
+   filter: drop-shadow(0 28px 50px rgba(15, 32, 68, 0.22))
+           drop-shadow(0 6px 12px rgba(15, 32, 68, 0.10));
+ }
+ @media (max-width: 760px) {
+   .hero-composite { flex-direction: column; align-items: center; gap: -40px; margin: 40px auto 80px; }
+   .hero-composite .macbook { width: 92vw; transform: none; }
+   .hero-composite .iphone { width: 38vw; margin-left: 0; margin-top: -80px; margin-bottom: 0; transform: none; position: relative; left: 26vw; }
+ }
+
+ /* Deep section — sticky scroll container. Each section is 200vh
+    tall so the inner content has time to animate as you scroll. */
+ .deep-section {
+   position: relative;
+   min-height: 200vh;
+   margin: 0 auto;
+   max-width: 1280px;
+   padding: 0 32px;
+ }
+ .deep-section .stick {
+   position: sticky;
+   top: 64px;
+   min-height: calc(100vh - 64px);
+   display: grid;
+   grid-template-columns: minmax(280px, 420px) 1fr;
+   gap: 64px;
+   align-items: center;
+   padding: 80px 0;
+ }
+ @media (max-width: 880px) {
+   .deep-section .stick { grid-template-columns: 1fr; gap: 32px; padding: 40px 0; }
+ }
+ .deep-eyebrow {
+   font-family: var(--font-mono);
+   font-size: 11px; font-weight: 600;
+   letter-spacing: 0.14em; text-transform: uppercase;
+   color: var(--accent);
+   margin-bottom: 18px;
+   opacity: 0;
+   transform: translateY(20px);
+   transition: opacity 0.7s var(--ease-quiet), transform 0.7s var(--ease-quiet);
+ }
+ .deep-h2 {
+   font-size: clamp(34px, 4.5vw, 52px);
+   line-height: 1.05;
+   letter-spacing: -0.035em;
+   font-weight: 600;
+   color: var(--text);
+   margin: 0 0 20px;
+   text-wrap: balance;
+   opacity: 0;
+   transform: translateY(20px);
+   transition: opacity 0.8s 0.05s var(--ease-quiet), transform 0.8s 0.05s var(--ease-quiet);
+ }
+ .deep-p {
+   font-size: 17px;
+   line-height: 1.6;
+   color: var(--text-mute);
+   margin: 0 0 24px;
+   max-width: 460px;
+   text-wrap: pretty;
+   opacity: 0;
+   transform: translateY(20px);
+   transition: opacity 0.9s 0.1s var(--ease-quiet), transform 0.9s 0.1s var(--ease-quiet);
+ }
+ .deep-section.in-view .deep-eyebrow,
+ .deep-section.in-view .deep-h2,
+ .deep-section.in-view .deep-p {
+   opacity: 1; transform: translateY(0);
+ }
+
+ /* Deep visual — the right-column SVG mockup that animates. */
+ .deep-visual {
+   width: 100%;
+   max-width: 720px;
+   justify-self: center;
+   filter: drop-shadow(0 24px 50px rgba(15, 32, 68, 0.14))
+           drop-shadow(0 6px 14px rgba(15, 32, 68, 0.08));
+ }
+
+ /* Section 1 specific — TC PDF highlights pop on scroll */
+ .tc-pdf-highlight { opacity: 0; transition: opacity 0.6s var(--ease-quiet); }
+ .deep-section[data-stage="1"].in-view .tc-pdf-highlight-1 { opacity: 1; transition-delay: 0.3s; }
+ .deep-section[data-stage="1"].in-view .tc-pdf-highlight-2 { opacity: 1; transition-delay: 0.6s; }
+ .deep-section[data-stage="1"].in-view .tc-pdf-highlight-3 { opacity: 1; transition-delay: 0.9s; }
+
+ /* Section 2 specific — roster legs slide into dashboard */
+ .sync-leg { opacity: 0; transform: translateX(-30px); transition: opacity 0.5s var(--ease-quiet), transform 0.5s var(--ease-quiet); }
+ .deep-section[data-stage="2"].in-view .sync-leg { opacity: 1; transform: translateX(0); }
+ .deep-section[data-stage="2"].in-view .sync-leg-1 { transition-delay: 0.4s; }
+ .deep-section[data-stage="2"].in-view .sync-leg-2 { transition-delay: 0.6s; }
+ .deep-section[data-stage="2"].in-view .sync-leg-3 { transition-delay: 0.8s; }
+ .deep-section[data-stage="2"].in-view .sync-leg-4 { transition-delay: 1.0s; }
+
+ /* Reduced-motion: kill all animations, show final state */
+ @media (prefers-reduced-motion: reduce) {
+   .hero-composite, .deep-eyebrow, .deep-h2, .deep-p, .tc-pdf-highlight, .sync-leg {
+     opacity: 1 !important; transform: none !important; transition: none !important;
+   }
+ }
 
  /* Hero clouds removed 2026-05-26 — the drifting SVG cumulus crossed
     the hero text and read as a UFO/blob bug, not atmosphere. The
@@ -426,6 +566,229 @@
  </div>
 </section>
 
+<!-- ─── HERO COMPOSITE — MacBook + iPhone with real-app mockups ────────
+     Apple-style hero shot. MacBook displays the dashboard at full
+     density; iPhone overlaps the right edge showing the Add Flight
+     screen. Inline SVGs, light filter shadows, fades in on scroll. -->
+<div class="hero-composite" aria-label="Cumulo on MacBook and iPhone">
+
+ <!-- MacBook Pro · displays the live dashboard mockup -->
+ <svg class="macbook" viewBox="0 0 1280 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cumulo dashboard on MacBook">
+  <!-- Bezel (titanium-finish, rounded) -->
+  <rect x="0" y="0" width="1280" height="800" rx="22" fill="#1A1D24"/>
+  <rect x="14" y="14" width="1252" height="772" rx="10" fill="#0F1115"/>
+  <!-- Notch -->
+  <rect x="572" y="14" width="136" height="22" rx="10" fill="#0A0C10"/>
+  <circle cx="640" cy="25" r="3" fill="#1F2329"/>
+  <!-- Screen content area -->
+  <svg x="20" y="40" width="1240" height="740" viewBox="0 0 1240 740" preserveAspectRatio="xMidYMid slice">
+   <!-- Background -->
+   <rect width="1240" height="740" fill="#F7F8FA"/>
+   <!-- Header bar -->
+   <rect x="0" y="0" width="1240" height="56" fill="#FFFFFF" fill-opacity="0.85"/>
+   <line x1="0" y1="56" x2="1240" y2="56" stroke="rgba(15,23,42,0.06)"/>
+   <g transform="translate(24, 16)">
+    <image href="assets/cumulo-favicon.png" x="0" y="0" width="22" height="22"/>
+    <text x="32" y="14" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#0A0E1A">Cumulo</text>
+    <text x="32" y="26" font-family="JetBrains Mono, monospace" font-size="8" font-weight="500" letter-spacing="0.08em" fill="#7C8497">FLIGHT DECK</text>
+   </g>
+   <text x="1216" y="26" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#475063" text-anchor="end">J. Tremblay</text>
+   <text x="1216" y="40" font-family="JetBrains Mono, monospace" font-size="9" fill="#7C8497" text-anchor="end" letter-spacing="0.04em">2,999.2 HRS</text>
+
+   <!-- Sidebar -->
+   <rect x="0" y="56" width="220" height="684" fill="#FFFFFF" fill-opacity="0.5"/>
+   <line x1="220" y1="56" x2="220" y2="740" stroke="rgba(15,23,42,0.06)"/>
+   <g transform="translate(20, 96)" font-family="Inter, sans-serif" font-size="13" fill="#475063">
+    <text font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">MAIN</text>
+    <rect x="-8" y="14" width="200" height="30" rx="7" fill="#E6EDFB"/>
+    <text x="4" y="35" font-weight="600" fill="#3884FF">Dashboard</text>
+    <text x="4" y="68">Logbook</text>
+    <text y="116" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">DATA</text>
+    <text x="4" y="138">Import</text>
+    <text x="4" y="168">Brought-forward</text>
+    <text y="216" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">REPORTS</text>
+    <text x="4" y="238">Year Recap</text>
+    <text y="286" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">SETTINGS</text>
+    <text x="4" y="308">Settings</text>
+    <text x="4" y="338">Q &amp; A</text>
+   </g>
+
+   <!-- Main content : greeting + hero card + validities -->
+   <g transform="translate(248, 88)">
+    <text font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.10em" fill="#7C8497">FRIDAY · MAY 29, 2026 · WEEK 22</text>
+    <text y="38" font-family="Inter, sans-serif" font-size="30" font-weight="600" letter-spacing="-0.025em" fill="#0A0E1A">Good morning, Jordan.</text>
+    <text y="64" font-family="Inter, sans-serif" font-size="13" fill="#475063">You've logged <tspan font-weight="700" fill="#0A0E1A">12 flights</tspan> this month. Next medical renewal in <tspan font-weight="700" fill="#0A0E1A">238 days</tspan>.</text>
+
+    <!-- Hero card -->
+    <g transform="translate(0, 96)">
+     <rect width="540" height="200" rx="14" fill="#FFFFFF" stroke="rgba(15,23,42,0.06)"/>
+     <text x="24" y="36" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">TOTAL BLOCK HOURS · CAREER</text>
+     <text x="24" y="118" font-family="Inter, sans-serif" font-size="76" font-weight="600" letter-spacing="-0.045em" fill="#0A0E1A">2,999.2</text>
+     <text x="294" y="118" font-family="Inter, sans-serif" font-size="19" font-weight="500" fill="#7C8497">hrs</text>
+     <!-- Delta pill -->
+     <rect x="22" y="138" width="180" height="24" rx="12" fill="#DDF4EC"/>
+     <text x="32" y="154" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#10A37F">↗ +89.4 hrs · last 30 days</text>
+     <!-- Sparkline -->
+     <g transform="translate(316, 80)">
+      <defs>
+       <linearGradient id="hero-spark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3884FF" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#3884FF" stop-opacity="0"/>
+       </linearGradient>
+      </defs>
+      <path d="M0,55 L20,52 L40,48 L60,46 L80,40 L100,42 L120,35 L140,30 L160,22 L180,18 L200,12 L200,70 L0,70 Z" fill="url(#hero-spark)"/>
+      <path d="M0,55 L20,52 L40,48 L60,46 L80,40 L100,42 L120,35 L140,30 L160,22 L180,18 L200,12" fill="none" stroke="#3884FF" stroke-width="1.75" stroke-linecap="round"/>
+      <circle cx="200" cy="12" r="3.5" fill="#3884FF" stroke="#FFFFFF" stroke-width="2"/>
+     </g>
+    </g>
+
+    <!-- Validities card -->
+    <g transform="translate(564, 96)">
+     <rect width="380" height="200" rx="14" fill="#FFFFFF" stroke="rgba(15,23,42,0.06)"/>
+     <text x="24" y="36" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">CURRENT VALIDITIES</text>
+     <g transform="translate(48, 70)">
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 32 32)"/>
+      <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">PPC</text>
+      <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">127 d</text>
+      <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">CASS 725</text>
+     </g>
+     <g transform="translate(148, 70)">
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 32 32)"/>
+      <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">REC</text>
+      <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">19 / 5 ldg</text>
+      <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">6 MOS</text>
+     </g>
+     <g transform="translate(248, 70)">
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="42" stroke-linecap="round" transform="rotate(-90 32 32)"/>
+      <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">MED</text>
+      <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">238 d</text>
+      <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">CAT 1</text>
+     </g>
+    </g>
+
+    <!-- Recent legs -->
+    <g transform="translate(0, 320)">
+     <rect width="540" height="232" rx="14" fill="#FFFFFF" stroke="rgba(15,23,42,0.06)"/>
+     <text x="24" y="34" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" letter-spacing="0.10em" fill="#7C8497">RECENT LEGS</text>
+     <text x="516" y="34" font-family="Inter, sans-serif" font-size="11" fill="#3884FF" text-anchor="end" font-weight="500">Full logbook →</text>
+     <g font-family="Inter, sans-serif" font-size="13" fill="#0A0E1A">
+      <line x1="24" y1="56" x2="516" y2="56" stroke="rgba(15,23,42,0.05)"/>
+      <text x="24" y="80" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497" letter-spacing="0.04em">28 MAY</text>
+      <text x="120" y="80" font-weight="500">CYUL → CYOW</text>
+      <text x="350" y="80" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">C-FAVR</text>
+      <text x="516" y="80" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" text-anchor="end">1.1</text>
+
+      <line x1="24" y1="96" x2="516" y2="96" stroke="rgba(15,23,42,0.05)"/>
+      <text x="24" y="120" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497" letter-spacing="0.04em">28 MAY</text>
+      <text x="120" y="120" font-weight="500">CYOW → CYUL</text>
+      <text x="350" y="120" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">C-FAVR</text>
+      <text x="516" y="120" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" text-anchor="end">1.0</text>
+
+      <line x1="24" y1="136" x2="516" y2="136" stroke="rgba(15,23,42,0.05)"/>
+      <text x="24" y="160" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497" letter-spacing="0.04em">27 MAY</text>
+      <text x="120" y="160" font-weight="500">CYUL → CYHZ</text>
+      <text x="350" y="160" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">C-FAVS</text>
+      <text x="516" y="160" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" text-anchor="end">1.6</text>
+
+      <line x1="24" y1="176" x2="516" y2="176" stroke="rgba(15,23,42,0.05)"/>
+      <text x="24" y="200" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497" letter-spacing="0.04em">27 MAY</text>
+      <text x="120" y="200" font-weight="500">CYHZ → CYUL</text>
+      <text x="350" y="200" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">C-FAVS</text>
+      <text x="516" y="200" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" text-anchor="end">1.7</text>
+     </g>
+    </g>
+
+    <!-- Next column -->
+    <g transform="translate(564, 320)">
+     <rect width="380" height="76" rx="14" fill="#FFFFFF" stroke="rgba(15,23,42,0.06)"/>
+     <rect x="0" y="0" width="3" height="76" rx="1.5" fill="#3884FF"/>
+     <text x="24" y="28" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#3884FF">NEXT FLIGHT</text>
+     <text x="24" y="50" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#0A0E1A">CYUL → CYOW · 14:30Z</text>
+     <text x="24" y="66" font-family="Inter, sans-serif" font-size="11" fill="#7C8497">Tomorrow · DH8 · iCal synced</text>
+
+     <rect y="86" width="380" height="76" rx="14" fill="#DDF4EC" fill-opacity="0.4"/>
+     <rect x="0" y="86" width="3" height="76" rx="1.5" fill="#10A37F"/>
+     <text x="24" y="114" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#10A37F">STATUS</text>
+     <text x="24" y="136" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#0A0E1A">All validities current</text>
+     <text x="24" y="152" font-family="Inter, sans-serif" font-size="11" fill="#7C8497">PPC · REC · MED — just verified</text>
+    </g>
+   </g>
+  </svg>
+  <!-- MacBook bottom edge / hinge -->
+  <rect x="0" y="800" width="1280" height="20" rx="3" fill="#1A1D24"/>
+  <rect x="540" y="800" width="200" height="10" rx="2" fill="#0F1115"/>
+ </svg>
+
+ <!-- iPhone 15 Pro · displays the Add Flight screen mockup -->
+ <svg class="iphone" viewBox="0 0 360 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cumulo Add Flight on iPhone">
+  <!-- Outer titanium frame -->
+  <rect x="0" y="0" width="360" height="760" rx="56" fill="#1A1D24"/>
+  <!-- Inner bezel (deep black) -->
+  <rect x="8" y="8" width="344" height="744" rx="48" fill="#0A0C10"/>
+  <!-- Screen content -->
+  <svg x="14" y="14" width="332" height="732" viewBox="0 0 332 732" preserveAspectRatio="xMidYMid slice">
+   <rect width="332" height="732" rx="44" fill="#F7F8FA"/>
+   <!-- Dynamic Island -->
+   <rect x="116" y="14" width="100" height="32" rx="16" fill="#0A0C10"/>
+   <!-- Status bar -->
+   <text x="32" y="36" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#0A0E1A">10:24</text>
+   <text x="300" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="end" fill="#0A0E1A">●●● 5G</text>
+
+   <!-- Header with back chevron + title -->
+   <g transform="translate(0, 64)">
+    <text x="22" y="22" font-family="Inter, sans-serif" font-size="15" font-weight="500" fill="#3884FF">‹ Dashboard</text>
+    <text x="22" y="56" font-family="Inter, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.025em" fill="#0A0E1A">Add flight</text>
+    <text x="22" y="78" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">FRIDAY · MAY 29</text>
+   </g>
+
+   <!-- Card 1 : Route -->
+   <g transform="translate(20, 168)">
+    <rect width="292" height="92" rx="14" fill="#FFFFFF"/>
+    <text x="16" y="26" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#7C8497">ROUTE · AIRCRAFT</text>
+    <text x="16" y="58" font-family="Inter, sans-serif" font-size="22" font-weight="700" letter-spacing="-0.02em" fill="#0A0E1A">CYUL → CYOW</text>
+    <text x="276" y="58" font-family="JetBrains Mono, monospace" font-size="14" font-weight="500" fill="#475063" text-anchor="end">C-FAVR</text>
+    <text x="16" y="78" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">E195-E2 · 95 NM</text>
+   </g>
+
+   <!-- Card 2 : Block + Flight time -->
+   <g transform="translate(20, 280)">
+    <rect width="292" height="116" rx="14" fill="#FFFFFF"/>
+    <text x="16" y="26" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#7C8497">BLOCK · FLIGHT</text>
+    <text x="16" y="68" font-family="Inter, sans-serif" font-size="34" font-weight="600" letter-spacing="-0.035em" fill="#0A0E1A">1.1</text>
+    <text x="58" y="68" font-family="Inter, sans-serif" font-size="14" fill="#7C8497">hrs block</text>
+    <text x="16" y="94" font-family="Inter, sans-serif" font-size="13" fill="#475063">1.0 hrs flight · 0.9 hrs day</text>
+   </g>
+
+   <!-- Card 3 : Auto-calc info -->
+   <g transform="translate(20, 416)">
+    <rect width="292" height="104" rx="14" fill="#E6EDFB"/>
+    <text x="16" y="26" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#3884FF">AUTO-CALCULATED</text>
+    <g transform="translate(16, 44)" font-family="Inter, sans-serif" font-size="12" fill="#0A0E1A">
+     <circle r="3" cx="0" cy="6" fill="#3884FF"/>
+     <text x="12" y="10">Cross-country: <tspan font-weight="600">Yes · 95 NM</tspan></text>
+     <circle r="3" cx="0" cy="26" fill="#3884FF"/>
+     <text x="12" y="30">Night: <tspan font-weight="600">0.2 hrs · RAC 101.01</tspan></text>
+     <circle r="3" cx="0" cy="46" fill="#3884FF"/>
+     <text x="12" y="50">Landings: <tspan font-weight="600">1 day</tspan></text>
+    </g>
+   </g>
+
+   <!-- Save CTA -->
+   <g transform="translate(20, 544)">
+    <rect width="292" height="52" rx="12" fill="#3884FF"/>
+    <text x="146" y="32" font-family="Inter, sans-serif" font-size="15" font-weight="600" fill="#FFFFFF" text-anchor="middle">Save flight</text>
+   </g>
+
+   <!-- Home indicator -->
+   <rect x="106" y="704" width="120" height="5" rx="2.5" fill="#0A0E1A" fill-opacity="0.3"/>
+  </svg>
+ </svg>
+
+</div>
+
 <div class="trust-bar">
  <div class="trust-card">
  <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01"/></svg></div>
@@ -449,185 +812,234 @@
  </div>
 </div>
 
-<!-- ─── See the app — SVG dashboard mockup ─────────────────────────
-     Inline SVG illustration that reads as a screenshot of the app.
-     All numbers + names are anonymized (no real pilot identifiable).
-     Built from scratch so it always matches the live design tokens.
-     Lighter than a PNG, scales perfectly, and can be tweaked from
-     the same source without re-screenshotting. -->
-<section class="preview-section">
- <div class="preview-eyebrow">SEE THE APP</div>
- <div class="preview-title">A clearer view of your career, at a glance.</div>
- <div class="preview-sub">Dashboard that surfaces your validities and career progress at a glance. Tap any number to see exactly where it comes from.</div>
- <div class="preview-frame">
-   <div class="preview-frame-bar">
-     <div class="preview-frame-dot"></div>
-     <div class="preview-frame-dot"></div>
-     <div class="preview-frame-dot"></div>
-   </div>
-   <svg viewBox="0 0 1100 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cumulo Dashboard preview">
-     <defs>
-       <linearGradient id="pvAppBg" x1="0" y1="0" x2="0" y2="1">
-         <stop offset="0%"   stop-color="#E6ECF5"/>
-         <stop offset="35%"  stop-color="#F1F4F9"/>
-         <stop offset="100%" stop-color="#F7F8FA"/>
-       </linearGradient>
-       <linearGradient id="pvSpark" x1="0" y1="0" x2="0" y2="1">
-         <stop offset="0%"   stop-color="#3884FF" stop-opacity="0.30"/>
-         <stop offset="100%" stop-color="#3884FF" stop-opacity="0"/>
-       </linearGradient>
-       <radialGradient id="pvBlob" cx="50%" cy="50%" r="50%">
-         <stop offset="0%" stop-color="#3884FF" stop-opacity="0.16"/>
-         <stop offset="100%" stop-color="#3884FF" stop-opacity="0"/>
-       </radialGradient>
-     </defs>
+<!-- ─── DEEP SECTION 1 — Transport Canada compliance ──────────────
+     Sticky-scroll section. Left column: eyebrow + h2 + body, animated
+     in on scroll via IntersectionObserver. Right column: TP 14052 PDF
+     mockup with 3 annotation pills that fade in sequentially as the
+     section enters view (RAC 101.01 night, CAR 401.34 XC, TP 14052
+     signature). -->
+<section class="deep-section" data-stage="1">
+ <div class="stick">
+  <div class="deep-text">
+   <div class="deep-eyebrow">Transport Canada · TP 14052</div>
+   <h2 class="deep-h2">Compliance, not interpretation.</h2>
+   <p class="deep-p">Night time per <strong style="color:var(--text);">RAC 101.01</strong>. Cross-country per <strong style="color:var(--text);">CAR 401.34</strong>. The PDF export matches <strong style="color:var(--text);">TP 14052</strong> column-for-column. Inspection-ready, signature line included.</p>
+   <p class="deep-p">No interpretation. No approximations. Just the regulation, applied to every flight.</p>
+  </div>
+  <div class="deep-visual">
+   <!-- TP 14052 PDF mockup with annotation overlays -->
+   <svg viewBox="0 0 720 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transport Canada PDF logbook export">
+    <!-- Paper -->
+    <rect width="720" height="520" rx="8" fill="#FFFFFF" stroke="rgba(15,23,42,0.10)"/>
+    <!-- Header strip -->
+    <rect width="720" height="48" rx="8" fill="#0F2A5C"/>
+    <text x="24" y="30" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#FFFFFF" letter-spacing="0.02em">TRANSPORT CANADA · TP 14052 · PILOT LOGBOOK</text>
+    <text x="696" y="30" font-family="JetBrains Mono, monospace" font-size="10" fill="#B7C5E0" text-anchor="end">Page 1 / 47</text>
+    <!-- Sub-header : pilot info -->
+    <g font-family="Inter, sans-serif" font-size="10" fill="#475063">
+     <text x="24" y="74">Pilot: <tspan font-weight="600" fill="#0A0E1A">Tremblay, Jordan</tspan></text>
+     <text x="240" y="74">License: <tspan font-weight="600" fill="#0A0E1A">CPL · 705 IFR</tspan></text>
+     <text x="440" y="74">Period: <tspan font-weight="600" fill="#0A0E1A">2026-01-01 → 2026-05-29</tspan></text>
+    </g>
+    <line x1="24" y1="86" x2="696" y2="86" stroke="rgba(15,23,42,0.10)"/>
+    <!-- Column headers -->
+    <g font-family="JetBrains Mono, monospace" font-size="8" font-weight="600" letter-spacing="0.06em" fill="#7C8497">
+     <text x="32" y="104">DATE</text>
+     <text x="92" y="104">ROUTE</text>
+     <text x="190" y="104">REG</text>
+     <text x="248" y="104">TYPE</text>
+     <text x="312" y="104">BLOCK</text>
+     <text x="360" y="104">FLIGHT</text>
+     <text x="412" y="104">DAY</text>
+     <text x="448" y="104">NIGHT</text>
+     <text x="500" y="104">XC</text>
+     <text x="536" y="104">IFR</text>
+     <text x="578" y="104">APP</text>
+     <text x="620" y="104">LDG</text>
+     <text x="664" y="104">TOTAL</text>
+    </g>
+    <line x1="24" y1="112" x2="696" y2="112" stroke="rgba(15,23,42,0.15)"/>
+    <!-- Rows -->
+    <g font-family="Inter, sans-serif" font-size="10" fill="#0A0E1A" font-variant-numeric="tabular-nums">
+     <text x="32" y="132" font-family="JetBrains Mono, monospace" font-size="9">28-MAY</text>
+     <text x="92" y="132">CYUL-CYOW</text>
+     <text x="190" y="132" font-family="JetBrains Mono, monospace" font-size="9">C-FAVR</text>
+     <text x="248" y="132" font-family="JetBrains Mono, monospace" font-size="9">E195-E2</text>
+     <text x="332" y="132" text-anchor="middle">1.1</text>
+     <text x="376" y="132" text-anchor="middle">1.0</text>
+     <text x="420" y="132" text-anchor="middle">0.9</text>
+     <text x="468" y="132" text-anchor="middle" fill="#6366F1" font-weight="600">0.2</text>
+     <text x="510" y="132" text-anchor="middle" fill="#10A37F" font-weight="600">1.0</text>
+     <text x="548" y="132" text-anchor="middle">0.4</text>
+     <text x="592" y="132" text-anchor="middle">1</text>
+     <text x="630" y="132" text-anchor="middle">D</text>
+     <text x="688" y="132" text-anchor="end" font-weight="600">1.1</text>
 
-     <!-- App background: sky gradient + atmospheric blob -->
-     <rect width="1100" height="580" fill="url(#pvAppBg)"/>
-     <ellipse cx="280" cy="120" rx="380" ry="180" fill="url(#pvBlob)"/>
+     <text x="32" y="150" font-family="JetBrains Mono, monospace" font-size="9">28-MAY</text>
+     <text x="92" y="150">CYOW-CYUL</text>
+     <text x="190" y="150" font-family="JetBrains Mono, monospace" font-size="9">C-FAVR</text>
+     <text x="248" y="150" font-family="JetBrains Mono, monospace" font-size="9">E195-E2</text>
+     <text x="332" y="150" text-anchor="middle">1.0</text>
+     <text x="376" y="150" text-anchor="middle">0.9</text>
+     <text x="420" y="150" text-anchor="middle">1.0</text>
+     <text x="468" y="150" text-anchor="middle" fill="#6366F1" font-weight="600">0.0</text>
+     <text x="510" y="150" text-anchor="middle" fill="#10A37F" font-weight="600">1.0</text>
+     <text x="548" y="150" text-anchor="middle">0.5</text>
+     <text x="592" y="150" text-anchor="middle">1</text>
+     <text x="630" y="150" text-anchor="middle">N</text>
+     <text x="688" y="150" text-anchor="end" font-weight="600">1.0</text>
 
-     <!-- Sidebar -->
-     <rect x="0" y="0" width="220" height="580" fill="#FFFFFF" fill-opacity="0.5"/>
-     <line x1="220" y1="0" x2="220" y2="580" stroke="rgba(15,23,42,0.06)"/>
-     <!-- Brand mark in sidebar — Paige's official cloud favicon. -->
-     <g transform="translate(24, 14)">
-       <image href="assets/cumulo-favicon.png" x="0" y="0" width="22" height="22"/>
-       <text x="30" y="17" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#0A0E1A">Cumulo</text>
-     </g>
-     <!-- Sidebar nav items -->
-     <g font-family="Inter, sans-serif" font-size="13" fill="#475063">
-       <rect x="12" y="78"  width="200" height="32" rx="8" fill="#E6EDFB"/>
-       <text x="32" y="98"  font-weight="600" fill="#3884FF">Dashboard</text>
-       <text x="32" y="128" >Logbook</text>
-       <text x="32" y="158" >Add flight</text>
-       <text x="32" y="188" >Import</text>
-       <text x="32" y="228" >Settings</text>
-       <text x="32" y="258" >Q &amp; A</text>
-     </g>
+     <text x="32" y="168" font-family="JetBrains Mono, monospace" font-size="9">27-MAY</text>
+     <text x="92" y="168">CYUL-CYHZ</text>
+     <text x="190" y="168" font-family="JetBrains Mono, monospace" font-size="9">C-FAVS</text>
+     <text x="248" y="168" font-family="JetBrains Mono, monospace" font-size="9">E195-E2</text>
+     <text x="332" y="168" text-anchor="middle">1.6</text>
+     <text x="376" y="168" text-anchor="middle">1.5</text>
+     <text x="420" y="168" text-anchor="middle">1.6</text>
+     <text x="468" y="168" text-anchor="middle" fill="#6366F1" font-weight="600">0.0</text>
+     <text x="510" y="168" text-anchor="middle" fill="#10A37F" font-weight="600">1.6</text>
+     <text x="548" y="168" text-anchor="middle">0.5</text>
+     <text x="592" y="168" text-anchor="middle">1</text>
+     <text x="630" y="168" text-anchor="middle">D</text>
+     <text x="688" y="168" text-anchor="end" font-weight="600">1.6</text>
+    </g>
+    <!-- Subtotal row -->
+    <line x1="24" y1="184" x2="696" y2="184" stroke="rgba(15,23,42,0.15)"/>
+    <g font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#0A0E1A">
+     <text x="32" y="202" letter-spacing="0.06em" fill="#7C8497">SUBTOTAL</text>
+     <text x="332" y="202" text-anchor="middle">3.7</text>
+     <text x="376" y="202" text-anchor="middle">3.4</text>
+     <text x="420" y="202" text-anchor="middle">3.5</text>
+     <text x="468" y="202" text-anchor="middle">0.2</text>
+     <text x="510" y="202" text-anchor="middle">3.6</text>
+     <text x="548" y="202" text-anchor="middle">1.4</text>
+     <text x="592" y="202" text-anchor="middle">3</text>
+     <text x="688" y="202" text-anchor="end">3.7</text>
+    </g>
+    <!-- Signature line -->
+    <line x1="24" y1="468" x2="240" y2="468" stroke="#0A0E1A"/>
+    <text x="24" y="484" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0A0E1A">Pilot signature</text>
+    <text x="24" y="498" font-family="JetBrains Mono, monospace" font-size="9" fill="#7C8497">CAR 401.08(2)(h) attestation</text>
+    <line x1="480" y1="468" x2="696" y2="468" stroke="#0A0E1A"/>
+    <text x="480" y="484" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0A0E1A">Date</text>
+    <text x="480" y="498" font-family="JetBrains Mono, monospace" font-size="9" fill="#7C8497">2026-05-29</text>
 
-     <!-- Topbar -->
-     <rect x="220" y="0" width="880" height="56" fill="rgba(255,255,255,0.45)"/>
-     <line x1="220" y1="56" x2="1100" y2="56" stroke="rgba(15,23,42,0.06)"/>
-     <text x="1052" y="34" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#475063" text-anchor="end">J. Tremblay</text>
-     <text x="1052" y="48" font-family="JetBrains Mono, monospace" font-size="10" fill="#7C8497" text-anchor="end" letter-spacing="0.04em">2,999.2 HRS</text>
-
-     <!-- Greeting -->
-     <text x="248" y="100" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">TUESDAY · MAY 26, 2026 · WEEK 22</text>
-     <text x="248" y="138" font-family="Inter, sans-serif" font-size="30" font-weight="700" letter-spacing="-0.025em" fill="#0A0E1A">Good morning, Jordan.</text>
-     <text x="248" y="164" font-family="Inter, sans-serif" font-size="14" fill="#475063">You've logged <tspan font-weight="700" fill="#0A0E1A">18 flights</tspan> this month. Next medical renewal in <tspan font-weight="700" fill="#0A0E1A">238 days</tspan>.</text>
-
-     <!-- Hero card -->
-     <g transform="translate(248, 196)">
-       <rect width="490" height="200" rx="12" fill="#FFFFFF" stroke="rgba(15,23,42,0.05)"/>
-       <text x="24" y="36" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">TOTAL BLOCK HOURS · CAREER</text>
-       <text x="24" y="118" font-family="Inter, sans-serif" font-size="76" font-weight="700" letter-spacing="-0.025em" fill="#0A0E1A">2,999.2</text>
-       <text x="262" y="118" font-family="Inter, sans-serif" font-size="22" fill="#7C8497">hrs</text>
-       <!-- Delta pill -->
-       <rect x="24" y="138" width="170" height="26" rx="13" fill="#DDF4EC"/>
-       <text x="40" y="156" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#10A37F">↗ +89.4 hrs · last 30 days</text>
-       <!-- Sparkline -->
-       <g transform="translate(280, 60)">
-         <path d="M0,80 L20,75 L40,68 L60,72 L80,60 L100,55 L120,50 L140,42 L160,38 L180,28 L200,20" stroke="#3884FF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-         <path d="M0,80 L20,75 L40,68 L60,72 L80,60 L100,55 L120,50 L140,42 L160,38 L180,28 L200,20 L200,100 L0,100 Z" fill="url(#pvSpark)"/>
-         <circle cx="200" cy="20" r="3.5" fill="#3884FF" stroke="#FFFFFF" stroke-width="2"/>
-       </g>
-     </g>
-
-     <!-- Validity rings card -->
-     <g transform="translate(758, 196)">
-       <rect width="320" height="200" rx="12" fill="#FFFFFF" stroke="rgba(15,23,42,0.05)"/>
-       <text x="24" y="36" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">CURRENT VALIDITIES</text>
-       <!-- 3 rings -->
-       <g transform="translate(40, 64)">
-         <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
-         <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 32 32)"/>
-         <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">PPC</text>
-         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">127 d</text>
-         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">CASS 725</text>
-       </g>
-       <g transform="translate(128, 64)">
-         <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
-         <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 32 32)"/>
-         <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">REC</text>
-         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">19 / 5 ldg</text>
-         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">6 MOS</text>
-       </g>
-       <g transform="translate(216, 64)">
-         <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
-         <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="40" stroke-linecap="round" transform="rotate(-90 32 32)"/>
-         <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">MED</text>
-         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">238 d</text>
-         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">CAT 1</text>
-       </g>
-     </g>
-
-     <!-- Recent legs list -->
-     <g transform="translate(248, 416)">
-       <rect width="490" height="148" rx="12" fill="#FFFFFF" stroke="rgba(15,23,42,0.05)"/>
-       <text x="24" y="32" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">RECENT LEGS</text>
-       <!-- Leg rows -->
-       <g font-family="Inter, sans-serif" font-size="12" fill="#0A0E1A">
-         <text x="24" y="60" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" letter-spacing="0.04em" fill="#7C8497">25 MAY</text>
-         <text x="100" y="60" font-weight="600">YUL-YOW</text>
-         <text x="360" y="60" font-family="JetBrains Mono, monospace" fill="#475063">C-FAVR</text>
-         <text x="466" y="60" font-family="JetBrains Mono, monospace" font-weight="600" text-anchor="end">0.9</text>
-
-         <text x="24" y="84" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" letter-spacing="0.04em" fill="#7C8497">25 MAY</text>
-         <text x="100" y="84" font-weight="600">YOW-YUL</text>
-         <text x="360" y="84" font-family="JetBrains Mono, monospace" fill="#475063">C-FAVR</text>
-         <text x="466" y="84" font-family="JetBrains Mono, monospace" font-weight="600" text-anchor="end">0.9</text>
-
-         <text x="24" y="108" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" letter-spacing="0.04em" fill="#7C8497">24 MAY</text>
-         <text x="100" y="108" font-weight="600">YUL-YHZ</text>
-         <text x="360" y="108" font-family="JetBrains Mono, monospace" fill="#475063">C-FAVS</text>
-         <text x="466" y="108" font-family="JetBrains Mono, monospace" font-weight="600" text-anchor="end">1.6</text>
-
-         <text x="24" y="132" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" letter-spacing="0.04em" fill="#7C8497">24 MAY</text>
-         <text x="100" y="132" font-weight="600">YHZ-YUL</text>
-         <text x="360" y="132" font-family="JetBrains Mono, monospace" fill="#475063">C-FAVS</text>
-         <text x="466" y="132" font-family="JetBrains Mono, monospace" font-weight="600" text-anchor="end">1.7</text>
-       </g>
-     </g>
-
-     <!-- Status + Milestone column -->
-     <g transform="translate(758, 416)">
-       <!-- Status card (green) -->
-       <rect width="320" height="68" rx="12" fill="url(#pvAppBg)" stroke="rgba(15,23,42,0.05)"/>
-       <rect width="3" height="68" rx="1.5" fill="#10A37F"/>
-       <rect x="0" y="0" width="320" height="68" rx="12" fill="#DDF4EC" fill-opacity="0.4"/>
-       <text x="20" y="24" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.08em" fill="#10A37F">STATUS</text>
-       <rect x="280" y="12" width="26" height="16" rx="3" fill="#10A37F"/>
-       <text x="293" y="23" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">OK</text>
-       <text x="20" y="46" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#0A0E1A">All validities current</text>
-       <text x="20" y="62" font-family="Inter, sans-serif" font-size="11" fill="#7C8497">PPC · REC · MED — just verified</text>
-
-       <!-- Milestone card with progress bar -->
-       <g transform="translate(0, 80)">
-         <rect width="320" height="68" rx="12" fill="#FFFFFF" stroke="rgba(15,23,42,0.05)"/>
-         <rect width="3" height="68" rx="1.5" fill="#7C8497"/>
-         <text x="20" y="24" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.08em" fill="#7C8497">MILESTONE</text>
-         <rect x="276" y="12" width="32" height="16" rx="3" fill="#DDF4EC"/>
-         <text x="292" y="23" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#10A37F" text-anchor="middle">GOAL</text>
-         <text x="20" y="42" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#0A0E1A">1,500 hrs</text>
-         <text x="20" y="56" font-family="Inter, sans-serif" font-size="11" fill="#7C8497">Reached — next career milestone</text>
-         <!-- Progress bar (full at 1500) -->
-         <rect x="20" y="60" width="280" height="4" rx="2" fill="#F1F3F7"/>
-         <rect x="20" y="60" width="280" height="4" rx="2" fill="#10A37F"/>
-       </g>
-     </g>
+    <!-- Annotation pills — fade in sequentially on scroll -->
+    <g class="tc-pdf-highlight tc-pdf-highlight-1">
+     <rect x="440" y="120" width="60" height="22" rx="11" fill="#6366F1"/>
+     <text x="470" y="135" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">NIGHT</text>
+     <path d="M470 142 L470 152" stroke="#6366F1" stroke-width="1.5" stroke-dasharray="2 2"/>
+     <text x="478" y="216" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#6366F1">RAC 101.01</text>
+    </g>
+    <g class="tc-pdf-highlight tc-pdf-highlight-2">
+     <rect x="492" y="92" width="54" height="22" rx="11" fill="#10A37F"/>
+     <text x="519" y="107" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#FFFFFF" text-anchor="middle">XC</text>
+     <path d="M519 72 L519 80" stroke="#10A37F" stroke-width="1.5" stroke-dasharray="2 2"/>
+     <text x="519" y="66" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#10A37F" text-anchor="middle">CAR 401.34</text>
+    </g>
+    <g class="tc-pdf-highlight tc-pdf-highlight-3">
+     <rect x="24" y="448" width="216" height="44" rx="6" fill="none" stroke="#3884FF" stroke-width="2" stroke-dasharray="4 3"/>
+     <text x="132" y="444" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#3884FF" text-anchor="middle">TP 14052 signature block</text>
+    </g>
    </svg>
+  </div>
  </div>
 </section>
 
-<section class="section">
- <h2>Built on Transport Canada standards</h2>
- <div style="max-width:780px;margin:0 auto;">
- <p style="font-size: 16px; line-height: 1.7;">
- Cumulo Flight Deck calculates night time per <strong>RAC 101.01</strong> (sunrise/sunset, not approximations).
- Cross-country detection per <strong>CAR 401.34</strong> (great-circle distance &gt; 25 NM).
- The PDF export matches <strong>TP 14052</strong> column-for-column for ramp checks and ATPL submissions.
- Imports today: iCal auto-sync (for airlines that publish a webcal:// roster feed), monthly roster PDF parser, AI photo OCR for any paper logbook page, and 5 CSV importers from other logbook apps (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus a generic CSV column-mapper.
- </p>
+<!-- ─── DEEP SECTION 2 — Auto-sync your roster ───────────────────
+     iCal roster pulls in flights automatically. Left text + right
+     visual showing 4 legs sliding into the dashboard sequentially
+     as the section enters view. -->
+<section class="deep-section" data-stage="2">
+ <div class="stick">
+  <div class="deep-text">
+   <div class="deep-eyebrow">iCal roster · auto-sync</div>
+   <h2 class="deep-h2">Your roster, already logged.</h2>
+   <p class="deep-p">Connect your airline's iCal feed once. Every new flight syncs automatically — block hours, route, registration, day / night split. No re-typing what your crew-scheduling system already knows.</p>
+   <p class="deep-p">PDF roster, photo OCR, and CSV migration paths cover the rest.</p>
+  </div>
+  <div class="deep-visual">
+   <svg viewBox="0 0 720 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Roster syncing into Cumulo dashboard">
+    <!-- Background card -->
+    <rect width="720" height="520" rx="14" fill="#FFFFFF" stroke="rgba(15,23,42,0.08)"/>
+    <!-- Header -->
+    <g transform="translate(24, 28)">
+     <image href="assets/cumulo-favicon.png" x="0" y="0" width="20" height="20"/>
+     <text x="28" y="14" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#0A0E1A">Logbook</text>
+     <text x="28" y="28" font-family="JetBrains Mono, monospace" font-size="9" letter-spacing="0.08em" fill="#7C8497">SYNCED FROM iCAL · 12 SEC AGO</text>
+    </g>
+    <!-- iCal source pill (top right) -->
+    <g transform="translate(520, 28)">
+     <rect width="172" height="36" rx="18" fill="#E6EDFB"/>
+     <circle cx="22" cy="18" r="6" fill="#3884FF"/>
+     <circle cx="22" cy="18" r="3" fill="#FFFFFF"/>
+     <text x="38" y="22" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#3884FF">Navblue iCal · active</text>
+    </g>
+    <!-- Connection line from pill to first leg -->
+    <path d="M520 64 Q500 96 480 130 Q380 130 280 130" fill="none" stroke="#3884FF" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+
+    <!-- Column header -->
+    <g font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.08em" fill="#7C8497" transform="translate(24, 100)">
+     <text x="0" y="0">DATE</text>
+     <text x="92" y="0">ROUTE</text>
+     <text x="280" y="0">REG</text>
+     <text x="380" y="0">BLOCK</text>
+     <text x="500" y="0">DAY / NIGHT</text>
+     <text x="650" y="0" text-anchor="end">XC</text>
+    </g>
+    <line x1="24" y1="116" x2="696" y2="116" stroke="rgba(15,23,42,0.08)"/>
+
+    <!-- Legs sliding in -->
+    <g class="sync-leg sync-leg-1" transform="translate(24, 120)">
+     <rect width="672" height="56" fill="#F7F8FA"/>
+     <text x="0" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">28 MAY</text>
+     <text x="92" y="34" font-family="Inter, sans-serif" font-size="15" font-weight="500" fill="#0A0E1A">CYUL → CYOW</text>
+     <text x="280" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">C-FAVR</text>
+     <text x="380" y="34" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#0A0E1A">1.1</text>
+     <text x="500" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">0.9 / 0.2</text>
+     <text x="650" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#10A37F" font-weight="600" text-anchor="end">YES</text>
+     <line x1="0" y1="56" x2="672" y2="56" stroke="rgba(15,23,42,0.05)"/>
+    </g>
+    <g class="sync-leg sync-leg-2" transform="translate(24, 180)">
+     <text x="0" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">28 MAY</text>
+     <text x="92" y="34" font-family="Inter, sans-serif" font-size="15" font-weight="500" fill="#0A0E1A">CYOW → CYUL</text>
+     <text x="280" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">C-FAVR</text>
+     <text x="380" y="34" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#0A0E1A">1.0</text>
+     <text x="500" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">1.0 / 0.0</text>
+     <text x="650" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#10A37F" font-weight="600" text-anchor="end">YES</text>
+     <line x1="0" y1="56" x2="672" y2="56" stroke="rgba(15,23,42,0.05)"/>
+    </g>
+    <g class="sync-leg sync-leg-3" transform="translate(24, 240)">
+     <text x="0" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">27 MAY</text>
+     <text x="92" y="34" font-family="Inter, sans-serif" font-size="15" font-weight="500" fill="#0A0E1A">CYUL → CYHZ</text>
+     <text x="280" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">C-FAVS</text>
+     <text x="380" y="34" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#0A0E1A">1.6</text>
+     <text x="500" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">1.6 / 0.0</text>
+     <text x="650" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#10A37F" font-weight="600" text-anchor="end">YES</text>
+     <line x1="0" y1="56" x2="672" y2="56" stroke="rgba(15,23,42,0.05)"/>
+    </g>
+    <g class="sync-leg sync-leg-4" transform="translate(24, 300)">
+     <text x="0" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#7C8497">27 MAY</text>
+     <text x="92" y="34" font-family="Inter, sans-serif" font-size="15" font-weight="500" fill="#0A0E1A">CYHZ → CYUL</text>
+     <text x="280" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">C-FAVS</text>
+     <text x="380" y="34" font-family="JetBrains Mono, monospace" font-size="14" font-weight="600" fill="#0A0E1A">1.7</text>
+     <text x="500" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#475063">1.7 / 0.0</text>
+     <text x="650" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#10A37F" font-weight="600" text-anchor="end">YES</text>
+     <line x1="0" y1="56" x2="672" y2="56" stroke="rgba(15,23,42,0.05)"/>
+    </g>
+
+    <!-- Totals strip -->
+    <g transform="translate(24, 380)">
+     <rect width="672" height="92" rx="10" fill="#F7F8FA"/>
+     <text x="24" y="28" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#7C8497">THIS MONTH</text>
+     <text x="24" y="68" font-family="Inter, sans-serif" font-size="34" font-weight="600" letter-spacing="-0.025em" fill="#0A0E1A">5.4</text>
+     <text x="74" y="68" font-family="Inter, sans-serif" font-size="14" fill="#7C8497">hrs · 4 flights</text>
+     <text x="648" y="38" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="0.10em" fill="#7C8497" text-anchor="end">AUTO-CATEGORIZED</text>
+     <text x="648" y="58" font-family="Inter, sans-serif" font-size="13" fill="#475063" text-anchor="end">Night · XC · landings filled in</text>
+     <text x="648" y="76" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#10A37F" text-anchor="end">RAC 101.01 + CAR 401.34</text>
+    </g>
+   </svg>
+  </div>
  </div>
 </section>
 
@@ -718,6 +1130,35 @@
  </div>
  </div>
 </footer>
+
+<script>
+// Apple-style scroll-triggered reveal. IntersectionObserver fires
+// .in-view class on each .hero-composite and .deep-section once
+// the element crosses 25% of the viewport. The CSS handles the
+// actual animations (opacity + transform + staggered delays).
+// Respects prefers-reduced-motion via the CSS @media query.
+(function () {
+ if (!('IntersectionObserver' in window)) {
+  // Old browsers fall through to the in-view final state.
+  document.querySelectorAll('.hero-composite, .deep-section').forEach(el => el.classList.add('in-view'));
+  return;
+ }
+ const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+   if (e.isIntersecting) {
+    e.target.classList.add('in-view');
+    // One-shot: stop observing once revealed, so re-scrolling up + down
+    // doesn't retrigger the staggered animation.
+    io.unobserve(e.target);
+   }
+  });
+ }, {
+  rootMargin: '0px 0px -20% 0px',
+  threshold: 0.15
+ });
+ document.querySelectorAll('.hero-composite, .deep-section').forEach(el => io.observe(el));
+})();
+</script>
 
 </body>
 </html>
