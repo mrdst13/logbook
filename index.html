@@ -170,9 +170,12 @@
  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
  margin-bottom: 28px;
  }
- h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; font-weight: 800; }
+ /* Hero H1 — Q10 spec calls for editorial confidence over shouty bold.
+    600 weight + tighter tracking + balanced line breaks read as Linear/
+    Stripe rather than consumer SaaS. Audit 2026-05-28. */
+ h1 { font-size: clamp(38px, 6vw, 68px); line-height: 1.02; margin: 0 auto 18px; letter-spacing: -0.035em; font-weight: 600; max-width: 880px; text-wrap: balance; }
  h1 .accent { background: linear-gradient(135deg, #5fa0ff 0%, #3884ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
- .sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--text-mute); max-width: 680px; margin: 0 auto 36px; }
+ .sub { font-size: clamp(15px, 1.8vw, 18px); line-height: 1.55; color: var(--text-mute); max-width: 580px; margin: 0 auto 36px; text-wrap: pretty; }
 
  /* CTA buttons */
  .cta-row { display:flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
@@ -185,7 +188,8 @@
  /* Trust bar */
  .trust-bar { max-width: 1100px; margin: 80px auto; padding: 0 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
  .trust-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; }
- .trust-card-icon { font-size: 24px; margin-bottom: 10px; }
+ .trust-card-icon { width: 22px; height: 22px; color: var(--accent); margin-bottom: 14px; display: block; }
+ .trust-card-icon svg { width: 100%; height: 100%; display: block; }
  .trust-card-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
  .trust-card-desc { font-size: 13px; color: var(--text-mute); line-height: 1.55; }
 
@@ -258,22 +262,22 @@
 
 <div class="trust-bar">
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01"/></svg></div>
  <div class="trust-card-title">Stored on your device</div>
  <div class="trust-card-desc">Your data stays on your device by default. Optional cloud backup is hosted in Canada — subject to Canadian privacy law.</div>
  </div>
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
  <div class="trust-card-title">Encrypted when synced</div>
  <div class="trust-card-desc">Optional cloud backup uses TLS 1.3 in transit and AES-256 at rest. <a href="security.html">Read the whitepaper</a>.</div>
  </div>
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5z"/><path d="M9 12l2 2 4-4"/></svg></div>
  <div class="trust-card-title">We will never sell your data</div>
  <div class="trust-card-desc">Independent product, built by one pilot. No ads, no investor pressure to monetize what you log.</div>
  </div>
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg></div>
  <div class="trust-card-title">Your data, your ownership</div>
  <div class="trust-card-desc">Export everything to JSON or PDF at any time, with one click.</div>
  </div>

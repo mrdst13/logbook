@@ -37,12 +37,18 @@ function injectDemoBanner() {
  // populate atd_utc / ata_utc. Cf. feedback_never_approximate_certifiable_data.md.
  // Apply i18n translations (must happen before anything reads textContent)
  if (typeof applyTranslations === 'function') applyTranslations();
- // Visible version badge bottom-right — verifies fresh page load on iOS
- const vBadge = document.createElement('div');
- vBadge.id = 'buildVersion';
- vBadge.textContent = BUILD_VERSION;
- vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
- document.body.appendChild(vBadge);
+ // Visible version badge bottom-right — only on localhost or when explicitly
+ // requested with ?debug=1. In production it overlapped the dashboard hero
+ // card on mobile (audit 2026-05-28).
+ const showBadge = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
+   new URLSearchParams(location.search).has('debug');
+ if (showBadge) {
+   const vBadge = document.createElement('div');
+   vBadge.id = 'buildVersion';
+   vBadge.textContent = BUILD_VERSION;
+   vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
+   document.body.appendChild(vBadge);
+ }
  // Wire hamburger, overlay, and delegated nav-item clicks
  wireNav();
  const p = DB.loadProfile();
