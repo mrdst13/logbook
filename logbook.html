@@ -920,8 +920,11 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   text-transform: uppercase;
 }
 .dash-greeting-hello {
-  font-size: 32px;
-  font-weight: 600;
+  /* Title-1 token (28px) — was 32px, off-spec vs every other page H1
+     (.page-title is 28px). The greeting still reads as primary content
+     because it carries a time-of-day phrase + the pilot's name. */
+  font-size: 28px;
+  font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1.1;
   margin: 0;
@@ -2298,6 +2301,12 @@ input:invalid:not(:placeholder-shown):not(:focus) {
   .logbook-compact tbody td.row-actions::before { display: none; }
   .empty-row td { display: block !important; text-align: center !important; }
   .empty-row td::before { display: none; }
+
+  /* Sticky totals row is broken in card mode (sticky on display:block <tr>
+     inside display:block <tbody> doesn't anchor). Hide on phone widths —
+     the .lb-summary card at the top of the Logbook page already shows
+     YTD totals, so the pilot still has them on mobile. */
+  .totals-row { display: none; }
 }
 
 .reg-tag {

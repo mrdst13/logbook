@@ -183,8 +183,11 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   text-transform: uppercase;
 }
 .dash-greeting-hello {
-  font-size: 32px;
-  font-weight: 600;
+  /* Title-1 token (28px) — was 32px, off-spec vs every other page H1
+     (.page-title is 28px). The greeting still reads as primary content
+     because it carries a time-of-day phrase + the pilot's name. */
+  font-size: 28px;
+  font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1.1;
   margin: 0;
