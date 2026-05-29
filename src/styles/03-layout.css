@@ -63,21 +63,22 @@ a.logo { cursor: pointer; }
 a.logo:hover .logo-title { color: var(--accent); }
 
 .logo-icon {
-  /* Aspect 32:24 (4:3) per official brand mark viewBox.
-     32×24px at @1 fits naturally next to the wordmark cap-height. */
-  width: 32px;
-  height: 24px;
+  /* Square slot for the official cloud-favicon mark from the brand designer.
+     28×28 sits cleanly next to the 15px wordmark cap-height. */
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
   line-height: 1;
   flex-shrink: 0;
 }
+.logo-icon img,
 .logo-icon svg {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: contain;
 }
 
 .logo-title {
