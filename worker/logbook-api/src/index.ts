@@ -14,11 +14,18 @@ const ALLOWED_ORIGINS = new Set([
   // Production
   'https://flycumulo.ca',
   'https://www.flycumulo.ca',
+  // Cloudflare Pages canonical URL — this is what the app actually serves
+  // from in prod today (flycumulo.ca custom domain isn't wired through to
+  // Pages yet — audit 2026-05-29). Without this entry, the browser sends
+  // Origin: https://logbook-cxy.pages.dev and the Worker rejects with 403
+  // ("Forbidden — origin not allowed"), which breaks Navblue iCal sync.
+  'https://logbook-cxy.pages.dev',
   // Legacy GitHub Pages preview (kept while DNS migration finishes — remove after)
   'https://mrdst13.github.io',
   // Dev origins:
   'http://localhost',
   'http://localhost:8080',
+  'http://localhost:8181',
   'http://127.0.0.1',
   'http://127.0.0.1:8080',
   'null' // file:// — covers local HTML opened directly
