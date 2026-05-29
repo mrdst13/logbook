@@ -35,10 +35,12 @@ const OUT = path.join(ROOT, checkMode ? 'logbook.built.html' : 'logbook.html');
 // and (b) cache-bust logbook.html links from the landing files so a
 // fresh deploy is never served behind a stale CDN/Service-Worker cache.
 //
-// Skipped in --check mode so the byte-identical diff still works for CI
-// verification builds.
-let buildVersion = null;
-if (!checkMode) {
+// Computed in both modes so --check produces an output structurally
+// identical to a normal build (the BUILD_VERSION line itself will differ
+// across commits — the check below normalizes that one line in both
+// files before comparing).
+let buildVersion;
+{
   let sha = 'nogit';
   try {
     sha = execSync('git -C "' + ROOT + '" rev-parse --short HEAD', { encoding: 'utf8' }).trim();
@@ -92,17 +94,22 @@ body = body.replace(SCRIPT_MARKER, scriptBlock);
 // level usage (e.g. `(console.log(x), x + 1)`). `void(...)` is a no-op
 // expression that swallows any argument list.
 //
-// Skipped in --check mode so byte-identical diffs still work for CI
-// verification of un-stripped builds.
-if (!checkMode) {
-  body = body.replace(/console\.(log|info|debug)\s*\(/g, 'void(');
-}
+// Applied in both normal and --check mode so the check output matches
+// the committed bundle (which was produced by a normal build).
+body = body.replace(/console\.(log|info|debug)\s*\(/g, 'void(');
 
 // Stamp BUILD_VERSION with the computed git+date version so the badge in
 // the bottom-right corner reflects the actual deploy the user is on.
 // 99-init.js ships with a hardcoded version literal — we overwrite it in
 // the assembled output without touching the source on disk.
-if (!checkMode && buildVersion) {
+//
+// Applied in both normal and --check mode so the check output has the
+// same shape as the committed bundle. The actual stamp values will
+// differ across commits (the CI's HEAD SHA isn't the same as the
+// developer's SHA when the bundle was committed), so the comparison
+// at the end of this file normalizes the BUILD_VERSION line in both
+// files before diffing.
+if (buildVersion) {
   body = body.replace(
     /const\s+BUILD_VERSION\s*=\s*['"][^'"]*['"]\s*;/,
     "const BUILD_VERSION = '" + buildVersion + "';"
@@ -170,8 +177,16 @@ if (!checkMode && buildVersion) {
 
 if (checkMode) {
   const original = fs.readFileSync(path.join(ROOT, 'logbook.html'), 'utf8');
-  if (output === original) {
-    console.log('\nCheck: PASS — built output is byte-identical to logbook.html');
+  // The BUILD_VERSION line is stamped with the current HEAD SHA on every
+  // build, so a fresh check build will never match the SHA that was
+  // committed earlier. Normalize that single line in both files before
+  // diffing — everything else must still be byte-identical.
+  const normalizeVersion = s => s.replace(
+    /const\s+BUILD_VERSION\s*=\s*['"][^'"]*['"]\s*;/,
+    "const BUILD_VERSION = '__CHECK__';"
+  );
+  if (normalizeVersion(output) === normalizeVersion(original)) {
+    console.log('\nCheck: PASS — built output matches logbook.html (BUILD_VERSION line normalized)');
   } else {
     console.log('\nCheck: FAIL — built output differs from logbook.html');
     console.log(`  Original: ${original.length.toLocaleString()} bytes`);
