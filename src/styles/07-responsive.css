@@ -45,7 +45,7 @@
      so the iPhone status bar / notch doesn't hide the hamburger. */
   header { padding-left: var(--s-3); padding-right: var(--s-3); gap: var(--s-2); }
   .header-pilot { display: none; }
-  .logo-icon { width: 28px; height: 21px; }
+  .logo-icon { width: 24px; height: 24px; }
   .logo-title { font-size: 14px; }
   .logo-sub { font-size: 9px; }
 
@@ -74,17 +74,33 @@
   .import-grid { grid-template-columns: 1fr; }
   main { padding: var(--s-5) var(--s-4) var(--s-10); }
 
-  /* Page title smaller */
-  .page-title { font-size: 22px; }
+  /* Q11 iOS large title — mobile bumps UP (not down). iOS HIG calls for
+     34px / 700; we settle at 30 / 700 / -0.025em as a compromise so the
+     title doesn't overpower the action buttons on the same row. */
+  .page-title { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
 
   /* Table cells tighter */
   th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
 
-  /* Theme toggle stays visible — bumped to comfortable tap size */
-  .theme-toggle button { width: 36px; height: 36px; }
+  /* Theme + language toggles bumped to iOS-HIG-comfortable tap size.
+     44pt is the apple guideline; 40 keeps the pill aesthetic without
+     swallowing the rest of the header. Audit 2026-05-28. */
+  .theme-toggle button { width: 40px; height: 40px; }
+  .lang-toggle button { min-width: 40px; height: 40px; padding: 0 12px; font-size: 12px; }
+
+  /* Primary buttons hit 44 to clear iOS HIG; secondary stay at 40. */
+  .btn { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+  .btn.btn-sm { min-height: 40px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
 
   /* Nav item tap height */
   .nav-item { padding-top: 12px; padding-bottom: 12px; }
+
+  /* Card header (Logbook: search input + Columns dropdown) stacks
+     vertically on phone — at this width the placeholder gets clipped
+     mid-word by the dropdown sitting on the same row. Audit 2026-05-28. */
+  .card-header { flex-wrap: wrap; }
+  .card-header .search-input { flex: 1 1 100%; min-width: 0; }
+  .card-header .btn { flex-shrink: 0; }
 }
 
 /* ─── Q3 — Mobile dense Logbook rows ────────────────────────────

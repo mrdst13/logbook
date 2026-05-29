@@ -13,9 +13,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cumulo">
 <meta name="theme-color" content="#FFFFFF">
-<link rel="icon" type="image/svg+xml" href="/assets/cumulo-mark-cloud.svg">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.svg">
-<link rel="mask-icon" href="/assets/cumulo-mark-cloud.svg" color="#3884FF">
+<link rel="icon" type="image/svg+xml" href="/assets/cumulo-favicon.svg">
+<link rel="icon" type="image/png" href="/assets/cumulo-favicon.png">
+<link rel="apple-touch-icon" href="/assets/cumulo-app-icon.png">
+<link rel="mask-icon" href="/assets/cumulo-favicon.svg" color="#3884FF">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cumulo Flight Deck — Pilot Logbook">
+<meta property="og:description" content="Open your Transport Canada–ready pilot logbook. Local-first, bilingual EN/FR, no signup to try.">
+<meta property="og:url" content="https://flycumulo.ca/logbook.html">
+<meta property="og:site_name" content="Cumulo Flight Deck">
+<meta property="og:image" content="https://flycumulo.ca/assets/cumulo-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://flycumulo.ca/assets/cumulo-logo.png">
 <title>Cumulo Flight Deck — Pilot Logbook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -489,21 +498,22 @@ a.logo { cursor: pointer; }
 a.logo:hover .logo-title { color: var(--accent); }
 
 .logo-icon {
-  /* Aspect 32:24 (4:3) per official brand mark viewBox.
-     32×24px at @1 fits naturally next to the wordmark cap-height. */
-  width: 32px;
-  height: 24px;
+  /* Square slot for the official cloud-favicon mark from the brand designer.
+     28×28 sits cleanly next to the 15px wordmark cap-height. */
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
   line-height: 1;
   flex-shrink: 0;
 }
+.logo-icon img,
 .logo-icon svg {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: contain;
 }
 
 .logo-title {
@@ -3666,7 +3676,8 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 .alert-bar.green  { background: var(--success-soft); border-color: var(--success); color: var(--success); }
 .alert-bar.yellow { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
 .alert-bar.red    { background: var(--danger-soft);  border-color: var(--danger);  color: var(--danger); }
-.alert-bar .alert-icon { font-size: 18px; flex-shrink: 0; }
+.alert-bar .alert-icon { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+.alert-bar .alert-icon svg { width: 100%; height: 100%; display: block; }
 .alert-bar .alert-text { flex: 1; }
 .alert-bar .alert-sub { font-size: 11px; font-family: var(--font-mono); font-weight: 400; opacity: 0.85; margin-top: 2px; }
 
@@ -3756,7 +3767,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
      so the iPhone status bar / notch doesn't hide the hamburger. */
   header { padding-left: var(--s-3); padding-right: var(--s-3); gap: var(--s-2); }
   .header-pilot { display: none; }
-  .logo-icon { width: 28px; height: 21px; }
+  .logo-icon { width: 24px; height: 24px; }
   .logo-title { font-size: 14px; }
   .logo-sub { font-size: 9px; }
 
@@ -3785,17 +3796,33 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   .import-grid { grid-template-columns: 1fr; }
   main { padding: var(--s-5) var(--s-4) var(--s-10); }
 
-  /* Page title smaller */
-  .page-title { font-size: 22px; }
+  /* Q11 iOS large title — mobile bumps UP (not down). iOS HIG calls for
+     34px / 700; we settle at 30 / 700 / -0.025em as a compromise so the
+     title doesn't overpower the action buttons on the same row. */
+  .page-title { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
 
   /* Table cells tighter */
   th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
 
-  /* Theme toggle stays visible — bumped to comfortable tap size */
-  .theme-toggle button { width: 36px; height: 36px; }
+  /* Theme + language toggles bumped to iOS-HIG-comfortable tap size.
+     44pt is the apple guideline; 40 keeps the pill aesthetic without
+     swallowing the rest of the header. Audit 2026-05-28. */
+  .theme-toggle button { width: 40px; height: 40px; }
+  .lang-toggle button { min-width: 40px; height: 40px; padding: 0 12px; font-size: 12px; }
+
+  /* Primary buttons hit 44 to clear iOS HIG; secondary stay at 40. */
+  .btn { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+  .btn.btn-sm { min-height: 40px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
 
   /* Nav item tap height */
   .nav-item { padding-top: 12px; padding-bottom: 12px; }
+
+  /* Card header (Logbook: search input + Columns dropdown) stacks
+     vertically on phone — at this width the placeholder gets clipped
+     mid-word by the dropdown sitting on the same row. Audit 2026-05-28. */
+  .card-header { flex-wrap: wrap; }
+  .card-header .search-input { flex: 1 1 100%; min-width: 0; }
+  .card-header .btn { flex-shrink: 0; }
 }
 
 /* ─── Q3 — Mobile dense Logbook rows ────────────────────────────
@@ -4137,10 +4164,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </button>
 
  <!-- Header wordmark — clickable, links back to the marketing home page.
-      The brand mark SVG is the official cloud+horizon from the design
-      handoff (Q1, 2026-05-25). currentColor inherits from .logo-icon. -->
+      Brand mark = official cloud favicon from the designer (Paige, 2026-05-28). -->
  <a href="/" class="logo" title="Cumulo home" style="text-decoration:none;color:inherit;">
- <div class="logo-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24" fill="currentColor"><path d="M7.2 15.2C7.2 11.1 10.5 7.8 14.6 7.8C17.5 7.8 20 9.5 21.2 12H22.2C24.8 12 27 14.2 27 16.8V17.6C27 18.2 26.5 18.7 25.9 18.7H6.1C5.5 18.7 5 18.2 5 17.6V16.8C5 15.9 5.7 15.2 6.6 15.2H7.2Z"/><rect x="4" y="19.5" width="24" height="2.5" rx="1.25"/></svg></div>
+ <div class="logo-icon" aria-hidden="true"><img src="/assets/cumulo-favicon.svg" alt="" width="28" height="28"></div>
  <div class="logo-texts">
  <div class="logo-title" data-i18n="logo.title">Cumulo</div>
  <div class="logo-sub" data-i18n="logo.sub">Flight Deck</div>
@@ -7182,6 +7208,14 @@ function _dashSetStripVal(id, val, unit) {
 }
 
 // ═══════════════════════════════════════════
+// ALERT GLYPHS — line-art SVGs to replace emoji chrome
+// Per brand: no emoji in chrome. currentColor inherits the alert tint
+// (red / amber / green via .alert-bar.{red,yellow,green}).
+// ═══════════════════════════════════════════
+const ICON_LANDING_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M2.5 13.5l8 2.5 4-9 3 .5 1.5 4-5 1.5-2.5 1z"/></svg>';
+const ICON_IFR_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12a4 4 0 0 1 4-4 5 5 0 0 1 10 1 3.5 3.5 0 0 1 0 7H6a3 3 0 0 1-1-4z"/><path d="M6 18h12M8 21h8"/></svg>';
+
+// ═══════════════════════════════════════════
 // PILOT-TYPE ADAPTATION
 // Bush / float / private VFR / student pilots don't fly IFR. The
 // "0 / 6 approaches" alert + IFR currency renewal line are noise for
@@ -7260,7 +7294,7 @@ function renderAlerts() {
     .filter(f => f.date >= cut90str)
     .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
   if (recentLdg < 3) {
-    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title: t('alert.landingCurrency', { n: recentLdg }), sub: t('alert.landingCurrencySub') });
+    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon: ICON_LANDING_GLYPH, title: t('alert.landingCurrency', { n: recentLdg }), sub: t('alert.landingCurrencySub') });
   }
 
   // IFR currency — only show if NOT current (<6 approaches in 6 months).
@@ -7277,7 +7311,7 @@ function renderAlerts() {
       .filter(f => f.date >= cut6mStr)
       .reduce((sum, f) => sum + (+f.approaches||0), 0);
     if (appCount < 6) {
-      alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
+      alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon: ICON_IFR_GLYPH, title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
     }
   }
 
@@ -17368,7 +17402,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-05-29-769d056';
+const BUILD_VERSION = '2026-05-29-346cf02';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -17403,12 +17437,18 @@ function injectDemoBanner() {
  // populate atd_utc / ata_utc. Cf. feedback_never_approximate_certifiable_data.md.
  // Apply i18n translations (must happen before anything reads textContent)
  if (typeof applyTranslations === 'function') applyTranslations();
- // Visible version badge bottom-right — verifies fresh page load on iOS
- const vBadge = document.createElement('div');
- vBadge.id = 'buildVersion';
- vBadge.textContent = BUILD_VERSION;
- vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
- document.body.appendChild(vBadge);
+ // Visible version badge bottom-right — only on localhost or when explicitly
+ // requested with ?debug=1. In production it overlapped the dashboard hero
+ // card on mobile (audit 2026-05-28).
+ const showBadge = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ||
+   new URLSearchParams(location.search).has('debug');
+ if (showBadge) {
+   const vBadge = document.createElement('div');
+   vBadge.id = 'buildVersion';
+   vBadge.textContent = BUILD_VERSION;
+   vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
+   document.body.appendChild(vBadge);
+ }
  // Wire hamburger, overlay, and delegated nav-item clicks
  wireNav();
  const p = DB.loadProfile();

@@ -6,13 +6,29 @@
  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
  <meta name="description" content="A modern pilot logbook, built by a pilot. Transport Canada PDF format, automatic Night and Cross-Country calculation, bilingual EN/FR. Your data lives on your device. Try it now — no signup.">
  <meta name="theme-color" content="#FFFFFF">
- <link rel="icon" type="image/svg+xml" href="/assets/cumulo-mark-cloud.svg">
- <link rel="apple-touch-icon" href="/assets/apple-touch-icon.svg">
- <link rel="mask-icon" href="/assets/cumulo-mark-cloud.svg" color="#3884FF">
+ <link rel="icon" type="image/svg+xml" href="/assets/cumulo-favicon.svg">
+ <link rel="icon" type="image/png" href="/assets/cumulo-favicon.png">
+ <link rel="apple-touch-icon" href="/assets/cumulo-app-icon.png">
+ <link rel="mask-icon" href="/assets/cumulo-favicon.svg" color="#3884FF">
+ <!-- Open Graph / Twitter share card. Lockup PNG (2000×1000) doubles
+      as the OG image — sufficient resolution + correct 2:1 aspect ratio. -->
+ <meta property="og:type" content="website">
+ <meta property="og:title" content="Cumulo Flight Deck — A modern pilot logbook">
+ <meta property="og:description" content="Transport Canada PDF format. Auto Night + Cross-Country. Bilingual EN/FR. Built by a pilot, for every pilot. Try the demo — no signup.">
+ <meta property="og:url" content="https://flycumulo.ca/">
+ <meta property="og:site_name" content="Cumulo Flight Deck">
+ <meta property="og:image" content="https://flycumulo.ca/assets/cumulo-logo.png">
+ <meta property="og:image:width" content="2000">
+ <meta property="og:image:height" content="1000">
+ <meta property="og:image:alt" content="Cumulo — a pilot logbook for every Canadian pilot.">
+ <meta name="twitter:card" content="summary_large_image">
+ <meta name="twitter:title" content="Cumulo Flight Deck — A modern pilot logbook">
+ <meta name="twitter:description" content="Transport Canada PDF format. Auto Night + Cross-Country. Bilingual EN/FR. Built by a pilot, for every pilot.">
+ <meta name="twitter:image" content="https://flycumulo.ca/assets/cumulo-logo.png">
  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
  <link rel="preconnect" href="https://fonts.googleapis.com">
  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
  <style>
  :root {
  /* Light theme — matches the Cumulo brand light mode.
@@ -24,10 +40,25 @@
  --text: #0A0E1A;
  --text-mute: #5E6678;
  --accent: #3884FF;
+ --accent-hover: #2552B8;
  --accent-soft: rgba(56,132,255,0.10);
+ --accent-light: #5B95FF;
+ --navy: #0F2A5C;
  --canada-red: #DC2A2A;
+ --success: #10A37F;
+ --warning: #B87C0C;
+ --night: #6366F1;
  --border: rgba(15, 23, 42, 0.10);
  --r: 14px;
+ --r-pill: 999px;
+ /* Q7 motion vocabulary — cf. design_handoff_cumulo_2026 section Q7.
+    quiet = long deceleration, no overshoot. Used for entrances + state changes.
+    stable = gentle in/out. Card hovers, minor state.
+    snap = material standard. Button states. */
+ --ease-quiet: cubic-bezier(.32, .72, 0, 1);
+ --ease-stable: cubic-bezier(.22, 1, .36, 1);
+ --ease-snap: cubic-bezier(.4, 0, .2, 1);
+ --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
  }
  * { box-sizing: border-box; }
  html, body { margin: 0; padding: 0; color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.55; }
@@ -88,6 +119,24 @@
     the hero text and read as a UFO/blob bug, not atmosphere. The
     atmospheric body backdrop + blobs are enough sky-mood on their own. */
  .hero { position: relative; padding-top: 56px; padding-bottom: 48px; }
+
+ /* Hero eyebrow pill — Q10 spec. Sets the editorial tone before H1
+    even renders. Uppercase mono on accent-tinted pill, 10px / 0.08em. */
+ .hero-pill {
+   display: inline-flex; align-items: center; gap: 6px;
+   font-family: var(--font-mono);
+   font-size: 10px; font-weight: 600;
+   letter-spacing: 0.12em; text-transform: uppercase;
+   color: var(--accent);
+   background: var(--accent-soft);
+   padding: 6px 12px;
+   border-radius: var(--r-pill);
+   margin-bottom: 24px;
+ }
+ .hero-pill::before {
+   content: ''; width: 6px; height: 6px;
+   border-radius: 50%; background: var(--accent);
+ }
 
  /* ─── "See the app" section — SVG dashboard mockup ──────────────
     Inline SVG illustration that looks like an app screenshot.
@@ -169,22 +218,34 @@
  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
  margin-bottom: 28px;
  }
- h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; font-weight: 800; }
+ /* Hero H1 — Q10 spec calls for editorial confidence over shouty bold.
+    600 weight + tighter tracking + balanced line breaks read as Linear/
+    Stripe rather than consumer SaaS. Audit 2026-05-28. */
+ h1 { font-size: clamp(38px, 6vw, 68px); line-height: 1.02; margin: 0 auto 18px; letter-spacing: -0.035em; font-weight: 600; max-width: 880px; text-wrap: balance; }
  h1 .accent { background: linear-gradient(135deg, #5fa0ff 0%, #3884ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
- .sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--text-mute); max-width: 680px; margin: 0 auto 36px; }
+ .sub { font-size: clamp(15px, 1.8vw, 18px); line-height: 1.55; color: var(--text-mute); max-width: 580px; margin: 0 auto 36px; text-wrap: pretty; }
 
- /* CTA buttons */
+ /* CTA buttons — Q10 padding (14×26) + Q7 ease-snap for state changes. */
  .cta-row { display:flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
- .btn { display:inline-flex; align-items:center; gap:8px; padding: 13px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.2s ease; text-decoration: none; }
+ .btn {
+   display:inline-flex; align-items:center; gap:8px;
+   padding: 14px 26px;
+   border-radius: 10px;
+   font-size: 15px; font-weight: 600;
+   cursor: pointer;
+   text-decoration: none;
+   transition: transform 0.18s var(--ease-snap), background-color 0.18s var(--ease-snap), box-shadow 0.18s var(--ease-snap), border-color 0.18s var(--ease-snap);
+ }
  .btn-primary { background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(56,132,255,0.20); }
- .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(56,132,255,0.28); text-decoration: none; }
+ .btn-primary:hover { transform: translateY(-1px); background: var(--accent-hover); box-shadow: 0 6px 18px rgba(56,132,255,0.32); text-decoration: none; }
  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
- .btn-outline:hover { background: var(--bg-surface); text-decoration: none; }
+ .btn-outline:hover { background: var(--bg-surface); border-color: rgba(15, 23, 42, 0.18); text-decoration: none; }
 
  /* Trust bar */
  .trust-bar { max-width: 1100px; margin: 80px auto; padding: 0 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
  .trust-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; }
- .trust-card-icon { font-size: 24px; margin-bottom: 10px; }
+ .trust-card-icon { width: 22px; height: 22px; color: var(--accent); margin-bottom: 14px; display: block; }
+ .trust-card-icon svg { width: 100%; height: 100%; display: block; }
  .trust-card-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
  .trust-card-desc { font-size: 13px; color: var(--text-mute); line-height: 1.55; }
 
@@ -206,22 +267,131 @@
  }
  .pilot-photo-placeholder-note { font-size: 11px; color: var(--text-mute); margin-top: 8px; font-style: italic; }
 
- /* Features list */
- .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
- .feature { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; }
- .feature-icon { font-size: 28px; margin-bottom: 12px; }
- .feature-title { font-weight: 700; font-size: 17px; margin-bottom: 6px; }
- .feature-desc { color: var(--text-mute); font-size: 14px; }
+ /* Features list — Q10 spec layout.
+    3-col on desktop, 2-col on tablet, 1-col on phone. Each card has a
+    2px colored top border + matching monospace eyebrow that catalogs
+    the capability. Same accent palette as the in-app dashboard stat
+    tiles for visual continuity. */
+ .features-grid {
+   display: grid;
+   grid-template-columns: repeat(3, 1fr);
+   gap: 16px;
+ }
+ @media (max-width: 880px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+ @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
+ .feature {
+   background: var(--bg-elev);
+   border: 1px solid var(--border);
+   border-top-width: 2px;
+   border-top-color: var(--feature-tint, var(--accent));
+   border-radius: var(--r);
+   padding: 24px 22px 26px;
+   transition: transform 0.18s var(--ease-stable), box-shadow 0.18s var(--ease-stable);
+ }
+ .feature:hover {
+   transform: translateY(-2px);
+   box-shadow: 0 8px 20px rgba(15,32,68,0.06), 0 2px 4px rgba(15,32,68,0.04);
+ }
+ .feature-eyebrow {
+   font-family: var(--font-mono);
+   font-size: 10px; font-weight: 600;
+   letter-spacing: 0.10em;
+   text-transform: uppercase;
+   color: var(--feature-tint, var(--accent));
+   margin-bottom: 14px;
+ }
+ .feature-icon {
+   width: 26px; height: 26px;
+   color: var(--feature-tint, var(--accent));
+   margin-bottom: 16px;
+   display: block;
+ }
+ .feature-icon svg { width: 100%; height: 100%; display: block; }
+ .feature-title { font-weight: 600; font-size: 18px; margin-bottom: 8px; letter-spacing: -0.01em; color: var(--text); }
+ .feature-desc { color: var(--text-mute); font-size: 13.5px; line-height: 1.6; }
+
+ /* Tint variants — apply per card via inline custom property. */
+ .feature.t-blue   { --feature-tint: #3884FF; }
+ .feature.t-night  { --feature-tint: #6366F1; }
+ .feature.t-green  { --feature-tint: #10A37F; }
+ .feature.t-amber  { --feature-tint: #B87C0C; }
+ .feature.t-red    { --feature-tint: #DC2A2A; }
+ .feature.t-muted  { --feature-tint: #5E6678; }
 
  /* Pricing */
  .pricing { text-align: center; }
- .price-tag { font-size: clamp(40px, 6vw, 60px); font-weight: 800; color: var(--accent); margin: 0 0 8px; }
+ .price-tag { font-size: clamp(40px, 6vw, 60px); font-weight: 700; letter-spacing: -0.035em; color: var(--accent); margin: 0 0 8px; }
  .price-sub { color: var(--text-mute); margin-bottom: 28px; }
 
+ /* Final CTA — navy plate, light mark, editorial title. Q10 spec ref. */
+ .final-cta {
+   background: var(--navy);
+   color: #FFFFFF;
+   margin-top: 100px;
+   padding: 96px 28px;
+   text-align: center;
+   position: relative;
+   overflow: hidden;
+ }
+ .final-cta-inner {
+   max-width: 720px; margin: 0 auto;
+   position: relative; z-index: 1;
+ }
+ .final-cta-mark {
+   width: 56px; height: 56px;
+   margin: 0 auto 28px;
+   display: block;
+ }
+ .final-cta h2 {
+   font-size: clamp(32px, 5vw, 44px);
+   font-weight: 600;
+   letter-spacing: -0.035em;
+   line-height: 1.05;
+   color: #FFFFFF;
+   margin: 0 0 16px;
+   text-wrap: balance;
+ }
+ .final-cta p {
+   font-size: 16px; line-height: 1.55;
+   color: rgba(255,255,255,0.72);
+   max-width: 520px; margin: 0 auto 32px;
+   text-wrap: pretty;
+ }
+ .final-cta .cta-row { justify-content: center; }
+ .final-cta .btn-primary {
+   background: var(--accent-light);
+   color: var(--navy);
+   box-shadow: 0 4px 14px rgba(91,149,255,0.30);
+ }
+ .final-cta .btn-primary:hover {
+   background: #FFFFFF;
+   color: var(--navy);
+ }
+ .final-cta .btn-outline {
+   background: transparent;
+   color: #FFFFFF;
+   border: 1px solid rgba(255,255,255,0.22);
+ }
+ .final-cta .btn-outline:hover {
+   background: rgba(255,255,255,0.08);
+   border-color: rgba(255,255,255,0.40);
+ }
+ .final-cta-note {
+   margin-top: 28px;
+   font-family: var(--font-mono);
+   font-size: 11px;
+   letter-spacing: 0.10em;
+   text-transform: uppercase;
+   color: rgba(255,255,255,0.48);
+ }
+
  /* Footer */
- footer { border-top: 1px solid var(--border); margin-top: 100px; padding: 32px 28px; max-width: 1240px; margin-left: auto; margin-right: auto; }
+ footer { padding: 40px 28px; max-width: 1240px; margin: 0 auto; }
  .footer-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-mute); }
- .footer-links a { color: var(--text-mute); margin-right: 18px; }
+ .footer-links a { color: var(--text-mute); margin-right: 18px; transition: color 0.18s var(--ease-snap); }
+ .footer-links a:hover { color: var(--text); text-decoration: none; }
+ .footer-mark { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+ .footer-mark img { width: 18px; height: 18px; opacity: 0.75; }
 
  /* Mobile tweaks */
  @media (max-width: 600px) {
@@ -236,43 +406,44 @@
 
 <nav class="top">
  <a href="/" class="logo" title="Cumulo home" style="text-decoration:none;color:inherit;">
- <div class="logo-mark" aria-hidden="true" style="display:inline-flex;width:32px;height:24px;align-items:center;justify-content:center;color:var(--accent);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24" fill="currentColor" style="width:100%;height:100%;display:block;"><path d="M7.2 15.2C7.2 11.1 10.5 7.8 14.6 7.8C17.5 7.8 20 9.5 21.2 12H22.2C24.8 12 27 14.2 27 16.8V17.6C27 18.2 26.5 18.7 25.9 18.7H6.1C5.5 18.7 5 18.2 5 17.6V16.8C5 15.9 5.7 15.2 6.6 15.2H7.2Z"/><rect x="4" y="19.5" width="24" height="2.5" rx="1.25"/></svg></div>
+ <img src="/assets/cumulo-favicon.svg" alt="" class="logo-mark" width="28" height="28" style="display:block;flex-shrink:0;">
  <div>Cumulo Flight Deck</div>
  </a>
  <div class="nav-links">
  <a href="security.html">Security</a>
  <a href="privacy.html">Privacy</a>
- <a href="logbook.html?v=2026-05-29-769d056">Open app →</a>
+ <a href="logbook.html?v=2026-05-29-346cf02">Open app →</a>
  </div>
 </nav>
 
 <section class="hero">
+ <div class="hero-pill">Built in Canada · 2026</div>
  <h1>Built by <span class="accent">a pilot</span>.<br>For every pilot.</h1>
  <p class="sub">Logbook with Transport Canada PDF format, automatic Night calculation, Cross-Country detection, and an inspection-ready PDF export. Bilingual EN/FR. Your data lives on your device.</p>
  <div class="cta-row">
  <a class="btn btn-primary" href="demo.html">Try the demo (no signup)</a>
- <a class="btn btn-outline" href="logbook.html?v=2026-05-29-769d056">Open my logbook →</a>
+ <a class="btn btn-outline" href="logbook.html?v=2026-05-29-346cf02">Open my logbook →</a>
  </div>
 </section>
 
 <div class="trust-bar">
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01"/></svg></div>
  <div class="trust-card-title">Stored on your device</div>
  <div class="trust-card-desc">Your data stays on your device by default. Optional cloud backup is hosted in Canada — subject to Canadian privacy law.</div>
  </div>
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
  <div class="trust-card-title">Encrypted when synced</div>
  <div class="trust-card-desc">Optional cloud backup uses TLS 1.3 in transit and AES-256 at rest. <a href="security.html">Read the whitepaper</a>.</div>
  </div>
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5z"/><path d="M9 12l2 2 4-4"/></svg></div>
  <div class="trust-card-title">We will never sell your data</div>
  <div class="trust-card-desc">Independent product, built by one pilot. No ads, no investor pressure to monetize what you log.</div>
  </div>
  <div class="trust-card">
- <div class="trust-card-icon"></div>
+ <div class="trust-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg></div>
  <div class="trust-card-title">Your data, your ownership</div>
  <div class="trust-card-desc">Export everything to JSON or PDF at any time, with one click.</div>
  </div>
@@ -340,13 +511,13 @@
      <!-- Topbar -->
      <rect x="220" y="0" width="880" height="56" fill="rgba(255,255,255,0.45)"/>
      <line x1="220" y1="56" x2="1100" y2="56" stroke="rgba(15,23,42,0.06)"/>
-     <text x="1052" y="34" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#475063" text-anchor="end">F/O J. Tremblay</text>
+     <text x="1052" y="34" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#475063" text-anchor="end">J. Tremblay</text>
      <text x="1052" y="48" font-family="JetBrains Mono, monospace" font-size="10" fill="#7C8497" text-anchor="end" letter-spacing="0.04em">2,999.2 HRS</text>
 
      <!-- Greeting -->
      <text x="248" y="100" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">TUESDAY · MAY 26, 2026 · WEEK 22</text>
      <text x="248" y="138" font-family="Inter, sans-serif" font-size="30" font-weight="700" letter-spacing="-0.025em" fill="#0A0E1A">Good morning, Jordan.</text>
-     <text x="248" y="164" font-family="Inter, sans-serif" font-size="14" fill="#475063">You've logged <tspan font-weight="700" fill="#0A0E1A">18 flights</tspan> this month. Next PPC renewal in <tspan font-weight="700" fill="#0A0E1A">127 days</tspan>.</text>
+     <text x="248" y="164" font-family="Inter, sans-serif" font-size="14" fill="#475063">You've logged <tspan font-weight="700" fill="#0A0E1A">18 flights</tspan> this month. Next medical renewal in <tspan font-weight="700" fill="#0A0E1A">238 days</tspan>.</text>
 
      <!-- Hero card -->
      <g transform="translate(248, 196)">
@@ -466,54 +637,87 @@
 <section class="section">
  <h2>What's inside</h2>
  <div class="features-grid">
- <div class="feature">
- <div class="feature-icon"></div>
+
+ <div class="feature t-blue">
+ <div class="feature-eyebrow">Import</div>
+ <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.7-7.3"/><polyline points="21 4 21 10 15 10"/></svg></div>
  <div class="feature-title">Auto-sync your schedule</div>
  <div class="feature-desc">Connect an iCal roster feed once — Cumulo pulls every new flight automatically. PDF roster, photo OCR and CSV migration paths cover the rest.</div>
  </div>
- <div class="feature">
- <div class="feature-icon"></div>
+
+ <div class="feature t-night">
+ <div class="feature-eyebrow">Night · XC</div>
+ <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
  <div class="feature-title">Night &amp; XC calculated for you</div>
  <div class="feature-desc">Per RAC 101.01 and CAR 401.34. No more manual sunrise/sunset math.</div>
  </div>
- <div class="feature">
- <div class="feature-icon"></div>
+
+ <div class="feature t-green">
+ <div class="feature-eyebrow">Export · TC</div>
+ <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/><path d="M9 14h6M9 17h4"/></svg></div>
  <div class="feature-title">TC-ready PDF export</div>
  <div class="feature-desc">38-column TP 14052 format with cumulative totals, signature line, and currency annex. Ramp-check ready.</div>
  </div>
- <div class="feature">
- <div class="feature-icon"></div>
+
+ <div class="feature t-amber">
+ <div class="feature-eyebrow">Pilots</div>
+ <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
  <div class="feature-title">All pilot types</div>
- <div class="feature-desc">Airline F/O / Captain · Bush (floats/skis) · Helicopter · Flight Instructor (CFI ATPL credit) · Private GA · Student.</div>
+ <div class="feature-desc">Airline F/O · Captain · Bush (floats/skis) · Helicopter · Flight Instructor (CFI ATPL credit) · Private GA · Student.</div>
  </div>
- <div class="feature">
- <div class="feature-icon"></div>
+
+ <div class="feature t-red">
+ <div class="feature-eyebrow">EN · FR</div>
+ <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
  <div class="feature-title">Bilingual EN / FR</div>
- <div class="feature-desc">Every column, every label, every help text — in both English and French.</div>
+ <div class="feature-desc">Every column, every label, every help text — in both English and French. Built for Canadian carriers.</div>
  </div>
- <div class="feature">
- <div class="feature-icon"></div>
+
+ <div class="feature t-muted">
+ <div class="feature-eyebrow">Offline</div>
+ <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06a10.94 10.94 0 0 1 5.17 1.83M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a16 16 0 0 1 4.06-3.05M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg></div>
  <div class="feature-title">Works offline</div>
  <div class="feature-desc">Add a flight in the cockpit between duties. Syncs to the cloud when you're back online.</div>
  </div>
+
  </div>
 </section>
 
 <section class="section pricing">
  <h2>One plan. No surprises.</h2>
- <div class="price-tag">$49 <span style="font-size: 0.4em; color: var(--text-mute);">CAD/year</span></div>
+ <div class="price-tag">$49 <span style="font-size: 0.4em; color: var(--text-mute); font-weight: 500; letter-spacing: 0;">CAD/year</span></div>
  <div class="price-sub">or $5.99 CAD/month · 30-day free trial · No credit card required to start</div>
  <a class="btn btn-primary" href="demo.html">Try the demo first (no signup)</a>
 </section>
 
+<!-- ─── Final CTA — navy plate. Closes the page with intent ───────────
+     Light Paige mark on the navy container reads as the brand essentials
+     icon (cf. design_handoff Q1). Cumulo ships as a PWA — no fake App
+     Store badges here per the no-fabricated-provenance rule. -->
+<section class="final-cta">
+ <div class="final-cta-inner">
+  <img class="final-cta-mark" src="assets/cumulo-favicon.svg" alt="" width="56" height="56">
+  <h2>Start logging like a 2026 pilot.</h2>
+  <p>No signup, no credit card. Try the demo, or open the full logbook in your browser. Installs to home screen as a PWA — works in the cockpit, offline.</p>
+  <div class="cta-row">
+   <a class="btn btn-primary" href="demo.html">Try the demo</a>
+   <a class="btn btn-outline" href="logbook.html?v=2026-05-29-346cf02">Open the logbook →</a>
+  </div>
+  <div class="final-cta-note">PWA · iOS · Android · Desktop</div>
+ </div>
+</section>
+
 <footer>
  <div class="footer-row">
- <div>© 2026 Cumulo. Built in Canada .</div>
+ <div class="footer-mark">
+  <img src="assets/cumulo-favicon.svg" alt="" width="18" height="18">
+  © 2026 Cumulo · Built in Canada
+ </div>
  <div class="footer-links">
  <a href="security.html">Security</a>
  <a href="privacy.html">Privacy</a>
  <a href="mailto:flycumulo@gmail.com">Contact</a>
- <a href="logbook.html?v=2026-05-29-769d056">Open app</a>
+ <a href="logbook.html?v=2026-05-29-346cf02">Open app</a>
  </div>
  </div>
 </footer>

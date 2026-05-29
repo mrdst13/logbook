@@ -1,4 +1,12 @@
 // ═══════════════════════════════════════════
+// ALERT GLYPHS — line-art SVGs to replace emoji chrome
+// Per brand: no emoji in chrome. currentColor inherits the alert tint
+// (red / amber / green via .alert-bar.{red,yellow,green}).
+// ═══════════════════════════════════════════
+const ICON_LANDING_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M2.5 13.5l8 2.5 4-9 3 .5 1.5 4-5 1.5-2.5 1z"/></svg>';
+const ICON_IFR_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12a4 4 0 0 1 4-4 5 5 0 0 1 10 1 3.5 3.5 0 0 1 0 7H6a3 3 0 0 1-1-4z"/><path d="M6 18h12M8 21h8"/></svg>';
+
+// ═══════════════════════════════════════════
 // PILOT-TYPE ADAPTATION
 // Bush / float / private VFR / student pilots don't fly IFR. The
 // "0 / 6 approaches" alert + IFR currency renewal line are noise for
@@ -77,7 +85,7 @@ function renderAlerts() {
     .filter(f => f.date >= cut90str)
     .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
   if (recentLdg < 3) {
-    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon:'🛬', title: t('alert.landingCurrency', { n: recentLdg }), sub: t('alert.landingCurrencySub') });
+    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon: ICON_LANDING_GLYPH, title: t('alert.landingCurrency', { n: recentLdg }), sub: t('alert.landingCurrencySub') });
   }
 
   // IFR currency — only show if NOT current (<6 approaches in 6 months).
@@ -94,7 +102,7 @@ function renderAlerts() {
       .filter(f => f.date >= cut6mStr)
       .reduce((sum, f) => sum + (+f.approaches||0), 0);
     if (appCount < 6) {
-      alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon:'🌫', title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
+      alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon: ICON_IFR_GLYPH, title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
     }
   }
 
