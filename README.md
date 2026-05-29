@@ -46,6 +46,99 @@ This repo is currently the property of [mrdst13](https://github.com/mrdst13). Cl
 
 ---
 
+## Architecture
+
+A 30-second view of how the pieces fit:
+
+```
+                  ┌───────────────────────────────────┐
+                  │   flycumulo.ca                    │
+                  │   (Cloudflare Pages, static)      │
+                  │                                   │
+                  │   index.html → logbook.html?v=…   │
+                  │   security.html · privacy.html    │
+                  └────────────────┬──────────────────┘
+                                   │
+                                   ▼
+                  ┌───────────────────────────────────┐
+                  │   logbook.html                    │
+                  │   (the PWA — all UI + logic)      │
+                  │                                   │
+                  │   localStorage = source of truth  │
+                  │   IndexedDB = pending (Phase 1)   │
+                  └────────────────┬──────────────────┘
+                                   │ (only when the pilot enables
+                                   │  cloud sync OR hits Photo OCR)
+                                   ▼
+              ┌────────────────────────────────────────────┐
+              │   logbook-api.martindaoust33.workers.dev   │
+              │   (Cloudflare Worker — hardened proxy)     │
+              │                                            │
+              │   • Origin allow-list                      │
+              │   • Model + max_tokens caps                │
+              │   • Body size cap                          │
+              │   • Navblue domain SSRF lock               │
+              │   • Holds ANTHROPIC_API_KEY (secret)       │
+              └─────┬──────────────────┬───────────────────┘
+                    │                  │
+                    ▼                  ▼
+   ┌──────────────────────┐   ┌───────────────────────────┐
+   │  api.anthropic.com   │   │  *.navblue.cloud          │
+   │  (photo OCR, Q&A)    │   │  (your airline's iCal     │
+   │                      │   │   roster feed)            │
+   └──────────────────────┘   └───────────────────────────┘
+
+   Cloud sync path (skeleton — keys not wired yet, Phase 1):
+
+       logbook.html  ──►  Supabase ca-central-1 (Montréal)
+                          (Postgres + Auth, owner-scoped RLS,
+                           no cross-tenant access by design)
+```
+
+What each part is responsible for:
+
+- **`flycumulo.ca`** (Cloudflare Pages, free tier) — serves the static
+  marketing pages (`index.html`, `security.html`, `privacy.html`,
+  `demo.html`) and the built `logbook.html`. Auto-deploys from
+  `main` on every push. `build.js` cache-busts the `logbook.html` link
+  on every build so a fresh deploy is never served behind a stale CDN
+  edge.
+
+- **`logbook.html`** — the entire PWA: UI, validation, PDF export,
+  PDF parser, iCal parser, dashboard, recap, settings. Vanilla JS,
+  no framework, no bundler. Source lives in `src/` and is concatenated
+  by `build.js` into one file. localStorage is the source of truth
+  today; IndexedDB migration is the audit follow-up that unblocks
+  pilots with 10k+ flights.
+
+- **`logbook-api` Worker** (`worker/logbook-api/`, deployed to
+  `logbook-api.martindaoust33.workers.dev`) — the only server-side
+  code in the system. Two routes: proxy to `api.anthropic.com` for
+  photo OCR and Q&A; server-side fetch of `*.navblue.cloud` iCal
+  feeds (browsers can't, CORS-locked at Navblue's edge). Holds the
+  Anthropic API key as a Cloudflare Secret — never seen by the client.
+
+- **Supabase** (skeleton — keys empty, Phase 1) — Postgres database
+  + auth for cloud sync. Owner-scoped row-level security: every row
+  has `user_id`, and policies enforce `auth.uid() = user_id` on every
+  CRUD. Today this is wired in code but not in deployment; the PWA
+  detects the missing keys and falls back to localStorage-only mode.
+
+- **Anthropic** — only called from the Worker, only when the pilot
+  triggers Import → Photo. The image is sent at the moment of the
+  trigger, the response is streamed back, nothing about the request
+  is persisted on the Worker.
+
+- **Navblue** — same pattern: only fetched when the pilot configures
+  an iCal URL in Settings. The Worker enforces a `*.navblue.cloud`
+  allow-list on the URL so the fetch endpoint can't be repurposed as
+  a generic SSRF proxy.
+
+The Worker code is versioned in `worker/logbook-api/` — see that
+directory's README for deploy + verify commands.
+
+---
+
 ## Local development
 
 ```sh

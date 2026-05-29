@@ -1690,6 +1690,11 @@ tbody tr { cursor: pointer; }
 /* Zebra striping for readability — every other row gets a subtle tint. */
 tbody tr:nth-child(even) td { background: var(--bg-subtle); }
 tbody tr:hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132, 255, 0.08))); }
+/* Hover must win over the zebra stripe — without this rule, even rows
+   compose the hover tint on top of the zebra tint and the result reads
+   muddy compared to crisp blue on odd rows. Same accent-soft as the
+   default :hover, just promoted in specificity so :nth-child(even) loses. */
+tbody tr:nth-child(even):hover td { background: var(--bg-hover, var(--accent-soft, rgba(56, 132, 255, 0.08))); }
 
 .empty-row td {
   text-align: center;
@@ -4138,8 +4143,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="pilot-name">Pilot</div>
  </div>
 
- <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js.
- Stays empty in skeleton mode (Supabase keys not yet configured). -->
+ <!-- Auth status slot: populated by renderAuthStateUI() in 18-supabase.js. -->
  <div class="auth-status-slot" id="authStatusSlot"></div>
 
  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
@@ -5303,7 +5307,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- ─── Card: Data ownership actions ────────────────────────── -->
  <div class="form-card" id="priv-export">
  <div class="form-card-title">Your data is yours</div>
- <div class="form-card-desc">Cumulo is local-first. Everything you log is yours to export, archive or migrate elsewhere at any time.</div>
+ <div class="form-card-desc">Your data lives on your device. Everything you log is yours to export, archive or migrate elsewhere at any time.</div>
  <div class="settings-row" style="border:0;padding:var(--s-3) 0;">
  <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="trust.export.title">Export all my data</div>
@@ -13921,7 +13925,7 @@ const STRINGS = {
  'onb.welcome.bullet1Html': '<strong>Built for Transport Canada.</strong> Columns, PDF format, night and cross-country math — done right out of the box.',
  'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect your airline\'s iCal feed once. Cumulo pulls new flights every time you open the app.',
  'onb.welcome.bullet3Html': '<strong>Bring forward your paper hours.</strong> Declare your career totals once, attest, then log new flights forward. No re-typing.',
- 'onb.welcome.bullet4Html': '<strong>Local-first by default.</strong> Your logbook lives on your device. Optional cloud backup is hosted in Canada.',
+ 'onb.welcome.bullet4Html': '<strong>Your data stays on your device.</strong> Optional cloud backup is hosted in Canada.',
  'onb.welcome.footer': 'Setup takes about 2 minutes. Skip anything you don\'t need — you can finish it later in Settings.',
  'onb.step2.title': 'Tell us about you',
  'onb.step2.intro': 'Cumulo is your personal pilot logbook. Let\'s set up your profile (you can change everything later).',
@@ -15824,14 +15828,33 @@ const Sync = {
       });
     }
 
-    // 5. Signature verify — pull remote count back and compare.
-    const { count: remoteCount, error: cntErr } = await Auth.client
-      .from('flights').select('id', { count: 'exact', head: true })
+    // 5. Signature verify — pull the remote id-set back and diff against
+    //    local. The previous version just compared `remoteCount` to
+    //    `flights.length`, which is a coincidence test: a concurrent
+    //    insert from another device, or a partial-row write that landed
+    //    without all columns, could pass the count equality while the
+    //    data was actually wrong.
+    //
+    //    Now we compare actual id sets — every local id must appear in
+    //    the remote set, otherwise the migration is incomplete and we
+    //    don't mark it as done.
+    const { data: remoteIds, error: idsErr } = await Auth.client
+      .from('flights').select('id')
       .eq('user_id', userId);
-    if (cntErr) {
-      console.warn('[Sync] migration verify failed:', cntErr.message);
+    if (idsErr) {
+      console.warn('[Sync] migration verify failed:', idsErr.message);
     }
-    const signatureOK = !cntErr && remoteCount === flights.length;
+    const remoteCount = remoteIds ? remoteIds.length : 0;
+    const remoteIdSet = new Set((remoteIds || []).map(r => r.id));
+    const missingFromRemote = [];
+    for (const f of flights) {
+      if (f && f.id && !remoteIdSet.has(f.id)) missingFromRemote.push(f.id);
+    }
+    const signatureOK = !idsErr && missingFromRemote.length === 0;
+    if (!signatureOK && !idsErr) {
+      console.warn(`[Sync] migration verify: ${missingFromRemote.length} local flight id(s) not found in remote — first few:`,
+        missingFromRemote.slice(0, 5));
+    }
 
     // 6. Migration audit log (same standard as 16-csv-import.js)
     const log = JSON.parse(localStorage.getItem(MIGRATION_LOG_KEY) || '[]');
@@ -15842,7 +15865,10 @@ const Sync = {
       failedBatches,
       flightCountLocal: flights.length,
       remoteCount: remoteCount,
+      missingFromRemoteCount: missingFromRemote.length,
+      missingFromRemoteSample: missingFromRemote.slice(0, 10),
       signatureOK,
+      signature: signatureOK ? 'id-set-match' : (idsErr ? 'verify-error' : 'id-set-mismatch'),
       durationMs: Date.now() - startedAt,
       userId,
       deviceId: getDeviceId(),
@@ -15854,7 +15880,7 @@ const Sync = {
       this._saveMigrationState({
         completedAt: new Date().toISOString(),
         uploaded,
-        signature: 'count-match',
+        signature: 'id-set-match',
       });
       showToast(t('sync.migration.success', { n: uploaded }), 'success');
     } else {
@@ -17333,7 +17359,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = 'v3a-2026-05-26-atmosphere-everywhere';
+const BUILD_VERSION = '2026-05-29-769d056';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -17403,6 +17429,35 @@ function injectDemoBanner() {
      }
    });
  }
+ // Defensive flush on tab hide.
+ //
+ // Some sync paths mutate the in-memory `flights` array in place — for
+ // example Sync.pullFlights iterates a remote-row batch with flights.push
+ // before its DB.save call at the end. If the user closes the tab between
+ // those two steps, the next page load reads stale localStorage and the
+ // "Synced ✓" toast they saw was a lie.
+ //
+ // Listening for visibilitychange→'hidden' is the right hook here:
+ //   - It fires reliably on iOS Safari (beforeunload often doesn't)
+ //   - It fires on tab close, OS-level app switch, and screen lock
+ //   - It's free of side effects — calling DB.save twice in a row is a
+ //     no-op past the first call, so the cost of running it pre-emptively
+ //     is zero
+ // Wrapped in try/catch because if the page is already tearing down we
+ // can't safely surface UI errors — silent persistence is the goal.
+ document.addEventListener('visibilitychange', () => {
+   if (document.visibilityState !== 'hidden') return;
+   try {
+     if (typeof flights !== 'undefined'
+         && Array.isArray(flights)
+         && typeof DB !== 'undefined'
+         && typeof DB.save === 'function') {
+       DB.save(flights);
+     }
+   } catch (e) {
+     // Best-effort flush — we're on the way out, can't recover here.
+   }
+ });
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();

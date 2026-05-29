@@ -72,6 +72,35 @@ function injectDemoBanner() {
      }
    });
  }
+ // Defensive flush on tab hide.
+ //
+ // Some sync paths mutate the in-memory `flights` array in place — for
+ // example Sync.pullFlights iterates a remote-row batch with flights.push
+ // before its DB.save call at the end. If the user closes the tab between
+ // those two steps, the next page load reads stale localStorage and the
+ // "Synced ✓" toast they saw was a lie.
+ //
+ // Listening for visibilitychange→'hidden' is the right hook here:
+ //   - It fires reliably on iOS Safari (beforeunload often doesn't)
+ //   - It fires on tab close, OS-level app switch, and screen lock
+ //   - It's free of side effects — calling DB.save twice in a row is a
+ //     no-op past the first call, so the cost of running it pre-emptively
+ //     is zero
+ // Wrapped in try/catch because if the page is already tearing down we
+ // can't safely surface UI errors — silent persistence is the goal.
+ document.addEventListener('visibilitychange', () => {
+   if (document.visibilityState !== 'hidden') return;
+   try {
+     if (typeof flights !== 'undefined'
+         && Array.isArray(flights)
+         && typeof DB !== 'undefined'
+         && typeof DB.save === 'function') {
+       DB.save(flights);
+     }
+   } catch (e) {
+     // Best-effort flush — we're on the way out, can't recover here.
+   }
+ });
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();

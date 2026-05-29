@@ -241,7 +241,7 @@ footer {
 <div class="nav-links">
   <a href="index.html">Home</a>
   <a href="security.html">Security</a>
-  <a href="logbook.html">Open app →</a>
+  <a href="logbook.html?v=2026-05-29-769d056">Open app →</a>
 </div>
 </nav>
 
@@ -311,13 +311,14 @@ footer {
   <div class="legal-body">
 
     <h4>Infrastructure providers</h4>
-    <p>The minimum vendors required to run Cumulo:</p>
+    <p>The minimum vendors required to run Cumulo, and what each one sees:</p>
     <ul>
-      <li><strong>Supabase</strong> — Postgres database + auth, hosted in <code>ca-central-1</code> (Montréal). Bound by a Data Processing Agreement under SOC 2 Type II.</li>
-      <li><strong>Cloudflare</strong> — content delivery + the iCal sync proxy. Sees request metadata (IP, URL paths) per request, drops it after. Full Strict TLS — no decryption at the edge.</li>
-      <li><strong>Stripe</strong> — payment processing only. Sees your billing info, never your flight data. PCI DSS Level 1.</li>
-      <li><strong>Anthropic</strong> — AI photo OCR, only when you trigger an Import → Photo. The image leaves your device at that moment, is not retained per Anthropic's commercial terms, and is never used for training.</li>
+      <li><strong>Supabase</strong> — Postgres database + auth, hosted in the <code>ca-central-1</code> (Montréal) region. Holds your cloud backup when you enable it.</li>
+      <li><strong>Cloudflare</strong> — content delivery + the iCal sync proxy. Sees request metadata (IP, URL paths) per request.</li>
+      <li><strong>Stripe</strong> — payment processing only. Sees your billing info, never your flight data.</li>
+      <li><strong>Anthropic</strong> — AI photo OCR, only when you trigger an Import → Photo. The image leaves your device at that moment.</li>
     </ul>
+    <p class="mute" style="font-size:13px; margin-top:8px;">Each vendor publishes its own security and data-handling commitments (SOC 2, PCI DSS, retention windows, training-data rules) on their respective pages. Those commitments belong to them, not us — we link to them rather than restating them here, because a vendor change of posture would silently make any restated claim out of date. If a vendor materially changes its terms, we update this page.</p>
 
     <h4>Crew names &amp; third-party privacy</h4>
     <p>Captain and co-pilot names on your flights are personal information about people who haven't directly consented to being in your Cumulo account. Cumulo's default is to anonymize crew names to initials when data leaves your device — for cloud sync and any shareable export. You can opt in to full names per audience in Settings → Privacy if you have crew consent or if the recipient is Transport Canada.</p>
