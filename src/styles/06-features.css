@@ -425,7 +425,12 @@
   color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  flex-shrink: 0;
+  /* min-width 0 lets long CSV-import sub strings ("ForeFlight · LogTen
+     Pro · MyFlightbook · …") wrap and shrink inside the drop-zone flex
+     container instead of overflowing on narrow viewports.
+     Mobile audit 2026-05-29. */
+  min-width: 0;
+  word-break: break-word;
 }
 
 .ai-box {

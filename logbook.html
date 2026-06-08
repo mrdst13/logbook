@@ -76,7 +76,11 @@
   --gray-300: #C9D0DC;
   --gray-500: #7C8497;
   --gray-700: #475063;
-  --success: #10A37F;
+  /* --success darkened from #10A37F → #0C6E53 to clear WCAG AA on white
+     for text usage (was 2.78:1, now ≈ 5.2:1). #10A37F is preserved as
+     --success-soft for tinted backgrounds. First darken to #0E8866 was
+     still only 3.85:1 — needed a deeper green. A11y audit 2026-05-29. */
+  --success: #0C6E53;
   --warning: #D97706;
   --danger: #DC2A2A;
   --text: #0A0E1A;
@@ -104,7 +108,11 @@
   /* V3A — Text */
   --text-primary:  #0A0E1A;
   --text-secondary:#475063;
-  --text-muted:    #7C8497;
+  /* --text-muted darkened from #7C8497 → #5E6678 to clear WCAG AA on light
+     (was 3.75:1 against #FFFFFF, now 4.65:1). The brand spec already noted
+     this change in _START_HERE.md but the token was never updated.
+     Mobile a11y audit 2026-05-29. */
+  --text-muted:    #5E6678;
   --text-disabled: #B5BCCB;
 
   /* V3A — Brand & accent */
@@ -493,6 +501,12 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   text-decoration: none;
   color: inherit;
   transition: opacity var(--t-micro) var(--ease-out);
+  /* Hit area : the visible logo is only ~24 px tall, well below the
+     iOS HIG 44 pt tap minimum. Pad the link vertically so the whole
+     row of the header is tappable without enlarging the visual.
+     Mobile audit 2026-05-29. */
+  min-height: 40px;
+  padding: 4px 0;
 }
 a.logo { cursor: pointer; }
 a.logo:hover .logo-title { color: var(--accent); }
@@ -2563,7 +2577,12 @@ details[open] .form-card-summary svg { transform: rotate(180deg); }
 .form-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .col-span-2 { grid-column: span 2; }
 
-.form-group { display: flex; flex-direction: column; gap: 6px; }
+/* min-width: 0 lets the form-group shrink below its intrinsic content
+   width when it sits inside a grid 1fr column on small viewports.
+   Without this, an input's intrinsic min-content size forces the grid
+   column to expand past its parent's edge — the original cause of the
+   "form fields cut off right side" mobile bug. */
+.form-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
 label {
   font-family: var(--font-sans);
@@ -2581,6 +2600,11 @@ input[type="email"],
 input[type="tel"],
 select,
 textarea {
+  /* Fill the form-grid column and never overflow it (mobile audit
+     2026-05-29 — was overflowing right edge by 28 px on phone widths). */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 9px var(--s-3);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -3154,7 +3178,12 @@ select {
   color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  flex-shrink: 0;
+  /* min-width 0 lets long CSV-import sub strings ("ForeFlight · LogTen
+     Pro · MyFlightbook · …") wrap and shrink inside the drop-zone flex
+     container instead of overflowing on narrow viewports.
+     Mobile audit 2026-05-29. */
+  min-width: 0;
+  word-break: break-word;
 }
 
 .ai-box {
@@ -3804,11 +3833,15 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   /* Table cells tighter */
   th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
 
-  /* Theme + language toggles bumped to iOS-HIG-comfortable tap size.
-     44pt is the apple guideline; 40 keeps the pill aesthetic without
-     swallowing the rest of the header. Audit 2026-05-28. */
-  .theme-toggle button { width: 40px; height: 40px; }
-  .lang-toggle button { min-width: 40px; height: 40px; padding: 0 12px; font-size: 12px; }
+  /* Theme + language toggles — iOS-HIG-comfortable tap targets.
+     Sized to fit alongside hamburger + logo + lang within a 375 px viewport.
+     Smaller than the 40 px target but still well above the visual minimum;
+     the buttons have extra hit-area padding from the container. Earlier 40 px
+     bump pushed the header to 382 px scrollWidth on 375 px viewports, which
+     caused the well-known "content cut off at right edge" mobile bug.
+     Audit 2026-05-29. */
+  .theme-toggle button { width: 36px; height: 36px; }
+  .lang-toggle button { min-width: 34px; height: 36px; padding: 0 8px; font-size: 11px; }
 
   /* Primary buttons hit 44 to clear iOS HIG; secondary stay at 40. */
   .btn { min-height: 44px; padding-top: 0; padding-bottom: 0; }
@@ -17402,7 +17435,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-05-29-346cf02';
+const BUILD_VERSION = '2026-06-08-6db4a33';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

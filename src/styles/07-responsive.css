@@ -82,11 +82,15 @@
   /* Table cells tighter */
   th, td { padding: var(--s-2) var(--s-3); font-size: 12px; }
 
-  /* Theme + language toggles bumped to iOS-HIG-comfortable tap size.
-     44pt is the apple guideline; 40 keeps the pill aesthetic without
-     swallowing the rest of the header. Audit 2026-05-28. */
-  .theme-toggle button { width: 40px; height: 40px; }
-  .lang-toggle button { min-width: 40px; height: 40px; padding: 0 12px; font-size: 12px; }
+  /* Theme + language toggles — iOS-HIG-comfortable tap targets.
+     Sized to fit alongside hamburger + logo + lang within a 375 px viewport.
+     Smaller than the 40 px target but still well above the visual minimum;
+     the buttons have extra hit-area padding from the container. Earlier 40 px
+     bump pushed the header to 382 px scrollWidth on 375 px viewports, which
+     caused the well-known "content cut off at right edge" mobile bug.
+     Audit 2026-05-29. */
+  .theme-toggle button { width: 36px; height: 36px; }
+  .lang-toggle button { min-width: 34px; height: 36px; padding: 0 8px; font-size: 11px; }
 
   /* Primary buttons hit 44 to clear iOS HIG; secondary stay at 40. */
   .btn { min-height: 44px; padding-top: 0; padding-bottom: 0; }

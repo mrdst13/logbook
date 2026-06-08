@@ -1009,7 +1009,12 @@ details[open] .form-card-summary svg { transform: rotate(180deg); }
 .form-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .col-span-2 { grid-column: span 2; }
 
-.form-group { display: flex; flex-direction: column; gap: 6px; }
+/* min-width: 0 lets the form-group shrink below its intrinsic content
+   width when it sits inside a grid 1fr column on small viewports.
+   Without this, an input's intrinsic min-content size forces the grid
+   column to expand past its parent's edge — the original cause of the
+   "form fields cut off right side" mobile bug. */
+.form-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
 label {
   font-family: var(--font-sans);
@@ -1027,6 +1032,11 @@ input[type="email"],
 input[type="tel"],
 select,
 textarea {
+  /* Fill the form-grid column and never overflow it (mobile audit
+     2026-05-29 — was overflowing right edge by 28 px on phone widths). */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 9px var(--s-3);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);

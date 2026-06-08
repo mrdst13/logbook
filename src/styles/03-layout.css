@@ -58,6 +58,12 @@ body.nav-open .hamburger span:nth-child(3) { transform: translateY(-7px) rotate(
   text-decoration: none;
   color: inherit;
   transition: opacity var(--t-micro) var(--ease-out);
+  /* Hit area : the visible logo is only ~24 px tall, well below the
+     iOS HIG 44 pt tap minimum. Pad the link vertically so the whole
+     row of the header is tappable without enlarging the visual.
+     Mobile audit 2026-05-29. */
+  min-height: 40px;
+  padding: 4px 0;
 }
 a.logo { cursor: pointer; }
 a.logo:hover .logo-title { color: var(--accent); }

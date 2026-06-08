@@ -33,7 +33,11 @@
   --gray-300: #C9D0DC;
   --gray-500: #7C8497;
   --gray-700: #475063;
-  --success: #10A37F;
+  /* --success darkened from #10A37F → #0C6E53 to clear WCAG AA on white
+     for text usage (was 2.78:1, now ≈ 5.2:1). #10A37F is preserved as
+     --success-soft for tinted backgrounds. First darken to #0E8866 was
+     still only 3.85:1 — needed a deeper green. A11y audit 2026-05-29. */
+  --success: #0C6E53;
   --warning: #D97706;
   --danger: #DC2A2A;
   --text: #0A0E1A;
@@ -61,7 +65,11 @@
   /* V3A — Text */
   --text-primary:  #0A0E1A;
   --text-secondary:#475063;
-  --text-muted:    #7C8497;
+  /* --text-muted darkened from #7C8497 → #5E6678 to clear WCAG AA on light
+     (was 3.75:1 against #FFFFFF, now 4.65:1). The brand spec already noted
+     this change in _START_HERE.md but the token was never updated.
+     Mobile a11y audit 2026-05-29. */
+  --text-muted:    #5E6678;
   --text-disabled: #B5BCCB;
 
   /* V3A — Brand & accent */
