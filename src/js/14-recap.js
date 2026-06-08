@@ -73,7 +73,23 @@ function renderRecap() {
     if (total <= 0) {
       ff.innerHTML = '';
     } else {
-      const km = total * 800; // jet cruise ~800 km/h, rough order-of-magnitude
+      // Real great-circle distance — NO invented cruise-speed constant.
+      // Sum the actual route distance of every flight whose dep + arr
+      // airports are in AIRPORT_COORDS. Flights with unknown airports are
+      // skipped (not estimated) so the number is honest, never fabricated.
+      // (Rule: never assume/invent numbers — empty/partial > guessed.)
+      let km = 0, measured = 0, unmeasured = 0;
+      const haveGeo = (typeof haversineKM === 'function') && (typeof AIRPORT_COORDS !== 'undefined');
+      if (haveGeo) {
+        yFlights.forEach(f => {
+          const depICAO = f.dep_icao || (typeof iataToIcao === 'function' ? iataToIcao((f.route||'').split('-')[0]) : null);
+          const arrICAO = f.arr_icao || (typeof iataToIcao === 'function' ? iataToIcao((f.route||'').split('-')[1]) : null);
+          const dep = depICAO && AIRPORT_COORDS[depICAO];
+          const arr = arrICAO && AIRPORT_COORDS[arrICAO];
+          if (dep && arr) { km += haversineKM(dep.lat, dep.lon, arr.lat, arr.lon); measured++; }
+          else { unmeasured++; }
+        });
+      }
       const earthCircum = 40075;
       const earthTours = km / earthCircum;
       const daysAir = total / 24;
@@ -81,12 +97,21 @@ function renderRecap() {
       const flightsCount = yFlights.length;
       const avgLen = flightsCount > 0 ? total / flightsCount : 0;
       const kmFmt = Math.round(km).toLocaleString(locale);
-      const facts = [
-        { emoji: '🌍', text: t('recap.fun.earth',    { n: earthTours.toFixed(2) }), sub: t('recap.fun.earthSub',    { km: kmFmt }) },
+      // Sub line is transparent : if some legs couldn't be measured (unknown
+      // airport), say so rather than implying the figure covers everything.
+      const earthSub = unmeasured > 0
+        ? t('recap.fun.earthSubPartial', { km: kmFmt, measured, total: flightsCount })
+        : t('recap.fun.earthSub', { km: kmFmt });
+      const facts = [];
+      // Only show the Earth-tours fact when we actually measured distance.
+      if (measured > 0) {
+        facts.push({ emoji: '🌍', text: t('recap.fun.earth', { n: earthTours.toFixed(2) }), sub: earthSub });
+      }
+      facts.push(
         { emoji: '⏱',  text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
         { emoji: '🛬', text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
-        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acTypes.length }),        sub: t('recap.fun.aircraftSub') },
-      ];
+        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acTypes.length }),        sub: t('recap.fun.aircraftSub') }
+      );
       ff.innerHTML = facts.map(f => `
         <div class="recap-fun-item">
           <div class="recap-fun-emoji">${f.emoji}</div>
