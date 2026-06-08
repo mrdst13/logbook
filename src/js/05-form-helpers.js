@@ -268,8 +268,59 @@ function editFlight(id) {
   if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
-function deleteFlight(id) {
-  if (!confirm(t('confirm.deleteFlightShort'))) return;
+// Tombstones — signatures of deleted flights so the iCal sync never
+// re-imports a flight the pilot deliberately removed (the "vols supprimés
+// ressuscitent" bug). Mirrors findMatchingExistingFlight()'s exact key:
+// date|flightNum|route, plus a date|block fallback for source variance.
+const DELETED_TOMBSTONES_KEY = 'cumulo_deleted_tombstones_v1';
+
+function loadTombstones() {
+  try { return JSON.parse(localStorage.getItem(DELETED_TOMBSTONES_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function recordTombstone(f) {
+  if (!f || !f.date) return;
+  const tombs = loadTombstones();
+  tombs.push({
+    key: `${f.date}|${f.flightNum || ''}|${(f.route || '').toUpperCase().replace(/\s/g, '')}`,
+    date: f.date,
+    block: +f.block || 0,
+    at: Date.now()
+  });
+  // Keep the list bounded (last 2000 deletions is plenty for any career).
+  try { localStorage.setItem(DELETED_TOMBSTONES_KEY, JSON.stringify(tombs.slice(-2000))); }
+  catch { /* storage full — non-fatal, sync will just risk re-import */ }
+}
+
+// True if an incoming sync flight matches a recorded deletion. Mirrors the
+// exact + date-block match logic in findMatchingExistingFlight().
+function isTombstoned(incoming) {
+  if (!incoming || !incoming.date) return false;
+  const tombs = loadTombstones();
+  const key = `${incoming.date}|${incoming.flightNum || ''}|${(incoming.route || '').toUpperCase().replace(/\s/g, '')}`;
+  const inBlock = +incoming.block || 0;
+  return tombs.some(t =>
+    t.key === key ||
+    (t.date === incoming.date && Math.abs((t.block || 0) - inBlock) <= 0.15)
+  );
+}
+
+async function deleteFlight(id) {
+  const ok = await confirmDialog({
+    title: t('confirm.deleteFlightTitle') || 'Delete flight',
+    body: t('confirm.deleteFlight'),
+    cancelLabel: t('btn.cancel') || 'Cancel',
+    confirmLabel: t('btn.delete') || 'Delete',
+    danger: true
+  });
+  if (!ok) return;
+  // Snapshot first so the deletion is undoable from Settings → Data
+  // (honors the promise in the confirm copy).
+  if (typeof snapshotBeforeOperation === 'function') snapshotBeforeOperation('delete-flight');
+  // Record a tombstone so the next iCal sync doesn't resurrect this flight.
+  const deleted = flights.find(f => f.id === id);
+  if (deleted) recordTombstone(deleted);
   flights = flights.filter(f => f.id !== id);
   DB.save(flights);
   showToast(t('toast.flightDeleted'), 'error');

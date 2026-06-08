@@ -884,9 +884,17 @@ async function syncNavblueNow(opts) {
     const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
                          'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
                          'pic','copilot','crewPosition'];
+    let resurrectBlocked = 0;
     mapped.forEach(f => {
       const match = findMatchingExistingFlight(f);
       if (!match) {
+        // Don't resurrect a flight the pilot deliberately deleted. Without
+        // this guard, every sync re-imports deleted flights as "fresh"
+        // (the "vols supprimés ressuscitent" bug). Audit 2026-05-29.
+        if (typeof isTombstoned === 'function' && isTombstoned(f)) {
+          resurrectBlocked++;
+          return;
+        }
         fresh.push(f);
         return;
       }

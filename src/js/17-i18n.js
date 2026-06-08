@@ -538,7 +538,8 @@ const STRINGS = {
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
  'confirm.removeNavblue': 'Remove the saved iCal URL?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
- 'confirm.deleteFlight': 'Delete this flight? This cannot be undone (a snapshot is taken before delete — you can undo from Settings).',
+ 'confirm.deleteFlightTitle':'Delete flight',
+ 'confirm.deleteFlight': 'Delete this flight? A snapshot is taken first — you can undo from Settings → Data. The flight won\'t come back on the next sync.',
  // 'confirm.recalc' — dead key. The bulk-recalc feature was removed for TC
  // compliance (overwriting pilot-typed values violates CAR 401.08
  // contemporaneous-record). Internal post-iCal-sync filling of EMPTY
@@ -1167,7 +1168,8 @@ const STRINGS = {
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
  'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
- 'confirm.deleteFlight': 'Supprimer ce vol ? Action irréversible (un instantané est pris avant la suppression — vous pouvez annuler depuis Paramètres).',
+ 'confirm.deleteFlightTitle':'Supprimer le vol',
+ 'confirm.deleteFlight': 'Supprimer ce vol ? Un instantané est pris d\'abord — vous pouvez annuler depuis Paramètres → Données. Le vol ne reviendra pas à la prochaine synchro.',
  // 'confirm.recalc' — clé morte. La fonctionnalité de recalcul en masse a
  // été retirée pour conformité TC (écraser des valeurs saisies par le pilote
  // viole CAR 401.08). Le remplissage interne des champs Nuit/XC VIDES après
