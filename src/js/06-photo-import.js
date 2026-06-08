@@ -408,7 +408,14 @@ function confirmImport() {
       ? resolveSelfReferences(flightData, importProfile)
       : flightData;
     const newId = Date.now().toString() + Math.random();
-    flights.push({ ...resolved, id: newId });
+    const withId = { ...resolved, id: newId };
+    // Auto-fill XC + Night before push. Without this, every flight
+    // imported via the preview modal (iCal fresh, PDF roster, photo OCR,
+    // CSV) shipped with empty XC fields. Audit 2026-05-29.
+    const enriched = (typeof recalculateFlightDayNightXC === 'function')
+      ? recalculateFlightDayNightXC(withId)
+      : withId;
+    flights.push(enriched);
     newIds.push(newId);
   });
   DB.save(flights);
