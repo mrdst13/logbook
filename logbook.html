@@ -8059,8 +8059,59 @@ function editFlight(id) {
   if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
-function deleteFlight(id) {
-  if (!confirm(t('confirm.deleteFlightShort'))) return;
+// Tombstones — signatures of deleted flights so the iCal sync never
+// re-imports a flight the pilot deliberately removed (the "vols supprimés
+// ressuscitent" bug). Mirrors findMatchingExistingFlight()'s exact key:
+// date|flightNum|route, plus a date|block fallback for source variance.
+const DELETED_TOMBSTONES_KEY = 'cumulo_deleted_tombstones_v1';
+
+function loadTombstones() {
+  try { return JSON.parse(localStorage.getItem(DELETED_TOMBSTONES_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function recordTombstone(f) {
+  if (!f || !f.date) return;
+  const tombs = loadTombstones();
+  tombs.push({
+    key: `${f.date}|${f.flightNum || ''}|${(f.route || '').toUpperCase().replace(/\s/g, '')}`,
+    date: f.date,
+    block: +f.block || 0,
+    at: Date.now()
+  });
+  // Keep the list bounded (last 2000 deletions is plenty for any career).
+  try { localStorage.setItem(DELETED_TOMBSTONES_KEY, JSON.stringify(tombs.slice(-2000))); }
+  catch { /* storage full — non-fatal, sync will just risk re-import */ }
+}
+
+// True if an incoming sync flight matches a recorded deletion. Mirrors the
+// exact + date-block match logic in findMatchingExistingFlight().
+function isTombstoned(incoming) {
+  if (!incoming || !incoming.date) return false;
+  const tombs = loadTombstones();
+  const key = `${incoming.date}|${incoming.flightNum || ''}|${(incoming.route || '').toUpperCase().replace(/\s/g, '')}`;
+  const inBlock = +incoming.block || 0;
+  return tombs.some(t =>
+    t.key === key ||
+    (t.date === incoming.date && Math.abs((t.block || 0) - inBlock) <= 0.15)
+  );
+}
+
+async function deleteFlight(id) {
+  const ok = await confirmDialog({
+    title: t('confirm.deleteFlightTitle') || 'Delete flight',
+    body: t('confirm.deleteFlight'),
+    cancelLabel: t('btn.cancel') || 'Cancel',
+    confirmLabel: t('btn.delete') || 'Delete',
+    danger: true
+  });
+  if (!ok) return;
+  // Snapshot first so the deletion is undoable from Settings → Data
+  // (honors the promise in the confirm copy).
+  if (typeof snapshotBeforeOperation === 'function') snapshotBeforeOperation('delete-flight');
+  // Record a tombstone so the next iCal sync doesn't resurrect this flight.
+  const deleted = flights.find(f => f.id === id);
+  if (deleted) recordTombstone(deleted);
   flights = flights.filter(f => f.id !== id);
   DB.save(flights);
   showToast(t('toast.flightDeleted'), 'error');
@@ -9871,9 +9922,17 @@ async function syncNavblueNow(opts) {
     const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
                          'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
                          'pic','copilot','crewPosition'];
+    let resurrectBlocked = 0;
     mapped.forEach(f => {
       const match = findMatchingExistingFlight(f);
       if (!match) {
+        // Don't resurrect a flight the pilot deliberately deleted. Without
+        // this guard, every sync re-imports deleted flights as "fresh"
+        // (the "vols supprimés ressuscitent" bug). Audit 2026-05-29.
+        if (typeof isTombstoned === 'function' && isTombstoned(f)) {
+          resurrectBlocked++;
+          return;
+        }
         fresh.push(f);
         return;
       }
@@ -14208,7 +14267,8 @@ const STRINGS = {
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
  'confirm.removeNavblue': 'Remove the saved iCal URL?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
- 'confirm.deleteFlight': 'Delete this flight? This cannot be undone (a snapshot is taken before delete — you can undo from Settings).',
+ 'confirm.deleteFlightTitle':'Delete flight',
+ 'confirm.deleteFlight': 'Delete this flight? A snapshot is taken first — you can undo from Settings → Data. The flight won\'t come back on the next sync.',
  // 'confirm.recalc' — dead key. The bulk-recalc feature was removed for TC
  // compliance (overwriting pilot-typed values violates CAR 401.08
  // contemporaneous-record). Internal post-iCal-sync filling of EMPTY
@@ -14837,7 +14897,8 @@ const STRINGS = {
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
  'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
- 'confirm.deleteFlight': 'Supprimer ce vol ? Action irréversible (un instantané est pris avant la suppression — vous pouvez annuler depuis Paramètres).',
+ 'confirm.deleteFlightTitle':'Supprimer le vol',
+ 'confirm.deleteFlight': 'Supprimer ce vol ? Un instantané est pris d\'abord — vous pouvez annuler depuis Paramètres → Données. Le vol ne reviendra pas à la prochaine synchro.',
  // 'confirm.recalc' — clé morte. La fonctionnalité de recalcul en masse a
  // été retirée pour conformité TC (écraser des valeurs saisies par le pilote
  // viole CAR 401.08). Le remplissage interne des champs Nuit/XC VIDES après
@@ -17479,7 +17540,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-08-7bf79da';
+const BUILD_VERSION = '2026-06-08-b9c227f';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
