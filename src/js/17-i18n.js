@@ -433,7 +433,8 @@ const STRINGS = {
  'recap.noRoutes': 'No routes for this year.',
  // Fun facts row
  'recap.fun.earth':       '{n} times around the Earth',
- 'recap.fun.earthSub':    '~{km} km traveled (jet cruise estimate)',
+ 'recap.fun.earthSub':    '{km} km flown (great-circle distance)',
+ 'recap.fun.earthSubPartial': '{km} km flown · {measured} of {total} legs measured',
  'recap.fun.days':        '{n} days in the air',
  'recap.fun.daysSub':     'out of 365 days in the year',
  'recap.fun.flights':     '{n} flights logged',
@@ -1063,7 +1064,8 @@ const STRINGS = {
  'recap.noRoutes': 'Aucune route pour cette année.',
  // Fun facts row
  'recap.fun.earth':       '{n} fois le tour de la Terre',
- 'recap.fun.earthSub':    '~{km} km parcourus (estimation vitesse de croisière)',
+ 'recap.fun.earthSub':    '{km} km parcourus (distance orthodromique)',
+ 'recap.fun.earthSubPartial': '{km} km parcourus · {measured} étapes sur {total} mesurées',
  'recap.fun.days':        '{n} jours dans les airs',
  'recap.fun.daysSub':     'sur 365 jours dans l\'année',
  'recap.fun.flights':     '{n} vols enregistrés',

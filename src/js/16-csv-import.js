@@ -1141,7 +1141,14 @@ function commitCsvImport() {
       flights[match.idx] = mergedFlight;
       merged++;
     } else {
-      flights.push(incoming);
+      // Auto-fill XC + Night from route coords for any slot the CSV didn't
+      // provide. fill-empty-only — never overwrites a value the source CSV
+      // already carried (ForeFlight / LogTen Pro export their own night/XC).
+      // Same gap that iCal + manual-form had. Audit R2 2026-06-08.
+      const enriched = (typeof recalculateFlightDayNightXC === 'function')
+        ? recalculateFlightDayNightXC(incoming)
+        : incoming;
+      flights.push(enriched);
       added++;
     }
   });
