@@ -163,12 +163,49 @@ function saveFlight(options) {
     simInstructor: isSim ? gv('f-simInstructor') : '',
   };
 
+  // Normalize empty form values to undefined BEFORE recalc, so the
+  // recalc fill-empty logic (which strict-checks undefined/null) actually
+  // fires. Form inputs return '' for unfilled fields ; that '' was getting
+  // recorded as a "pilot value" and blocking the XC + Night auto-fill.
+  // Audit 2026-05-29 : Martin reported XC never calculated on his flights.
+  const AUTO_SLOTS = ['meDayDual','meDayPic','meDayCop','meNightDual','meNightPic','meNightCop',
+                      'xcDayDual','xcDayPic','xcDayCop','xcNightDual','xcNightPic','xcNightCop'];
+  AUTO_SLOTS.forEach(k => {
+    if (flight[k] === '' || flight[k] === undefined || flight[k] === null) {
+      delete flight[k];   // mark empty so recalculateFlightDayNightXC() fills it
+    }
+  });
+
+  // Diversion handling : if the pilot edited the route on an existing
+  // flight, the old XC/Night auto-values were computed for the old route
+  // and are now stale. Clear them so the recalc can refill with the new
+  // route's coordinates. We preserve any value that DIFFERS from the
+  // existing flight's stored value (treat as explicit pilot edit).
+  if (editingId) {
+    const existing = flights.find(f => f.id === editingId);
+    if (existing && existing.route !== flight.route) {
+      // Route changed (e.g. diversion YYZ-YYT → YYZ-YOW). Drop the cached
+      // ICAO codes and the auto-calculated XC/Night slots so the new route
+      // drives the next recalc pass.
+      delete flight.dep_icao;
+      delete flight.arr_icao;
+      AUTO_SLOTS.forEach(k => { if (flight[k] === undefined) delete flight[k]; });
+    }
+  }
+
+  // Auto-fill XC + Night from the route's ICAO coordinates. Returns the
+  // same object if nothing was filled (no coords / no UTC anchor / no
+  // block) — safe to call unconditionally.
+  const finalFlight = (typeof recalculateFlightDayNightXC === 'function')
+    ? recalculateFlightDayNightXC(flight)
+    : flight;
+
   if (editingId) {
     const idx = flights.findIndex(f => f.id === editingId);
-    if (idx !== -1) flights[idx] = flight;
+    if (idx !== -1) flights[idx] = finalFlight;
     editingId = null;
   } else {
-    flights.push(flight);
+    flights.push(finalFlight);
   }
 
   DB.save(flights);
