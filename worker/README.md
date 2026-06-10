@@ -104,7 +104,7 @@ secret is missing — re-run `wrangler secret put`.
 - Source was pulled from the Cloudflare dashboard via
   `wrangler init --from-dash logbook-api` on 2026-05-28 (commit that adds
   this directory). Before that, the Worker source was tracked only as a
-  fenced code block in `../../worker-update-INSTRUCTIONS.md` — a
+  fenced code block in `private/worker-update-INSTRUCTIONS.md` (moved out of the deployed tree, audit 2026-06-09) — a
   bus-factor / no-rollback risk flagged in the audit.
 - Every deploy of this Worker preserves existing Cloudflare Secrets. The
   one time secrets were lost (2026-05-28 morning) was during the initial

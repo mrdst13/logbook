@@ -45,7 +45,7 @@ function renderLogbook(filter='') {
   // rather than nth-child (which would break when column order changes).
   if (thead) {
     thead.innerHTML = '<tr>' +
-      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${c.label}</th>`).join('') +
+      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(c.label)}</th>`).join('') +
     '</tr>';
   }
 

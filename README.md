@@ -195,7 +195,7 @@ src/
 
 To run the full Supabase sync features:
 
-1. Create a Supabase project in `ca-central-1` (Montréal). [See setup guide →](SUPABASE-SETUP-GUIDE.md)
+1. Create a Supabase project in `ca-central-1` (Montréal). (setup guide lives in `private/SUPABASE-SETUP-GUIDE.md`, kept out of the deployed tree)
 2. Edit `src/js/18-supabase.js` and fill in your `SUPABASE_URL` and `SUPABASE_ANON_KEY` constants.
 3. Run the SQL from `supabase/schema.sql` in your Supabase SQL editor.
 4. Rebuild (`node build.js`) and push.

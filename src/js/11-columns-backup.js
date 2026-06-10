@@ -223,11 +223,11 @@ function backupData() {
 
 // Restore from a JSON backup file.
 // SECURITY: this path accepts arbitrary user-supplied JSON. We must
-// validate strictly — past audits flagged it as an injection vector
-// (XSS via raw HTML in flight fields, ReDoS via crafted regex strings).
+// validate strictly — past audits flagged it as an injection vector.
 // Rules enforced here:
 //   - data.flights must be a real array, capped at 100k entries
-//   - each flight is an object; string fields are sanitized
+//   - each flight is an object; string fields are length-clipped
+//     (NOT HTML-stripped — render-time esc() is the XSS defense)
 //   - data.profile is an object; `lang` is whitelisted; `operatorCodes`
 //     is restricted to safe alphanumeric characters
 //   - captain/copilot names are re-anonymized to initials if the user
@@ -322,8 +322,11 @@ function restoreData(input) {
   input.value = '';
 }
 
-// Strip dangerous content from each flight before adopting it into the
-// live list. We drop unknown keys and clip string values to a sane length.
+// Normalize each flight before adopting it into the live list: drop
+// non-primitive values and clip strings to a sane length.
+// NOTE (audit 2026-06-09): this does NOT strip/escape HTML — markup in
+// string fields survives restore. XSS defense lives at render time: every
+// DOM sink must esc() these values. Do not rely on this function for XSS.
 function sanitizeFlightRow(f, profile) {
   const MAX_STR = 1024;
   const out = {};

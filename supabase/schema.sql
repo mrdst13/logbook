@@ -189,6 +189,11 @@ create table if not exists public.flights (
   client_updated_at timestamptz not null default now(),
   device_id text,
   op_id uuid,
+  -- Soft delete for cross-device delete reconciliation (audit 2026-06-09):
+  -- a deleted flight keeps its row with deleted_at set so every other
+  -- device learns about the deletion on its next pull. A hard DELETE would
+  -- lose to a concurrent re-upsert from a device that still has the flight.
+  deleted_at timestamptz,
   updated_at timestamptz default now()
 );
 

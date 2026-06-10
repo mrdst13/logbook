@@ -22,7 +22,7 @@ async function handleRosterFile(file) {
   }
   const details = document.getElementById('rosterDetails');
   details.style.display = 'block';
-  details.innerHTML = `Reading <strong>${file.name}</strong>…`;
+  details.innerHTML = `Reading <strong>${esc(file.name)}</strong>…`;
 
   try {
     // Read the file as ArrayBuffer (client-side, no upload)
@@ -136,7 +136,7 @@ async function handleRosterFile(file) {
     }
   } catch (e) {
     console.error('[Roster] Parse error:', e);
-    details.innerHTML = `<span style="color:var(--danger);">Error: ${e.message}</span>`;
+    details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
     showToast(t('toast.pdfParseFailed', { err: e.message }), 'error');
   }
 }

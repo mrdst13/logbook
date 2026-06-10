@@ -5,6 +5,9 @@ export default defineWorkersConfig({
 		poolOptions: {
 			workers: {
 				wrangler: { configPath: './wrangler.jsonc' },
+				// Fake key so handleAnthropic passes its env check in tests.
+				// Upstream fetch is stubbed in the specs — no real API calls.
+				miniflare: { bindings: { ANTHROPIC_API_KEY: 'test-key-not-real' } },
 			},
 		},
 	},
