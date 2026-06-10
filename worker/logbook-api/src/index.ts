@@ -2,13 +2,20 @@
 // Source of truth for the Worker deployed at:
 //   https://logbook-api.martindaoust33.workers.dev
 //
-// Security guarantees (defense in depth):
+// Security guarantees (defense in depth — hardened audit 2026-06-09):
 //   - Origin allow-list           → blocks browser abuse from other sites
+//   - IP rate limit (binding)     → bounds request volume per client
 //   - Model allow-list            → bounds cost per request
-//   - max_tokens cap 2048         → bounds cost per request
-//   - 5 MB body size limit        → bounds batch abuse
+//   - max_tokens cap              → bounds cost per request
+//   - 5 MB body size limit        → measured on actual bytes, not the
+//                                   client-supplied Content-Length header
+//   - Field whitelist + server-side system prompt → the key cannot be
+//     repurposed as a general LLM (no client tools/system passthrough)
 //   - Generic error messages      → no env/key leak via error reflection
 //   - Navblue domain SSRF lock    → fetch-ics can only hit navblue.cloud
+//
+// TODO Phase B (Supabase go-live): require a verified Supabase JWT on the
+// Anthropic path. Origin checks alone are spoofable outside browsers.
 
 const ALLOWED_ORIGINS = new Set([
   // Production
@@ -27,8 +34,11 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:8080',
   'http://localhost:8181',
   'http://127.0.0.1',
-  'http://127.0.0.1:8080',
-  'null' // file:// — covers local HTML opened directly
+  'http://127.0.0.1:8080'
+  // 'null' (file://) intentionally NOT allowed: sandboxed iframes on any
+  // website also send Origin: null, which would let drive-by pages call
+  // this worker from victims' browsers (audit 2026-06-09). For local dev,
+  // serve over http://localhost instead of opening the file directly.
 ]);
 
 const ALLOWED_MODELS = new Set([
@@ -38,8 +48,25 @@ const ALLOWED_MODELS = new Set([
   'claude-haiku-4-5-20251001'
 ]);
 
-const MAX_TOKENS_CAP = 2048;
+// 8192 covers the largest real client request (Navblue PDF extraction asks
+// for 8000) while still bounding the per-request output cost. The previous
+// 2048 cap silently broke photo import (client asks for 4000).
+const MAX_TOKENS_CAP = 8192;
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB — fits photo/PDF imports
+
+// System prompt is pinned SERVER-SIDE. Any `system` sent by the client is
+// ignored, so a spoofed-origin caller cannot repurpose the key as a
+// general-purpose assistant.
+const SYSTEM_PROMPT =
+  'You are a data extraction API for a pilot logbook app. You ONLY output ' +
+  'valid JSON arrays. Never include explanations, markdown, or text outside ' +
+  'the JSON array. If you cannot extract anything, return [].';
+
+// Cloudflare rate-limiting binding (see wrangler.jsonc). Optional so the
+// worker keeps running if the binding is absent in a dev environment.
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
 
 function pickCorsOrigin(request: Request): string | null {
   const origin = request.headers.get('Origin');
@@ -83,15 +110,41 @@ export default {
       return jsonError('Forbidden — origin not allowed', 403, null);
     }
 
-    // Body size guard
+    // Rate limit per client IP (binding configured in wrangler.jsonc).
+    const limiter = (env as Env & { RATE_LIMITER?: RateLimiter }).RATE_LIMITER;
+    if (limiter) {
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      try {
+        const { success } = await limiter.limit({ key: ip });
+        if (!success) {
+          return jsonError('Too many requests — slow down', 429, origin);
+        }
+      } catch (e: any) {
+        // Limiter outage must not take the API down — log and continue.
+        console.error('[Worker] rate limiter error:', e?.message);
+      }
+    }
+
+    // Body size guard. Cheap fast-path reject on the declared length, then
+    // enforce on the ACTUAL bytes read — Content-Length is client-supplied
+    // and can be omitted or understated (audit 2026-06-09).
     const contentLength = parseInt(request.headers.get('Content-Length') || '0', 10);
     if (contentLength > MAX_BODY_BYTES) {
+      return jsonError('Request body too large', 413, origin);
+    }
+    let rawBody: string;
+    try {
+      rawBody = await request.text();
+    } catch {
+      return jsonError('Unreadable request body', 400, origin);
+    }
+    if (rawBody.length > MAX_BODY_BYTES) {
       return jsonError('Request body too large', 413, origin);
     }
 
     let body: any;
     try {
-      body = await request.json();
+      body = JSON.parse(rawBody);
     } catch {
       return jsonError('Invalid JSON', 400, origin);
     }
@@ -149,6 +202,19 @@ async function handleAnthropic(body: any, env: Env, origin: string): Promise<Res
   if (typeof body.max_tokens !== 'number' || body.max_tokens > MAX_TOKENS_CAP || body.max_tokens < 1) {
     return jsonError(`max_tokens must be 1..${MAX_TOKENS_CAP}`, 400, origin);
   }
+  if (!Array.isArray(body.messages) || body.messages.length === 0) {
+    return jsonError('messages must be a non-empty array', 400, origin);
+  }
+
+  // Field whitelist: ONLY model/max_tokens/messages pass through, and the
+  // system prompt is pinned server-side. Client-sent `system`, `tools`,
+  // `metadata`, etc. are dropped — the raw body is never forwarded.
+  const upstreamBody = {
+    model: body.model,
+    max_tokens: body.max_tokens,
+    system: SYSTEM_PROMPT,
+    messages: body.messages
+  };
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -158,7 +224,7 @@ async function handleAnthropic(body: any, env: Env, origin: string): Promise<Res
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(upstreamBody)
     });
     const data = await resp.text();
     return new Response(data, {

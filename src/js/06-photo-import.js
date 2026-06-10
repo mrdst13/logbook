@@ -202,7 +202,8 @@ async function parseNavbluePDF(input) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
         max_tokens: 8000,
-        system: 'You are a data extraction API. You ONLY output valid JSON arrays. Never include explanations, markdown, or text outside the JSON array. If you cannot extract anything, return [].',
+        // Note: the system prompt is pinned server-side in the worker
+        // (data-extraction-API persona) — anything sent here is ignored.
         messages: [{
           role: 'user',
           content: [

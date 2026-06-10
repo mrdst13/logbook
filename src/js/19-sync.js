@@ -153,11 +153,19 @@ function localFlightToRow(f, userId, opId) {
   // local rows should already be anonymized at write-time, but if any
   // ever slipped through (CSV import edge case, legacy data), we still
   // never push raw third-party PII to the cloud.
-  if (typeof DB !== 'undefined' && typeof gateCaptainName === 'function') {
-    const profile = DB.loadProfile();
-    if (profile && !profile.consentCaptainNames) {
-      if (typeof row.pic === 'string')     row.pic = gateCaptainName(row.pic, profile);
-      if (typeof row.copilot === 'string') row.copilot = gateCaptainName(row.copilot, profile);
+  // FAIL CLOSED (audit 2026-06-09): if the anonymizer or profile is
+  // unavailable (load-order regression), we cannot prove consent — so blank
+  // the crew names rather than push raw PII. Local data is untouched and a
+  // later push with the gate present restores the anonymized values.
+  const gateProfile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null;
+  const hasConsent = !!(gateProfile && gateProfile.consentCaptainNames);
+  if (!hasConsent) {
+    if (gateProfile && typeof gateCaptainName === 'function') {
+      if (typeof row.pic === 'string')     row.pic = gateCaptainName(row.pic, gateProfile);
+      if (typeof row.copilot === 'string') row.copilot = gateCaptainName(row.copilot, gateProfile);
+    } else {
+      if (typeof row.pic === 'string')     row.pic = '';
+      if (typeof row.copilot === 'string') row.copilot = '';
     }
   }
   // Mint id if missing
@@ -211,20 +219,33 @@ const Sync = {
     }
   },
 
+  // Soft delete (deleted_at) instead of hard DELETE: other devices still
+  // hold this flight locally and would re-upsert it on their next auto-sync,
+  // resurrecting the row. With deleted_at set, their next pullFlights
+  // removes it locally instead. Called from deleteFlight() in
+  // 05-form-helpers.js after the local removal succeeds.
   async deleteFlight(flightId) {
-    if (!Auth.isAuthenticated()) return;
-    const { error } = await Auth.client.from('flights').delete().eq('id', flightId);
-    if (error) {
-      console.warn('[Sync] deleteFlight failed, queuing:', error.message);
-      this._enqueue({ type: 'delete_flight', payload: { id: flightId } });
+    if (!Auth.isAuthenticated() || !flightId) return;
+    const stamp = new Date().toISOString();
+    try {
+      const { error } = await Auth.client.from('flights')
+        .update({ deleted_at: stamp }).eq('id', flightId);
+      if (error) {
+        console.warn('[Sync] deleteFlight failed, queuing:', error.message);
+        this._enqueue({ type: 'delete_flight', payload: { id: flightId, deleted_at: stamp } });
+      }
+    } catch (e) {
+      console.warn('[Sync] deleteFlight threw, queuing:', e);
+      this._enqueue({ type: 'delete_flight', payload: { id: flightId, deleted_at: stamp } });
     }
   },
 
   // Pull remote flights for cross-device sync. MERGE strategy: remote rows
   // not in local → append; both exist → keep the higher updated_at.
-  // Note: delete reconciliation is NOT wired (skeleton). A flight deleted
-  // on device A will continue to appear on device B until we add a
-  // soft-delete (deleted_at) column + filter. TODO before pilot users.
+  // Delete reconciliation (audit 2026-06-09): rows with deleted_at set are
+  // removed locally (+ tombstoned); never re-adopted. Rows matching a local
+  // tombstone are skipped — covers the window where this device deleted a
+  // flight but the cloud soft-delete is still queued offline.
   async pullFlights() {
     if (!Auth.isAuthenticated()) return;
     let data, error;
@@ -239,11 +260,24 @@ const Sync = {
     if (!data || !data.length) return;
 
     const byId = new Map(flights.map(f => [f.id, f]));
-    let added = 0, updated = 0;
+    let added = 0, updated = 0, removed = 0;
     data.forEach(row => {
       const remote = rowToLocalFlight(row);
+      if (row.deleted_at) {
+        // Another device deleted this flight. Remove the local copy and
+        // record a tombstone so the iCal merge can't resurrect it either.
+        const localDeleted = byId.get(remote.id);
+        if (localDeleted) {
+          if (typeof recordTombstone === 'function') recordTombstone(localDeleted);
+          flights = flights.filter(f => f.id !== remote.id);
+          byId.delete(remote.id);
+          removed++;
+        }
+        return;
+      }
       const local = byId.get(remote.id);
       if (!local) {
+        if (typeof isTombstoned === 'function' && isTombstoned(remote)) return;
         remote._updated_at = row.updated_at || row.client_updated_at || '';
         flights.push(remote);
         byId.set(remote.id, remote);
@@ -263,7 +297,7 @@ const Sync = {
       }
     });
 
-    if (added || updated) {
+    if (added || updated || removed) {
       // Suppress auto-sync: this DB.save is purely a download-side
       // reconciliation, not a user edit. Re-pushing here would create
       // a feedback loop with the trigger that just updated `updated_at`.
@@ -503,7 +537,10 @@ const Sync = {
           const { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
           if (error) { op.attempts++; remaining.push(op); }
         } else if (op.type === 'delete_flight') {
-          const { error } = await Auth.client.from('flights').delete().eq('id', op.payload.id);
+          // Soft delete — mirror Sync.deleteFlight (see comment there).
+          const { error } = await Auth.client.from('flights')
+            .update({ deleted_at: op.payload.deleted_at || new Date().toISOString() })
+            .eq('id', op.payload.id);
           if (error) { op.attempts++; remaining.push(op); }
         } else if (op.type === 'upsert_profile') {
           const { error } = await Auth.client.from('profiles').upsert(op.payload, { onConflict: 'id' });

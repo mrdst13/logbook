@@ -8,7 +8,9 @@
 //   - Auth.client returns null, Auth.isReady() returns false.
 //   - The rest of the app continues to read/write localStorage unchanged.
 //
-// Setup steps for Martin: see /SUPABASE-SETUP-GUIDE.md at repo root.
+// Setup steps for Martin: see private/SUPABASE-SETUP-GUIDE.md (moved out
+// of the deployed tree — audit 2026-06-09: tracked .md files are served
+// publicly by Cloudflare Pages).
 //
 // Patterns enforced:
 //   - RLS owner-scoped (auth.uid() = user_id) — enforced server-side, see schema.sql.
@@ -23,7 +25,7 @@
 
 // ─────────────────────────────────────────────────────────────────
 // Configuration — fill these in after creating the Supabase project.
-// See SUPABASE-SETUP-GUIDE.md step 3.
+// See private/SUPABASE-SETUP-GUIDE.md step 3.
 // ─────────────────────────────────────────────────────────────────
 const SUPABASE_URL = '';        // e.g. 'https://abcdefgh.supabase.co'
 const SUPABASE_ANON_KEY = '';   // long JWT-looking string from Settings → API

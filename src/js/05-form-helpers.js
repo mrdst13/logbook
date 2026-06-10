@@ -323,6 +323,13 @@ async function deleteFlight(id) {
   if (deleted) recordTombstone(deleted);
   flights = flights.filter(f => f.id !== id);
   DB.save(flights);
+  // Propagate to the cloud as a soft delete so other devices don't
+  // resurrect this flight on their next sync (audit 2026-06-09).
+  // No-op while signed out / Supabase not configured.
+  if (typeof Sync !== 'undefined' && typeof Auth !== 'undefined'
+      && Auth.isAuthenticated && Auth.isAuthenticated()) {
+    Sync.deleteFlight(id).catch(e => console.warn('[Sync] cloud delete failed:', e));
+  }
   showToast(t('toast.flightDeleted'), 'error');
   renderLogbook(filterVal);
 }

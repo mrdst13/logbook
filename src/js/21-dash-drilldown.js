@@ -89,7 +89,7 @@ function _drillPPC(profile, fr, settingsBtn) {
 
   const rows = [
     { k: fr ? 'PPC dû' : 'PPC due',
-      v: ppcDate || (fr ? 'non défini' : 'not set') },
+      v: esc(ppcDate || (fr ? 'non défini' : 'not set')) },
     { k: fr ? 'Jours restants' : 'Days remaining',
       v: ppcDays === null ? '—' : (ppcDays > 0 ? ppcDays : (fr ? 'expiré' : 'expired')) },
     { k: 'Status',
@@ -251,10 +251,10 @@ function _drillMedical(profile, fr, settingsBtn) {
     : medDays > 60 ? 'ok' : medDays > 0 ? 'warn' : 'bad';
 
   const rows = [
-    { k: fr ? 'Date d’expiration' : 'Expiry date', v: med || (fr ? 'non définie' : 'not set') },
+    { k: fr ? 'Date d’expiration' : 'Expiry date', v: esc(med || (fr ? 'non définie' : 'not set')) },
     { k: fr ? 'Jours restants'     : 'Days remaining', v: medDays === null ? '—' : (medDays > 0 ? medDays : (fr ? 'expiré' : 'expired')) },
     { k: 'Status', v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
-    { k: fr ? 'ECG dû'             : 'ECG due', v: ecg ? `${ecg}${ecgDays !== null ? ` (${ecgDays > 0 ? ecgDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}` : '—' },
+    { k: fr ? 'ECG dû'             : 'ECG due', v: ecg ? `${esc(ecg)}${ecgDays !== null ? ` (${ecgDays > 0 ? ecgDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}` : '—' },
   ];
 
   return {
@@ -313,7 +313,7 @@ function _drillMilestone(s, profile, fr, F) {
   })[k] || k;
 
   const goalDisplay = currentGoal > 0
-    ? `${currentGoal.toLocaleString()} hrs · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${currentContext})` : ''}`
+    ? `${currentGoal.toLocaleString()} hrs · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${esc(currentContext)})` : ''}`
     : (fr ? 'non défini' : 'not set');
 
   const rows = [

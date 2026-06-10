@@ -18,5 +18,18 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	// Per-IP rate limit: 20 requests / 60 s. "unsafe" is Cloudflare's label
+	// for the beta binding API, not a danger flag. namespace_id is an
+	// arbitrary app-unique integer.
+	"unsafe": {
+		"bindings": [
+			{
+				"name": "RATE_LIMITER",
+				"type": "ratelimit",
+				"namespace_id": "1001",
+				"simple": { "limit": 20, "period": 60 }
+			}
+		]
+	}
 }
