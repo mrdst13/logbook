@@ -17626,7 +17626,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-19-da6149d';
+const BUILD_VERSION = '2026-06-19-7804a5b';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -17678,8 +17678,19 @@ function injectDemoBanner() {
  const p = DB.loadProfile();
  if (p.fname) updateProfileDisplay(p);
  renderDashboard();
- document.getElementById('dashDate').textContent =
- new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+ // `dashDate` was removed in a redesign (the date now lives in the dashboard
+ // eyebrow rendered by renderDashboard). This orphaned line was throwing
+ // "Cannot set textContent of null", which aborted the ENTIRE init() before
+ // it reached the Supabase bootstrap below — silently disabling cloud sync,
+ // Navblue auto-sync, form validation, and onboarding. Guarded 2026-06-10.
+ const dashDateEl = document.getElementById('dashDate');
+ if (dashDateEl) {
+   dashDateEl.textContent =
+     new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+ }
+ // Non-critical UI wiring — wrapped so a single orphaned DOM reference
+ // can never again abort init() before the Supabase/sync bootstrap runs.
+ try {
  loadNavblueUI();
  // Update relative-time status every minute
  setInterval(updateNavblueStatus, 60000);
@@ -17737,6 +17748,12 @@ function injectDemoBanner() {
  // First-launch onboarding (only if no profile name set)
  if (shouldShowOnboarding()) {
  setTimeout(startOnboarding, 400);
+ }
+ } catch (initExtrasErr) {
+   // A non-critical setup step threw — log it but DO NOT let it stop the
+   // Supabase bootstrap below. (This whole class of bug is what the
+   // dashDate guard above fixed; this is belt-and-suspenders.)
+   console.error('[init] non-critical setup error (continuing to Supabase):', initExtrasErr);
  }
 
  // ── Supabase bootstrap (skeleton-safe: no-ops if keys missing) ─────
