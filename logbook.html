@@ -15172,8 +15172,10 @@ function applyTranslations() {
 // Configuration — fill these in after creating the Supabase project.
 // See private/SUPABASE-SETUP-GUIDE.md step 3.
 // ─────────────────────────────────────────────────────────────────
-const SUPABASE_URL = '';        // e.g. 'https://abcdefgh.supabase.co'
-const SUPABASE_ANON_KEY = '';   // long JWT-looking string from Settings → API
+const SUPABASE_URL = 'https://hhsuvauqpgyzrxxqxoss.supabase.co';
+// Supabase "publishable" key — safe to ship in client code (the project's
+// RLS is owner-scoped, nothing is granted to anon). NOT the secret key.
+const SUPABASE_ANON_KEY = 'sb_publishable_fjdRGE_-1-VO2YUKVVWrGQ_Yqr4HJ-A';
 
 // ─────────────────────────────────────────────────────────────────
 // Auth module — wraps supabase-js with Cumulo-specific helpers.
@@ -17624,7 +17626,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-09-48cbbd3';
+const BUILD_VERSION = '2026-06-19-da6149d';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

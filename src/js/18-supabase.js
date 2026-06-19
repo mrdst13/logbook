@@ -27,8 +27,10 @@
 // Configuration — fill these in after creating the Supabase project.
 // See private/SUPABASE-SETUP-GUIDE.md step 3.
 // ─────────────────────────────────────────────────────────────────
-const SUPABASE_URL = '';        // e.g. 'https://abcdefgh.supabase.co'
-const SUPABASE_ANON_KEY = '';   // long JWT-looking string from Settings → API
+const SUPABASE_URL = 'https://hhsuvauqpgyzrxxqxoss.supabase.co';
+// Supabase "publishable" key — safe to ship in client code (the project's
+// RLS is owner-scoped, nothing is granted to anon). NOT the secret key.
+const SUPABASE_ANON_KEY = 'sb_publishable_fjdRGE_-1-VO2YUKVVWrGQ_Yqr4HJ-A';
 
 // ─────────────────────────────────────────────────────────────────
 // Auth module — wraps supabase-js with Cumulo-specific helpers.
