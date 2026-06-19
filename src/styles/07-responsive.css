@@ -45,6 +45,11 @@
      so the iPhone status bar / notch doesn't hide the hamburger. */
   header { padding-left: var(--s-3); padding-right: var(--s-3); gap: var(--s-2); }
   .header-pilot { display: none; }
+  /* The signed-in email is too wide for the phone header — it pushed the
+     Sign-out button off-screen ("Se d…"). Hide the email on mobile and drop
+     the slot padding; the compact Sign-out button is enough. */
+  .auth-status-slot { padding: 0; }
+  .auth-status-slot .auth-email { display: none; }
   .logo-icon { width: 24px; height: 24px; }
   .logo-title { font-size: 14px; }
   .logo-sub { font-size: 9px; }
