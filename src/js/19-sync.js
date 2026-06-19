@@ -53,6 +53,32 @@ function newUUID() {
   });
 }
 
+// True for a canonical UUID string. The cloud `flights.id` column is uuid-typed
+// and rejects legacy ids ("invalid input syntax for type uuid"). Legacy local
+// ids came in several shapes: Date.now().toString(), Date.now()+Math.random(),
+// and 'csv-...' — none are UUIDs.
+function isUuid(v) {
+  return typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+// Re-key any flight whose id isn't a valid UUID to a fresh UUID, in place, so
+// local and cloud share the same id (otherwise migration verify would fail and
+// future syncs would never match). Persists with auto-sync suppressed to avoid
+// re-entrancy. Returns the count re-keyed. Call before any push/migration.
+function normalizeFlightIds() {
+  if (typeof flights === 'undefined' || !Array.isArray(flights)) return 0;
+  let n = 0;
+  flights.forEach(f => { if (f && (!f.id || !isUuid(f.id))) { f.id = newUUID(); n++; } });
+  if (n) {
+    const prev = (typeof Sync !== 'undefined') ? Sync._suppressAutoSync : false;
+    if (typeof Sync !== 'undefined') Sync._suppressAutoSync = true;
+    try { DB.save(flights); } catch (e) { /* persisted on next save */ }
+    finally { if (typeof Sync !== 'undefined') Sync._suppressAutoSync = prev; }
+  }
+  return n;
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Local <-> Supabase field mapping (camelCase ↔ snake_case)
 // Single source of truth for what each side calls each column.
@@ -169,7 +195,7 @@ function localFlightToRow(f, userId, opId) {
     }
   }
   // Mint id if missing
-  if (!row.id) row.id = newUUID();
+  if (!row.id || !isUuid(row.id)) row.id = newUUID();
   // Sync metadata
   row.client_updated_at = new Date().toISOString();
   row.device_id = getDeviceId();
@@ -393,10 +419,11 @@ const Sync = {
       console.warn('[Sync] premigration backup quota exceeded:', e);
     }
 
-    // 3. Mint stable ids for any flight missing one (persist back to local)
-    let mintedCount = 0;
-    flights.forEach(f => { if (!f.id) { f.id = newUUID(); mintedCount++; } });
-    if (mintedCount) DB.save(flights);
+    // 3. Normalize ids: re-key any missing OR non-UUID id to a real UUID.
+    //    Legacy local ids (Date.now(), 'csv-...', etc.) fail the uuid-typed
+    //    cloud column ("invalid input syntax for type uuid"). Re-keyed in
+    //    place + persisted so local and remote share the same id.
+    normalizeFlightIds();
 
     // 4. Batched upserts — resume from previously-saved cursor if we
     //    were interrupted (network drop) on a prior attempt.
@@ -596,6 +623,8 @@ Sync._scheduleAutoSync = function () {
 // changed rows. For skeleton + low-volume users this is acceptably cheap.
 Sync.pushAllFlights = async function () {
   if (!Auth.isAuthenticated() || !flights.length) return;
+  // Coerce any legacy/non-UUID ids before upload (cloud id column is uuid).
+  normalizeFlightIds();
   const userId = Auth.currentUserId();
   for (let i = 0; i < flights.length; i += MIGRATION_BATCH_SIZE) {
     const slice = flights.slice(i, i + MIGRATION_BATCH_SIZE);
