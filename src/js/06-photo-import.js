@@ -408,7 +408,7 @@ function confirmImport() {
     const resolved = (typeof resolveSelfReferences === 'function')
       ? resolveSelfReferences(flightData, importProfile)
       : flightData;
-    const newId = Date.now().toString() + Math.random();
+    const newId = (typeof newUUID === 'function') ? newUUID() : (Date.now().toString() + Math.random());
     const withId = { ...resolved, id: newId };
     // Auto-fill XC + Night before push. Without this, every flight
     // imported via the preview modal (iCal fresh, PDF roster, photo OCR,

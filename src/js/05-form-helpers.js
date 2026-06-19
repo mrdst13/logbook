@@ -121,7 +121,7 @@ function saveFlight(options) {
   const isSim = currentEntryType === 'sim';
 
   const flight = {
-    id: editingId || Date.now().toString(),
+    id: editingId || (typeof newUUID === 'function' ? newUUID() : Date.now().toString()),
     date,
     type: getAircraftType(),
     reg: isSim ? (gv('f-simRegistration') || 'SIM') : gv('f-reg'),

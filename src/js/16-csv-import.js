@@ -152,6 +152,8 @@ function extractHHMM(s) {
 }
 
 function makeFlightId() {
+  // UUID so rows survive cloud sync (the Supabase flights.id column is uuid).
+  if (typeof newUUID === 'function') return newUUID();
   return 'csv-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }
 
