@@ -163,6 +163,46 @@ const FLIGHT_FIELD_MAP_INV = (() => {
   return inv;
 })();
 
+// Postgres-typed columns that reject an empty string "". Legacy local flights
+// stored empty fields as "" (e.g. unflown hours), which Postgres rejects with
+// "invalid input syntax for type numeric/timestamp/boolean". We coerce "" (and
+// other non-conforming values) to a type-safe value before upload.
+const NUMERIC_COLS = new Set([
+  'block','duty','total',
+  'me_day_pic','me_night_pic','me_day_cop','me_night_cop','me_day_dual','me_night_dual',
+  'se_day','se_night',
+  'heli_day_pic','heli_night_pic','heli_day_cop','heli_night_cop','heli_day_dual','heli_night_dual','hover_time',
+  'xc_day_pic','xc_night_pic','xc_day_cop','xc_night_cop','xc_day_dual','xc_night_dual',
+  'inst_actual','inst_hood','inst_sim','approaches','picus',
+  'to_day','to_night','ldg_day','ldg_night','dual_given_day','dual_given_night',
+]);
+const TIMESTAMP_COLS = new Set(['dtstart_utc','signed_at','deleted_at']);
+const BOOLEAN_COLS = new Set(['is_sim','multi_crew']);
+const JSONB_COLS = new Set(['sources']);
+
+// Make a row safe for the typed Supabase columns. Numeric "" → null (honest
+// "empty", not a fabricated 0 — cf. never-approximate rule; reads back as 0 in
+// math). Timestamp "" → null. Boolean ""/string → real boolean or null. Text
+// columns (route, remarks, HHMM strings, etc.) are left untouched, "" included.
+function coerceRowTypes(row) {
+  for (const k of Object.keys(row)) {
+    const v = row[k];
+    if (NUMERIC_COLS.has(k)) {
+      if (v === '' || v === null || v === undefined) { row[k] = null; }
+      else { const n = Number(v); row[k] = Number.isFinite(n) ? n : null; }
+    } else if (TIMESTAMP_COLS.has(k)) {
+      if (v === '' || v === undefined) row[k] = null;
+    } else if (BOOLEAN_COLS.has(k)) {
+      if (v === '' || v === null || v === undefined) row[k] = null;
+      else if (typeof v === 'string') row[k] = (v === 'true' || v === '1');
+    } else if (JSONB_COLS.has(k)) {
+      // jsonb rejects ""; an array/object is fine. Empty/invalid → null.
+      if (v === '' || v === undefined) row[k] = null;
+    }
+  }
+  return row;
+}
+
 // Convert local flight (camelCase) → Supabase row (snake_case + user_id + sync cols)
 function localFlightToRow(f, userId, opId) {
   const row = { user_id: userId };
@@ -200,6 +240,9 @@ function localFlightToRow(f, userId, opId) {
   row.client_updated_at = new Date().toISOString();
   row.device_id = getDeviceId();
   row.op_id = opId || newUUID();
+  // Final guard: make every typed column Postgres-safe (numeric/timestamp/
+  // boolean "" → null/coerced) so legacy empty fields can't fail the upsert.
+  coerceRowTypes(row);
   return row;
 }
 
@@ -561,6 +604,7 @@ const Sync = {
     for (const op of q) {
       try {
         if (op.type === 'upsert_flight') {
+          coerceRowTypes(op.payload);
           const { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
           if (error) { op.attempts++; remaining.push(op); }
         } else if (op.type === 'delete_flight') {
@@ -680,6 +724,16 @@ function wireSyncEvents() {
   installAutoSyncPatch();
   if (window.__cumulo_sync_wired) return;
   window.__cumulo_sync_wired = true;
+  // One-time purge of the offline queue. Early go-live builds queued rows
+  // with legacy ids / empty-string numerics that can never upsert; migration
+  // re-uploads everything cleanly, so those queued ops are pure garbage.
+  // Version-gated so we never wipe a legitimately-queued offline edit later.
+  try {
+    if (!localStorage.getItem('cumulo_queue_purged_v1')) {
+      localStorage.removeItem(PENDING_OPS_KEY);
+      localStorage.setItem('cumulo_queue_purged_v1', new Date().toISOString());
+    }
+  } catch (e) { /* non-fatal */ }
   window.addEventListener('online', () => {
     if (Auth.isAuthenticated()) Sync.drainQueue();
   });
