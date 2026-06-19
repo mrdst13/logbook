@@ -512,4 +512,60 @@ function renderAuthStateUI() {
     // Skeleton mode — Supabase not configured yet.
     slot.innerHTML = '';
   }
+  // Keep the Settings → Sync account card in sync with auth state.
+  if (typeof renderAccountSettings === 'function') renderAccountSettings();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Settings → Sync → Cloud account card: show the signed-in email and a
+// change-password form. updateUser({password}) works on the current
+// authenticated session, so the user can set a new password they actually
+// know and sign in with it on their other devices (phone, etc.).
+// ─────────────────────────────────────────────────────────────────
+function renderAccountSettings() {
+  const card = document.getElementById('account-card');
+  if (!card) return;
+  const statusEl = document.getElementById('account-status');
+  const signedinEl = document.getElementById('account-signedin');
+  const signedIn = (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated());
+  if (signedIn) {
+    if (statusEl) statusEl.textContent = 'Signed in as ' + (Auth.user ? Auth.user.email : '') + '.';
+    if (signedinEl) signedinEl.style.display = '';
+  } else {
+    if (statusEl) {
+      statusEl.textContent = (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady())
+        ? 'Not signed in. Use the Sign in button in the header to access your cloud account.'
+        : 'Cloud account not configured.';
+    }
+    if (signedinEl) signedinEl.style.display = 'none';
+  }
+}
+
+async function changeAccountPassword() {
+  const p1 = (document.getElementById('account-newpass') || {}).value || '';
+  const p2 = (document.getElementById('account-newpass2') || {}).value || '';
+  const msg = document.getElementById('account-msg');
+  const setMsg = (text, ok) => {
+    if (!msg) return;
+    msg.textContent = text;
+    msg.style.color = ok ? 'var(--success)' : 'var(--danger)';
+  };
+  if (typeof Auth === 'undefined' || !Auth.isAuthenticated || !Auth.isAuthenticated()) {
+    setMsg('You must be signed in to change your password.', false);
+    return;
+  }
+  if (p1.length < 8) { setMsg('Password must be at least 8 characters.', false); return; }
+  if (p1 !== p2) { setMsg('The two passwords do not match — re-type them.', false); return; }
+  setMsg('Updating…', true);
+  try {
+    const { error } = await Auth.updatePassword(p1);
+    if (error) { setMsg(normalizeAuthError(error), false); return; }
+  } catch (e) {
+    setMsg('Could not update password — check your connection and try again.', false);
+    return;
+  }
+  const f1 = document.getElementById('account-newpass'); if (f1) f1.value = '';
+  const f2 = document.getElementById('account-newpass2'); if (f2) f2.value = '';
+  setMsg('Password changed ✓ — use it to sign in on your other devices.', true);
+  if (typeof showToast === 'function') showToast('Password changed', 'success');
 }

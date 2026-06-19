@@ -1238,6 +1238,26 @@
  <div class="settings-section" data-settings-pane="sync" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.sync">Sync</div>
 
+ <!-- ─── Card: Cloud account (sign-in state + change password) ── -->
+ <div class="form-card" id="account-card">
+ <div class="form-card-title">Cloud account</div>
+ <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
+ <div id="account-signedin" style="display:none;">
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass">New password <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— at least 8 characters</span></label>
+ <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password">
+ </div>
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass2">Confirm new password</label>
+ <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password">
+ </div>
+ <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
+ <button class="btn btn-primary" onclick="changeAccountPassword()">Change password</button>
+ </div>
+ <div id="account-msg" style="margin-top:var(--s-2); font-size:12px; line-height:1.5;"></div>
+ </div>
+ </div>
+
  <!-- Status banner — explains the difference between Sync (this page) and
       Import (the other page). Pilots got confused when Photo / PDF / CSV
       were in Sync; clarity wins. -->
