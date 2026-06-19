@@ -27,6 +27,10 @@ function showSettingsTab(name) {
   if (name === 'data') {
     if (typeof updateUndoButton === 'function') updateUndoButton();
   }
+  // Sync tab: refresh the cloud-account card (signed-in email + change-password).
+  if (name === 'sync') {
+    if (typeof renderAccountSettings === 'function') renderAccountSettings();
+  }
   // Persist for next visit
   try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}
   // Reset scroll to top of page so user sees the new pane

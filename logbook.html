@@ -5421,6 +5421,26 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="settings-section" data-settings-pane="sync" style="display:none;">
  <div class="settings-section-title" data-i18n="settings.section.sync">Sync</div>
 
+ <!-- ─── Card: Cloud account (sign-in state + change password) ── -->
+ <div class="form-card" id="account-card">
+ <div class="form-card-title">Cloud account</div>
+ <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
+ <div id="account-signedin" style="display:none;">
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass">New password <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— at least 8 characters</span></label>
+ <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password">
+ </div>
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass2">Confirm new password</label>
+ <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password">
+ </div>
+ <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
+ <button class="btn btn-primary" onclick="changeAccountPassword()">Change password</button>
+ </div>
+ <div id="account-msg" style="margin-top:var(--s-2); font-size:12px; line-height:1.5;"></div>
+ </div>
+ </div>
+
  <!-- Status banner — explains the difference between Sync (this page) and
       Import (the other page). Pilots got confused when Photo / PDF / CSV
       were in Sync; clarity wins. -->
@@ -10946,6 +10966,10 @@ function showSettingsTab(name) {
   if (name === 'data') {
     if (typeof updateUndoButton === 'function') updateUndoButton();
   }
+  // Sync tab: refresh the cloud-account card (signed-in email + change-password).
+  if (name === 'sync') {
+    if (typeof renderAccountSettings === 'function') renderAccountSettings();
+  }
   // Persist for next visit
   try { localStorage.setItem(SETTINGS_TAB_KEY, name); } catch {}
   // Reset scroll to top of page so user sees the new pane
@@ -15659,6 +15683,62 @@ function renderAuthStateUI() {
     // Skeleton mode — Supabase not configured yet.
     slot.innerHTML = '';
   }
+  // Keep the Settings → Sync account card in sync with auth state.
+  if (typeof renderAccountSettings === 'function') renderAccountSettings();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Settings → Sync → Cloud account card: show the signed-in email and a
+// change-password form. updateUser({password}) works on the current
+// authenticated session, so the user can set a new password they actually
+// know and sign in with it on their other devices (phone, etc.).
+// ─────────────────────────────────────────────────────────────────
+function renderAccountSettings() {
+  const card = document.getElementById('account-card');
+  if (!card) return;
+  const statusEl = document.getElementById('account-status');
+  const signedinEl = document.getElementById('account-signedin');
+  const signedIn = (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated());
+  if (signedIn) {
+    if (statusEl) statusEl.textContent = 'Signed in as ' + (Auth.user ? Auth.user.email : '') + '.';
+    if (signedinEl) signedinEl.style.display = '';
+  } else {
+    if (statusEl) {
+      statusEl.textContent = (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady())
+        ? 'Not signed in. Use the Sign in button in the header to access your cloud account.'
+        : 'Cloud account not configured.';
+    }
+    if (signedinEl) signedinEl.style.display = 'none';
+  }
+}
+
+async function changeAccountPassword() {
+  const p1 = (document.getElementById('account-newpass') || {}).value || '';
+  const p2 = (document.getElementById('account-newpass2') || {}).value || '';
+  const msg = document.getElementById('account-msg');
+  const setMsg = (text, ok) => {
+    if (!msg) return;
+    msg.textContent = text;
+    msg.style.color = ok ? 'var(--success)' : 'var(--danger)';
+  };
+  if (typeof Auth === 'undefined' || !Auth.isAuthenticated || !Auth.isAuthenticated()) {
+    setMsg('You must be signed in to change your password.', false);
+    return;
+  }
+  if (p1.length < 8) { setMsg('Password must be at least 8 characters.', false); return; }
+  if (p1 !== p2) { setMsg('The two passwords do not match — re-type them.', false); return; }
+  setMsg('Updating…', true);
+  try {
+    const { error } = await Auth.updatePassword(p1);
+    if (error) { setMsg(normalizeAuthError(error), false); return; }
+  } catch (e) {
+    setMsg('Could not update password — check your connection and try again.', false);
+    return;
+  }
+  const f1 = document.getElementById('account-newpass'); if (f1) f1.value = '';
+  const f2 = document.getElementById('account-newpass2'); if (f2) f2.value = '';
+  setMsg('Password changed ✓ — use it to sign in on your other devices.', true);
+  if (typeof showToast === 'function') showToast('Password changed', 'success');
 }
 // ═══════════════════════════════════════════
 // SYNC — flights + profile (Phase 2)
@@ -17711,7 +17791,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-19-a38376a';
+const BUILD_VERSION = '2026-06-19-9f342b9';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
