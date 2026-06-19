@@ -569,3 +569,13 @@ async function changeAccountPassword() {
   setMsg('Password changed ✓ — use it to sign in on your other devices.', true);
   if (typeof showToast === 'function') showToast('Password changed', 'success');
 }
+
+// Show/hide BOTH change-password fields at once (Edge's native reveal eye is
+// inconsistent — it appears on one field but not the other).
+function toggleAccountPasswordVisibility() {
+  const show = !!((document.getElementById('account-showpass') || {}).checked);
+  ['account-newpass', 'account-newpass2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.type = show ? 'text' : 'password';
+  });
+}
