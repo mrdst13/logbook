@@ -5434,6 +5434,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <label for="account-newpass2">Confirm new password</label>
  <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password">
  </div>
+ <label style="margin-bottom:var(--s-3); display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary); cursor:pointer;">
+ <input type="checkbox" id="account-showpass" onchange="toggleAccountPasswordVisibility()">
+ <span>Show password</span>
+ </label>
  <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
  <button class="btn btn-primary" onclick="changeAccountPassword()">Change password</button>
  </div>
@@ -15740,6 +15744,16 @@ async function changeAccountPassword() {
   setMsg('Password changed ✓ — use it to sign in on your other devices.', true);
   if (typeof showToast === 'function') showToast('Password changed', 'success');
 }
+
+// Show/hide BOTH change-password fields at once (Edge's native reveal eye is
+// inconsistent — it appears on one field but not the other).
+function toggleAccountPasswordVisibility() {
+  const show = !!((document.getElementById('account-showpass') || {}).checked);
+  ['account-newpass', 'account-newpass2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.type = show ? 'text' : 'password';
+  });
+}
 // ═══════════════════════════════════════════
 // SYNC — flights + profile (Phase 2)
 // ═══════════════════════════════════════════
@@ -17791,7 +17805,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-19-9f342b9';
+const BUILD_VERSION = '2026-06-19-27b1d9f';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
