@@ -267,8 +267,12 @@ function totalsWithOpening(flightsTotals) {
   // in balances (to prevent double-counting).
 
   if (!balances.pic) {
+    // Single-engine time (seDay/seNight) counts as PIC — same rule as the
+    // live stats in 02-data.js. Matters for bush/float/ski pilots who logged
+    // their early-career single-engine PIC hours as brought-forward.
     const d = (+balances.meDayPic||0)+(+balances.meNightPic||0)
-            + (+balances.heliDayPic||0)+(+balances.heliNightPic||0);
+            + (+balances.heliDayPic||0)+(+balances.heliNightPic||0)
+            + (+balances.seDay||0)+(+balances.seNight||0);
     if (d) merged.pic = (+merged.pic||0) + d;
   }
   if (!balances.sic) {
@@ -277,8 +281,10 @@ function totalsWithOpening(flightsTotals) {
     if (d) merged.sic = (+merged.sic||0) + d;
   }
   if (!balances.night) {
+    // Night = all night flying, every aircraft class (ME + heli + single-engine).
     const d = (+balances.meNightPic||0)+(+balances.meNightCop||0)+(+balances.meNightDual||0)
-            + (+balances.heliNightPic||0)+(+balances.heliNightCop||0)+(+balances.heliNightDual||0);
+            + (+balances.heliNightPic||0)+(+balances.heliNightCop||0)+(+balances.heliNightDual||0)
+            + (+balances.seNight||0);
     if (d) merged.night = (+merged.night||0) + d;
   }
   if (!balances.me) {
