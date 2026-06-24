@@ -45,12 +45,12 @@ function adaptFormToProfile(type) {
 
   // Reset everything to default (airline705) first
   ['fg-block', 'fg-duty', 'fg-me-day-cop', 'fg-me-night-cop', 'fg-picus'].forEach(show);
-  setLbl('f-pic',          'Pilot in Command');
-  setLbl('f-copilot',      'Co-Pilot / Passenger');
-  setLbl('f-me-day-pic',   'ME Day — PIC');
-  setLbl('f-me-night-pic', 'ME Night — PIC');
-  setLbl('f-me-day-dual',  'ME Day — Dual');
-  setLbl('f-me-night-dual','ME Night — Dual');
+  setLbl('f-pic',          t('flight.pic'));
+  setLbl('f-copilot',      t('flight.copilot'));
+  setLbl('f-me-day-pic',   t('flight.meDayPic'));
+  setLbl('f-me-night-pic', t('flight.meNightPic'));
+  setLbl('f-me-day-dual',  t('flight.meDayDual'));
+  setLbl('f-me-night-dual',t('flight.meNightDual'));
 
   if (type === 'private') {
     hide('fg-duty');
@@ -63,12 +63,12 @@ function adaptFormToProfile(type) {
     hide('fg-me-day-cop');
     hide('fg-me-night-cop');
     hide('fg-picus');
-    setLbl('f-pic',          'Instructor');
-    setLbl('f-copilot',      'Student Name');
-    setLbl('f-me-day-pic',   'ME Day — Solo');
-    setLbl('f-me-night-pic', 'ME Night — Solo');
-    setLbl('f-me-day-dual',  'ME Day — Dual (Instruction)');
-    setLbl('f-me-night-dual','ME Night — Dual (Instruction)');
+    setLbl('f-pic',          t('flight.studentInstructor'));
+    setLbl('f-copilot',      t('flight.studentName'));
+    setLbl('f-me-day-pic',   t('flight.meDaySolo'));
+    setLbl('f-me-night-pic', t('flight.meNightSolo'));
+    setLbl('f-me-day-dual',  t('flight.meDayDualInstr'));
+    setLbl('f-me-night-dual',t('flight.meNightDualInstr'));
   } else if (type === 'instructor') {
     // CFI / flight instructor mode: dual-given is the primary credit
     // (CAR 421.34 ATPL submission). Hide airline columns; relabel.
@@ -76,12 +76,12 @@ function adaptFormToProfile(type) {
     hide('fg-me-day-cop');
     hide('fg-me-night-cop');
     hide('fg-picus');
-    setLbl('f-pic',          'Instructor (you)');
-    setLbl('f-copilot',      'Student Name');
-    setLbl('f-me-day-pic',   'ME Day — PIC (solo evals)');
-    setLbl('f-me-night-pic', 'ME Night — PIC (solo evals)');
-    setLbl('f-me-day-dual',  'ME Day — Dual Received');
-    setLbl('f-me-night-dual','ME Night — Dual Received');
+    setLbl('f-pic',          t('flight.instructorYou'));
+    setLbl('f-copilot',      t('flight.studentName'));
+    setLbl('f-me-day-pic',   t('flight.meDayPicSoloEval'));
+    setLbl('f-me-night-pic', t('flight.meNightPicSoloEval'));
+    setLbl('f-me-day-dual',  t('flight.meDayDualReceived'));
+    setLbl('f-me-night-dual',t('flight.meNightDualReceived'));
   } else if (type === 'helicopter') {
     // Heli ops: hide ME airline labels which contaminate stats; rotorcraft
     // hours live in the dedicated Heli columns (heliDayPic/heliNightPic
@@ -103,7 +103,7 @@ function adaptFormToProfile(type) {
       hide('fg-me-day-cop');
       hide('fg-me-night-cop');
       hide('fg-picus');
-      setLbl('f-copilot', 'Co-Pilot (F/O)');
+      setLbl('f-copilot', t('flight.copilotFO'));
     }
   }
 

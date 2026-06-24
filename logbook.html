@@ -8727,12 +8727,12 @@ function adaptFormToProfile(type) {
 
   // Reset everything to default (airline705) first
   ['fg-block', 'fg-duty', 'fg-me-day-cop', 'fg-me-night-cop', 'fg-picus'].forEach(show);
-  setLbl('f-pic',          'Pilot in Command');
-  setLbl('f-copilot',      'Co-Pilot / Passenger');
-  setLbl('f-me-day-pic',   'ME Day — PIC');
-  setLbl('f-me-night-pic', 'ME Night — PIC');
-  setLbl('f-me-day-dual',  'ME Day — Dual');
-  setLbl('f-me-night-dual','ME Night — Dual');
+  setLbl('f-pic',          t('flight.pic'));
+  setLbl('f-copilot',      t('flight.copilot'));
+  setLbl('f-me-day-pic',   t('flight.meDayPic'));
+  setLbl('f-me-night-pic', t('flight.meNightPic'));
+  setLbl('f-me-day-dual',  t('flight.meDayDual'));
+  setLbl('f-me-night-dual',t('flight.meNightDual'));
 
   if (type === 'private') {
     hide('fg-duty');
@@ -8745,12 +8745,12 @@ function adaptFormToProfile(type) {
     hide('fg-me-day-cop');
     hide('fg-me-night-cop');
     hide('fg-picus');
-    setLbl('f-pic',          'Instructor');
-    setLbl('f-copilot',      'Student Name');
-    setLbl('f-me-day-pic',   'ME Day — Solo');
-    setLbl('f-me-night-pic', 'ME Night — Solo');
-    setLbl('f-me-day-dual',  'ME Day — Dual (Instruction)');
-    setLbl('f-me-night-dual','ME Night — Dual (Instruction)');
+    setLbl('f-pic',          t('flight.studentInstructor'));
+    setLbl('f-copilot',      t('flight.studentName'));
+    setLbl('f-me-day-pic',   t('flight.meDaySolo'));
+    setLbl('f-me-night-pic', t('flight.meNightSolo'));
+    setLbl('f-me-day-dual',  t('flight.meDayDualInstr'));
+    setLbl('f-me-night-dual',t('flight.meNightDualInstr'));
   } else if (type === 'instructor') {
     // CFI / flight instructor mode: dual-given is the primary credit
     // (CAR 421.34 ATPL submission). Hide airline columns; relabel.
@@ -8758,12 +8758,12 @@ function adaptFormToProfile(type) {
     hide('fg-me-day-cop');
     hide('fg-me-night-cop');
     hide('fg-picus');
-    setLbl('f-pic',          'Instructor (you)');
-    setLbl('f-copilot',      'Student Name');
-    setLbl('f-me-day-pic',   'ME Day — PIC (solo evals)');
-    setLbl('f-me-night-pic', 'ME Night — PIC (solo evals)');
-    setLbl('f-me-day-dual',  'ME Day — Dual Received');
-    setLbl('f-me-night-dual','ME Night — Dual Received');
+    setLbl('f-pic',          t('flight.instructorYou'));
+    setLbl('f-copilot',      t('flight.studentName'));
+    setLbl('f-me-day-pic',   t('flight.meDayPicSoloEval'));
+    setLbl('f-me-night-pic', t('flight.meNightPicSoloEval'));
+    setLbl('f-me-day-dual',  t('flight.meDayDualReceived'));
+    setLbl('f-me-night-dual',t('flight.meNightDualReceived'));
   } else if (type === 'helicopter') {
     // Heli ops: hide ME airline labels which contaminate stats; rotorcraft
     // hours live in the dedicated Heli columns (heliDayPic/heliNightPic
@@ -8785,7 +8785,7 @@ function adaptFormToProfile(type) {
       hide('fg-me-day-cop');
       hide('fg-me-night-cop');
       hide('fg-picus');
-      setLbl('f-copilot', 'Co-Pilot (F/O)');
+      setLbl('f-copilot', t('flight.copilotFO'));
     }
   }
 
@@ -13985,6 +13985,19 @@ const STRINGS = {
  'flight.meNightCop': 'ME Night — SIC',
  'flight.meDayDual': 'ME Day — Dual',
  'flight.meNightDual': 'ME Night — Dual',
+ // Add-flight form labels — student / instructor / captain variants (2026-06-24)
+ 'flight.studentInstructor': 'Instructor',
+ 'flight.studentName': 'Student Name',
+ 'flight.meDaySolo': 'ME Day — Solo',
+ 'flight.meNightSolo': 'ME Night — Solo',
+ 'flight.meDayDualInstr': 'ME Day — Dual (Instruction)',
+ 'flight.meNightDualInstr': 'ME Night — Dual (Instruction)',
+ 'flight.instructorYou': 'Instructor (you)',
+ 'flight.meDayPicSoloEval': 'ME Day — PIC (solo evals)',
+ 'flight.meNightPicSoloEval': 'ME Night — PIC (solo evals)',
+ 'flight.meDayDualReceived': 'ME Day — Dual Received',
+ 'flight.meNightDualReceived': 'ME Night — Dual Received',
+ 'flight.copilotFO': 'Co-Pilot (F/O)',
  'flight.xcDay': 'XC Day',
  'flight.xcNight': 'XC Night',
  'flight.toDay': 'T/O Day',
@@ -14627,7 +14640,7 @@ const STRINGS = {
  'flight.section.crew': 'Équipage',
  'flight.section.conditions': 'Jour / Nuit',
  'flight.section.engine': 'Classe moteur',
- 'flight.section.xc': 'Voyage',
+ 'flight.section.xc': 'Cross-country',
  'flight.section.instrument': 'Instruments',
  'flight.section.landings': 'Décollages et atterrissages',
  'flight.section.other': 'Autres',
@@ -14656,8 +14669,21 @@ const STRINGS = {
  'flight.meNightCop': 'ME Nuit — Copilote',
  'flight.meDayDual': 'ME Jour — Double',
  'flight.meNightDual': 'ME Nuit — Double',
- 'flight.xcDay': 'Voyage Jour',
- 'flight.xcNight': 'Voyage Nuit',
+ // Add-flight form labels — student / instructor / captain variants (2026-06-24)
+ 'flight.studentInstructor': 'Instructeur',
+ 'flight.studentName': 'Nom de l’élève',
+ 'flight.meDaySolo': 'ME Jour — Solo',
+ 'flight.meNightSolo': 'ME Nuit — Solo',
+ 'flight.meDayDualInstr': 'ME Jour — Double (instruction)',
+ 'flight.meNightDualInstr': 'ME Nuit — Double (instruction)',
+ 'flight.instructorYou': 'Instructeur (vous)',
+ 'flight.meDayPicSoloEval': 'ME Jour — CDB (tests solo)',
+ 'flight.meNightPicSoloEval': 'ME Nuit — CDB (tests solo)',
+ 'flight.meDayDualReceived': 'ME Jour — Double reçue',
+ 'flight.meNightDualReceived': 'ME Nuit — Double reçue',
+ 'flight.copilotFO': 'Copilote (F/O)',
+ 'flight.xcDay': 'Cross-country jour',
+ 'flight.xcNight': 'Cross-country nuit',
  'flight.toDay': 'Décollage Jour',
  'flight.toNight': 'Décollage Nuit',
  'flight.ldgDay': 'Atterrissages Jour',
@@ -14679,7 +14705,7 @@ const STRINGS = {
  'flight.meDayRow': 'Jour',
  'flight.meNightRow': 'Nuit',
  'flight.cancelBtn': 'Annuler',
- 'flight.showAdvanced': 'Afficher les champs avancés (ME · Voyage · Instrument)',
+ 'flight.showAdvanced': 'Afficher les champs avancés (ME · Cross-country · Instrument)',
  'flight.hideAdvanced': 'Masquer les champs avancés',
  'lb.empty': 'Aucun vol enregistré. Importez un horaire ou inscrivez votre premier vol.',
  'flight.entryFlight': 'Vol',
@@ -14690,7 +14716,7 @@ const STRINGS = {
  'flight.timeCard': 'Temps',
  'qa.searchPlaceholder': 'Chercher une question…',
  'flight.meCard': 'Temps multimoteur',
- 'flight.xcCard': 'Voyage',
+ 'flight.xcCard': 'Cross-country',
  'flight.landingsCard': 'Atterrissages et instruments',
  'flight.aircraftConfig': 'Configuration d’aéronef',
  'flight.typeRating': 'Qualification de type',
@@ -14735,7 +14761,7 @@ const STRINGS = {
  'stats.nightTime': 'Temps nuit',
  'stats.landings': 'Atterrissages',
  'stats.me': 'Multimoteur',
- 'stats.xc': 'Voyage',
+ 'stats.xc': 'Cross-country',
  'stats.blockTime': 'Temps bloc',
  'stats.entries': 'Entrées',
  'stats.hours': 'heures',
@@ -15116,7 +15142,7 @@ const STRINGS = {
  'trust.delete.btn': 'Supprimer + purger',
  'flight.atd': 'ATD (UTC) — départ réel',
  'flight.ata': 'ATA (UTC) — arrivée réelle',
-    'flight.atdHelpHtml':        'Format HHMM en UTC (ex. <code>1235</code> = 12h35Z). Utilisé pour les calculs Nuit (RAC 101.01) et Voyage (RAC 401.34). Lors de la synchronisation iCal, Cumulo pré-remplit avec l\'heure de l\'horaire — vérifiez et ajustez si l\'heure réelle diffère.',
+    'flight.atdHelpHtml':        'Format HHMM en UTC (ex. <code>1235</code> = 12h35Z). Utilisé pour les calculs Nuit (RAC 101.01) et Cross-country (RAC 401.34). Lors de la synchronisation iCal, Cumulo pré-remplit avec l\'heure de l\'horaire — vérifiez et ajustez si l\'heure réelle diffère.',
  'profile.type.helicopter': 'Hélicoptère',
  'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
  'profile.type.instructor': 'Instructeur / CFI',
@@ -17890,7 +17916,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-24-1504c75';
+const BUILD_VERSION = '2026-06-24-22304d8';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
