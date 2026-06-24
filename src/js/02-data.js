@@ -216,10 +216,25 @@ function snapshotBeforeOperation(operationName) {
 
 function ageString(ms) {
   const min = Math.floor(ms / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
-  if (min < 1440) return `${Math.floor(min / 60)}h ago`;
-  return `${Math.floor(min / 1440)}d ago`;
+  if (min < 1) return t('age.justNow');
+  if (min < 60) return t('age.min', { n: min });
+  if (min < 1440) return t('age.hour', { n: Math.floor(min / 60) });
+  return t('age.day', { n: Math.floor(min / 1440) });
+}
+
+// Translate a stored (English) snapshot operation label to the current language
+// at DISPLAY time, so persisted snapshots stay stable across language switches.
+function _snapOpLabel(op) {
+  if (!op) return '';
+  if (op.indexOf('Import from ') === 0) return t('undo.op.import', { source: op.slice(12) });
+  if (op.indexOf('before undo of "') === 0) return t('undo.op.beforeUndo', { op: _snapOpLabel(op.slice(16, -1)) });
+  const map = {
+    'Navblue iCal sync': 'undo.op.sync',
+    'Crew names enrichment from PDF': 'undo.op.enrich',
+    'Cloud migration to Supabase': 'undo.op.migration',
+    'delete-flight': 'undo.op.deleteFlight',
+  };
+  return map[op] ? t(map[op]) : op;
 }
 
 function undoLastOperation() {
@@ -242,7 +257,7 @@ function restoreSnapshot(index) {
   if (!history[index]) { showToast(t('toast.snapshotNotFound'), 'error'); return; }
   const snap = history[index];
 
-  if (!confirm(t('confirm.restoreSnapshot', { op: snap.operation, age: ageString(Date.now() - snap.timestamp), curN: flights.length, snapN: snap.flightCount }))) return;
+  if (!confirm(t('confirm.restoreSnapshot', { op: _snapOpLabel(snap.operation), age: ageString(Date.now() - snap.timestamp), curN: flights.length, snapN: snap.flightCount }))) return;
 
   // Push current state as new snapshot (so user can undo this undo)
   const currentSnap = {
@@ -268,27 +283,30 @@ function showSnapshotHistoryModal() {
   if (history.length === 0) return;
   const overlay = document.getElementById('importPreview');
   // Use the import-overlay as a generic modal
-  document.getElementById('importSubtitle').textContent = `${history.length} snapshot${history.length !== 1 ? 's' : ''} available — pick one to restore`;
+  const _dateLocale = (typeof getLang === 'function' && getLang() === 'fr') ? 'fr-CA' : 'en-CA';
+  document.getElementById('importSubtitle').textContent = history.length === 1
+    ? t('snap.modal.subtitleOne')
+    : t('snap.modal.subtitleMany', { n: history.length });
   document.getElementById('extractedList').innerHTML = `
     <p style="margin-bottom:var(--s-3); font-size:13px; color:var(--text-secondary);">
-      Each snapshot was taken automatically before a bulk operation. The current state will be preserved when you restore.
+      ${esc(t('snap.modal.intro'))}
     </p>
     ${history.map((s, i) => `
       <div class="review-item is-selected" style="cursor:pointer;" onclick="restoreSnapshot(${i}); cancelImport();">
         <div class="review-body">
-          <div class="review-item-header" style="font-weight:600;">${s.operation}</div>
+          <div class="review-item-header" style="font-weight:600;">${esc(_snapOpLabel(s.operation))}</div>
           <div class="review-fields">
-            <div class="review-field"><span>When</span> ${ageString(Date.now() - s.timestamp)}</div>
-            <div class="review-field"><span>Flights</span> ${s.flightCount}</div>
-            <div class="review-field"><span>Date</span> ${new Date(s.timestamp).toLocaleString('en-CA')}</div>
+            <div class="review-field"><span>${esc(t('snap.modal.when'))}</span> ${ageString(Date.now() - s.timestamp)}</div>
+            <div class="review-field"><span>${esc(t('snap.modal.flights'))}</span> ${s.flightCount}</div>
+            <div class="review-field"><span>${esc(t('snap.modal.date'))}</span> ${new Date(s.timestamp).toLocaleString(_dateLocale)}</div>
           </div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); restoreSnapshot(${i}); cancelImport();">Restore</button>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); restoreSnapshot(${i}); cancelImport();">${esc(t('btn.restore'))}</button>
       </div>
     `).join('')}
   `;
   // Override confirm button to close (no bulk action)
-  document.getElementById('importConfirmBtn').textContent = 'Close';
+  document.getElementById('importConfirmBtn').textContent = t('btn.close');
   document.getElementById('importConfirmBtn').onclick = () => cancelImport();
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -300,13 +318,13 @@ function updateUndoButton() {
   const history = loadSnapshots();
   if (history.length === 0) {
     btn.disabled = true;
-    btn.textContent = 'No snapshot';
+    btn.textContent = t('undo.none');
     return;
   }
   const snap = history[0];
   const label = history.length > 1
-    ? `Undo · ${history.length} snapshots`
-    : `Undo "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})`;
+    ? t('undo.multi', { n: history.length })
+    : t('undo.single', { op: _snapOpLabel(snap.operation), age: ageString(Date.now() - snap.timestamp) });
   btn.disabled = false;
   btn.textContent = label;
 }

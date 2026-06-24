@@ -178,7 +178,7 @@ function renderChart() {
     data: {
       labels,
       datasets: [{
-        label: 'Block Hours',
+        label: t('chart.blockHours'),
         data,
         backgroundColor: 'rgba(61,123,196,0.72)',
         borderColor: 'rgba(61,123,196,1)',
@@ -191,7 +191,7 @@ function renderChart() {
       animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' hrs' } }
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' ' + t('hero.unitHours') } }
       },
       scales: {
         y: {

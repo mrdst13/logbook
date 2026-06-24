@@ -45,12 +45,12 @@ function renderLogbook(filter='') {
   // rather than nth-child (which would break when column order changes).
   if (thead) {
     thead.innerHTML = '<tr>' +
-      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(c.label)}</th>`).join('') +
+      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(colLabel(c))}</th>`).join('') +
     '</tr>';
   }
 
   if (!list.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">No flights found.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">${esc(t('logbook.noFlights'))}</td></tr>`;
     return;
   }
 
@@ -79,7 +79,7 @@ function renderLogbook(filter='') {
         display = esc(v);
       }
       const tdClass = c.decimal ? 'hrs' : '';
-      return `<td data-label="${esc(c.short)}" data-col-key="${esc(c.key)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
+      return `<td data-label="${esc(colShort(c))}" data-col-key="${esc(c.key)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
     }).join('');
 
     const fid = esc(f.id);
@@ -109,13 +109,13 @@ function renderLogbook(filter='') {
     });
 
     const broughtFwdNote = (includeOpening && typeof hasOpeningBalances === 'function' && hasOpeningBalances())
-      ? ` <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.04em;">(incl. brought-forward)</span>`
+      ? ` <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.04em;">${esc(t('logbook.inclBf'))}</span>`
       : '';
 
     const totalCells = cols.map((c, i) => {
       let display = '';
       if (i === 0) {
-        display = `<strong>TOTALS</strong> · ${list.length} flight${list.length !== 1 ? 's' : ''}${broughtFwdNote}`;
+        display = `<strong>${esc(t('logbook.totalsLabel'))}</strong> · ${list.length} ${esc(list.length === 1 ? t('word.flight') : t('word.flights'))}${broughtFwdNote}`;
       } else if (totals.hasOwnProperty(c.key)) {
         const v = totals[c.key];
         display = c.decimal ? `<strong>${fmt(v)}</strong>` : `<strong>${v}</strong>`;
@@ -135,41 +135,41 @@ function openFlightDetail(id) {
   if (!detail) return;
   const fmtCell = (v) => (v === undefined || v === null || v === '' || v === 0) ? '—' : (typeof v === 'number' ? fmt(v) : v);
   const fields = [
-    ['Date', f.date],
-    ['Flight Number', f.flightNum],
-    ['Aircraft Type', f.type],
-    ['Registration', f.reg],
-    ['Route', f.route],
-    ['Departure (ICAO)', f.dep_icao],
-    ['Arrival (ICAO)', f.arr_icao],
-    ['Crew Position', f.pic ? 'SIC (PIC: ' + f.pic + ')' : 'PIC'],
-    ['Pilot in Command', f.pic],
-    ['Co-pilot', f.copilot],
-    ['ATD UTC', f.atd_utc],
-    ['ATA UTC', f.ata_utc],
-    ['Check-In UTC', f.ci_utc],
-    ['Check-Out UTC', f.co_utc],
+    [t('flight.date'), f.date],
+    [t('flight.flightNum'), f.flightNum],
+    [t('flight.aircraftType'), f.type],
+    [t('flight.aircraftReg'), f.reg],
+    [t('flight.route'), f.route],
+    [t('detail.depIcao'), f.dep_icao],
+    [t('detail.arrIcao'), f.arr_icao],
+    [t('detail.crewPosition'), f.pic ? t('detail.crewPosSic', { pic: f.pic }) : 'PIC'],
+    [t('flight.pic'), f.pic],
+    [t('detail.copilot'), f.copilot],
+    [t('detail.atdUtc'), f.atd_utc],
+    [t('detail.ataUtc'), f.ata_utc],
+    [t('detail.checkInUtc'), f.ci_utc],
+    [t('detail.checkOutUtc'), f.co_utc],
     [],
-    ['Flight Time (decimal)', fmtCell(+f.total || +f.block)],
-    ['Block Time', fmtCell(+f.block)],
-    ['Duty Time', fmtCell(+f.duty)],
+    [t('detail.flightTimeDecimal'), fmtCell(+f.total || +f.block)],
+    [t('flight.block'), fmtCell(+f.block)],
+    [t('flight.duty'), fmtCell(+f.duty)],
     [],
-    ['ME Day PIC', fmtCell(+f.meDayPic)],
-    ['ME Night PIC', fmtCell(+f.meNightPic)],
-    ['ME Day SIC', fmtCell(+f.meDayCop)],
-    ['ME Night SIC', fmtCell(+f.meNightCop)],
-    ['ME Day Dual', fmtCell(+f.meDayDual)],
-    ['ME Night Dual', fmtCell(+f.meNightDual)],
+    [t('flight.meDayPic'), fmtCell(+f.meDayPic)],
+    [t('flight.meNightPic'), fmtCell(+f.meNightPic)],
+    [t('flight.meDayCop'), fmtCell(+f.meDayCop)],
+    [t('flight.meNightCop'), fmtCell(+f.meNightCop)],
+    [t('flight.meDayDual'), fmtCell(+f.meDayDual)],
+    [t('flight.meNightDual'), fmtCell(+f.meNightDual)],
     [],
-    ['XC Day', fmtCell((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0))],
-    ['XC Night', fmtCell((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0))],
-    ['Day Landings', f.ldgDay || 0],
-    ['Night Landings', f.ldgNight || 0],
-    ['IFR Actual', fmtCell(+f.instActual)],
-    ['IFR Hood', fmtCell(+f.instHood)],
-    ['Approaches', f.approaches || 0],
-    ['PICUS', fmtCell(+f.picus)],
-    ['Multi-Crew', f.multiCrew ? 'Yes' : '—']
+    [t('flight.xcDay'), fmtCell((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0))],
+    [t('flight.xcNight'), fmtCell((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0))],
+    [t('flight.ldgDay'), f.ldgDay || 0],
+    [t('flight.ldgNight'), f.ldgNight || 0],
+    [t('flight.instActual'), fmtCell(+f.instActual)],
+    [t('flight.instHood'), fmtCell(+f.instHood)],
+    [t('flight.approaches'), f.approaches || 0],
+    [t('flight.picus'), fmtCell(+f.picus)],
+    [t('flight.multiCrew'), f.multiCrew ? t('common.yes') : '—']
   ];
   const rows = fields.map(([k, v]) => {
     if (!k) return '<div class="detail-sep"></div>';

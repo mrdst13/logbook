@@ -70,29 +70,29 @@ function renderColumnPicker() {
   });
 
   const pillsHtml = Object.keys(groups).map(group => `
-    <span class="col-pill-group-label">${group}</span>
+    <span class="col-pill-group-label">${esc(colGroup({ group }))}</span>
     ${groups[group].map(c => {
       const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
       return `<button type="button" class="col-pill ${checked ? 'on' : 'off'}"
                        onclick="toggleColumn('${c.key}', ${!checked})"
-                       title="${c.label}">${c.short || c.label}</button>`;
+                       title="${esc(colLabel(c))}">${esc(colShort(c) || colLabel(c))}</button>`;
     }).join('')}
   `).join('');
 
   container.innerHTML = `
     <div class="col-toolbar">
-      <span class="eyebrow">Persona:</span>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O">Airline F/O</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain">Airline Capt</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="Bush ops">Bush</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft">Heli</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">Instructor</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">Private</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">Student</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">ATPL</button>
+      <span class="eyebrow">${esc(t('cols.persona'))}</span>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="${esc(t('cols.preset.airlineFo.t'))}">${esc(t('cols.preset.airlineFo'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="${esc(t('cols.preset.airlineCpt.t'))}">${esc(t('cols.preset.airlineCpt'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="${esc(t('cols.preset.bush.t'))}">${esc(t('cols.preset.bush'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="${esc(t('cols.preset.heli.t'))}">${esc(t('cols.preset.heli'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="${esc(t('cols.preset.instructor.t'))}">${esc(t('cols.preset.instructor'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="${esc(t('cols.preset.private.t'))}">${esc(t('cols.preset.private'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="${esc(t('cols.preset.student.t'))}">${esc(t('cols.preset.student'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="${esc(t('cols.preset.atpl.t'))}">${esc(t('cols.preset.atpl'))}</button>
       <span class="col-toolbar-sep"></span>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">All</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">None</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">${esc(t('cols.preset.all'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">${esc(t('cols.preset.none'))}</button>
     </div>
     <div class="col-pills">${pillsHtml}</div>
   `;
@@ -130,9 +130,9 @@ function closeColumnMenuOnOutside(e) {
 
 async function resetColumnPrefs() {
   if (!await confirmDialog({
-    title: 'Reset column preferences',
+    title: t('confirm.resetCols.title'),
     body: t('confirm.resetCols'),
-    confirmLabel: 'Reset',
+    confirmLabel: t('btn.reset'),
     danger: true
   })) return;
   localStorage.removeItem(COLUMN_PREFS_KEY);
@@ -276,19 +276,30 @@ function restoreData(input) {
       const dates = (data.flights || []).map(f => f && f.date).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
       const dateRange = dates.length
         ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} → ${dates[dates.length - 1]}`)
-        : 'no dated entries';
+        : t('confirm.restore.noDates');
       const profileNote = (data.profile && typeof data.profile === 'object')
-        ? ` plus profile (${[data.profile.fname, data.profile.lname].filter(Boolean).join(' ') || 'unnamed'}).`
+        ? t('confirm.restore.profile', { name: [data.profile.fname, data.profile.lname].filter(Boolean).join(' ') || t('confirm.restore.unnamed') })
         : '';
-      const exportedNote = data.exportedAt ? `Backup exported: ${String(data.exportedAt).slice(0, 10)}.` : '';
+      const exportedNote = data.exportedAt ? t('confirm.restore.exported', { date: String(data.exportedAt).slice(0, 10) }) : '';
+      const flWord = c => (c === 1 ? t('word.flight') : t('word.flights'));
+      const curPhrase = currentFlightCount === 0
+        ? t('confirm.restore.curZero')
+        : currentFlightCount === 1
+          ? t('confirm.restore.curOne')
+          : t('confirm.restore.curMany', { cur: currentFlightCount });
 
-      const body = `${exportedNote}\n\nBackup contains ${incomingFlightCount} flight${incomingFlightCount !== 1 ? 's' : ''} (${dateRange})${profileNote}\n\nThis will REPLACE your current ${currentFlightCount} flight${currentFlightCount !== 1 ? 's' : ''}. Cannot be undone — download a fresh backup first if unsure.`;
+      const body = exportedNote + t('confirm.restore.body', {
+        n: incomingFlightCount,
+        nw: flWord(incomingFlightCount),
+        range: dateRange,
+        profile: profileNote,
+        curPhrase
+      });
 
       const ok = await confirmDialog({
-        title: 'Restore from backup',
+        title: t('confirm.restore.title'),
         body,
-        confirmLabel: 'Replace + restore',
-        cancelLabel: 'Cancel',
+        confirmLabel: t('confirm.restore.confirm'),
         danger: true
       });
       if (!ok) return;
@@ -357,9 +368,9 @@ function sanitizeFlightRow(f, profile) {
 
 async function clearAll() {
   if (!await confirmDialog({
-    title: 'Clear all flights',
+    title: t('settings.clear.titleRed'),
     body: t('confirm.deleteAll'),
-    confirmLabel: 'Clear all',
+    confirmLabel: t('settings.clear.btn'),
     danger: true
   })) return;
   flights = [];
@@ -376,15 +387,15 @@ async function clearAll() {
 async function deleteAccountPurge() {
   // Two-stage confirmation — this is irreversible local + cloud destruction.
   if (!await confirmDialog({
-    title: 'Delete account + purge all data',
+    title: t('trust.delete.title'),
     body: t('confirm.deletePurge1'),
-    confirmLabel: 'Continue',
+    confirmLabel: t('confirm.continue'),
     danger: true
   })) return;
   if (!await confirmDialog({
-    title: 'Are you absolutely sure?',
+    title: t('confirm.purge.title2'),
     body: t('confirm.deletePurge2'),
-    confirmLabel: 'Yes, delete everything',
+    confirmLabel: t('confirm.purge.confirm2'),
     danger: true
   })) return;
 

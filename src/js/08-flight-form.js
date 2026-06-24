@@ -159,6 +159,29 @@ const LOGBOOK_COLUMNS = [
   { key: 'total',        label: 'Total',               short: 'Total',    group: 'Times',          width: 12, align: 'right', decimal: true, default: true }
 ];
 
+// Translated accessors for on-screen rendering of column headers / picker.
+// The raw English label/short/group are kept on the column objects because
+// the TC PDF export (12-pdf-export.js doc.text) must stay English by regulation.
+const _COL_GROUP_KEY = {
+  'Identification': 'colGroup.identification',
+  'Conditions': 'colGroup.conditions',
+  'Times': 'flight.section.times',
+  'Engine class': 'flight.section.engine',
+  'Helicopter': 'colGroup.helicopter',
+  'Cross-country': 'flight.section.xc',
+  'Instrument': 'flight.section.instrument',
+  'Landings': 'flight.section.landings',
+  'Simulator': 'flight.section.sim',
+  'Dual Given': 'colGroup.dualGiven',
+  'Other': 'flight.section.other',
+};
+function colLabel(c) { return (typeof t === 'function') ? t('col.' + c.key) : c.label; }
+function colShort(c) { return (typeof t === 'function') ? t('colShort.' + c.key) : (c.short || c.label); }
+function colGroup(c) {
+  const k = _COL_GROUP_KEY[c.group];
+  return (k && typeof t === 'function') ? t(k) : c.group;
+}
+
 const COLUMN_PREFS_KEY = 'cumulo_column_prefs_v1';
 
 function loadColumnPrefs() {
@@ -217,7 +240,7 @@ function computeCellValue(f, key) {
     case 'xcNight':     return ((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0));
     case 'crewPosition': {
       if ((+f.meDayPic||0)+(+f.meNightPic||0)+(+f.seDay||0) > 0) return 'PIC';
-      if ((+f.meDayDual||0)+(+f.meNightDual||0) > 0) return 'Dual';
+      if ((+f.meDayDual||0)+(+f.meNightDual||0) > 0) return t('crewPos.dual');
       if ((+f.meDayCop||0)+(+f.meNightCop||0) > 0) return 'SIC';
       return '—';
     }
@@ -753,13 +776,13 @@ function updateNavblueStatus() {
   if (!status) return;
   const url = localStorage.getItem(NAVBLUE_URL_KEY);
   const last = localStorage.getItem(NAVBLUE_LAST_SYNC_KEY);
-  if (!url) { status.textContent = 'NOT CONFIGURED'; return; }
-  if (!last) { status.textContent = 'NEVER SYNCED'; return; }
+  if (!url) { status.textContent = t('sync.status.notConfigured'); return; }
+  if (!last) { status.textContent = t('sync.status.neverSynced'); return; }
   const minutes = Math.floor((Date.now() - +last) / 60000);
-  if (minutes < 1) status.textContent = 'JUST SYNCED';
-  else if (minutes < 60) status.textContent = `${minutes}M AGO`;
-  else if (minutes < 1440) status.textContent = `${Math.floor(minutes/60)}H AGO`;
-  else status.textContent = `${Math.floor(minutes/1440)}D AGO`;
+  if (minutes < 1) status.textContent = t('sync.status.justSynced');
+  else if (minutes < 60) status.textContent = t('sync.status.minAgo', { n: minutes });
+  else if (minutes < 1440) status.textContent = t('sync.status.hAgo', { n: Math.floor(minutes/60) });
+  else status.textContent = t('sync.status.dAgo', { n: Math.floor(minutes/1440) });
 }
 
 // opts.silent      — when true, suppress "already up to date" toast + button
@@ -784,7 +807,7 @@ async function syncNavblueNow(opts) {
   const details = document.getElementById('navblueDetails');
   if (btn && !silent) {
     btn.disabled = true;
-    btn.textContent = '⏳ Syncing...';
+    btn.textContent = t('sync.btn.syncing');
   }
 
   try {
@@ -941,13 +964,17 @@ async function syncNavblueNow(opts) {
 
     if (details) {
       details.style.display = 'block';
+      const _w = (n, s, p) => (n === 1 ? t(s) : t(p));
       const detailLines = [
-        `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
+        t('sync.detail.calendar', {
+          events: events.length, ew: _w(events.length, 'word.event', 'word.events'),
+          flights: mapped.length, fw: _w(mapped.length, 'word.completedFlight', 'word.completedFlights')
+        })
       ];
-      if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
-      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} had empty Night/XC fields filled in (pilot-entered values never modified)`);
-      if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
-      if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
+      if (mergedCount > 0) detailLines.push(t('sync.detail.enriched', { n: mergedCount, w: _w(mergedCount, 'word.flight', 'word.flights') }));
+      if (recalcStats.updated > 0) detailLines.push(t('sync.detail.filled', { n: recalcStats.updated, w: _w(recalcStats.updated, 'word.flight', 'word.flights') }));
+      if (fresh.length > 0) detailLines.push(t('sync.detail.fresh', { n: fresh.length, w: _w(fresh.length, 'word.newFlight', 'word.newFlights') }));
+      if (fresh.length === 0 && mergedCount === 0) detailLines.push(t('sync.detail.upToDate'));
       details.innerHTML = detailLines.join('<br>');
     }
 
@@ -958,7 +985,7 @@ async function syncNavblueNow(opts) {
       // Even in silent/auto-sync mode we surface the import-preview modal —
       // this is the whole point of auto-sync: detect new flights and prompt
       // the pilot. If no new flights, silent mode stays quiet.
-      showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
+      showImportPreview(fresh, t('sync.freshFound', { n: fresh.length, w: (fresh.length === 1 ? t('word.newFlight') : t('word.newFlights')) }));
       showToast(t('toast.syncFreshEnriched', { fresh: fresh.length, merged: mergedCount }));
     } else if (mergedCount > 0) {
       showToast(t('toast.syncEnrichedRecalc', { merged: mergedCount, updated: recalcStats.updated }), 'success');
@@ -970,16 +997,16 @@ async function syncNavblueNow(opts) {
     console.error('[Navblue Sync] Error:', e);
     if (details) {
       details.style.display = 'block';
-      details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
+      details.innerHTML = `<span style="color:var(--danger);">${t('sync.detail.error', { msg: esc(e.message) })}</span>`;
     }
     // Silent auto-sync errors stay in the console — toasts would alarm the
     // user when nothing actively triggered the sync. They'll see the next
     // manual click fail loudly if the worker is truly down.
-    if (!silent) showToast(e.message || 'Sync failed', 'error');
+    if (!silent) showToast(t('sync.failed'), 'error');
   } finally {
     if (btn && !silent) {
       btn.disabled = false;
-      btn.textContent = '🔄 Sync now';
+      btn.textContent = t('sync.btn.syncNow');
     }
   }
 }
@@ -1030,20 +1057,20 @@ function syncNavblueAuto(reason) {
 function showNavblueDiagnostic() {
   const raw = localStorage.getItem('cumulo_navblue_debug_v1');
   if (!raw) {
-    showToast('No diagnostic data yet — run a Navblue sync first, then click Diagnostic again.', 'error');
+    showToast(t('sync.diag.noData'), 'error');
     return;
   }
   let dump;
   try { dump = JSON.parse(raw); }
-  catch { showToast('Diagnostic data corrupted — run a fresh sync.', 'error'); return; }
+  catch { showToast(t('sync.diag.corrupted'), 'error'); return; }
 
   const ageMin = Math.round((Date.now() - dump.ts) / 60000);
   const samplesHtml = (dump.samples || []).map((s, i) => `
     <div style="margin-bottom:var(--s-4);">
-      <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">— Sample ${i + 1} —</div>
-      <div style="font-family:var(--font-mono); font-size:11px;"><strong>SUMMARY:</strong> ${esc(s.summary || '(empty)')}</div>
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">${esc(t('sync.diag.sample', { n: i + 1 }))}</div>
+      <div style="font-family:var(--font-mono); font-size:11px;"><strong>SUMMARY:</strong> ${esc(s.summary || t('sync.diag.empty'))}</div>
       <div style="margin-top:6px;"><strong style="font-family:var(--font-mono); font-size:11px;">DESCRIPTION:</strong></div>
-      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; margin-top:4px; max-height:240px; overflow:auto;">${esc(s.description || '(empty)')}</pre>
+      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; margin-top:4px; max-height:240px; overflow:auto;">${esc(s.description || t('sync.diag.empty'))}</pre>
     </div>
   `).join('');
 
@@ -1051,32 +1078,30 @@ function showNavblueDiagnostic() {
   const overlay = document.getElementById('importPreview');
   if (!overlay) {
     // Fallback: dump to console + alert
-    console.log('[Navblue diagnostic]', dump);
-    alert('Diagnostic data printed to console. Press Ctrl+Shift+J to view.');
+    console.log('[Roster diagnostic]', dump);
+    alert(t('sync.diag.consoleFallback'));
     return;
   }
   document.getElementById('importSubtitle').textContent =
-    `Navblue iCal diagnostic · synced ${ageMin} min ago · ${dump.totalEvents || 0} events`;
+    t('sync.diag.subtitle', { age: ageMin, events: dump.totalEvents || 0 });
   document.getElementById('extractedList').innerHTML = `
     <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
-      Below are the first ${dump.samples ? dump.samples.length : 0} flight entries Porter's Navblue iCal sent us, raw.
-      If you see captain names in the DESCRIPTION blocks but they aren't showing up in your Logbook PIC column,
-      paste this whole block in chat with Claude and the extraction regex will be tuned to match Porter's format.
+      ${esc(t('sync.diag.intro', { n: dump.samples ? dump.samples.length : 0 }))}
     </p>
     ${samplesHtml}
     <details style="margin-top:var(--s-3);">
-      <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Full JSON (advanced)</summary>
+      <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">${esc(t('sync.diag.fullJson'))}</summary>
       <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:10px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow:auto;">${esc(copyPayload)}</pre>
     </details>
   `;
   const confirmBtn = document.getElementById('importConfirmBtn');
-  confirmBtn.textContent = 'Copy all';
+  confirmBtn.textContent = t('sync.diag.copyAll');
   confirmBtn.disabled = false;
   confirmBtn.onclick = () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(copyPayload).then(
-        () => showToast('Diagnostic data copied to clipboard — paste it in chat.', 'success'),
-        () => showToast('Copy failed — select the JSON block and copy manually.', 'error')
+        () => showToast(t('sync.diag.copied'), 'success'),
+        () => showToast(t('sync.diag.copyFailed'), 'error')
       );
     } else {
       showToast('Clipboard not available — select the JSON block manually.', 'error');

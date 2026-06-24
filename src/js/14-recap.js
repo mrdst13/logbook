@@ -59,13 +59,13 @@ function renderRecap() {
       data:{
         labels: months.map(m=>m.label),
         datasets:[{
-          label:'Block Hours',data:months.map(m=>m.val),
+          label:t('chart.blockHours'),data:months.map(m=>m.val),
           backgroundColor:'rgba(61,123,196,0.72)',borderColor:'rgba(61,123,196,1)',borderWidth:1.5,borderRadius:4
         }]
       },
       options:{
         responsive:true,animation:{duration:600},
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' hrs'}}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' '+t('hero.unitHours')}}},
         scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}},
                 x:{grid:{display:false},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}}}
       }

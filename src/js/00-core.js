@@ -357,7 +357,7 @@ function wireNav() {
 //   if (!ok) return;
 //
 // Esc key or backdrop click = cancel. The modal removes itself on resolve.
-function confirmDialog({ title, body, cancelLabel = 'Cancel', confirmLabel = 'Confirm', danger = false }) {
+function confirmDialog({ title, body, cancelLabel = (typeof t === 'function' ? t('btn.cancel') : 'Cancel'), confirmLabel = (typeof t === 'function' ? t('btn.confirm') : 'Confirm'), danger = false }) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'import-overlay show';

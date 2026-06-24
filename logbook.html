@@ -6003,7 +6003,7 @@ function wireNav() {
 //   if (!ok) return;
 //
 // Esc key or backdrop click = cancel. The modal removes itself on resolve.
-function confirmDialog({ title, body, cancelLabel = 'Cancel', confirmLabel = 'Confirm', danger = false }) {
+function confirmDialog({ title, body, cancelLabel = (typeof t === 'function' ? t('btn.cancel') : 'Cancel'), confirmLabel = (typeof t === 'function' ? t('btn.confirm') : 'Confirm'), danger = false }) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'import-overlay show';
@@ -6078,7 +6078,7 @@ function showPage(id) {
   if (id === 'qa') renderQA();
   if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();
   if (id === 'add' && !editingId) {
-    document.getElementById('formTitle').textContent = 'Log flight';
+    document.getElementById('formTitle').textContent = t('form.title.logFlight');
     clearForm();
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
     setEntryType('flight');   // default to flight when entering a new entry
@@ -6320,10 +6320,25 @@ function snapshotBeforeOperation(operationName) {
 
 function ageString(ms) {
   const min = Math.floor(ms / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
-  if (min < 1440) return `${Math.floor(min / 60)}h ago`;
-  return `${Math.floor(min / 1440)}d ago`;
+  if (min < 1) return t('age.justNow');
+  if (min < 60) return t('age.min', { n: min });
+  if (min < 1440) return t('age.hour', { n: Math.floor(min / 60) });
+  return t('age.day', { n: Math.floor(min / 1440) });
+}
+
+// Translate a stored (English) snapshot operation label to the current language
+// at DISPLAY time, so persisted snapshots stay stable across language switches.
+function _snapOpLabel(op) {
+  if (!op) return '';
+  if (op.indexOf('Import from ') === 0) return t('undo.op.import', { source: op.slice(12) });
+  if (op.indexOf('before undo of "') === 0) return t('undo.op.beforeUndo', { op: _snapOpLabel(op.slice(16, -1)) });
+  const map = {
+    'Navblue iCal sync': 'undo.op.sync',
+    'Crew names enrichment from PDF': 'undo.op.enrich',
+    'Cloud migration to Supabase': 'undo.op.migration',
+    'delete-flight': 'undo.op.deleteFlight',
+  };
+  return map[op] ? t(map[op]) : op;
 }
 
 function undoLastOperation() {
@@ -6346,7 +6361,7 @@ function restoreSnapshot(index) {
   if (!history[index]) { showToast(t('toast.snapshotNotFound'), 'error'); return; }
   const snap = history[index];
 
-  if (!confirm(t('confirm.restoreSnapshot', { op: snap.operation, age: ageString(Date.now() - snap.timestamp), curN: flights.length, snapN: snap.flightCount }))) return;
+  if (!confirm(t('confirm.restoreSnapshot', { op: _snapOpLabel(snap.operation), age: ageString(Date.now() - snap.timestamp), curN: flights.length, snapN: snap.flightCount }))) return;
 
   // Push current state as new snapshot (so user can undo this undo)
   const currentSnap = {
@@ -6372,27 +6387,30 @@ function showSnapshotHistoryModal() {
   if (history.length === 0) return;
   const overlay = document.getElementById('importPreview');
   // Use the import-overlay as a generic modal
-  document.getElementById('importSubtitle').textContent = `${history.length} snapshot${history.length !== 1 ? 's' : ''} available — pick one to restore`;
+  const _dateLocale = (typeof getLang === 'function' && getLang() === 'fr') ? 'fr-CA' : 'en-CA';
+  document.getElementById('importSubtitle').textContent = history.length === 1
+    ? t('snap.modal.subtitleOne')
+    : t('snap.modal.subtitleMany', { n: history.length });
   document.getElementById('extractedList').innerHTML = `
     <p style="margin-bottom:var(--s-3); font-size:13px; color:var(--text-secondary);">
-      Each snapshot was taken automatically before a bulk operation. The current state will be preserved when you restore.
+      ${esc(t('snap.modal.intro'))}
     </p>
     ${history.map((s, i) => `
       <div class="review-item is-selected" style="cursor:pointer;" onclick="restoreSnapshot(${i}); cancelImport();">
         <div class="review-body">
-          <div class="review-item-header" style="font-weight:600;">${s.operation}</div>
+          <div class="review-item-header" style="font-weight:600;">${esc(_snapOpLabel(s.operation))}</div>
           <div class="review-fields">
-            <div class="review-field"><span>When</span> ${ageString(Date.now() - s.timestamp)}</div>
-            <div class="review-field"><span>Flights</span> ${s.flightCount}</div>
-            <div class="review-field"><span>Date</span> ${new Date(s.timestamp).toLocaleString('en-CA')}</div>
+            <div class="review-field"><span>${esc(t('snap.modal.when'))}</span> ${ageString(Date.now() - s.timestamp)}</div>
+            <div class="review-field"><span>${esc(t('snap.modal.flights'))}</span> ${s.flightCount}</div>
+            <div class="review-field"><span>${esc(t('snap.modal.date'))}</span> ${new Date(s.timestamp).toLocaleString(_dateLocale)}</div>
           </div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); restoreSnapshot(${i}); cancelImport();">Restore</button>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); restoreSnapshot(${i}); cancelImport();">${esc(t('btn.restore'))}</button>
       </div>
     `).join('')}
   `;
   // Override confirm button to close (no bulk action)
-  document.getElementById('importConfirmBtn').textContent = 'Close';
+  document.getElementById('importConfirmBtn').textContent = t('btn.close');
   document.getElementById('importConfirmBtn').onclick = () => cancelImport();
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -6404,13 +6422,13 @@ function updateUndoButton() {
   const history = loadSnapshots();
   if (history.length === 0) {
     btn.disabled = true;
-    btn.textContent = 'No snapshot';
+    btn.textContent = t('undo.none');
     return;
   }
   const snap = history[0];
   const label = history.length > 1
-    ? `Undo · ${history.length} snapshots`
-    : `Undo "${snap.operation}" (${ageString(Date.now() - snap.timestamp)})`;
+    ? t('undo.multi', { n: history.length })
+    : t('undo.single', { op: _snapOpLabel(snap.operation), age: ageString(Date.now() - snap.timestamp) });
   btn.disabled = false;
   btn.textContent = label;
 }
@@ -7455,7 +7473,7 @@ function renderChart() {
     data: {
       labels,
       datasets: [{
-        label: 'Block Hours',
+        label: t('chart.blockHours'),
         data,
         backgroundColor: 'rgba(61,123,196,0.72)',
         borderColor: 'rgba(61,123,196,1)',
@@ -7468,7 +7486,7 @@ function renderChart() {
       animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' hrs' } }
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' ' + t('hero.unitHours') } }
       },
       scales: {
         y: {
@@ -7532,12 +7550,12 @@ function renderLogbook(filter='') {
   // rather than nth-child (which would break when column order changes).
   if (thead) {
     thead.innerHTML = '<tr>' +
-      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(c.label)}</th>`).join('') +
+      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(colLabel(c))}</th>`).join('') +
     '</tr>';
   }
 
   if (!list.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">No flights found.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length}">${esc(t('logbook.noFlights'))}</td></tr>`;
     return;
   }
 
@@ -7566,7 +7584,7 @@ function renderLogbook(filter='') {
         display = esc(v);
       }
       const tdClass = c.decimal ? 'hrs' : '';
-      return `<td data-label="${esc(c.short)}" data-col-key="${esc(c.key)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
+      return `<td data-label="${esc(colShort(c))}" data-col-key="${esc(c.key)}" class="${tdClass}" style="text-align:${c.align||'left'};">${display}</td>`;
     }).join('');
 
     const fid = esc(f.id);
@@ -7596,13 +7614,13 @@ function renderLogbook(filter='') {
     });
 
     const broughtFwdNote = (includeOpening && typeof hasOpeningBalances === 'function' && hasOpeningBalances())
-      ? ` <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.04em;">(incl. brought-forward)</span>`
+      ? ` <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.04em;">${esc(t('logbook.inclBf'))}</span>`
       : '';
 
     const totalCells = cols.map((c, i) => {
       let display = '';
       if (i === 0) {
-        display = `<strong>TOTALS</strong> · ${list.length} flight${list.length !== 1 ? 's' : ''}${broughtFwdNote}`;
+        display = `<strong>${esc(t('logbook.totalsLabel'))}</strong> · ${list.length} ${esc(list.length === 1 ? t('word.flight') : t('word.flights'))}${broughtFwdNote}`;
       } else if (totals.hasOwnProperty(c.key)) {
         const v = totals[c.key];
         display = c.decimal ? `<strong>${fmt(v)}</strong>` : `<strong>${v}</strong>`;
@@ -7622,41 +7640,41 @@ function openFlightDetail(id) {
   if (!detail) return;
   const fmtCell = (v) => (v === undefined || v === null || v === '' || v === 0) ? '—' : (typeof v === 'number' ? fmt(v) : v);
   const fields = [
-    ['Date', f.date],
-    ['Flight Number', f.flightNum],
-    ['Aircraft Type', f.type],
-    ['Registration', f.reg],
-    ['Route', f.route],
-    ['Departure (ICAO)', f.dep_icao],
-    ['Arrival (ICAO)', f.arr_icao],
-    ['Crew Position', f.pic ? 'SIC (PIC: ' + f.pic + ')' : 'PIC'],
-    ['Pilot in Command', f.pic],
-    ['Co-pilot', f.copilot],
-    ['ATD UTC', f.atd_utc],
-    ['ATA UTC', f.ata_utc],
-    ['Check-In UTC', f.ci_utc],
-    ['Check-Out UTC', f.co_utc],
+    [t('flight.date'), f.date],
+    [t('flight.flightNum'), f.flightNum],
+    [t('flight.aircraftType'), f.type],
+    [t('flight.aircraftReg'), f.reg],
+    [t('flight.route'), f.route],
+    [t('detail.depIcao'), f.dep_icao],
+    [t('detail.arrIcao'), f.arr_icao],
+    [t('detail.crewPosition'), f.pic ? t('detail.crewPosSic', { pic: f.pic }) : 'PIC'],
+    [t('flight.pic'), f.pic],
+    [t('detail.copilot'), f.copilot],
+    [t('detail.atdUtc'), f.atd_utc],
+    [t('detail.ataUtc'), f.ata_utc],
+    [t('detail.checkInUtc'), f.ci_utc],
+    [t('detail.checkOutUtc'), f.co_utc],
     [],
-    ['Flight Time (decimal)', fmtCell(+f.total || +f.block)],
-    ['Block Time', fmtCell(+f.block)],
-    ['Duty Time', fmtCell(+f.duty)],
+    [t('detail.flightTimeDecimal'), fmtCell(+f.total || +f.block)],
+    [t('flight.block'), fmtCell(+f.block)],
+    [t('flight.duty'), fmtCell(+f.duty)],
     [],
-    ['ME Day PIC', fmtCell(+f.meDayPic)],
-    ['ME Night PIC', fmtCell(+f.meNightPic)],
-    ['ME Day SIC', fmtCell(+f.meDayCop)],
-    ['ME Night SIC', fmtCell(+f.meNightCop)],
-    ['ME Day Dual', fmtCell(+f.meDayDual)],
-    ['ME Night Dual', fmtCell(+f.meNightDual)],
+    [t('flight.meDayPic'), fmtCell(+f.meDayPic)],
+    [t('flight.meNightPic'), fmtCell(+f.meNightPic)],
+    [t('flight.meDayCop'), fmtCell(+f.meDayCop)],
+    [t('flight.meNightCop'), fmtCell(+f.meNightCop)],
+    [t('flight.meDayDual'), fmtCell(+f.meDayDual)],
+    [t('flight.meNightDual'), fmtCell(+f.meNightDual)],
     [],
-    ['XC Day', fmtCell((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0))],
-    ['XC Night', fmtCell((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0))],
-    ['Day Landings', f.ldgDay || 0],
-    ['Night Landings', f.ldgNight || 0],
-    ['IFR Actual', fmtCell(+f.instActual)],
-    ['IFR Hood', fmtCell(+f.instHood)],
-    ['Approaches', f.approaches || 0],
-    ['PICUS', fmtCell(+f.picus)],
-    ['Multi-Crew', f.multiCrew ? 'Yes' : '—']
+    [t('flight.xcDay'), fmtCell((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0))],
+    [t('flight.xcNight'), fmtCell((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0))],
+    [t('flight.ldgDay'), f.ldgDay || 0],
+    [t('flight.ldgNight'), f.ldgNight || 0],
+    [t('flight.instActual'), fmtCell(+f.instActual)],
+    [t('flight.instHood'), fmtCell(+f.instHood)],
+    [t('flight.approaches'), f.approaches || 0],
+    [t('flight.picus'), fmtCell(+f.picus)],
+    [t('flight.multiCrew'), f.multiCrew ? t('common.yes') : '—']
   ];
   const rows = fields.map(([k, v]) => {
     if (!k) return '<div class="detail-sep"></div>';
@@ -7932,7 +7950,7 @@ function setEntryType(type) {
   document.getElementById('simFields').style.display = type === 'sim' ? 'block' : 'none';
   // Update form title
   const ft = document.getElementById('formTitle');
-  if (ft && !editingId) ft.textContent = type === 'sim' ? 'Log a Simulator Session' : 'Log a Flight';
+  if (ft && !editingId) ft.textContent = type === 'sim' ? t('form.title.logSim') : t('form.title.logFlight');
 }
 
 // saveFlight(options) — when options.addAnother === true, stay on the form
@@ -8063,7 +8081,7 @@ function editFlight(id) {
   const f = flights.find(x => x.id === id);
   if (!f) return;
   editingId = id;
-  document.getElementById('formTitle').textContent = f.isSim ? 'Edit Simulator Session' : 'Edit Flight';
+  document.getElementById('formTitle').textContent = f.isSim ? t('form.title.editSim') : t('form.title.editFlight');
   setEntryType(f.isSim ? 'sim' : 'flight');
   sv('f-date', f.date); setAircraftTypeField(f.type); sv('f-reg', f.reg);
   sv('f-rating', f.rating);
@@ -8219,7 +8237,7 @@ function attachHHMMMask(input) {
       if (!errEl) {
         const err = document.createElement('div');
         err.className = 'field-error show';
-        err.textContent = 'Invalid time. Use HHMM (e.g. 1235 for 12:35Z).';
+        err.textContent = t('form.err.invalidTime');
         input.parentElement.appendChild(err);
       } else {
         errEl.classList.add('show');
@@ -8244,22 +8262,22 @@ function validateFlightForm() {
 
   // Hard requirement: date present (matches saveFlight() check).
   const dateVal = (document.getElementById('f-date') || {}).value;
-  if (!dateVal) errors.push('Date is required.');
+  if (!dateVal) errors.push(t('form.err.dateRequired'));
 
   // HHMM format checks (soft — only flagged if user typed something).
   ['f-atd-utc', 'f-ata-utc'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.value && !_hhmmIsValid(el.value)) {
       const label = id === 'f-atd-utc' ? 'ATD (UTC)' : 'ATA (UTC)';
-      errors.push(`${label} is not a valid HHMM time.`);
+      errors.push(t('form.err.invalidHHMM', { label }));
     }
   });
 
   const hasErrors = errors.length > 0;
   if (errSummary) {
     if (hasErrors) {
-      errSummary.innerHTML = '<strong>Fix before saving:</strong><ul>' +
-        errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+      errSummary.innerHTML = `<strong>${esc(t('form.err.fixBeforeSaving'))}</strong><ul>` +
+        errors.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>';
       errSummary.classList.add('show');
     } else {
       errSummary.classList.remove('show');
@@ -8309,7 +8327,7 @@ function renderImportRecentStrip() {
     const navTs = +localStorage.getItem('cumulo_navblue_last_sync') || 0;
     if (navTs > bestTs) {
       bestTs = navTs;
-      bestSummary = 'Navblue iCal sync';
+      bestSummary = t('undo.op.sync');
     }
   } catch {}
 
@@ -8322,10 +8340,10 @@ function renderImportRecentStrip() {
       if (ts > bestTs) {
         bestTs = ts;
         const n = last.flightCount || last.imported || last.count || 0;
-        const src = last.source || last.importType || 'file';
+        const src = last.source || last.importType || t('import.recent.fileSrc');
         bestSummary = n > 0
-          ? `${n} flight${n !== 1 ? 's' : ''} from ${src}`
-          : `Import from ${src}`;
+          ? t('import.recent.fromSrc', { n, w: n !== 1 ? t('word.flights') : t('word.flight'), src })
+          : t('undo.op.import', { source: src });
       }
     }
   } catch {}
@@ -8425,7 +8443,7 @@ async function parseNavbluePDF(input) {
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
   box.classList.add('show');
-  msg.textContent = 'Reading Navblue roster PDF…';
+  msg.textContent = t('import.aiBox.reading');
 
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
@@ -8435,7 +8453,7 @@ async function parseNavbluePDF(input) {
   });
 
   try {
-    msg.textContent = 'Extracting flights…';
+    msg.textContent = t('import.aiBox.extracting');
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -8511,7 +8529,9 @@ RULES:
     }
 
     if (!Array.isArray(extracted) || extracted.length === 0) {
-      throw new Error('AI found no flights to import in this PDF.');
+      box.classList.remove('show');
+      showToast(t('import.ai.noFlights'), 'error');
+      return;
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -8520,15 +8540,17 @@ RULES:
     void(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
 
     if (filtered.length === 0) {
-      throw new Error(`AI extracted ${extracted.length} entries but none are completed (date must be before today and block > 0).`);
+      box.classList.remove('show');
+      showToast(t('import.ai.noFlights'), 'error');
+      return;
     }
 
     box.classList.remove('show');
     showImportPreview(filtered, t('import.preview.subtitle', { n: filtered.length }));
   } catch(e) {
     box.classList.remove('show');
-    showToast(e.message || 'Could not parse PDF', 'error');
-    console.error('[Navblue] Error:', e);
+    showToast(t('import.ai.failed'), 'error');
+    console.error('[Roster] Error:', e);
   }
 }
 
@@ -9190,6 +9212,29 @@ const LOGBOOK_COLUMNS = [
   { key: 'total',        label: 'Total',               short: 'Total',    group: 'Times',          width: 12, align: 'right', decimal: true, default: true }
 ];
 
+// Translated accessors for on-screen rendering of column headers / picker.
+// The raw English label/short/group are kept on the column objects because
+// the TC PDF export (12-pdf-export.js doc.text) must stay English by regulation.
+const _COL_GROUP_KEY = {
+  'Identification': 'colGroup.identification',
+  'Conditions': 'colGroup.conditions',
+  'Times': 'flight.section.times',
+  'Engine class': 'flight.section.engine',
+  'Helicopter': 'colGroup.helicopter',
+  'Cross-country': 'flight.section.xc',
+  'Instrument': 'flight.section.instrument',
+  'Landings': 'flight.section.landings',
+  'Simulator': 'flight.section.sim',
+  'Dual Given': 'colGroup.dualGiven',
+  'Other': 'flight.section.other',
+};
+function colLabel(c) { return (typeof t === 'function') ? t('col.' + c.key) : c.label; }
+function colShort(c) { return (typeof t === 'function') ? t('colShort.' + c.key) : (c.short || c.label); }
+function colGroup(c) {
+  const k = _COL_GROUP_KEY[c.group];
+  return (k && typeof t === 'function') ? t(k) : c.group;
+}
+
 const COLUMN_PREFS_KEY = 'cumulo_column_prefs_v1';
 
 function loadColumnPrefs() {
@@ -9248,7 +9293,7 @@ function computeCellValue(f, key) {
     case 'xcNight':     return ((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0));
     case 'crewPosition': {
       if ((+f.meDayPic||0)+(+f.meNightPic||0)+(+f.seDay||0) > 0) return 'PIC';
-      if ((+f.meDayDual||0)+(+f.meNightDual||0) > 0) return 'Dual';
+      if ((+f.meDayDual||0)+(+f.meNightDual||0) > 0) return t('crewPos.dual');
       if ((+f.meDayCop||0)+(+f.meNightCop||0) > 0) return 'SIC';
       return '—';
     }
@@ -9784,13 +9829,13 @@ function updateNavblueStatus() {
   if (!status) return;
   const url = localStorage.getItem(NAVBLUE_URL_KEY);
   const last = localStorage.getItem(NAVBLUE_LAST_SYNC_KEY);
-  if (!url) { status.textContent = 'NOT CONFIGURED'; return; }
-  if (!last) { status.textContent = 'NEVER SYNCED'; return; }
+  if (!url) { status.textContent = t('sync.status.notConfigured'); return; }
+  if (!last) { status.textContent = t('sync.status.neverSynced'); return; }
   const minutes = Math.floor((Date.now() - +last) / 60000);
-  if (minutes < 1) status.textContent = 'JUST SYNCED';
-  else if (minutes < 60) status.textContent = `${minutes}M AGO`;
-  else if (minutes < 1440) status.textContent = `${Math.floor(minutes/60)}H AGO`;
-  else status.textContent = `${Math.floor(minutes/1440)}D AGO`;
+  if (minutes < 1) status.textContent = t('sync.status.justSynced');
+  else if (minutes < 60) status.textContent = t('sync.status.minAgo', { n: minutes });
+  else if (minutes < 1440) status.textContent = t('sync.status.hAgo', { n: Math.floor(minutes/60) });
+  else status.textContent = t('sync.status.dAgo', { n: Math.floor(minutes/1440) });
 }
 
 // opts.silent      — when true, suppress "already up to date" toast + button
@@ -9815,7 +9860,7 @@ async function syncNavblueNow(opts) {
   const details = document.getElementById('navblueDetails');
   if (btn && !silent) {
     btn.disabled = true;
-    btn.textContent = '⏳ Syncing...';
+    btn.textContent = t('sync.btn.syncing');
   }
 
   try {
@@ -9972,13 +10017,17 @@ async function syncNavblueNow(opts) {
 
     if (details) {
       details.style.display = 'block';
+      const _w = (n, s, p) => (n === 1 ? t(s) : t(p));
       const detailLines = [
-        `Calendar: <strong>${events.length}</strong> events · <strong>${mapped.length}</strong> completed flights`
+        t('sync.detail.calendar', {
+          events: events.length, ew: _w(events.length, 'word.event', 'word.events'),
+          flights: mapped.length, fw: _w(mapped.length, 'word.completedFlight', 'word.completedFlights')
+        })
       ];
-      if (mergedCount > 0) detailLines.push(`<strong>${mergedCount}</strong> existing flight${mergedCount !== 1 ? 's' : ''} enriched with UTC times + coords`);
-      if (recalcStats.updated > 0) detailLines.push(`<strong>${recalcStats.updated}</strong> flight${recalcStats.updated !== 1 ? 's' : ''} had empty Night/XC fields filled in (pilot-entered values never modified)`);
-      if (fresh.length > 0) detailLines.push(`<strong>${fresh.length}</strong> new flight${fresh.length !== 1 ? 's' : ''} ready to review`);
-      if (fresh.length === 0 && mergedCount === 0) detailLines.push('Logbook is up to date.');
+      if (mergedCount > 0) detailLines.push(t('sync.detail.enriched', { n: mergedCount, w: _w(mergedCount, 'word.flight', 'word.flights') }));
+      if (recalcStats.updated > 0) detailLines.push(t('sync.detail.filled', { n: recalcStats.updated, w: _w(recalcStats.updated, 'word.flight', 'word.flights') }));
+      if (fresh.length > 0) detailLines.push(t('sync.detail.fresh', { n: fresh.length, w: _w(fresh.length, 'word.newFlight', 'word.newFlights') }));
+      if (fresh.length === 0 && mergedCount === 0) detailLines.push(t('sync.detail.upToDate'));
       details.innerHTML = detailLines.join('<br>');
     }
 
@@ -9989,7 +10038,7 @@ async function syncNavblueNow(opts) {
       // Even in silent/auto-sync mode we surface the import-preview modal —
       // this is the whole point of auto-sync: detect new flights and prompt
       // the pilot. If no new flights, silent mode stays quiet.
-      showImportPreview(fresh, `${fresh.length} new Navblue flight${fresh.length !== 1 ? 's' : ''} found — select what to import`);
+      showImportPreview(fresh, t('sync.freshFound', { n: fresh.length, w: (fresh.length === 1 ? t('word.newFlight') : t('word.newFlights')) }));
       showToast(t('toast.syncFreshEnriched', { fresh: fresh.length, merged: mergedCount }));
     } else if (mergedCount > 0) {
       showToast(t('toast.syncEnrichedRecalc', { merged: mergedCount, updated: recalcStats.updated }), 'success');
@@ -10001,16 +10050,16 @@ async function syncNavblueNow(opts) {
     console.error('[Navblue Sync] Error:', e);
     if (details) {
       details.style.display = 'block';
-      details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
+      details.innerHTML = `<span style="color:var(--danger);">${t('sync.detail.error', { msg: esc(e.message) })}</span>`;
     }
     // Silent auto-sync errors stay in the console — toasts would alarm the
     // user when nothing actively triggered the sync. They'll see the next
     // manual click fail loudly if the worker is truly down.
-    if (!silent) showToast(e.message || 'Sync failed', 'error');
+    if (!silent) showToast(t('sync.failed'), 'error');
   } finally {
     if (btn && !silent) {
       btn.disabled = false;
-      btn.textContent = '🔄 Sync now';
+      btn.textContent = t('sync.btn.syncNow');
     }
   }
 }
@@ -10061,20 +10110,20 @@ function syncNavblueAuto(reason) {
 function showNavblueDiagnostic() {
   const raw = localStorage.getItem('cumulo_navblue_debug_v1');
   if (!raw) {
-    showToast('No diagnostic data yet — run a Navblue sync first, then click Diagnostic again.', 'error');
+    showToast(t('sync.diag.noData'), 'error');
     return;
   }
   let dump;
   try { dump = JSON.parse(raw); }
-  catch { showToast('Diagnostic data corrupted — run a fresh sync.', 'error'); return; }
+  catch { showToast(t('sync.diag.corrupted'), 'error'); return; }
 
   const ageMin = Math.round((Date.now() - dump.ts) / 60000);
   const samplesHtml = (dump.samples || []).map((s, i) => `
     <div style="margin-bottom:var(--s-4);">
-      <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">— Sample ${i + 1} —</div>
-      <div style="font-family:var(--font-mono); font-size:11px;"><strong>SUMMARY:</strong> ${esc(s.summary || '(empty)')}</div>
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">${esc(t('sync.diag.sample', { n: i + 1 }))}</div>
+      <div style="font-family:var(--font-mono); font-size:11px;"><strong>SUMMARY:</strong> ${esc(s.summary || t('sync.diag.empty'))}</div>
       <div style="margin-top:6px;"><strong style="font-family:var(--font-mono); font-size:11px;">DESCRIPTION:</strong></div>
-      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; margin-top:4px; max-height:240px; overflow:auto;">${esc(s.description || '(empty)')}</pre>
+      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; margin-top:4px; max-height:240px; overflow:auto;">${esc(s.description || t('sync.diag.empty'))}</pre>
     </div>
   `).join('');
 
@@ -10082,32 +10131,30 @@ function showNavblueDiagnostic() {
   const overlay = document.getElementById('importPreview');
   if (!overlay) {
     // Fallback: dump to console + alert
-    void('[Navblue diagnostic]', dump);
-    alert('Diagnostic data printed to console. Press Ctrl+Shift+J to view.');
+    void('[Roster diagnostic]', dump);
+    alert(t('sync.diag.consoleFallback'));
     return;
   }
   document.getElementById('importSubtitle').textContent =
-    `Navblue iCal diagnostic · synced ${ageMin} min ago · ${dump.totalEvents || 0} events`;
+    t('sync.diag.subtitle', { age: ageMin, events: dump.totalEvents || 0 });
   document.getElementById('extractedList').innerHTML = `
     <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
-      Below are the first ${dump.samples ? dump.samples.length : 0} flight entries Porter's Navblue iCal sent us, raw.
-      If you see captain names in the DESCRIPTION blocks but they aren't showing up in your Logbook PIC column,
-      paste this whole block in chat with Claude and the extraction regex will be tuned to match Porter's format.
+      ${esc(t('sync.diag.intro', { n: dump.samples ? dump.samples.length : 0 }))}
     </p>
     ${samplesHtml}
     <details style="margin-top:var(--s-3);">
-      <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Full JSON (advanced)</summary>
+      <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">${esc(t('sync.diag.fullJson'))}</summary>
       <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:10px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow:auto;">${esc(copyPayload)}</pre>
     </details>
   `;
   const confirmBtn = document.getElementById('importConfirmBtn');
-  confirmBtn.textContent = 'Copy all';
+  confirmBtn.textContent = t('sync.diag.copyAll');
   confirmBtn.disabled = false;
   confirmBtn.onclick = () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(copyPayload).then(
-        () => showToast('Diagnostic data copied to clipboard — paste it in chat.', 'success'),
-        () => showToast('Copy failed — select the JSON block and copy manually.', 'error')
+        () => showToast(t('sync.diag.copied'), 'success'),
+        () => showToast(t('sync.diag.copyFailed'), 'error')
       );
     } else {
       showToast('Clipboard not available — select the JSON block manually.', 'error');
@@ -10729,19 +10776,19 @@ async function handleRosterFile(file) {
     }
 
     const detailLines = [
-      `<strong>${extracted.length}</strong> flight legs extracted from PDF`,
-      `<strong style="color:var(--success);">${matched}</strong> captain name${matched !== 1 ? 's' : ''} added to existing flights`,
+      t('roster.detail.extracted', { n: `<strong>${extracted.length}</strong>` }),
+      t('roster.detail.captains', { n: `<strong style="color:var(--success);">${matched}</strong>` }),
     ];
     if (atdAdded > 0) {
-      detailLines.push(`<strong style="color:var(--success);">${atdAdded}</strong> ATD/ATA actual time${atdAdded !== 1 ? 's' : ''} captured from PDF`);
+      detailLines.push(t('roster.detail.times', { n: `<strong style="color:var(--success);">${atdAdded}</strong>` }));
     }
     if (isLocalTime) {
-      detailLines.push(`<span style="color:var(--warning);">⚠ PDF is in <strong>Local time</strong> mode — ATD/ATA were NOT imported to avoid timezone-conversion approximation. Re-download in <strong>UTC / Zulu</strong> TimeMode for actual times.</span>`);
+      detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.localTime')}</span>`);
     } else if (pdfTimeMode === 'unknown') {
-      detailLines.push(`<span style="color:var(--text-muted);">PDF TimeMode not detected — ATD/ATA captured as-is.</span>`);
+      detailLines.push(`<span style="color:var(--text-muted);">${t('roster.detail.unknownTime')}</span>`);
     }
-    if (alreadyHad > 0) detailLines.push(`<span>${alreadyHad} flights already had a PIC (not overwritten)</span>`);
-    if (noMatch > 0) detailLines.push(`<span style="color:var(--warning);">${noMatch} legs not found in your logbook (older than iCal window?)</span>`);
+    if (alreadyHad > 0) detailLines.push(`<span>${t('roster.detail.alreadyHad', { n: alreadyHad })}</span>`);
+    if (noMatch > 0) detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.noMatch', { n: noMatch })}</span>`);
     details.innerHTML = detailLines.join('<br>');
 
     if (matched > 0) {
@@ -10753,7 +10800,7 @@ async function handleRosterFile(file) {
     }
   } catch (e) {
     console.error('[Roster] Parse error:', e);
-    details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
+    details.innerHTML = `<span style="color:var(--danger);">${t('sync.detail.error', { msg: esc(e.message) })}</span>`;
     showToast(t('toast.pdfParseFailed', { err: e.message }), 'error');
   }
 }
@@ -10974,29 +11021,29 @@ function renderColumnPicker() {
   });
 
   const pillsHtml = Object.keys(groups).map(group => `
-    <span class="col-pill-group-label">${group}</span>
+    <span class="col-pill-group-label">${esc(colGroup({ group }))}</span>
     ${groups[group].map(c => {
       const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
       return `<button type="button" class="col-pill ${checked ? 'on' : 'off'}"
                        onclick="toggleColumn('${c.key}', ${!checked})"
-                       title="${c.label}">${c.short || c.label}</button>`;
+                       title="${esc(colLabel(c))}">${esc(colShort(c) || colLabel(c))}</button>`;
     }).join('')}
   `).join('');
 
   container.innerHTML = `
     <div class="col-toolbar">
-      <span class="eyebrow">Persona:</span>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="Airline 705 F/O">Airline F/O</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="Airline 705 Captain">Airline Capt</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="Bush ops">Bush</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="Rotorcraft">Heli</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="Instructor / CFI">Instructor</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="Private GA">Private</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="Student">Student</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="ATPL submission">ATPL</button>
+      <span class="eyebrow">${esc(t('cols.persona'))}</span>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-fo')" type="button" title="${esc(t('cols.preset.airlineFo.t'))}">${esc(t('cols.preset.airlineFo'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('airline-cpt')" type="button" title="${esc(t('cols.preset.airlineCpt.t'))}">${esc(t('cols.preset.airlineCpt'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('bush')" type="button" title="${esc(t('cols.preset.bush.t'))}">${esc(t('cols.preset.bush'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('helicopter')" type="button" title="${esc(t('cols.preset.heli.t'))}">${esc(t('cols.preset.heli'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('instructor')" type="button" title="${esc(t('cols.preset.instructor.t'))}">${esc(t('cols.preset.instructor'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('private')" type="button" title="${esc(t('cols.preset.private.t'))}">${esc(t('cols.preset.private'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('student')" type="button" title="${esc(t('cols.preset.student.t'))}">${esc(t('cols.preset.student'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('atpl')" type="button" title="${esc(t('cols.preset.atpl.t'))}">${esc(t('cols.preset.atpl'))}</button>
       <span class="col-toolbar-sep"></span>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">All</button>
-      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">None</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('all')" type="button">${esc(t('cols.preset.all'))}</button>
+      <button class="btn btn-ghost btn-xs" onclick="applyColumnPreset('none')" type="button">${esc(t('cols.preset.none'))}</button>
     </div>
     <div class="col-pills">${pillsHtml}</div>
   `;
@@ -11034,9 +11081,9 @@ function closeColumnMenuOnOutside(e) {
 
 async function resetColumnPrefs() {
   if (!await confirmDialog({
-    title: 'Reset column preferences',
+    title: t('confirm.resetCols.title'),
     body: t('confirm.resetCols'),
-    confirmLabel: 'Reset',
+    confirmLabel: t('btn.reset'),
     danger: true
   })) return;
   localStorage.removeItem(COLUMN_PREFS_KEY);
@@ -11180,19 +11227,30 @@ function restoreData(input) {
       const dates = (data.flights || []).map(f => f && f.date).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
       const dateRange = dates.length
         ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} → ${dates[dates.length - 1]}`)
-        : 'no dated entries';
+        : t('confirm.restore.noDates');
       const profileNote = (data.profile && typeof data.profile === 'object')
-        ? ` plus profile (${[data.profile.fname, data.profile.lname].filter(Boolean).join(' ') || 'unnamed'}).`
+        ? t('confirm.restore.profile', { name: [data.profile.fname, data.profile.lname].filter(Boolean).join(' ') || t('confirm.restore.unnamed') })
         : '';
-      const exportedNote = data.exportedAt ? `Backup exported: ${String(data.exportedAt).slice(0, 10)}.` : '';
+      const exportedNote = data.exportedAt ? t('confirm.restore.exported', { date: String(data.exportedAt).slice(0, 10) }) : '';
+      const flWord = c => (c === 1 ? t('word.flight') : t('word.flights'));
+      const curPhrase = currentFlightCount === 0
+        ? t('confirm.restore.curZero')
+        : currentFlightCount === 1
+          ? t('confirm.restore.curOne')
+          : t('confirm.restore.curMany', { cur: currentFlightCount });
 
-      const body = `${exportedNote}\n\nBackup contains ${incomingFlightCount} flight${incomingFlightCount !== 1 ? 's' : ''} (${dateRange})${profileNote}\n\nThis will REPLACE your current ${currentFlightCount} flight${currentFlightCount !== 1 ? 's' : ''}. Cannot be undone — download a fresh backup first if unsure.`;
+      const body = exportedNote + t('confirm.restore.body', {
+        n: incomingFlightCount,
+        nw: flWord(incomingFlightCount),
+        range: dateRange,
+        profile: profileNote,
+        curPhrase
+      });
 
       const ok = await confirmDialog({
-        title: 'Restore from backup',
+        title: t('confirm.restore.title'),
         body,
-        confirmLabel: 'Replace + restore',
-        cancelLabel: 'Cancel',
+        confirmLabel: t('confirm.restore.confirm'),
         danger: true
       });
       if (!ok) return;
@@ -11261,9 +11319,9 @@ function sanitizeFlightRow(f, profile) {
 
 async function clearAll() {
   if (!await confirmDialog({
-    title: 'Clear all flights',
+    title: t('settings.clear.titleRed'),
     body: t('confirm.deleteAll'),
-    confirmLabel: 'Clear all',
+    confirmLabel: t('settings.clear.btn'),
     danger: true
   })) return;
   flights = [];
@@ -11280,15 +11338,15 @@ async function clearAll() {
 async function deleteAccountPurge() {
   // Two-stage confirmation — this is irreversible local + cloud destruction.
   if (!await confirmDialog({
-    title: 'Delete account + purge all data',
+    title: t('trust.delete.title'),
     body: t('confirm.deletePurge1'),
-    confirmLabel: 'Continue',
+    confirmLabel: t('confirm.continue'),
     danger: true
   })) return;
   if (!await confirmDialog({
-    title: 'Are you absolutely sure?',
+    title: t('confirm.purge.title2'),
     body: t('confirm.deletePurge2'),
-    confirmLabel: 'Yes, delete everything',
+    confirmLabel: t('confirm.purge.confirm2'),
     danger: true
   })) return;
 
@@ -11343,7 +11401,9 @@ function exportPDF() {
   const overlay = document.getElementById('importPreview');
   if (!overlay) { _generatePDF(); return; }
   // Render the column picker inside the import modal (reused as a generic modal)
-  document.getElementById('importSubtitle').textContent = 'Choose which columns to include in your printed PDF';
+  const _pdfTitleEl = document.getElementById('importTitle');
+  if (_pdfTitleEl) _pdfTitleEl.textContent = t('pdf.picker.title');
+  document.getElementById('importSubtitle').textContent = t('pdf.picker.subtitle');
   // Read current prefs to seed the picker
   const html = (function() {
     const prefs = loadColumnPrefs() || {};
@@ -11355,7 +11415,7 @@ function exportPDF() {
     });
     return Object.keys(groups).map(group => `
       <div class="col-group">
-        <div class="col-group-title">${group}</div>
+        <div class="col-group-title">${esc(colGroup({ group }))}</div>
         <div class="col-group-grid">
           ${groups[group].map(c => {
             const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
@@ -11363,21 +11423,21 @@ function exportPDF() {
               <label class="col-option ${checked ? 'is-on' : ''}">
                 <input type="checkbox" data-col-key="${c.key}" ${checked ? 'checked' : ''}
                        onchange="this.closest('label').classList.toggle('is-on', this.checked)" />
-                <span class="col-option-label">${c.label}</span>
+                <span class="col-option-label">${esc(colLabel(c))}</span>
               </label>`;
           }).join('')}
         </div>
       </div>
     `).join('') + `
       <div style="margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.5;">
-        <strong>Tip:</strong> Picking fewer columns gives more space per row in landscape. Picking many makes the table denser. The cover page + currency annexe always print.
+        ${t('pdf.picker.tip')}
       </div>
     `;
   })();
   document.getElementById('extractedList').innerHTML = html;
   // Configure the confirm button
   const confirmBtn = document.getElementById('importConfirmBtn');
-  confirmBtn.textContent = '📄 Generate PDF';
+  confirmBtn.textContent = t('pdf.picker.generate');
   confirmBtn.disabled = false;
   confirmBtn.onclick = function() {
     // Read selected columns
@@ -11968,8 +12028,8 @@ const FAQS = [
  {
  q: 'What counts as "cross-country" time?',
  a: 'CAR 401.34 defines cross-country (XC) as a flight to a point more than 25 nautical miles from the departure aerodrome. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance exceeds 25 NM. Short hops (< 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.',
- qFr: 'Qu\'est-ce qui compte comme temps « voyage » (XC) ?',
- aFr: 'CAR 401.34 définit le voyage (XC) comme un vol vers un point à plus de 25 milles nautiques de l\'aérodrome de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique dépasse 25 NM. Les vols courts (< 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
+ qFr: 'Qu\'est-ce qui compte comme temps « cross-country » (XC) ?',
+ aFr: 'CAR 401.34 définit le cross-country (XC) comme un vol vers un point à plus de 25 milles nautiques de l\'aérodrome de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique dépasse 25 NM. Les vols courts (< 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
  },
  {
  q: 'How do I log Multi-Crew time (MCC) for ATPL submission?',
@@ -12213,7 +12273,7 @@ const GLOSSARY = [
  ['ME', 'Multi-Engine — aircraft with more than one engine', 'Multimoteur — aéronef à plus d\'un moteur'],
 
  // Cross-country
- ['XC', 'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)', 'Voyage — vol vers un aérodrome à plus de 25 NM (46,3 km) du point de départ (CAR 401.34)'],
+ ['XC', 'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)', 'Cross-country — vol vers un aérodrome à plus de 25 NM (46,3 km) du point de départ (CAR 401.34)'],
 
  // Instrument
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
@@ -12266,7 +12326,7 @@ const GLOSSARY = [
  ['RAC', 'Règlement de l\'aviation canadien — French name for the CAR', 'Règlement de l\'aviation canadien — nom français des CAR'],
  ['CAR 401.05', 'Recency requirements (5 landings 90 days · 6 IFR approaches 6 months)', 'Exigences de validité (5 atterrissages 90 jours · 6 approches IFR 6 mois)'],
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
- ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du voyage (> 25 NM)'],
+ ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du cross-country (> 25 NM)'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
  ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série CAR 700 — opérations comme 705 transporteur aérien)'],
  ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les CAR'],
@@ -12362,13 +12422,13 @@ function renderRecap() {
       data:{
         labels: months.map(m=>m.label),
         datasets:[{
-          label:'Block Hours',data:months.map(m=>m.val),
+          label:t('chart.blockHours'),data:months.map(m=>m.val),
           backgroundColor:'rgba(61,123,196,0.72)',borderColor:'rgba(61,123,196,1)',borderWidth:1.5,borderRadius:4
         }]
       },
       options:{
         responsive:true,animation:{duration:600},
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' hrs'}}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' '+t('hero.unitHours')}}},
         scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}},
                 x:{grid:{display:false},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}}}
       }
@@ -13223,6 +13283,12 @@ const WIZARD_TARGETS = [
   { key: 'remarks',    label: 'Remarks / Comments',  required: false }
 ];
 
+// Translated display label for a wizard target (the English `label` on the
+// object is kept as a fallback). Header-matching dictionaries below stay English.
+function csvTargetLabel(target) {
+  return (typeof t === 'function') ? t('csv.target.' + target.key) : target.label;
+}
+
 function guessHeaderForTarget(key) {
   switch (key) {
     case 'date':       return ['date', 'flight date'];
@@ -13256,7 +13322,7 @@ function guessHeaderForTarget(key) {
 
 function parseUniversal(text, dateLocale, profile, hash) {
   const rows = parseCsv(text);
-  if (rows.length < 2) return { rawRows: [], source: 'Universal CSV', sourceKey: 'wizard', hash };
+  if (rows.length < 2) return { rawRows: [], source: t('csv.universalSource'), sourceKey: 'wizard', hash };
   const headerRow = rows[0];
   const dataRows = rows.slice(1).filter(r => r.some(c => c !== ''));
   csvWizardState = { headerRow, dataRows, mapping: {}, dateLocale, profile, hash };
@@ -13274,32 +13340,31 @@ function showWizardMappingModal() {
   const overlay = document.getElementById('importPreview');
   if (!overlay || !csvWizardState) return;
   document.getElementById('importSubtitle').textContent =
-    `Universal CSV mapping — ${csvWizardState.dataRows.length} rows detected. Match each Cumulo field to a source column.`;
+    t('csv.wizard.subtitle', { n: csvWizardState.dataRows.length });
   const rows = WIZARD_TARGETS.map(target => {
     const cur = csvWizardState.mapping[target.key];
     const selected = cur !== undefined ? cur : '';
     return `
       <div class="review-item">
         <div class="review-body" style="flex:1;">
-          <div class="review-item-header">${esc(target.label)}${target.required ? ' <span style="color:var(--danger)">*</span>' : ''}</div>
+          <div class="review-item-header">${esc(csvTargetLabel(target))}${target.required ? ' <span style="color:var(--danger)">*</span>' : ''}</div>
         </div>
         <select onchange="csvWizardState.mapping[${JSON.stringify(target.key)}] = this.value === '' ? undefined : parseInt(this.value, 10);"
                 style="padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--bg);">
-          <option value="">— skip —</option>
+          <option value="">${esc(t('csv.wizard.skip'))}</option>
           ${csvWizardState.headerRow.map((hLabel, i) =>
-            `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(hLabel || '(blank)')}</option>`
+            `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(hLabel || t('csv.wizard.blank'))}</option>`
           ).join('')}
         </select>
       </div>`;
   }).join('');
   document.getElementById('extractedList').innerHTML = `
     <p style="margin-bottom:var(--s-3); font-size:13px; color:var(--text-secondary);">
-      Pick which source column maps to each Cumulo field. Required fields marked <span style="color:var(--danger)">*</span>.
-      Unmapped fields stay 0/empty.
+      ${t('csv.wizard.intro')}
     </p>
     ${rows}
   `;
-  document.getElementById('importConfirmBtn').textContent = 'Continue →';
+  document.getElementById('importConfirmBtn').textContent = t('csv.wizard.continue');
   document.getElementById('importConfirmBtn').onclick = () => applyWizardMapping();
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -13309,7 +13374,7 @@ function applyWizardMapping() {
   if (!csvWizardState) return;
   const missing = WIZARD_TARGETS.filter(target => target.required && csvWizardState.mapping[target.key] === undefined);
   if (missing.length) {
-    showToast(t('toast.missingMapping', { fields: missing.map(target => target.label).join(', ') }), 'error');
+    showToast(t('toast.missingMapping', { fields: missing.map(target => csvTargetLabel(target)).join(', ') }), 'error');
     return;
   }
   const m = csvWizardState.mapping;
@@ -13353,7 +13418,7 @@ function applyWizardMapping() {
   });
   const hash = csvWizardState.hash;
   csvWizardState = null;
-  startImportFlow({ rawRows, source: 'Universal CSV', sourceKey: 'wizard', hash });
+  startImportFlow({ rawRows, source: t('csv.universalSource'), sourceKey: 'wizard', hash });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -13550,10 +13615,10 @@ function showCsvReviewStep() {
       <div class="review-body">
         <div class="review-item-header">${esc(f.date)} · ${esc(f.flightNum || '—')} · ${esc(f.route || '—')}</div>
         <div class="review-fields">
-          <div class="review-field"><span>Reg</span> ${esc(f.reg || '—')}</div>
-          <div class="review-field"><span>Type</span> ${esc(f.type || '—')}</div>
-          <div class="review-field"><span>Total</span> ${fmt(f.total)} h</div>
-          <div class="review-field"><span>Cat</span> ${esc(f.isSim ? t('csv.engine.SIM') : (f.acConfig === 'helicopter' ? t('csv.engine.HELI') : f.acConfig === 'glider' ? t('csv.engine.GLIDER') : ((+f.seDay||0)+(+f.seNight||0) > 0 ? t('csv.engine.SE') : t('csv.engine.ME'))))}</div>
+          <div class="review-field"><span>${esc(t('colShort.reg'))}</span> ${esc(f.reg || '—')}</div>
+          <div class="review-field"><span>${esc(t('colShort.type'))}</span> ${esc(f.type || '—')}</div>
+          <div class="review-field"><span>${esc(t('col.total'))}</span> ${fmt(f.total)} h</div>
+          <div class="review-field"><span>${esc(t('flight.section.engine'))}</span> ${esc(f.isSim ? t('csv.engine.SIM') : (f.acConfig === 'helicopter' ? t('csv.engine.HELI') : f.acConfig === 'glider' ? t('csv.engine.GLIDER') : ((+f.seDay||0)+(+f.seNight||0) > 0 ? t('csv.engine.SE') : t('csv.engine.ME'))))}</div>
         </div>
       </div>
     </div>`).join('');
@@ -13565,7 +13630,7 @@ function showCsvReviewStep() {
       <div style="margin-top:var(--s-2); font-size:11px; color:var(--text-muted);">${esc(t('csv.audit.flaggedXC'))}</div>
     </div>
     ${preview}
-    ${flights.length > 20 ? `<div style="text-align:center; padding:var(--s-3); color:var(--text-muted); font-size:12px;">… and ${flights.length - 20} more</div>` : ''}
+    ${flights.length > 20 ? `<div style="text-align:center; padding:var(--s-3); color:var(--text-muted); font-size:12px;">${esc(t('csv.review.andMore', { n: flights.length - 20 }))}</div>` : ''}
   `;
   document.getElementById('importConfirmBtn').textContent = t('csv.classify.continue');
   document.getElementById('importConfirmBtn').onclick = () => showCsvAttestStep();
@@ -14145,6 +14210,83 @@ const STRINGS = {
  'import.csvCard.dropSub': 'ForeFlight · LogTen Pro · MyFlightbook · other',
  'import.footer': 'Every import opens a <strong>preview</strong> before anything is saved. Cumulo snapshots automatically — you can always Undo from <a href="#" onclick="showPage(\'backup\');setTimeout(()=>showSettingsTab&&showSettingsTab(\'data\'),60);return false;" style="color:var(--accent);font-weight:600;">Settings → Data → Recovery</a>.',
  'import.aiBox.reading': 'READING ROSTER...',
+ 'import.aiBox.extracting': 'EXTRACTING FLIGHTS...',
+ 'import.ai.noFlights': 'No completed flights found in this PDF.',
+ 'import.ai.failed': 'Could not read this PDF. Please try again, or use CSV / iCal import.',
+ 'import.recent.fromSrc': '{n} {w} from {src}',
+ 'import.recent.fileSrc': 'file',
+ // ─── iCal roster sync UI (08-flight-form.js)
+ 'word.event': 'event', 'word.events': 'events',
+ 'word.completedFlight': 'completed flight', 'word.completedFlights': 'completed flights',
+ 'word.newFlight': 'new flight', 'word.newFlights': 'new flights',
+ 'sync.status.notConfigured': 'NOT CONFIGURED',
+ 'sync.status.neverSynced': 'NEVER SYNCED',
+ 'sync.status.justSynced': 'JUST SYNCED',
+ 'sync.status.minAgo': '{n}M AGO',
+ 'sync.status.hAgo': '{n}H AGO',
+ 'sync.status.dAgo': '{n}D AGO',
+ 'sync.btn.syncing': '⏳ Syncing…',
+ 'sync.btn.syncNow': '🔄 Sync now',
+ 'sync.detail.calendar': 'Calendar: <strong>{events}</strong> {ew} · <strong>{flights}</strong> {fw}.',
+ 'sync.detail.enriched': 'Added UTC times + coordinates to <strong>{n}</strong> {w}.',
+ 'sync.detail.filled': 'Filled empty Night/XC fields on <strong>{n}</strong> {w} (pilot-entered values never modified).',
+ 'sync.detail.fresh': '<strong>{n}</strong> {w} to review.',
+ 'sync.detail.upToDate': 'Logbook is up to date.',
+ 'sync.detail.error': 'Error: {msg}',
+ 'sync.freshFound': '{n} {w} found — select what to import',
+ 'sync.failed': 'Sync failed',
+ 'sync.diag.noData': 'No diagnostic data yet — run an iCal sync first, then click Diagnostic again.',
+ 'sync.diag.corrupted': 'Diagnostic data corrupted — run a fresh sync.',
+ 'sync.diag.consoleFallback': 'Diagnostic data printed to the console (press Ctrl+Shift+J to view).',
+ 'sync.diag.subtitle': 'iCal diagnostic · synced {age} min ago · {events} events',
+ 'sync.diag.intro': 'Below are the first {n} flight entries your roster’s iCal feed sent us, raw. If captain names appear in the DESCRIPTION blocks but not in your Logbook PIC column, share this whole block with support so the crew-name extraction can be tuned to your operator’s format.',
+ 'sync.diag.sample': '— Sample {n} —',
+ 'sync.diag.empty': '(empty)',
+ 'sync.diag.fullJson': 'Full JSON (advanced)',
+ 'sync.diag.copyAll': 'Copy all',
+ 'sync.diag.copied': 'Diagnostic data copied to clipboard.',
+ 'sync.diag.copyFailed': 'Copy failed — select the JSON block and copy manually.',
+ // ─── Roster PDF crew-enrichment detail (10-pdf-roster.js)
+ 'roster.detail.extracted': 'Flight legs extracted from PDF: {n}',
+ 'roster.detail.captains': 'Captain names added to existing flights: {n}',
+ 'roster.detail.times': 'ATD/ATA actual times captured from PDF: {n}',
+ 'roster.detail.alreadyHad': 'Flights that already had a PIC (not overwritten): {n}',
+ 'roster.detail.noMatch': 'Legs not found in your logbook (older than the iCal window?): {n}',
+ 'roster.detail.localTime': '⚠ The PDF is in <strong>Local time</strong> mode — ATD/ATA were not imported to avoid timezone-conversion approximation. Re-download in <strong>UTC / Zulu</strong> TimeMode for actual times.',
+ 'roster.detail.unknownTime': 'PDF TimeMode not detected — ATD/ATA captured as-is.',
+ // ─── CSV universal-mapping wizard (16-csv-import.js) — display labels only; header-matching dictionaries stay English
+ 'csv.universalSource': 'Universal CSV',
+ 'csv.wizard.subtitle': 'Universal CSV mapping — {n} rows detected. Match each Cumulo field to a source column.',
+ 'csv.wizard.intro': 'Pick which source column maps to each Cumulo field. Required fields are marked <span style="color:var(--danger)">*</span>. Unmapped fields stay 0 / empty.',
+ 'csv.wizard.skip': '— skip —',
+ 'csv.wizard.blank': '(blank)',
+ 'csv.wizard.continue': 'Continue →',
+ 'csv.target.date': 'Date (required)',
+ 'csv.target.reg': 'Aircraft Registration',
+ 'csv.target.type': 'Aircraft Type / Model',
+ 'csv.target.flightNum': 'Flight Number',
+ 'csv.target.from': 'From (departure)',
+ 'csv.target.to': 'To (arrival)',
+ 'csv.target.via': 'Via (intermediate)',
+ 'csv.target.atd_utc': 'ATD UTC (actual departure)',
+ 'csv.target.ata_utc': 'ATA UTC (actual arrival)',
+ 'csv.target.total': 'Total / Flight Time',
+ 'csv.target.pic': 'PIC Time',
+ 'csv.target.sic': 'SIC Time',
+ 'csv.target.dualRcvd': 'Dual Received',
+ 'csv.target.dualGiven': 'Dual Given (CFI)',
+ 'csv.target.picus': 'PICUS',
+ 'csv.target.night': 'Night Time',
+ 'csv.target.xc': 'Cross-Country Time',
+ 'csv.target.instActual': 'Instrument Actual',
+ 'csv.target.instHood': 'Instrument Sim/Hood',
+ 'csv.target.approaches': 'Approaches (count)',
+ 'csv.target.ldgDay': 'Day Landings',
+ 'csv.target.ldgNight': 'Night Landings',
+ 'csv.target.captain': 'PIC Name',
+ 'csv.target.copilot': 'SIC / Co-pilot Name',
+ 'csv.target.remarks': 'Remarks / Comments',
+ 'csv.review.andMore': '… and {n} more',
  'import.preview.flightsFound': '{n} flight(s) found — select what to import',
  'import.preview.noFlights': 'No flights found.',
  'import.preview.selectedCount': '{selected} of {total} selected',
@@ -14390,6 +14532,145 @@ const STRINGS = {
  // Night/XC slots only is still active, but does not prompt the user.
  'confirm.resetCols': 'Reset all column visibility to defaults? Your data is not affected.',
  'confirm.restoreSnapshot': 'Restore logbook to state before "{op}" ({age})?\n\nCurrent: {curN} flights\nSnapshot: {snapN} flights\n\nThe current state will be saved as a new snapshot — you can always undo again.',
+ // ─── Confirm-dialog titles / labels (bodies live under confirm.* above)
+ 'confirm.continue': 'Continue',
+ 'confirm.resetCols.title': 'Reset column preferences',
+ 'btn.reset': 'Reset',
+ 'confirm.purge.title2': 'Are you absolutely sure?',
+ 'confirm.purge.confirm2': 'Yes, delete everything',
+ 'confirm.restore.title': 'Restore from backup',
+ 'confirm.restore.confirm': 'Replace + restore',
+ 'confirm.restore.exported': 'Backup exported: {date}.\n\n',
+ 'confirm.restore.body': 'Backup contains {n} {nw} ({range}){profile}\n\nThis will REPLACE {curPhrase}. Cannot be undone — download a fresh backup first if unsure.',
+ 'confirm.restore.curZero': 'your current logbook (empty)',
+ 'confirm.restore.curOne': 'your current flight',
+ 'confirm.restore.curMany': 'your current {cur} flights',
+ // ─── Undo / snapshot history (02-data.js)
+ 'age.justNow': 'just now',
+ 'age.min': '{n} min ago',
+ 'age.hour': '{n}h ago',
+ 'age.day': '{n}d ago',
+ 'undo.none': 'No snapshot',
+ 'undo.multi': 'Undo · {n} snapshots',
+ 'undo.single': 'Undo "{op}" ({age})',
+ 'undo.op.sync': 'iCal roster sync',
+ 'undo.op.enrich': 'Crew names from PDF',
+ 'undo.op.migration': 'Cloud migration',
+ 'undo.op.deleteFlight': 'Delete flight',
+ 'undo.op.import': 'Import from {source}',
+ 'undo.op.beforeUndo': 'before undo of "{op}"',
+ 'snap.modal.subtitleOne': '1 snapshot available — pick one to restore',
+ 'snap.modal.subtitleMany': '{n} snapshots available — pick one to restore',
+ 'snap.modal.intro': 'Each snapshot was taken automatically before a bulk operation. The current state will be preserved when you restore.',
+ 'snap.modal.when': 'When',
+ 'snap.modal.flights': 'Flights',
+ 'snap.modal.date': 'Date',
+ 'btn.restore': 'Restore',
+ 'chart.blockHours': 'Block Hours',
+ // ─── Flight detail panel (04-logbook.js openFlightDetail)
+ 'detail.depIcao': 'Departure (ICAO)',
+ 'detail.arrIcao': 'Arrival (ICAO)',
+ 'detail.crewPosition': 'Crew Position',
+ 'detail.crewPosSic': 'SIC (PIC: {pic})',
+ 'detail.copilot': 'Co-pilot',
+ 'detail.atdUtc': 'ATD UTC',
+ 'detail.ataUtc': 'ATA UTC',
+ 'detail.checkInUtc': 'Check-In UTC',
+ 'detail.checkOutUtc': 'Check-Out UTC',
+ 'detail.flightTimeDecimal': 'Flight Time (decimal)',
+ 'common.yes': 'Yes',
+ 'crewPos.dual': 'Dual',
+ // ─── Logbook column headers (on-screen only; PDF doc.text stays English)
+ 'colGroup.identification': 'Identification',
+ 'colGroup.conditions': 'Conditions',
+ 'colGroup.helicopter': 'Helicopter',
+ 'colGroup.dualGiven': 'Dual Given',
+ 'col.date': 'Date', 'colShort.date': 'Date',
+ 'col.flightNum': 'Flight #', 'colShort.flightNum': 'Flt#',
+ 'col.type': 'A/C Type', 'colShort.type': 'Type',
+ 'col.reg': 'Registration', 'colShort.reg': 'Reg',
+ 'col.dep_icao': 'From', 'colShort.dep_icao': 'From',
+ 'col.via': 'Via (intermediate)', 'colShort.via': 'Via',
+ 'col.arr_icao': 'To', 'colShort.arr_icao': 'To',
+ 'col.route': 'Route', 'colShort.route': 'Route',
+ 'col.pic': 'Pilot in Command', 'colShort.pic': 'PIC',
+ 'col.copilot': 'Co-pilot', 'colShort.copilot': 'Cop',
+ 'col.crewPosition': 'Crew Position', 'colShort.crewPosition': 'Position',
+ 'col.day': 'Day', 'colShort.day': 'Day',
+ 'col.night': 'Night', 'colShort.night': 'Night',
+ 'col.vfr': 'VFR', 'colShort.vfr': 'VFR',
+ 'col.ifr': 'IFR', 'colShort.ifr': 'IFR',
+ 'col.block': 'Flight Time', 'colShort.block': 'Flt Time',
+ 'col.duty': 'Duty Time', 'colShort.duty': 'Duty',
+ 'col.seDay': 'SE Day', 'colShort.seDay': 'SE Day',
+ 'col.seNight': 'SE Night', 'colShort.seNight': 'SE Ngt',
+ 'col.meDayPic': 'ME Day PIC', 'colShort.meDayPic': 'MED PIC',
+ 'col.meNightPic': 'ME Night PIC', 'colShort.meNightPic': 'MEN PIC',
+ 'col.meDayCop': 'ME Day SIC', 'colShort.meDayCop': 'MED SIC',
+ 'col.meNightCop': 'ME Night SIC', 'colShort.meNightCop': 'MEN SIC',
+ 'col.meDayDual': 'ME Day Dual', 'colShort.meDayDual': 'MED Dual',
+ 'col.meNightDual': 'ME Night Dual', 'colShort.meNightDual': 'MEN Dual',
+ 'col.heliDayPic': 'Heli Day PIC', 'colShort.heliDayPic': 'HD PIC',
+ 'col.heliNightPic': 'Heli Night PIC', 'colShort.heliNightPic': 'HN PIC',
+ 'col.heliDayCop': 'Heli Day SIC', 'colShort.heliDayCop': 'HD SIC',
+ 'col.heliNightCop': 'Heli Night SIC', 'colShort.heliNightCop': 'HN SIC',
+ 'col.heliDayDual': 'Heli Day Dual', 'colShort.heliDayDual': 'HD Dual',
+ 'col.heliNightDual': 'Heli Night Dual', 'colShort.heliNightDual': 'HN Dual',
+ 'col.hoverTime': 'Hover Time', 'colShort.hoverTime': 'Hover',
+ 'col.xcDay': 'XC Day', 'colShort.xcDay': 'XC Day',
+ 'col.xcNight': 'XC Night', 'colShort.xcNight': 'XC Ngt',
+ 'col.instActual': 'Inst Actual', 'colShort.instActual': 'InstA',
+ 'col.instHood': 'Inst Hood', 'colShort.instHood': 'InstH',
+ 'col.instSim': 'Inst Sim/FSTD', 'colShort.instSim': 'InstSim',
+ 'col.approaches': 'Approaches', 'colShort.approaches': 'App',
+ 'col.toDay': 'T/O Day', 'colShort.toDay': 'T/O D',
+ 'col.toNight': 'T/O Night', 'colShort.toNight': 'T/O N',
+ 'col.ldgDay': 'LDG Day', 'colShort.ldgDay': 'L Day',
+ 'col.ldgNight': 'LDG Night', 'colShort.ldgNight': 'L Ngt',
+ 'col.isSim': 'Simulator', 'colShort.isSim': 'SIM',
+ 'col.simType': 'Sim Type (FFS/FTD)', 'colShort.simType': 'SimType',
+ 'col.simSession': 'Session Type', 'colShort.simSession': 'Session',
+ 'col.simRegistration': 'Sim Device ID', 'colShort.simRegistration': 'Device',
+ 'col.dualGivenDay': 'Dual Given Day', 'colShort.dualGivenDay': 'DG Day',
+ 'col.dualGivenNight': 'Dual Given Night', 'colShort.dualGivenNight': 'DG Ngt',
+ 'col.picus': 'PICUS', 'colShort.picus': 'PICUS',
+ 'col.multiCrew': 'Multi-Crew', 'colShort.multiCrew': 'MC',
+ 'col.acConfig': 'AC Config', 'colShort.acConfig': 'Config',
+ 'col.remarks': 'Remarks', 'colShort.remarks': 'Remarks',
+ 'col.total': 'Total', 'colShort.total': 'Total',
+ 'logbook.noFlights': 'No flights found.',
+ 'logbook.totalsLabel': 'TOTALS',
+ 'logbook.inclBf': '(incl. brought-forward)',
+ // ─── Column picker persona toolbar (11-columns-backup.js)
+ 'cols.persona': 'Persona:',
+ 'cols.preset.airlineFo': 'Airline F/O', 'cols.preset.airlineFo.t': 'Airline 705 F/O',
+ 'cols.preset.airlineCpt': 'Airline Capt', 'cols.preset.airlineCpt.t': 'Airline 705 Captain',
+ 'cols.preset.bush': 'Bush', 'cols.preset.bush.t': 'Bush ops',
+ 'cols.preset.heli': 'Heli', 'cols.preset.heli.t': 'Rotorcraft',
+ 'cols.preset.instructor': 'Instructor', 'cols.preset.instructor.t': 'Instructor / CFI',
+ 'cols.preset.private': 'Private', 'cols.preset.private.t': 'Private GA',
+ 'cols.preset.student': 'Student', 'cols.preset.student.t': 'Student',
+ 'cols.preset.atpl': 'ATPL', 'cols.preset.atpl.t': 'ATPL submission',
+ 'cols.preset.all': 'All', 'cols.preset.none': 'None',
+ // ─── PDF export column-picker modal (on-screen; the PDF itself stays English)
+ 'pdf.picker.title': 'Export to PDF',
+ 'pdf.picker.subtitle': 'Choose which columns to include in your printed PDF',
+ 'pdf.picker.tip': '<strong>Tip:</strong> Picking fewer columns gives more space per row in landscape. Picking many makes the table denser. The cover page + currency annexe always print.',
+ 'pdf.picker.generate': '📄 Generate PDF',
+ // ─── Flight-form validation (05-form-helpers.js)
+ 'form.err.invalidTime': 'Invalid time. Use HHMM (e.g. 1235 for 12:35Z).',
+ 'form.err.dateRequired': 'Date is required.',
+ 'form.err.invalidHHMM': '{label} is not a valid HHMM time.',
+ 'form.err.fixBeforeSaving': 'Fix before saving:',
+ 'form.title.logFlight': 'Log a Flight',
+ 'form.title.logSim': 'Log a Simulator Session',
+ 'form.title.editFlight': 'Edit Flight',
+ 'form.title.editSim': 'Edit Simulator Session',
+ 'confirm.restore.profile': ' plus profile ({name}).',
+ 'confirm.restore.noDates': 'no dated entries',
+ 'confirm.restore.unnamed': 'unnamed',
+ 'word.flight': 'flight',
+ 'word.flights': 'flights',
 
  // ─── Import preview overlay
  'preview.cancel': 'Cancel',
@@ -14445,6 +14726,17 @@ const STRINGS = {
  'auth.err.rateLimit': 'Too many attempts. Try again in a few minutes.',
  'auth.err.weakPassword': 'Password must be at least 12 characters.',
  'auth.err.generic': 'Something went wrong. Please try again.',
+ 'auth.mfaEnroll.qrAlt': 'TOTP QR code',
+ // ─── Settings → Sync → Cloud account card
+ 'account.signedInAs': 'Signed in as {email}.',
+ 'account.notSignedIn': 'Not signed in. Use the Sign in button in the header to access your cloud account.',
+ 'account.notConfigured': 'Cloud account not configured.',
+ 'account.mustSignIn': 'You must be signed in to change your password.',
+ 'account.pwMismatch': 'The two passwords do not match — re-type them.',
+ 'account.updating': 'Updating…',
+ 'account.pwUpdateFailed': 'Could not update password — check your connection and try again.',
+ 'account.pwChangedLong': 'Password changed ✓ — use it to sign in on your other devices.',
+ 'account.pwChanged': 'Password changed',
  'sync.migration.prompt': 'We found {n} flights on this device. Link them to your Cumulo account? Your data stays exactly where it is — we just add cloud backup.',
  'sync.migration.success': ' {n} flights synced to the cloud.',
  'sync.migration.failed': 'Migration failed:',
@@ -14594,7 +14886,7 @@ const STRINGS = {
  'sync.csv.desc': 'Déposez un export CSV de ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro ou Safelog. Tout autre CSV ouvre l’assistant universel de correspondance de colonnes. 100 % côté client, rien n’est téléversé.',
  'sync.csv.dropTitle': 'Choisir le CSV ou déposer',
  'sync.csv.dropSub': 'FOREFLIGHT · LOGTEN · MYFLIGHTBOOK · AUTRE',
- 'sync.csv.note': 'Les importations sont conservées telles quelles — Cumulo n’invente jamais de données. Les champs absents du CSV source sont enregistrés à 0. Utilisez l’option « Masquer les colonnes vides » dans le Profil pour épurer la vue. L’exportation PDF pour Transports Canada affiche toujours les 38 colonnes.',
+ 'sync.csv.note': 'Les importations sont conservées telles quelles — Cumulo n’invente jamais de données. Les champs absents du CSV source sont enregistrés à 0. Utilisez l’option « Masquer les colonnes vides » dans le Profil pour épurer la vue. L’exportation PDF pour Transports Canada affiche toujours les 38 colonnes.',
 
  // ─── Profil
  'profile.section.identity': 'Identité pilote',
@@ -14628,7 +14920,7 @@ const STRINGS = {
     'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro Navblue inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
  'profile.captain.title': 'Confidentialité des noms d\'équipage (LPRPDE / Loi 25)',
  'profile.captain.label': 'Conserver les noms complets d\'équipage en synchronisation et partage (j\'ai le consentement)',
- 'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant).</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Ancrages légaux : LPRPDE art. 4(2)(b), art. 7(3)c.1(i), Principe 4.3 ; Loi 25 art. 1.</em>',
+ 'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant).</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Ancrages légaux : LPRPDE art. 4(2)(b), art. 7(3)c.1(i), Principe 4.3 ; Loi 25 art. 1.</em>',
  'profile.display.title': 'Préférences d’affichage',
  'profile.display.label': 'Masquer les colonnes vides à l’écran (somme = 0 sur tous les vols)',
  'profile.display.descHtml': 'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR Capot, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
@@ -14769,8 +15061,8 @@ const STRINGS = {
  'dash.strip.multi': 'MULTI',
  'dash.strip.xc': 'VOYAGE',
  'dash.strip.ldg': 'ATT.',
- 'dash.brought.title': 'Tu as un carnet papier ?',
- 'dash.brought.desc': 'Déclare tes totaux cumulatifs en heures reportées — pas besoin de ressaisir chaque vol. Une attestation, puis tu enregistres les nouveaux vols à partir d\'aujourd\'hui.',
+ 'dash.brought.title': 'Vous avez un carnet papier ?',
+ 'dash.brought.desc': 'Déclarez vos totaux cumulatifs en heures reportées — pas besoin de ressaisir chaque vol. Une attestation, puis vous enregistrez les nouveaux vols à partir d’aujourd’hui.',
  'dash.brought.cta': 'Déclarer les totaux',
  'dash.recentTitle': 'Vols récents',
  'dash.viewAllBtn': 'Tout voir',
@@ -14803,10 +15095,10 @@ const STRINGS = {
  'alert.medicalExpiredSubPl': 'Expiré depuis {n} jours',
  'alert.medicalSoon2': 'Médical expire dans {n} jour',
  'alert.medicalSoon2Pl': 'Médical expire dans {n} jours',
- 'alert.medicalExpiry': 'Expiration : {date}',
- 'alert.landingCurrency': 'Validité atterrissage : {n}/3 atterrissages au cours des 90 derniers jours',
+ 'alert.medicalExpiry': 'Expiration : {date}',
+ 'alert.landingCurrency': 'Validité atterrissage : {n}/3 atterrissages au cours des 90 derniers jours',
  'alert.landingCurrencySub': '3 atterrissages requis dans les 90 jours — CAR 401.05',
- 'alert.ifrCurrency': 'Validité IFR : {n}/6 approches au cours des 6 derniers mois',
+ 'alert.ifrCurrency': 'Validité IFR : {n}/6 approches au cours des 6 derniers mois',
  'alert.ifrCurrencySub': '6 approches requises dans les 6 mois — CAR 401.05',
  'chart.monthlyTitle': 'Heures bloc mensuelles',
  'chart.last12mo': '12 DERNIERS MOIS',
@@ -14821,7 +15113,7 @@ const STRINGS = {
  'import.navblueFileHint': 'Roster_XXXX_MMMYYYY.pdf',
  'import.photoDrop': 'Choisir une photo ou déposer',
  'import.photoFileHint': 'JPG · PNG · HEIC',
- 'import.aiAnalyzing': 'ANALYSE DE L’IMAGE DU CARNET...',
+ 'import.aiAnalyzing': 'ANALYSE DE L’IMAGE DU CARNET…',
  // ─── Import page (full bilingual pass 2026-06-24) ───
  'import.lastImport.eyebrow': 'DERNIER IMPORT',
  'import.lastImport.undo': 'Annuler',
@@ -14830,7 +15122,7 @@ const STRINGS = {
  'import.trackA.desc': 'Si votre compagnie publie un flux d’horaire <code>webcal://</code>, connectez-le une seule fois et Cumulo importe automatiquement chaque nouveau vol. L’horaire PDF mensuel du même système complète les noms des membres d’équipage (peu importe le siège que vous occupez). Le lecteur de PDF prend actuellement en charge un seul format d’horaire — d’autres arrivent bientôt.',
  'import.trackB.eyebrow': 'Voie B · Tous les autres pilotes',
  'import.trackB.title': 'CSV · saisie manuelle',
- 'import.trackB.desc': 'Les lecteurs de PDF natifs pour les autres formats d’horaire de compagnie ne sont pas encore prêts. Pour l’instant : importez un CSV depuis votre ancienne application de carnet de vol, ou consignez chaque vol manuellement.',
+ 'import.trackB.desc': 'Les lecteurs de PDF natifs pour les autres formats d’horaire de compagnie ne sont pas encore prêts. Pour l’instant : importez un CSV depuis votre ancienne application de carnet de vol, ou consignez chaque vol manuellement.',
  'import.hero.title': 'Configurer la synchronisation iCal automatique',
  'import.hero.eyebrow': 'VOIE A · RECOMMANDÉ',
  'import.hero.desc': 'Pour les pilotes dont la compagnie publie un flux d’horaire <code>webcal://</code>. Configurez une seule fois — votre horaire se synchronise automatiquement chaque fois que vous ouvrez Cumulo.',
@@ -14846,7 +15138,84 @@ const STRINGS = {
  'import.csvCard.dropTitle': 'Sélectionnez le CSV ou déposez-le ici',
  'import.csvCard.dropSub': 'ForeFlight · LogTen Pro · MyFlightbook · autre',
  'import.footer': 'Chaque import ouvre un <strong>aperçu</strong> avant tout enregistrement. Cumulo crée des instantanés automatiquement — vous pouvez toujours annuler depuis <a href="#" onclick="showPage(\'backup\');setTimeout(()=>showSettingsTab&&showSettingsTab(\'data\'),60);return false;" style="color:var(--accent);font-weight:600;">Paramètres → Données → Récupération</a>.',
- 'import.aiBox.reading': 'LECTURE DE L’HORAIRE...',
+ 'import.aiBox.reading': 'LECTURE DE L’HORAIRE…',
+ 'import.aiBox.extracting': 'EXTRACTION DES VOLS…',
+ 'import.ai.noFlights': 'Aucun vol complété trouvé dans ce PDF.',
+ 'import.ai.failed': 'Impossible de lire ce PDF. Réessayez ou utilisez l’import CSV / iCal.',
+ 'import.recent.fromSrc': '{n} {w} depuis {src}',
+ 'import.recent.fileSrc': 'fichier',
+ // ─── Interface de synchro iCal (08-flight-form.js)
+ 'word.event': 'événement', 'word.events': 'événements',
+ 'word.completedFlight': 'vol complété', 'word.completedFlights': 'vols complétés',
+ 'word.newFlight': 'nouveau vol', 'word.newFlights': 'nouveaux vols',
+ 'sync.status.notConfigured': 'NON CONFIGURÉ',
+ 'sync.status.neverSynced': 'JAMAIS SYNCHRONISÉ',
+ 'sync.status.justSynced': 'À L’INSTANT',
+ 'sync.status.minAgo': 'IL Y A {n} MIN',
+ 'sync.status.hAgo': 'IL Y A {n} H',
+ 'sync.status.dAgo': 'IL Y A {n} J',
+ 'sync.btn.syncing': '⏳ Synchronisation…',
+ 'sync.btn.syncNow': '🔄 Synchroniser',
+ 'sync.detail.calendar': 'Calendrier : <strong>{events}</strong> {ew} · <strong>{flights}</strong> {fw}.',
+ 'sync.detail.enriched': 'Heures UTC + coordonnées ajoutées à <strong>{n}</strong> {w}.',
+ 'sync.detail.filled': 'Champs Nuit/XC vides remplis sur <strong>{n}</strong> {w} (les valeurs saisies par le pilote ne sont jamais modifiées).',
+ 'sync.detail.fresh': '<strong>{n}</strong> {w} à examiner.',
+ 'sync.detail.upToDate': 'Le carnet est à jour.',
+ 'sync.detail.error': 'Erreur : {msg}',
+ 'sync.freshFound': '{n} {w} trouvés — sélectionnez ceux à importer',
+ 'sync.failed': 'Échec de la synchronisation',
+ 'sync.diag.noData': 'Aucune donnée de diagnostic — lancez d’abord une synchro iCal, puis recliquez sur Diagnostic.',
+ 'sync.diag.corrupted': 'Données de diagnostic corrompues — relancez une synchro.',
+ 'sync.diag.consoleFallback': 'Données de diagnostic affichées dans la console (appuyez sur Ctrl+Maj+J pour les voir).',
+ 'sync.diag.subtitle': 'Diagnostic iCal · synchro il y a {age} min · {events} événements',
+ 'sync.diag.intro': 'Voici les {n} premières entrées de vol que le flux iCal de votre horaire nous a envoyées, brutes. Si des noms de commandant apparaissent dans les blocs DESCRIPTION mais pas dans la colonne CDB de votre carnet, partagez ce bloc complet avec le soutien afin d’ajuster l’extraction des noms d’équipage au format de votre exploitant.',
+ 'sync.diag.sample': '— Échantillon {n} —',
+ 'sync.diag.empty': '(vide)',
+ 'sync.diag.fullJson': 'JSON complet (avancé)',
+ 'sync.diag.copyAll': 'Tout copier',
+ 'sync.diag.copied': 'Données de diagnostic copiées dans le presse-papiers.',
+ 'sync.diag.copyFailed': 'Échec de la copie — sélectionnez le bloc JSON et copiez-le manuellement.',
+ // ─── Détail de l’enrichissement d’équipage par PDF (10-pdf-roster.js)
+ 'roster.detail.extracted': 'Segments de vol extraits du PDF : {n}',
+ 'roster.detail.captains': 'Noms de commandant ajoutés aux vols existants : {n}',
+ 'roster.detail.times': 'Heures réelles ATD/ATA captées depuis le PDF : {n}',
+ 'roster.detail.alreadyHad': 'Vols ayant déjà un CDB (non remplacés) : {n}',
+ 'roster.detail.noMatch': 'Segments introuvables dans votre carnet (plus anciens que la fenêtre iCal ?) : {n}',
+ 'roster.detail.localTime': '⚠ Le PDF est en mode <strong>heure locale</strong> — les heures ATD/ATA n’ont pas été importées pour éviter une approximation de conversion de fuseau. Téléchargez de nouveau en mode <strong>UTC / Zulu</strong> pour les heures réelles.',
+ 'roster.detail.unknownTime': 'Mode horaire du PDF non détecté — ATD/ATA captées telles quelles.',
+ // ─── Assistant de mappage CSV universel (16-csv-import.js) — libellés d’affichage seulement; les dictionnaires de correspondance restent en anglais
+ 'csv.universalSource': 'CSV universel',
+ 'csv.wizard.subtitle': 'Mappage CSV universel — {n} lignes détectées. Associez chaque champ Cumulo à une colonne source.',
+ 'csv.wizard.intro': 'Choisissez quelle colonne source correspond à chaque champ Cumulo. Les champs requis sont marqués <span style="color:var(--danger)">*</span>. Les champs non associés restent à 0 / vides.',
+ 'csv.wizard.skip': '— ignorer —',
+ 'csv.wizard.blank': '(vide)',
+ 'csv.wizard.continue': 'Continuer →',
+ 'csv.target.date': 'Date (requis)',
+ 'csv.target.reg': 'Immatriculation',
+ 'csv.target.type': 'Type / modèle d’aéronef',
+ 'csv.target.flightNum': 'Numéro de vol',
+ 'csv.target.from': 'Départ',
+ 'csv.target.to': 'Arrivée',
+ 'csv.target.via': 'Via (escale)',
+ 'csv.target.atd_utc': 'ATD UTC (départ réel)',
+ 'csv.target.ata_utc': 'ATA UTC (arrivée réelle)',
+ 'csv.target.total': 'Total / temps de vol',
+ 'csv.target.pic': 'Temps CDB',
+ 'csv.target.sic': 'Temps SIC',
+ 'csv.target.dualRcvd': 'Double reçue',
+ 'csv.target.dualGiven': 'Double donnée (CFI)',
+ 'csv.target.picus': 'PICUS',
+ 'csv.target.night': 'Temps de nuit',
+ 'csv.target.xc': 'Temps cross-country',
+ 'csv.target.instActual': 'IFR réel',
+ 'csv.target.instHood': 'IFR sim/capot',
+ 'csv.target.approaches': 'Approches (nombre)',
+ 'csv.target.ldgDay': 'Atterrissages jour',
+ 'csv.target.ldgNight': 'Atterrissages nuit',
+ 'csv.target.captain': 'Nom du CDB',
+ 'csv.target.copilot': 'Nom du SIC / copilote',
+ 'csv.target.remarks': 'Notes / commentaires',
+ 'csv.review.andMore': '… et {n} de plus',
  'import.preview.flightsFound': '{n} vol(s) trouvé(s) — sélectionnez ce qu’il faut importer',
  'import.preview.noFlights': 'Aucun vol trouvé.',
  'import.preview.selectedCount': '{selected} sur {total} sélectionné(s)',
@@ -14893,9 +15262,9 @@ const STRINGS = {
  'onb.back': '← Précédent',
  'onb.continue': 'Continuer →',
  'onb.finish': 'Terminer',
- 'onb.skipConfirm': 'Passer l’assistant ? Vous pourrez toujours accéder à ces réglages plus tard dans Paramètres.',
+ 'onb.skipConfirm': 'Passer l’assistant ? Vous pourrez toujours accéder à ces réglages plus tard dans Paramètres.',
  // Onboarding — full bilingual pass (2026-06-24)
- 'onb.skipConfirm.title': 'Passer la configuration ?',
+ 'onb.skipConfirm.title': 'Passer la configuration ?',
  'onb.skipConfirm.cancel': 'Continuer la configuration',
  'onb.skipConfirm.confirm': 'Passer pour l’instant',
  'onb.step2.basePlaceholder': 'ex. CYOW, CYUL, KJFK',
@@ -14946,13 +15315,13 @@ const STRINGS = {
  'onb.step4.fleet': 'Type d’aéronef principal',
  'onb.step4.optional': 'Tous les champs sont facultatifs. Cumulo affichera une alerte si votre médical approche de l’expiration.',
  'onb.step5.title': 'Connecter votre horaire (facultatif)',
-    'onb.step5.introHtml':   'Cumulo synchronise automatiquement depuis <strong>Navblue N-Ops &amp; Crew</strong> quand votre compagnie publie un flux <code>webcal://</code> (Porter le fait). Collez votre URL ci-dessous.<br><br>Pilotes des autres compagnies : ignorez cette étape. Après l\'inscription, importez via Photo OCR (n\'importe quelle page de carnet) ou CSV depuis votre ancien logiciel (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog, ou tout autre CSV via l\'assistant de mappage). Les parseurs natifs pour les PDF non-Navblue ne sont pas encore construits.',
+    'onb.step5.introHtml':   'Cumulo synchronise automatiquement depuis <strong>Navblue N-Ops &amp; Crew</strong> quand votre compagnie publie un flux <code>webcal://</code> (Porter le fait). Collez votre URL ci-dessous.<br><br>Pilotes des autres compagnies : ignorez cette étape. Après l\'inscription, importez via Photo OCR (n\'importe quelle page de carnet) ou CSV depuis votre ancien logiciel (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog, ou tout autre CSV via l\'assistant de mappage). Les parseurs natifs pour les PDF non-Navblue ne sont pas encore construits.',
  'onb.step5.url': 'URL iCal (facultatif)',
-    'onb.step5.howtoHtml':   '<strong>Comment trouver votre URL iCal :</strong><br>1. Connectez-vous au portail de planification de votre compagnie → Horaire<br>2. Cherchez « S\'abonner au calendrier » ou un lien iCal / <code>webcal://</code><br>3. Copiez-le et collez ci-dessus (ou ignorez et ajoutez plus tard dans Paramètres)<br><br><strong>Pas de flux iCal disponible ?</strong> Ignorez cette étape. Après l\'inscription, utilisez Import → Photo pour l\'OCR AI d\'une page de carnet ou d\'horaire, ou Import → CSV si vous migrez depuis un autre logiciel.',
+    'onb.step5.howtoHtml':   '<strong>Comment trouver votre URL iCal :</strong><br>1. Connectez-vous au portail de planification de votre compagnie → Horaire<br>2. Cherchez « S\'abonner au calendrier » ou un lien iCal / <code>webcal://</code><br>3. Copiez-le et collez ci-dessus (ou ignorez et ajoutez plus tard dans Paramètres)<br><br><strong>Pas de flux iCal disponible ?</strong> Ignorez cette étape. Après l\'inscription, utilisez Import → Photo pour l\'OCR AI d\'une page de carnet ou d\'horaire, ou Import → CSV si vous migrez depuis un autre logiciel.',
  'onb.step6.title': 'Choisissez votre vue par défaut',
  'onb.step6.intro': 'Choisissez les colonnes à afficher par défaut dans le tableau et le PDF. Modifiable à tout moment dans Paramètres.',
  'onb.step6.compact': 'Compact (F/O 705)',
- 'onb.step6.compactDesc': '8 colonnes essentielles : Date, Aéronef, Imm., Route, CDB, Nuit, Temps de vol. Recommandé.',
+ 'onb.step6.compactDesc': '8 colonnes essentielles : Date, Aéronef, Imm., Route, CDB, Nuit, Temps de vol. Recommandé.',
  'onb.step6.atpl': 'Préparation ATPL',
  'onb.step6.atplDesc': '~22 colonnes couvrant toutes les catégories Standard 421. Pour la préparation de demande ATPL.',
  'onb.step6.all': 'Toutes les colonnes (38)',
@@ -14985,7 +15354,7 @@ const STRINGS = {
  'recap.fun.flights':     '{n} vols enregistrés',
  'recap.fun.flightsSub':  'en moyenne {avg} h chacun',
  'recap.fun.aircraft':    '{n} aéronefs différents',
- 'recap.fun.aircraftSub': 'ta flotte de l\'année',
+ 'recap.fun.aircraftSub': 'votre flotte de l’année',
 
  // ─── Avis (toasts)
  'toast.profileSaved': 'Profil enregistré ✓',
@@ -14996,9 +15365,9 @@ const STRINGS = {
  'toast.allCleared': 'Toutes les données effacées',
  'toast.csvDropOnly': 'Veuillez déposer un fichier .csv',
  'toast.csvParseFailed': 'Analyse CSV échouée — essayez l’assistant universel.',
- 'toast.csvImported': 'Importé de {source} : {added} nouveaux, {merged} fusionnés ✓',
+ 'toast.csvImported': 'Importé de {source} : {added} nouveaux, {merged} fusionnés ✓',
  'toast.noFlightsFound': 'Aucun vol trouvé dans le CSV {source}.',
- 'toast.missingMapping': 'Correspondance requise manquante : {fields}',
+ 'toast.missingMapping': 'Correspondance requise manquante : {fields}',
  'toast.flightsRestored': '{n} vols restaurés ✓',
  'toast.noSnapshot': 'Aucun instantané à restaurer — Cumulo ne sauvegarde un instantané qu’avant les opérations en lot.',
  'toast.snapshotNotFound': 'Instantané introuvable',
@@ -15014,7 +15383,7 @@ const STRINGS = {
  'toast.darkModeOn': 'Mode sombre activé',
  'toast.darkModeOff': 'Mode clair activé',
  'toast.columnsReset': 'Visibilité des colonnes réinitialisée',
- 'toast.presetApplied': 'Préréglage « {name} » appliqué',
+ 'toast.presetApplied': 'Préréglage « {name} » appliqué',
  'toast.profileTypeSaved': 'Type de pilote enregistré ✓',
  'toast.signatureSaved': 'Signature enregistrée',
  'sig.statusLoaded': 'Signature enregistrée.',
@@ -15030,7 +15399,7 @@ const STRINGS = {
  'toast.noFlightsInPdf': 'Aucun vol trouvé dans ce PDF',
  'toast.allHadPic': 'Tous les vols avaient déjà un CDB',
  'toast.noCaptainsAdded': 'Aucun nouveau commandant ajouté — consultez la console',
- 'toast.pdfParseFailed': 'Échec de l’analyse PDF : {err}',
+ 'toast.pdfParseFailed': 'Échec de l’analyse PDF : {err}',
  'toast.pdfLibLoading': 'Chargement de la bibliothèque PDF, réessayez',
  'toast.pdfExported': 'PDF exporté ✓',
  'toast.fileTooBig': 'Fichier trop volumineux ({mb} Mo). Maximum 50 Mo — divisez votre CSV ou contactez le support.',
@@ -15081,17 +15450,156 @@ const STRINGS = {
  'toast.syncEnrichedRecalc': '{merged} vols existants enrichis · {updated} avec Nuit/XC vides remplis (vos saisies intactes) ✓',
 
  // ─── Dialogues de confirmation
- 'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
- 'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
- 'confirm.deleteFlightShort':'Supprimer ce vol ?',
+ 'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
+ 'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
+ 'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlightTitle':'Supprimer le vol',
- 'confirm.deleteFlight': 'Supprimer ce vol ? Un instantané est pris d\'abord — vous pouvez annuler depuis Paramètres → Données. Le vol ne reviendra pas à la prochaine synchro.',
+ 'confirm.deleteFlight': 'Supprimer ce vol ? Un instantané est pris d\'abord — vous pouvez annuler depuis Paramètres → Données. Le vol ne reviendra pas à la prochaine synchro.',
  // 'confirm.recalc' — clé morte. La fonctionnalité de recalcul en masse a
  // été retirée pour conformité TC (écraser des valeurs saisies par le pilote
  // viole CAR 401.08). Le remplissage interne des champs Nuit/XC VIDES après
  // sync iCal est toujours actif mais ne demande pas confirmation.
- 'confirm.resetCols': 'Réinitialiser la visibilité des colonnes ? Vos données ne sont pas affectées.',
- 'confirm.restoreSnapshot': 'Restaurer le carnet à l’état avant « {op} » ({age}) ?\n\nActuel : {curN} vols\nInstantané : {snapN} vols\n\nL’état actuel sera enregistré comme nouvel instantané — vous pourrez toujours annuler à nouveau.',
+ 'confirm.resetCols': 'Réinitialiser la visibilité des colonnes ? Vos données ne sont pas affectées.',
+ 'confirm.restoreSnapshot': 'Restaurer le carnet à l’état avant « {op} » ({age}) ?\n\nActuel : {curN} vols\nInstantané : {snapN} vols\n\nL’état actuel sera enregistré comme nouvel instantané — vous pourrez toujours annuler à nouveau.',
+ // ─── Titres / boutons des dialogues de confirmation (les corps sont sous confirm.* ci-dessus)
+ 'confirm.continue': 'Continuer',
+ 'confirm.resetCols.title': 'Réinitialiser les préférences de colonnes',
+ 'btn.reset': 'Réinitialiser',
+ 'confirm.purge.title2': 'Êtes-vous absolument certain ?',
+ 'confirm.purge.confirm2': 'Oui, tout supprimer',
+ 'confirm.restore.title': 'Restaurer depuis une sauvegarde',
+ 'confirm.restore.confirm': 'Remplacer + restaurer',
+ 'confirm.restore.exported': 'Sauvegarde exportée : {date}.\n\n',
+ 'confirm.restore.body': 'La sauvegarde contient {n} {nw} ({range}){profile}\n\nCeci REMPLACERA {curPhrase}. Action irréversible — téléchargez une sauvegarde fraîche d’abord en cas de doute.',
+ 'confirm.restore.curZero': 'votre carnet actuel (vide)',
+ 'confirm.restore.curOne': 'votre vol actuel',
+ 'confirm.restore.curMany': 'vos {cur} vols actuels',
+ // ─── Annuler / historique des instantanés (02-data.js)
+ 'age.justNow': 'à l’instant',
+ 'age.min': 'il y a {n} min',
+ 'age.hour': 'il y a {n} h',
+ 'age.day': 'il y a {n} j',
+ 'undo.none': 'Aucun instantané',
+ 'undo.multi': 'Annuler · {n} instantanés',
+ 'undo.single': 'Annuler « {op} » ({age})',
+ 'undo.op.sync': 'Synchro horaire iCal',
+ 'undo.op.enrich': 'Noms d’équipage depuis le PDF',
+ 'undo.op.migration': 'Migration infonuagique',
+ 'undo.op.deleteFlight': 'Suppression de vol',
+ 'undo.op.import': 'Import depuis {source}',
+ 'undo.op.beforeUndo': 'avant l’annulation de « {op} »',
+ 'snap.modal.subtitleOne': '1 instantané disponible — choisissez-en un à restaurer',
+ 'snap.modal.subtitleMany': '{n} instantanés disponibles — choisissez-en un à restaurer',
+ 'snap.modal.intro': 'Chaque instantané est pris automatiquement avant une opération en lot. L’état actuel sera préservé lors de la restauration.',
+ 'snap.modal.when': 'Quand',
+ 'snap.modal.flights': 'Vols',
+ 'snap.modal.date': 'Date',
+ 'btn.restore': 'Restaurer',
+ 'chart.blockHours': 'Heures bloc',
+ // ─── Panneau de détail du vol (04-logbook.js openFlightDetail)
+ 'detail.depIcao': 'Départ (OACI)',
+ 'detail.arrIcao': 'Arrivée (OACI)',
+ 'detail.crewPosition': 'Fonction à bord',
+ 'detail.crewPosSic': 'SIC (PIC : {pic})',
+ 'detail.copilot': 'Copilote',
+ 'detail.atdUtc': 'ATD UTC',
+ 'detail.ataUtc': 'ATA UTC',
+ 'detail.checkInUtc': 'Présentation (UTC)',
+ 'detail.checkOutUtc': 'Libération (UTC)',
+ 'detail.flightTimeDecimal': 'Temps de vol (décimal)',
+ 'common.yes': 'Oui',
+ 'crewPos.dual': 'Double',
+ // ─── En-têtes de colonnes du carnet (écran seulement; le PDF reste en anglais)
+ 'colGroup.identification': 'Identification',
+ 'colGroup.conditions': 'Conditions',
+ 'colGroup.helicopter': 'Hélicoptère',
+ 'colGroup.dualGiven': 'Double commande donnée',
+ 'col.date': 'Date', 'colShort.date': 'Date',
+ 'col.flightNum': 'N° de vol', 'colShort.flightNum': 'Vol#',
+ 'col.type': 'Type d’aéronef', 'colShort.type': 'Type',
+ 'col.reg': 'Immatriculation', 'colShort.reg': 'Imm.',
+ 'col.dep_icao': 'Départ', 'colShort.dep_icao': 'Dép',
+ 'col.via': 'Via (escale)', 'colShort.via': 'Via',
+ 'col.arr_icao': 'Arrivée', 'colShort.arr_icao': 'Arr',
+ 'col.route': 'Route', 'colShort.route': 'Route',
+ 'col.pic': 'Commandant de bord', 'colShort.pic': 'PIC',
+ 'col.copilot': 'Copilote', 'colShort.copilot': 'Cop.',
+ 'col.crewPosition': 'Fonction à bord', 'colShort.crewPosition': 'Fonction',
+ 'col.day': 'Jour', 'colShort.day': 'Jour',
+ 'col.night': 'Nuit', 'colShort.night': 'Nuit',
+ 'col.vfr': 'VFR', 'colShort.vfr': 'VFR',
+ 'col.ifr': 'IFR', 'colShort.ifr': 'IFR',
+ 'col.block': 'Temps de vol', 'colShort.block': 'Tps vol',
+ 'col.duty': 'Temps de service', 'colShort.duty': 'Service',
+ 'col.seDay': 'SE Jour', 'colShort.seDay': 'SE Jr',
+ 'col.seNight': 'SE Nuit', 'colShort.seNight': 'SE Nt',
+ 'col.meDayPic': 'ME Jour CDB', 'colShort.meDayPic': 'ME Jr PIC',
+ 'col.meNightPic': 'ME Nuit CDB', 'colShort.meNightPic': 'ME Nt PIC',
+ 'col.meDayCop': 'ME Jour SIC', 'colShort.meDayCop': 'ME Jr SIC',
+ 'col.meNightCop': 'ME Nuit SIC', 'colShort.meNightCop': 'ME Nt SIC',
+ 'col.meDayDual': 'ME Jour Double', 'colShort.meDayDual': 'ME Jr Dbl',
+ 'col.meNightDual': 'ME Nuit Double', 'colShort.meNightDual': 'ME Nt Dbl',
+ 'col.heliDayPic': 'Héli Jour CDB', 'colShort.heliDayPic': 'Héli Jr PIC',
+ 'col.heliNightPic': 'Héli Nuit CDB', 'colShort.heliNightPic': 'Héli Nt PIC',
+ 'col.heliDayCop': 'Héli Jour SIC', 'colShort.heliDayCop': 'Héli Jr SIC',
+ 'col.heliNightCop': 'Héli Nuit SIC', 'colShort.heliNightCop': 'Héli Nt SIC',
+ 'col.heliDayDual': 'Héli Jour Double', 'colShort.heliDayDual': 'Héli Jr Dbl',
+ 'col.heliNightDual': 'Héli Nuit Double', 'colShort.heliNightDual': 'Héli Nt Dbl',
+ 'col.hoverTime': 'Vol stationnaire', 'colShort.hoverTime': 'Stat.',
+ 'col.xcDay': 'Cross-country jour', 'colShort.xcDay': 'XC Jr',
+ 'col.xcNight': 'Cross-country nuit', 'colShort.xcNight': 'XC Nt',
+ 'col.instActual': 'IFR réel', 'colShort.instActual': 'IFR R',
+ 'col.instHood': 'IFR sous capot', 'colShort.instHood': 'IFR C',
+ 'col.instSim': 'IFR sim/FSTD', 'colShort.instSim': 'IFR Sim',
+ 'col.approaches': 'Approches', 'colShort.approaches': 'App',
+ 'col.toDay': 'Décollage jour', 'colShort.toDay': 'Déc Jr',
+ 'col.toNight': 'Décollage nuit', 'colShort.toNight': 'Déc Nt',
+ 'col.ldgDay': 'Atterrissage jour', 'colShort.ldgDay': 'Att Jr',
+ 'col.ldgNight': 'Atterrissage nuit', 'colShort.ldgNight': 'Att Nt',
+ 'col.isSim': 'Simulateur', 'colShort.isSim': 'SIM',
+ 'col.simType': 'Type de sim (FFS/FTD)', 'colShort.simType': 'Type sim',
+ 'col.simSession': 'Type de séance', 'colShort.simSession': 'Séance',
+ 'col.simRegistration': 'ID de l’appareil sim', 'colShort.simRegistration': 'Appareil',
+ 'col.dualGivenDay': 'Double comm. donnée jour', 'colShort.dualGivenDay': 'DC Jr',
+ 'col.dualGivenNight': 'Double comm. donnée nuit', 'colShort.dualGivenNight': 'DC Nt',
+ 'col.picus': 'PICUS', 'colShort.picus': 'PICUS',
+ 'col.multiCrew': 'Multi-équipage', 'colShort.multiCrew': 'MÉ',
+ 'col.acConfig': 'Config aéronef', 'colShort.acConfig': 'Config',
+ 'col.remarks': 'Notes', 'colShort.remarks': 'Notes',
+ 'col.total': 'Total', 'colShort.total': 'Total',
+ 'logbook.noFlights': 'Aucun vol trouvé.',
+ 'logbook.totalsLabel': 'TOTAUX',
+ 'logbook.inclBf': '(incl. heures reportées)',
+ // ─── Barre de profils du sélecteur de colonnes (11-columns-backup.js)
+ 'cols.persona': 'Profil :',
+ 'cols.preset.airlineFo': 'Compagnie F/O', 'cols.preset.airlineFo.t': 'Compagnie 705 — F/O',
+ 'cols.preset.airlineCpt': 'Compagnie CDB', 'cols.preset.airlineCpt.t': 'Compagnie 705 — Commandant',
+ 'cols.preset.bush': 'Brousse', 'cols.preset.bush.t': 'Opérations de brousse',
+ 'cols.preset.heli': 'Hélico', 'cols.preset.heli.t': 'Giravion',
+ 'cols.preset.instructor': 'Instructeur', 'cols.preset.instructor.t': 'Instructeur / CFI',
+ 'cols.preset.private': 'Privé', 'cols.preset.private.t': 'Aviation générale privée',
+ 'cols.preset.student': 'Élève', 'cols.preset.student.t': 'Élève-pilote',
+ 'cols.preset.atpl': 'ATPL', 'cols.preset.atpl.t': 'Demande ATPL',
+ 'cols.preset.all': 'Tout', 'cols.preset.none': 'Aucun',
+ // ─── Modal de sélection des colonnes pour le PDF (écran; le PDF reste en anglais)
+ 'pdf.picker.title': 'Exporter en PDF',
+ 'pdf.picker.subtitle': 'Choisissez les colonnes à inclure dans votre PDF imprimé',
+ 'pdf.picker.tip': '<strong>Astuce :</strong> Moins de colonnes = plus d’espace par ligne en paysage. Plus de colonnes = tableau plus dense. La page couverture et l’annexe de validité s’impriment toujours.',
+ 'pdf.picker.generate': '📄 Générer le PDF',
+ // ─── Validation du formulaire de vol (05-form-helpers.js)
+ 'form.err.invalidTime': 'Heure invalide. Format HHMM (p. ex. 1235 pour 12 h 35 Z).',
+ 'form.err.dateRequired': 'La date est requise.',
+ 'form.err.invalidHHMM': '{label} n’est pas une heure HHMM valide.',
+ 'form.err.fixBeforeSaving': 'À corriger avant d’enregistrer :',
+ 'form.title.logFlight': 'Enregistrer un vol',
+ 'form.title.logSim': 'Enregistrer une séance de simulateur',
+ 'form.title.editFlight': 'Modifier le vol',
+ 'form.title.editSim': 'Modifier la séance de simulateur',
+ 'confirm.restore.profile': ' et le profil ({name}).',
+ 'confirm.restore.noDates': 'aucune entrée datée',
+ 'confirm.restore.unnamed': 'sans nom',
+ 'word.flight': 'vol',
+ 'word.flights': 'vols',
 
  // ─── Aperçu d’importation
  'preview.cancel': 'Annuler',
@@ -15118,12 +15626,12 @@ const STRINGS = {
  'auth.password.help': 'Au moins 12 caractères.',
  'auth.password.newLabel': 'Nouveau mot de passe',
  'auth.trustDevice.label': 'Faire confiance à cet appareil 60 jours',
- 'auth.forgot.link': 'Mot de passe oublié ?',
+ 'auth.forgot.link': 'Mot de passe oublié ?',
  'auth.forgot.title': 'Réinitialiser le mot de passe',
  'auth.forgot.sub': 'Nous vous enverrons un lien de réinitialisation.',
  'auth.forgot.btn': 'Envoyer le lien',
  'auth.forgot.sent': 'Lien de réinitialisation envoyé — consultez votre courriel.',
- 'auth.haveAccount.link': 'Vous avez déjà un compte ? Connectez-vous',
+ 'auth.haveAccount.link': 'Vous avez déjà un compte ? Connectez-vous',
  'auth.backToSignin.link': '← Retour à la connexion',
  'auth.mfa.title': 'Vérification à deux facteurs',
  'auth.mfa.sub': 'Entrez le code à 6 chiffres de votre application d’authentification.',
@@ -15147,15 +15655,26 @@ const STRINGS = {
  'auth.err.rateLimit': 'Trop de tentatives. Réessayez dans quelques minutes.',
  'auth.err.weakPassword': 'Le mot de passe doit comporter au moins 12 caractères.',
  'auth.err.generic': 'Une erreur est survenue. Veuillez réessayer.',
- 'sync.migration.prompt': 'Nous avons trouvé {n} vols sur cet appareil. Les associer à votre compte Cumulo ? Vos données restent intactes — nous ajoutons simplement la sauvegarde infonuagique.',
+ 'auth.mfaEnroll.qrAlt': 'Code QR TOTP',
+ // ─── Paramètres → Sync → Carte du compte infonuagique
+ 'account.signedInAs': 'Connecté en tant que {email}.',
+ 'account.notSignedIn': 'Non connecté. Utilisez le bouton « Se connecter » dans l’en-tête pour accéder à votre compte infonuagique.',
+ 'account.notConfigured': 'Compte infonuagique non configuré.',
+ 'account.mustSignIn': 'Vous devez être connecté pour changer votre mot de passe.',
+ 'account.pwMismatch': 'Les deux mots de passe ne correspondent pas — saisissez-les de nouveau.',
+ 'account.updating': 'Mise à jour…',
+ 'account.pwUpdateFailed': 'Impossible de mettre à jour le mot de passe — vérifiez votre connexion et réessayez.',
+ 'account.pwChangedLong': 'Mot de passe modifié ✓ — utilisez-le pour vous connecter sur vos autres appareils.',
+ 'account.pwChanged': 'Mot de passe modifié',
+ 'sync.migration.prompt': 'Nous avons trouvé {n} vols sur cet appareil. Les associer à votre compte Cumulo ? Vos données restent intactes — nous ajoutons simplement la sauvegarde infonuagique.',
  'sync.migration.success': ' {n} vols synchronisés vers le nuage.',
  'sync.migration.failed': 'Échec de la migration :',
  'sync.migration.partial': 'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
- 'sync.pulled': ' Sync : +{added} nouveaux, {updated} mis à jour',
+ 'sync.pulled': ' Synchro : +{added} nouveaux, {updated} mis à jour',
  'toast.captainSweepDone': ' {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)',
  'toast.accountPurged': ' Compte purgé. Rechargement vers un état vide…',
- 'confirm.deletePurge1': 'Ceci supprimera de manière permanente tous vos vols, votre profil et votre historique de synchronisation de cet appareil — ainsi que de l\'infonuagique si connecté. Continuer ?',
- 'confirm.deletePurge2': 'Dernier avertissement. Confirmation finale : êtes-vous ABSOLUMENT certain ?',
+ 'confirm.deletePurge1': 'Ceci supprimera de manière permanente tous vos vols, votre profil et votre historique de synchronisation de cet appareil — ainsi que de l\'infonuagique si connecté. Continuer ?',
+ 'confirm.deletePurge2': 'Dernier avertissement. Confirmation finale : êtes-vous ABSOLUMENT certain ?',
  'settings.section.privacy': 'Confidentialité et confiance',
  'settings.tab.sync':         'Synchro',
  'settings.tab.display':      'Affichage',
@@ -15182,7 +15701,7 @@ const STRINGS = {
  'profile.type.helicopter': 'Hélicoptère',
  'profile.type.helicopterDesc': 'Vol giravions · récence RAC 401.05',
  'profile.type.instructor': 'Instructeur / CFI',
- 'profile.type.instructorDesc': 'Dual donné · crédit ATPL prioritaire',
+ 'profile.type.instructorDesc': 'Instruction donnée · crédit ATPL prioritaire',
  'profile.ecg': 'Date prochain ECG',
  'onb.step4.ecg': 'Date prochain ECG (optionnel)',
  'alert.ecgExpired': 'ECG EN RETARD',
@@ -15211,8 +15730,10 @@ function setLang(lang) {
  syncLangToggleUI(lang);
  // Re-render dynamic UI that produces strings via t() at render time
  if (typeof renderDashboard === 'function') renderDashboard();
+ if (typeof updateUndoButton === 'function') updateUndoButton();
  if (typeof renderAlerts === 'function') renderAlerts();
  if (typeof renderCurrencyCard === 'function') renderCurrencyCard();
+ if (typeof renderAccountSettings === 'function') renderAccountSettings();
  if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
  if (typeof renderRecap === 'function' && document.getElementById('page-recap')?.classList.contains('active')) renderRecap();
  // Q&A and Glossary contain hard-coded prose that has FR translations baked
@@ -15755,7 +16276,7 @@ const AuthUI = {
     if (qr) {
       qr.innerHTML = '';
       const img = document.createElement('img');
-      img.alt = 'TOTP QR code';
+      img.alt = t('auth.mfaEnroll.qrAlt');
       img.style.cssText = 'width:200px;height:200px;';
       img.src = data.totp.qr_code;
       qr.appendChild(img);
@@ -15842,13 +16363,13 @@ function renderAccountSettings() {
   const signedinEl = document.getElementById('account-signedin');
   const signedIn = (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated());
   if (signedIn) {
-    if (statusEl) statusEl.textContent = 'Signed in as ' + (Auth.user ? Auth.user.email : '') + '.';
+    if (statusEl) statusEl.textContent = t('account.signedInAs', { email: (Auth.user ? Auth.user.email : '') });
     if (signedinEl) signedinEl.style.display = '';
   } else {
     if (statusEl) {
       statusEl.textContent = (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady())
-        ? 'Not signed in. Use the Sign in button in the header to access your cloud account.'
-        : 'Cloud account not configured.';
+        ? t('account.notSignedIn')
+        : t('account.notConfigured');
     }
     if (signedinEl) signedinEl.style.display = 'none';
   }
@@ -15864,23 +16385,23 @@ async function changeAccountPassword() {
     msg.style.color = ok ? 'var(--success)' : 'var(--danger)';
   };
   if (typeof Auth === 'undefined' || !Auth.isAuthenticated || !Auth.isAuthenticated()) {
-    setMsg('You must be signed in to change your password.', false);
+    setMsg(t('account.mustSignIn'), false);
     return;
   }
-  if (p1.length < 12) { setMsg('Password must be at least 12 characters.', false); return; }
-  if (p1 !== p2) { setMsg('The two passwords do not match — re-type them.', false); return; }
-  setMsg('Updating…', true);
+  if (p1.length < 12) { setMsg(t('auth.err.weakPassword'), false); return; }
+  if (p1 !== p2) { setMsg(t('account.pwMismatch'), false); return; }
+  setMsg(t('account.updating'), true);
   try {
     const { error } = await Auth.updatePassword(p1);
     if (error) { setMsg(normalizeAuthError(error), false); return; }
   } catch (e) {
-    setMsg('Could not update password — check your connection and try again.', false);
+    setMsg(t('account.pwUpdateFailed'), false);
     return;
   }
   const f1 = document.getElementById('account-newpass'); if (f1) f1.value = '';
   const f2 = document.getElementById('account-newpass2'); if (f2) f2.value = '';
-  setMsg('Password changed ✓ — use it to sign in on your other devices.', true);
-  if (typeof showToast === 'function') showToast('Password changed', 'success');
+  setMsg(t('account.pwChangedLong'), true);
+  if (typeof showToast === 'function') showToast(t('account.pwChanged'), 'success');
 }
 
 // Show/hide BOTH change-password fields at once (Edge's native reveal eye is
@@ -16690,7 +17211,7 @@ function _bfPageGroups() {
         { key: 'sic',        labelEn: 'SIC — Co-Pilot / Second',  labelFr: 'SIC — Co-pilote / Second',               aggregate: true },
         { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
-        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Voyage (XC)',                            aggregate: true },
+        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Cross-country (XC)',                     aggregate: true },
         { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multi-moteur',                           aggregate: true },
         { key: 'heli',       labelEn: 'Helicopter',                labelFr: 'Hélicoptère',                            aggregate: true },
         { key: 'dualGiven',  labelEn: 'Dual Given (instructor)',  labelFr: 'Instruction donnée (CFI)',                aggregate: true },
@@ -16730,8 +17251,8 @@ function _bfPageGroups() {
         { key: 'meNightPic',  labelEn: 'ME Night PIC',   labelFr: 'ME Nuit PIC' },
         { key: 'meDayCop',    labelEn: 'ME Day SIC',     labelFr: 'ME Jour SIC' },
         { key: 'meNightCop',  labelEn: 'ME Night SIC',   labelFr: 'ME Nuit SIC' },
-        { key: 'meDayDual',   labelEn: 'ME Day Dual',    labelFr: 'ME Jour Dual' },
-        { key: 'meNightDual', labelEn: 'ME Night Dual',  labelFr: 'ME Nuit Dual' },
+        { key: 'meDayDual',   labelEn: 'ME Day Dual',    labelFr: 'ME Jour Double' },
+        { key: 'meNightDual', labelEn: 'ME Night Dual',  labelFr: 'ME Nuit Double' },
       ],
     },
     // ── Helicopter ──
@@ -16743,12 +17264,12 @@ function _bfPageGroups() {
       descFr: 'Temps voilure tournante. Le vol stationnaire est distinct du total hélico.',
       open: false,
       fields: [
-        { key: 'heliDayPic',    labelEn: 'Heli Day PIC',    labelFr: 'Heli Jour PIC' },
-        { key: 'heliNightPic',  labelEn: 'Heli Night PIC',  labelFr: 'Heli Nuit PIC' },
-        { key: 'heliDayCop',    labelEn: 'Heli Day SIC',    labelFr: 'Heli Jour SIC' },
-        { key: 'heliNightCop',  labelEn: 'Heli Night SIC',  labelFr: 'Heli Nuit SIC' },
-        { key: 'heliDayDual',   labelEn: 'Heli Day Dual',   labelFr: 'Heli Jour Dual' },
-        { key: 'heliNightDual', labelEn: 'Heli Night Dual', labelFr: 'Heli Nuit Dual' },
+        { key: 'heliDayPic',    labelEn: 'Heli Day PIC',    labelFr: 'Héli Jour PIC' },
+        { key: 'heliNightPic',  labelEn: 'Heli Night PIC',  labelFr: 'Héli Nuit PIC' },
+        { key: 'heliDayCop',    labelEn: 'Heli Day SIC',    labelFr: 'Héli Jour SIC' },
+        { key: 'heliNightCop',  labelEn: 'Heli Night SIC',  labelFr: 'Héli Nuit SIC' },
+        { key: 'heliDayDual',   labelEn: 'Heli Day Dual',   labelFr: 'Héli Jour Double' },
+        { key: 'heliNightDual', labelEn: 'Heli Night Dual', labelFr: 'Héli Nuit Double' },
         { key: 'hoverTime',     labelEn: 'Hover Time',      labelFr: 'Vol stationnaire' },
       ],
     },
@@ -16756,7 +17277,7 @@ function _bfPageGroups() {
     {
       id: 'xc',
       titleEn: 'Cross-country',
-      titleFr: 'Voyage (XC)',
+      titleFr: 'Cross-country (XC)',
       descEn: 'XC Day and XC Night totals (Standard 421 / CAR 401.34). Only needed if your logbook tracked day/night XC separately.',
       descFr: 'Totaux XC Jour et XC Nuit (Norme 421 / CAR 401.34). Seulement si votre carnet distinguait XC jour/nuit.',
       open: false,
@@ -17320,10 +17841,10 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
   const flightCount = Array.isArray(flights) ? flights.length : 0;
 
   const rows = [
-    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> hrs` },
-    { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} hrs` : '—' },
-    { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} hrs (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
-    { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} hrs` },
+    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> ${fr ? 'h' : 'hrs'}` },
+    { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} ${fr ? 'h' : 'hrs'}` : '—' },
+    { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} ${fr ? 'h' : 'hrs'} (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
+    { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} ${fr ? 'h' : 'hrs'}` },
   ];
 
   return {
@@ -17505,20 +18026,20 @@ function _drillMilestone(s, profile, fr, F) {
     'pic':      fr ? 'PIC seulement'     : 'PIC only',
     'sic':      fr ? 'SIC seulement'     : 'SIC only',
     'night':    fr ? 'Nuit seulement'    : 'Night only',
-    'xc':       fr ? 'Voyage seulement'  : 'Cross-country only',
+    'xc':       fr ? 'Cross-country seulement'  : 'Cross-country only',
     'me':       fr ? 'Multi-moteur'      : 'Multi-engine',
     'aircraft': fr ? 'Par aéronef'       : 'By aircraft type',
   })[k] || k;
 
   const goalDisplay = currentGoal > 0
-    ? `${currentGoal.toLocaleString()} hrs · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${esc(currentContext)})` : ''}`
+    ? `${currentGoal.toLocaleString()} ${fr ? 'h' : 'hrs'} · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${esc(currentContext)})` : ''}`
     : (fr ? 'non défini' : 'not set');
 
   const rows = [
     { k: fr ? 'Heures dans la catégorie' : 'Hours in this category',
-      v: `<strong>${F(activeAchieved)}</strong> hrs` },
+      v: `<strong>${F(activeAchieved)}</strong> ${fr ? 'h' : 'hrs'}` },
     { k: fr ? 'Objectif personnel' : 'Personal goal', v: goalDisplay },
-    { k: fr ? 'Restant pour la cible' : 'Remaining to target', v: `${F(remain)} hrs` },
+    { k: fr ? 'Restant pour la cible' : 'Remaining to target', v: `${F(remain)} ${fr ? 'h' : 'hrs'}` },
     { k: fr ? 'Progression' : 'Progress', v: `<strong>${pct.toFixed(0)}%</strong>` },
   ];
 
@@ -17554,7 +18075,7 @@ function _drillMilestone(s, profile, fr, F) {
     </div>
     <div class="dash-drill-note" style="margin-top:var(--s-2);padding-top:var(--s-2);border-top:none;">${
       fr
-        ? 'Exemple : <strong>1500 hrs sur E195-E2</strong> — minimum pour upgrade capitaine sur ce type. Cumulo compte les heures bloc des vols dont le type contient « E195-E2 » (insensible à la casse).'
+        ? 'Exemple : <strong>1500 h sur E195-E2</strong> — minimum pour la promotion au poste de capitaine sur ce type. Cumulo compte les heures bloc des vols dont le type contient « E195-E2 » (insensible à la casse).'
         : 'Example: <strong>1500 hrs on E195-E2</strong> — minimum for captain upgrade on that type. Cumulo counts block hours from flights whose aircraft type contains "E195-E2" (case-insensitive match).'
     }</div>
   `;
@@ -17613,7 +18134,7 @@ function saveMilestoneGoal() {
   if (typeof showToast === 'function') {
     const label = kind === 'aircraft' && context ? ` ${fr ? 'sur' : 'on'} ${context}` : '';
     showToast(v > 0
-      ? (fr ? `Objectif : ${v.toLocaleString()} hrs${label}` : `Goal set: ${v.toLocaleString()} hrs${label}`)
+      ? (fr ? `Objectif : ${v.toLocaleString()} h${label}` : `Goal set: ${v.toLocaleString()} hrs${label}`)
       : (fr ? 'Objectif effacé' : 'Goal cleared'),
       'success');
   }
@@ -17642,7 +18163,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
     night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol après l’heure officielle de coucher du soleil (RAC 101.01).', en: 'Flight time after official sunset (CAR 101.01).' } },
     multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
-    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
+    xc:    { fr: 'Heures cross-country',en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
   };
   const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
   const title = fr ? meta.fr : meta.en;
@@ -17651,14 +18172,14 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
   const cont = _topContributing(kind, 8);
 
   const rows = [
-    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(value)}</strong> hrs` },
+    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(value)}</strong> ${fr ? 'h' : 'hrs'}` },
   ];
   // Show brought-forward portion if any
   if (typeof getOpening === 'function') {
     const openingKey = kind === 'multi' ? null : kind;  // me/multi has no single opening key
     if (openingKey) {
       const op = getOpening(openingKey);
-      if (op > 0) rows.push({ k: fr ? 'dont reportées' : 'of which brought-forward', v: `${F(op)} hrs` });
+      if (op > 0) rows.push({ k: fr ? 'dont reportées' : 'of which brought-forward', v: `${F(op)} ${fr ? 'h' : 'hrs'}` });
     }
   }
 
@@ -17666,7 +18187,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
   if (cont.length) {
     list = `<div class="dash-drill-sub">${fr ? 'Vols les plus récents qui contribuent' : 'Most recent contributing flights'}</div>
       <ul class="dash-drill-list">${cont.map(c =>
-        `<li>${esc(c.date || '—')} · ${esc(c.label || '')} · <span class="mono">+${F(c.hrs)} hrs</span></li>`
+        `<li>${esc(c.date || '—')} · ${esc(c.label || '')} · <span class="mono">+${F(c.hrs)} ${fr ? 'h' : 'hrs'}</span></li>`
       ).join('')}</ul>`;
   } else {
     list = `<div class="dash-drill-note">${fr ? 'Aucun vol ne contribue actuellement.' : 'No flights currently contribute.'}</div>`;
@@ -17846,7 +18367,7 @@ function _renderQuickCrewModal(flightList, field) {
           <div class="t-title-2">${esc(title)}</div>
           <div style="font-size:12.5px;color:var(--text-secondary);margin-top:6px;line-height:1.5;max-width:520px;">${esc(desc)}</div>
         </div>
-        <button class="icon-btn" onclick="closeQuickCrewFill()" aria-label="Close" title="Close">
+        <button class="icon-btn" onclick="closeQuickCrewFill()" aria-label="${esc(fr ? 'Fermer' : 'Close')}" title="${esc(fr ? 'Fermer' : 'Close')}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -17952,7 +18473,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-24-d3668c0';
+const BUILD_VERSION = '2026-06-24-1046b29';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

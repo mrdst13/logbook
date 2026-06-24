@@ -36,7 +36,7 @@ function showPage(id) {
   if (id === 'qa') renderQA();
   if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();
   if (id === 'add' && !editingId) {
-    document.getElementById('formTitle').textContent = 'Log flight';
+    document.getElementById('formTitle').textContent = t('form.title.logFlight');
     clearForm();
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
     setEntryType('flight');   // default to flight when entering a new entry

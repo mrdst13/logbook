@@ -468,7 +468,7 @@ const AuthUI = {
     if (qr) {
       qr.innerHTML = '';
       const img = document.createElement('img');
-      img.alt = 'TOTP QR code';
+      img.alt = t('auth.mfaEnroll.qrAlt');
       img.style.cssText = 'width:200px;height:200px;';
       img.src = data.totp.qr_code;
       qr.appendChild(img);
@@ -555,13 +555,13 @@ function renderAccountSettings() {
   const signedinEl = document.getElementById('account-signedin');
   const signedIn = (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated());
   if (signedIn) {
-    if (statusEl) statusEl.textContent = 'Signed in as ' + (Auth.user ? Auth.user.email : '') + '.';
+    if (statusEl) statusEl.textContent = t('account.signedInAs', { email: (Auth.user ? Auth.user.email : '') });
     if (signedinEl) signedinEl.style.display = '';
   } else {
     if (statusEl) {
       statusEl.textContent = (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady())
-        ? 'Not signed in. Use the Sign in button in the header to access your cloud account.'
-        : 'Cloud account not configured.';
+        ? t('account.notSignedIn')
+        : t('account.notConfigured');
     }
     if (signedinEl) signedinEl.style.display = 'none';
   }
@@ -577,23 +577,23 @@ async function changeAccountPassword() {
     msg.style.color = ok ? 'var(--success)' : 'var(--danger)';
   };
   if (typeof Auth === 'undefined' || !Auth.isAuthenticated || !Auth.isAuthenticated()) {
-    setMsg('You must be signed in to change your password.', false);
+    setMsg(t('account.mustSignIn'), false);
     return;
   }
-  if (p1.length < 12) { setMsg('Password must be at least 12 characters.', false); return; }
-  if (p1 !== p2) { setMsg('The two passwords do not match — re-type them.', false); return; }
-  setMsg('Updating…', true);
+  if (p1.length < 12) { setMsg(t('auth.err.weakPassword'), false); return; }
+  if (p1 !== p2) { setMsg(t('account.pwMismatch'), false); return; }
+  setMsg(t('account.updating'), true);
   try {
     const { error } = await Auth.updatePassword(p1);
     if (error) { setMsg(normalizeAuthError(error), false); return; }
   } catch (e) {
-    setMsg('Could not update password — check your connection and try again.', false);
+    setMsg(t('account.pwUpdateFailed'), false);
     return;
   }
   const f1 = document.getElementById('account-newpass'); if (f1) f1.value = '';
   const f2 = document.getElementById('account-newpass2'); if (f2) f2.value = '';
-  setMsg('Password changed ✓ — use it to sign in on your other devices.', true);
-  if (typeof showToast === 'function') showToast('Password changed', 'success');
+  setMsg(t('account.pwChangedLong'), true);
+  if (typeof showToast === 'function') showToast(t('account.pwChanged'), 'success');
 }
 
 // Show/hide BOTH change-password fields at once (Edge's native reveal eye is

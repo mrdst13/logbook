@@ -17,7 +17,9 @@ function exportPDF() {
   const overlay = document.getElementById('importPreview');
   if (!overlay) { _generatePDF(); return; }
   // Render the column picker inside the import modal (reused as a generic modal)
-  document.getElementById('importSubtitle').textContent = 'Choose which columns to include in your printed PDF';
+  const _pdfTitleEl = document.getElementById('importTitle');
+  if (_pdfTitleEl) _pdfTitleEl.textContent = t('pdf.picker.title');
+  document.getElementById('importSubtitle').textContent = t('pdf.picker.subtitle');
   // Read current prefs to seed the picker
   const html = (function() {
     const prefs = loadColumnPrefs() || {};
@@ -29,7 +31,7 @@ function exportPDF() {
     });
     return Object.keys(groups).map(group => `
       <div class="col-group">
-        <div class="col-group-title">${group}</div>
+        <div class="col-group-title">${esc(colGroup({ group }))}</div>
         <div class="col-group-grid">
           ${groups[group].map(c => {
             const checked = prefs[c.key] !== undefined ? prefs[c.key] : c.default;
@@ -37,21 +39,21 @@ function exportPDF() {
               <label class="col-option ${checked ? 'is-on' : ''}">
                 <input type="checkbox" data-col-key="${c.key}" ${checked ? 'checked' : ''}
                        onchange="this.closest('label').classList.toggle('is-on', this.checked)" />
-                <span class="col-option-label">${c.label}</span>
+                <span class="col-option-label">${esc(colLabel(c))}</span>
               </label>`;
           }).join('')}
         </div>
       </div>
     `).join('') + `
       <div style="margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.5;">
-        <strong>Tip:</strong> Picking fewer columns gives more space per row in landscape. Picking many makes the table denser. The cover page + currency annexe always print.
+        ${t('pdf.picker.tip')}
       </div>
     `;
   })();
   document.getElementById('extractedList').innerHTML = html;
   // Configure the confirm button
   const confirmBtn = document.getElementById('importConfirmBtn');
-  confirmBtn.textContent = '📄 Generate PDF';
+  confirmBtn.textContent = t('pdf.picker.generate');
   confirmBtn.disabled = false;
   confirmBtn.onclick = function() {
     // Read selected columns

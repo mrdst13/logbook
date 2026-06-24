@@ -106,7 +106,7 @@ function setEntryType(type) {
   document.getElementById('simFields').style.display = type === 'sim' ? 'block' : 'none';
   // Update form title
   const ft = document.getElementById('formTitle');
-  if (ft && !editingId) ft.textContent = type === 'sim' ? 'Log a Simulator Session' : 'Log a Flight';
+  if (ft && !editingId) ft.textContent = type === 'sim' ? t('form.title.logSim') : t('form.title.logFlight');
 }
 
 // saveFlight(options) — when options.addAnother === true, stay on the form
@@ -237,7 +237,7 @@ function editFlight(id) {
   const f = flights.find(x => x.id === id);
   if (!f) return;
   editingId = id;
-  document.getElementById('formTitle').textContent = f.isSim ? 'Edit Simulator Session' : 'Edit Flight';
+  document.getElementById('formTitle').textContent = f.isSim ? t('form.title.editSim') : t('form.title.editFlight');
   setEntryType(f.isSim ? 'sim' : 'flight');
   sv('f-date', f.date); setAircraftTypeField(f.type); sv('f-reg', f.reg);
   sv('f-rating', f.rating);
@@ -393,7 +393,7 @@ function attachHHMMMask(input) {
       if (!errEl) {
         const err = document.createElement('div');
         err.className = 'field-error show';
-        err.textContent = 'Invalid time. Use HHMM (e.g. 1235 for 12:35Z).';
+        err.textContent = t('form.err.invalidTime');
         input.parentElement.appendChild(err);
       } else {
         errEl.classList.add('show');
@@ -418,22 +418,22 @@ function validateFlightForm() {
 
   // Hard requirement: date present (matches saveFlight() check).
   const dateVal = (document.getElementById('f-date') || {}).value;
-  if (!dateVal) errors.push('Date is required.');
+  if (!dateVal) errors.push(t('form.err.dateRequired'));
 
   // HHMM format checks (soft — only flagged if user typed something).
   ['f-atd-utc', 'f-ata-utc'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.value && !_hhmmIsValid(el.value)) {
       const label = id === 'f-atd-utc' ? 'ATD (UTC)' : 'ATA (UTC)';
-      errors.push(`${label} is not a valid HHMM time.`);
+      errors.push(t('form.err.invalidHHMM', { label }));
     }
   });
 
   const hasErrors = errors.length > 0;
   if (errSummary) {
     if (hasErrors) {
-      errSummary.innerHTML = '<strong>Fix before saving:</strong><ul>' +
-        errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+      errSummary.innerHTML = `<strong>${esc(t('form.err.fixBeforeSaving'))}</strong><ul>` +
+        errors.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>';
       errSummary.classList.add('show');
     } else {
       errSummary.classList.remove('show');

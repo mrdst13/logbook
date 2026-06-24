@@ -19,7 +19,7 @@ function renderImportRecentStrip() {
     const navTs = +localStorage.getItem('cumulo_navblue_last_sync') || 0;
     if (navTs > bestTs) {
       bestTs = navTs;
-      bestSummary = 'Navblue iCal sync';
+      bestSummary = t('undo.op.sync');
     }
   } catch {}
 
@@ -32,10 +32,10 @@ function renderImportRecentStrip() {
       if (ts > bestTs) {
         bestTs = ts;
         const n = last.flightCount || last.imported || last.count || 0;
-        const src = last.source || last.importType || 'file';
+        const src = last.source || last.importType || t('import.recent.fileSrc');
         bestSummary = n > 0
-          ? `${n} flight${n !== 1 ? 's' : ''} from ${src}`
-          : `Import from ${src}`;
+          ? t('import.recent.fromSrc', { n, w: n !== 1 ? t('word.flights') : t('word.flight'), src })
+          : t('undo.op.import', { source: src });
       }
     }
   } catch {}
@@ -135,7 +135,7 @@ async function parseNavbluePDF(input) {
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
   box.classList.add('show');
-  msg.textContent = 'Reading Navblue roster PDF…';
+  msg.textContent = t('import.aiBox.reading');
 
   const b64 = await new Promise((res, rej) => {
     const r = new FileReader();
@@ -145,7 +145,7 @@ async function parseNavbluePDF(input) {
   });
 
   try {
-    msg.textContent = 'Extracting flights…';
+    msg.textContent = t('import.aiBox.extracting');
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -221,7 +221,9 @@ RULES:
     }
 
     if (!Array.isArray(extracted) || extracted.length === 0) {
-      throw new Error('AI found no flights to import in this PDF.');
+      box.classList.remove('show');
+      showToast(t('import.ai.noFlights'), 'error');
+      return;
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -230,15 +232,17 @@ RULES:
     console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
 
     if (filtered.length === 0) {
-      throw new Error(`AI extracted ${extracted.length} entries but none are completed (date must be before today and block > 0).`);
+      box.classList.remove('show');
+      showToast(t('import.ai.noFlights'), 'error');
+      return;
     }
 
     box.classList.remove('show');
     showImportPreview(filtered, t('import.preview.subtitle', { n: filtered.length }));
   } catch(e) {
     box.classList.remove('show');
-    showToast(e.message || 'Could not parse PDF', 'error');
-    console.error('[Navblue] Error:', e);
+    showToast(t('import.ai.failed'), 'error');
+    console.error('[Roster] Error:', e);
   }
 }
 

@@ -714,6 +714,12 @@ const WIZARD_TARGETS = [
   { key: 'remarks',    label: 'Remarks / Comments',  required: false }
 ];
 
+// Translated display label for a wizard target (the English `label` on the
+// object is kept as a fallback). Header-matching dictionaries below stay English.
+function csvTargetLabel(target) {
+  return (typeof t === 'function') ? t('csv.target.' + target.key) : target.label;
+}
+
 function guessHeaderForTarget(key) {
   switch (key) {
     case 'date':       return ['date', 'flight date'];
@@ -747,7 +753,7 @@ function guessHeaderForTarget(key) {
 
 function parseUniversal(text, dateLocale, profile, hash) {
   const rows = parseCsv(text);
-  if (rows.length < 2) return { rawRows: [], source: 'Universal CSV', sourceKey: 'wizard', hash };
+  if (rows.length < 2) return { rawRows: [], source: t('csv.universalSource'), sourceKey: 'wizard', hash };
   const headerRow = rows[0];
   const dataRows = rows.slice(1).filter(r => r.some(c => c !== ''));
   csvWizardState = { headerRow, dataRows, mapping: {}, dateLocale, profile, hash };
@@ -765,32 +771,31 @@ function showWizardMappingModal() {
   const overlay = document.getElementById('importPreview');
   if (!overlay || !csvWizardState) return;
   document.getElementById('importSubtitle').textContent =
-    `Universal CSV mapping — ${csvWizardState.dataRows.length} rows detected. Match each Cumulo field to a source column.`;
+    t('csv.wizard.subtitle', { n: csvWizardState.dataRows.length });
   const rows = WIZARD_TARGETS.map(target => {
     const cur = csvWizardState.mapping[target.key];
     const selected = cur !== undefined ? cur : '';
     return `
       <div class="review-item">
         <div class="review-body" style="flex:1;">
-          <div class="review-item-header">${esc(target.label)}${target.required ? ' <span style="color:var(--danger)">*</span>' : ''}</div>
+          <div class="review-item-header">${esc(csvTargetLabel(target))}${target.required ? ' <span style="color:var(--danger)">*</span>' : ''}</div>
         </div>
         <select onchange="csvWizardState.mapping[${JSON.stringify(target.key)}] = this.value === '' ? undefined : parseInt(this.value, 10);"
                 style="padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--bg);">
-          <option value="">— skip —</option>
+          <option value="">${esc(t('csv.wizard.skip'))}</option>
           ${csvWizardState.headerRow.map((hLabel, i) =>
-            `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(hLabel || '(blank)')}</option>`
+            `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(hLabel || t('csv.wizard.blank'))}</option>`
           ).join('')}
         </select>
       </div>`;
   }).join('');
   document.getElementById('extractedList').innerHTML = `
     <p style="margin-bottom:var(--s-3); font-size:13px; color:var(--text-secondary);">
-      Pick which source column maps to each Cumulo field. Required fields marked <span style="color:var(--danger)">*</span>.
-      Unmapped fields stay 0/empty.
+      ${t('csv.wizard.intro')}
     </p>
     ${rows}
   `;
-  document.getElementById('importConfirmBtn').textContent = 'Continue →';
+  document.getElementById('importConfirmBtn').textContent = t('csv.wizard.continue');
   document.getElementById('importConfirmBtn').onclick = () => applyWizardMapping();
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -800,7 +805,7 @@ function applyWizardMapping() {
   if (!csvWizardState) return;
   const missing = WIZARD_TARGETS.filter(target => target.required && csvWizardState.mapping[target.key] === undefined);
   if (missing.length) {
-    showToast(t('toast.missingMapping', { fields: missing.map(target => target.label).join(', ') }), 'error');
+    showToast(t('toast.missingMapping', { fields: missing.map(target => csvTargetLabel(target)).join(', ') }), 'error');
     return;
   }
   const m = csvWizardState.mapping;
@@ -844,7 +849,7 @@ function applyWizardMapping() {
   });
   const hash = csvWizardState.hash;
   csvWizardState = null;
-  startImportFlow({ rawRows, source: 'Universal CSV', sourceKey: 'wizard', hash });
+  startImportFlow({ rawRows, source: t('csv.universalSource'), sourceKey: 'wizard', hash });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1041,10 +1046,10 @@ function showCsvReviewStep() {
       <div class="review-body">
         <div class="review-item-header">${esc(f.date)} · ${esc(f.flightNum || '—')} · ${esc(f.route || '—')}</div>
         <div class="review-fields">
-          <div class="review-field"><span>Reg</span> ${esc(f.reg || '—')}</div>
-          <div class="review-field"><span>Type</span> ${esc(f.type || '—')}</div>
-          <div class="review-field"><span>Total</span> ${fmt(f.total)} h</div>
-          <div class="review-field"><span>Cat</span> ${esc(f.isSim ? t('csv.engine.SIM') : (f.acConfig === 'helicopter' ? t('csv.engine.HELI') : f.acConfig === 'glider' ? t('csv.engine.GLIDER') : ((+f.seDay||0)+(+f.seNight||0) > 0 ? t('csv.engine.SE') : t('csv.engine.ME'))))}</div>
+          <div class="review-field"><span>${esc(t('colShort.reg'))}</span> ${esc(f.reg || '—')}</div>
+          <div class="review-field"><span>${esc(t('colShort.type'))}</span> ${esc(f.type || '—')}</div>
+          <div class="review-field"><span>${esc(t('col.total'))}</span> ${fmt(f.total)} h</div>
+          <div class="review-field"><span>${esc(t('flight.section.engine'))}</span> ${esc(f.isSim ? t('csv.engine.SIM') : (f.acConfig === 'helicopter' ? t('csv.engine.HELI') : f.acConfig === 'glider' ? t('csv.engine.GLIDER') : ((+f.seDay||0)+(+f.seNight||0) > 0 ? t('csv.engine.SE') : t('csv.engine.ME'))))}</div>
         </div>
       </div>
     </div>`).join('');
@@ -1056,7 +1061,7 @@ function showCsvReviewStep() {
       <div style="margin-top:var(--s-2); font-size:11px; color:var(--text-muted);">${esc(t('csv.audit.flaggedXC'))}</div>
     </div>
     ${preview}
-    ${flights.length > 20 ? `<div style="text-align:center; padding:var(--s-3); color:var(--text-muted); font-size:12px;">… and ${flights.length - 20} more</div>` : ''}
+    ${flights.length > 20 ? `<div style="text-align:center; padding:var(--s-3); color:var(--text-muted); font-size:12px;">${esc(t('csv.review.andMore', { n: flights.length - 20 }))}</div>` : ''}
   `;
   document.getElementById('importConfirmBtn').textContent = t('csv.classify.continue');
   document.getElementById('importConfirmBtn').onclick = () => showCsvAttestStep();

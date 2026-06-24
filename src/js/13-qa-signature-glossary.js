@@ -48,8 +48,8 @@ const FAQS = [
  {
  q: 'What counts as "cross-country" time?',
  a: 'CAR 401.34 defines cross-country (XC) as a flight to a point more than 25 nautical miles from the departure aerodrome. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance exceeds 25 NM. Short hops (< 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.',
- qFr: 'Qu\'est-ce qui compte comme temps « voyage » (XC) ?',
- aFr: 'CAR 401.34 définit le voyage (XC) comme un vol vers un point à plus de 25 milles nautiques de l\'aérodrome de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique dépasse 25 NM. Les vols courts (< 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
+ qFr: 'Qu\'est-ce qui compte comme temps « cross-country » (XC) ?',
+ aFr: 'CAR 401.34 définit le cross-country (XC) comme un vol vers un point à plus de 25 milles nautiques de l\'aérodrome de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique dépasse 25 NM. Les vols courts (< 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
  },
  {
  q: 'How do I log Multi-Crew time (MCC) for ATPL submission?',
@@ -293,7 +293,7 @@ const GLOSSARY = [
  ['ME', 'Multi-Engine — aircraft with more than one engine', 'Multimoteur — aéronef à plus d\'un moteur'],
 
  // Cross-country
- ['XC', 'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)', 'Voyage — vol vers un aérodrome à plus de 25 NM (46,3 km) du point de départ (CAR 401.34)'],
+ ['XC', 'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)', 'Cross-country — vol vers un aérodrome à plus de 25 NM (46,3 km) du point de départ (CAR 401.34)'],
 
  // Instrument
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
@@ -346,7 +346,7 @@ const GLOSSARY = [
  ['RAC', 'Règlement de l\'aviation canadien — French name for the CAR', 'Règlement de l\'aviation canadien — nom français des CAR'],
  ['CAR 401.05', 'Recency requirements (5 landings 90 days · 6 IFR approaches 6 months)', 'Exigences de validité (5 atterrissages 90 jours · 6 approches IFR 6 mois)'],
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
- ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du voyage (> 25 NM)'],
+ ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du cross-country (> 25 NM)'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
  ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série CAR 700 — opérations comme 705 transporteur aérien)'],
  ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les CAR'],

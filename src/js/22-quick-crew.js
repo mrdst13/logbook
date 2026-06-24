@@ -104,7 +104,7 @@ function _renderQuickCrewModal(flightList, field) {
           <div class="t-title-2">${esc(title)}</div>
           <div style="font-size:12.5px;color:var(--text-secondary);margin-top:6px;line-height:1.5;max-width:520px;">${esc(desc)}</div>
         </div>
-        <button class="icon-btn" onclick="closeQuickCrewFill()" aria-label="Close" title="Close">
+        <button class="icon-btn" onclick="closeQuickCrewFill()" aria-label="${esc(fr ? 'Fermer' : 'Close')}" title="${esc(fr ? 'Fermer' : 'Close')}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>

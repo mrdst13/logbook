@@ -122,10 +122,10 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
   const flightCount = Array.isArray(flights) ? flights.length : 0;
 
   const rows = [
-    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> hrs` },
-    { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} hrs` : '—' },
-    { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} hrs (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
-    { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} hrs` },
+    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> ${fr ? 'h' : 'hrs'}` },
+    { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} ${fr ? 'h' : 'hrs'}` : '—' },
+    { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} ${fr ? 'h' : 'hrs'} (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
+    { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} ${fr ? 'h' : 'hrs'}` },
   ];
 
   return {
@@ -307,20 +307,20 @@ function _drillMilestone(s, profile, fr, F) {
     'pic':      fr ? 'PIC seulement'     : 'PIC only',
     'sic':      fr ? 'SIC seulement'     : 'SIC only',
     'night':    fr ? 'Nuit seulement'    : 'Night only',
-    'xc':       fr ? 'Voyage seulement'  : 'Cross-country only',
+    'xc':       fr ? 'Cross-country seulement'  : 'Cross-country only',
     'me':       fr ? 'Multi-moteur'      : 'Multi-engine',
     'aircraft': fr ? 'Par aéronef'       : 'By aircraft type',
   })[k] || k;
 
   const goalDisplay = currentGoal > 0
-    ? `${currentGoal.toLocaleString()} hrs · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${esc(currentContext)})` : ''}`
+    ? `${currentGoal.toLocaleString()} ${fr ? 'h' : 'hrs'} · ${kindLabel(currentKind)}${currentKind === 'aircraft' && currentContext ? ` (${esc(currentContext)})` : ''}`
     : (fr ? 'non défini' : 'not set');
 
   const rows = [
     { k: fr ? 'Heures dans la catégorie' : 'Hours in this category',
-      v: `<strong>${F(activeAchieved)}</strong> hrs` },
+      v: `<strong>${F(activeAchieved)}</strong> ${fr ? 'h' : 'hrs'}` },
     { k: fr ? 'Objectif personnel' : 'Personal goal', v: goalDisplay },
-    { k: fr ? 'Restant pour la cible' : 'Remaining to target', v: `${F(remain)} hrs` },
+    { k: fr ? 'Restant pour la cible' : 'Remaining to target', v: `${F(remain)} ${fr ? 'h' : 'hrs'}` },
     { k: fr ? 'Progression' : 'Progress', v: `<strong>${pct.toFixed(0)}%</strong>` },
   ];
 
@@ -356,7 +356,7 @@ function _drillMilestone(s, profile, fr, F) {
     </div>
     <div class="dash-drill-note" style="margin-top:var(--s-2);padding-top:var(--s-2);border-top:none;">${
       fr
-        ? 'Exemple : <strong>1500 hrs sur E195-E2</strong> — minimum pour upgrade capitaine sur ce type. Cumulo compte les heures bloc des vols dont le type contient « E195-E2 » (insensible à la casse).'
+        ? 'Exemple : <strong>1500 h sur E195-E2</strong> — minimum pour la promotion au poste de capitaine sur ce type. Cumulo compte les heures bloc des vols dont le type contient « E195-E2 » (insensible à la casse).'
         : 'Example: <strong>1500 hrs on E195-E2</strong> — minimum for captain upgrade on that type. Cumulo counts block hours from flights whose aircraft type contains "E195-E2" (case-insensitive match).'
     }</div>
   `;
@@ -415,7 +415,7 @@ function saveMilestoneGoal() {
   if (typeof showToast === 'function') {
     const label = kind === 'aircraft' && context ? ` ${fr ? 'sur' : 'on'} ${context}` : '';
     showToast(v > 0
-      ? (fr ? `Objectif : ${v.toLocaleString()} hrs${label}` : `Goal set: ${v.toLocaleString()} hrs${label}`)
+      ? (fr ? `Objectif : ${v.toLocaleString()} h${label}` : `Goal set: ${v.toLocaleString()} hrs${label}`)
       : (fr ? 'Objectif effacé' : 'Goal cleared'),
       'success');
   }
@@ -444,7 +444,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
     night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol après l’heure officielle de coucher du soleil (RAC 101.01).', en: 'Flight time after official sunset (CAR 101.01).' } },
     multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
-    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
+    xc:    { fr: 'Heures cross-country',en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
   };
   const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
   const title = fr ? meta.fr : meta.en;
@@ -453,14 +453,14 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
   const cont = _topContributing(kind, 8);
 
   const rows = [
-    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(value)}</strong> hrs` },
+    { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(value)}</strong> ${fr ? 'h' : 'hrs'}` },
   ];
   // Show brought-forward portion if any
   if (typeof getOpening === 'function') {
     const openingKey = kind === 'multi' ? null : kind;  // me/multi has no single opening key
     if (openingKey) {
       const op = getOpening(openingKey);
-      if (op > 0) rows.push({ k: fr ? 'dont reportées' : 'of which brought-forward', v: `${F(op)} hrs` });
+      if (op > 0) rows.push({ k: fr ? 'dont reportées' : 'of which brought-forward', v: `${F(op)} ${fr ? 'h' : 'hrs'}` });
     }
   }
 
@@ -468,7 +468,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
   if (cont.length) {
     list = `<div class="dash-drill-sub">${fr ? 'Vols les plus récents qui contribuent' : 'Most recent contributing flights'}</div>
       <ul class="dash-drill-list">${cont.map(c =>
-        `<li>${esc(c.date || '—')} · ${esc(c.label || '')} · <span class="mono">+${F(c.hrs)} hrs</span></li>`
+        `<li>${esc(c.date || '—')} · ${esc(c.label || '')} · <span class="mono">+${F(c.hrs)} ${fr ? 'h' : 'hrs'}</span></li>`
       ).join('')}</ul>`;
   } else {
     list = `<div class="dash-drill-note">${fr ? 'Aucun vol ne contribue actuellement.' : 'No flights currently contribute.'}</div>`;

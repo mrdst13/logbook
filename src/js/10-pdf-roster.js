@@ -112,19 +112,19 @@ async function handleRosterFile(file) {
     }
 
     const detailLines = [
-      `<strong>${extracted.length}</strong> flight legs extracted from PDF`,
-      `<strong style="color:var(--success);">${matched}</strong> captain name${matched !== 1 ? 's' : ''} added to existing flights`,
+      t('roster.detail.extracted', { n: `<strong>${extracted.length}</strong>` }),
+      t('roster.detail.captains', { n: `<strong style="color:var(--success);">${matched}</strong>` }),
     ];
     if (atdAdded > 0) {
-      detailLines.push(`<strong style="color:var(--success);">${atdAdded}</strong> ATD/ATA actual time${atdAdded !== 1 ? 's' : ''} captured from PDF`);
+      detailLines.push(t('roster.detail.times', { n: `<strong style="color:var(--success);">${atdAdded}</strong>` }));
     }
     if (isLocalTime) {
-      detailLines.push(`<span style="color:var(--warning);">⚠ PDF is in <strong>Local time</strong> mode — ATD/ATA were NOT imported to avoid timezone-conversion approximation. Re-download in <strong>UTC / Zulu</strong> TimeMode for actual times.</span>`);
+      detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.localTime')}</span>`);
     } else if (pdfTimeMode === 'unknown') {
-      detailLines.push(`<span style="color:var(--text-muted);">PDF TimeMode not detected — ATD/ATA captured as-is.</span>`);
+      detailLines.push(`<span style="color:var(--text-muted);">${t('roster.detail.unknownTime')}</span>`);
     }
-    if (alreadyHad > 0) detailLines.push(`<span>${alreadyHad} flights already had a PIC (not overwritten)</span>`);
-    if (noMatch > 0) detailLines.push(`<span style="color:var(--warning);">${noMatch} legs not found in your logbook (older than iCal window?)</span>`);
+    if (alreadyHad > 0) detailLines.push(`<span>${t('roster.detail.alreadyHad', { n: alreadyHad })}</span>`);
+    if (noMatch > 0) detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.noMatch', { n: noMatch })}</span>`);
     details.innerHTML = detailLines.join('<br>');
 
     if (matched > 0) {
@@ -136,7 +136,7 @@ async function handleRosterFile(file) {
     }
   } catch (e) {
     console.error('[Roster] Parse error:', e);
-    details.innerHTML = `<span style="color:var(--danger);">Error: ${esc(e.message)}</span>`;
+    details.innerHTML = `<span style="color:var(--danger);">${t('sync.detail.error', { msg: esc(e.message) })}</span>`;
     showToast(t('toast.pdfParseFailed', { err: e.message }), 'error');
   }
 }
