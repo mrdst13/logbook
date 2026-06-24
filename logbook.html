@@ -3871,6 +3871,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
    hidden visually. Tapping the card opens the full detail panel via
    the existing openFlightDetail() handler. */
 @media (max-width: 700px) {
+  /* Recap "Monthly Hours" chart + "Top Airports" were crushed side-by-side
+     on phones (the only 2-up grid that wasn't responsive). Stack them. */
+  .recap-two-up { grid-template-columns: 1fr !important; }
+
   .logbook-compact { overflow-x: visible; }
   .logbook-compact table {
     display: block;
@@ -5012,7 +5016,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
  <div class="recap-fun" id="recapFunFacts"></div>
 
- <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+ <div class="recap-two-up" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
  <div class="card">
  <div class="card-header"><div class="card-title">Monthly Hours</div></div>
  <div style="padding:16px;min-height:160px"><canvas id="recapChart" height="130"></canvas></div>
@@ -5432,7 +5436,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
  <div id="account-signedin" style="display:none;">
  <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="account-newpass">New password <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— at least 8 characters</span></label>
+ <label for="account-newpass">New password <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— at least 12 characters</span></label>
  <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password">
  </div>
  <div class="form-group" style="margin-bottom:var(--s-3);">
@@ -6112,10 +6116,16 @@ function calcStats() {
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
     total += +f.total || 0;
-    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0);
+    // PIC includes single-engine time (seDay/seNight): per Transport Canada,
+    // PIC is PIC regardless of engine count. The app has a single SE bucket
+    // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
+    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
+         + (+f.seDay||0) + (+f.seNight||0);
     sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
+    // Night = all night flying, every aircraft class (ME + heli + single-engine).
     night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
-           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0);
+           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
+           + (+f.seNight||0);
     ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
     me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
     heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
@@ -8947,7 +8957,19 @@ function loadProfile() {
   if (consentCb) {
     consentCb.checked = !!p.consentCaptainNames; // explicit false when missing
     consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
-    consentCb.onchange = () => consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+    // Persist on change — this is a PIPEDA consent control and lives on the
+    // Privacy tab, which has no Save button. Saving only via the Profile tab's
+    // Save button silently lost the user's choice. Now it saves immediately,
+    // like the hide-empty-columns toggle below.
+    consentCb.onchange = () => {
+      consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+      const prof = DB.loadProfile();
+      prof.consentCaptainNames = !!consentCb.checked;
+      DB.saveProfile(prof);
+      if (typeof showToast === 'function') {
+        showToast(t('toast.saved') || (getLang && getLang() === 'fr' ? 'Enregistré' : 'Saved'), 'success');
+      }
+    };
   }
   // Hide-empty-columns toggle: screen-only filtering. Persists + re-renders live.
   // Never affects the TC PDF export (always 38 columns for ramp-check compliance).
@@ -12369,7 +12391,12 @@ function renderRecap() {
   const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
   const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
   const ldg   = yFlights.reduce((s,f) => s + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
-  const night = yFlights.reduce((s,f) => s + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0), 0);
+  // Night = all night flying (ME + heli + single-engine) — matches calcStats().night
+  // so the Recap and the Dashboard never disagree for heli/SE pilots.
+  const night = yFlights.reduce((s,f) => s
+    + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
+    + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
+    + (+f.seNight||0), 0);
   document.getElementById('recapStats').innerHTML = [
     [t('recap.totalHoursLbl'), fmt(total), t('recap.hoursUnit')],
     [t('recap.blockHoursLbl'), fmt(block), t('recap.hoursUnit')],
@@ -12439,10 +12466,14 @@ function renderRecap() {
       }
       const earthCircum = 40075;
       const earthTours = km / earthCircum;
-      const daysAir = total / 24;
-      const acTypes = [...new Set(yFlights.map(f => (f.type || '').trim()).filter(Boolean))];
+      // Derived facts use BLOCK time (= Transport Canada flight time, CAR 101.01),
+      // matching the dashboard hero and the monthly chart.
+      const daysAir = block / 24;
+      // "Different aircraft" = distinct REGISTRATIONS (tails), not types — a pilot
+      // flying many tails of one type should not see "1 aircraft".
+      const acRegs = [...new Set(yFlights.map(f => (f.reg || '').trim().toUpperCase()).filter(Boolean))];
       const flightsCount = yFlights.length;
-      const avgLen = flightsCount > 0 ? total / flightsCount : 0;
+      const avgLen = flightsCount > 0 ? block / flightsCount : 0;
       const kmFmt = Math.round(km).toLocaleString(locale);
       // Sub line is transparent : if some legs couldn't be measured (unknown
       // airport), say so rather than implying the figure covers everything.
@@ -12457,7 +12488,7 @@ function renderRecap() {
       facts.push(
         { emoji: '⏱',  text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
         { emoji: '🛬', text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
-        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acTypes.length }),        sub: t('recap.fun.aircraftSub') }
+        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acRegs.length }),        sub: t('recap.fun.aircraftSub') }
       );
       ff.innerHTML = facts.map(f => `
         <div class="recap-fun-item">
@@ -15554,24 +15585,44 @@ const AuthUI = {
     if (el) el.textContent = msg;
   },
 
+  // Disable the submit button + show a pending label during async auth calls
+  // so the user gets feedback and can't double-submit on a slow connection.
+  _setBusy(busy, label) {
+    const btn = document.querySelector('.auth-submit');
+    if (!btn) return;
+    btn.disabled = !!busy;
+    if (busy) {
+      if (btn.dataset.label === undefined) btn.dataset.label = btn.textContent;
+      btn.textContent = label || '…';
+    } else if (btn.dataset.label !== undefined) {
+      btn.textContent = btn.dataset.label;
+      delete btn.dataset.label;
+    }
+  },
+
   async submitSignin() {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
     this._showErr('');
-    const { data, error } = await Auth.signIn(email, password);
-    if (error) { this._showErr(normalizeAuthError(error)); return; }
+    this._setBusy(true, t('auth.signin.btn') + '…');
+    try {
+      const { data, error } = await Auth.signIn(email, password);
+      if (error) { this._showErr(normalizeAuthError(error)); return; }
 
-    // Check if the user has MFA enrolled and needs to challenge.
-    const factors = await Auth.listMFAFactors();
-    const totp = factors && factors.data && factors.data.totp && factors.data.totp.find(f => f.status === 'verified');
-    if (totp) {
-      this.pendingMFAFactorId = totp.id;
-      this.state = 'mfa-challenge';
-      this.render();
-      return;
+      // Check if the user has MFA enrolled and needs to challenge.
+      const factors = await Auth.listMFAFactors();
+      const totp = factors && factors.data && factors.data.totp && factors.data.totp.find(f => f.status === 'verified');
+      if (totp) {
+        this.pendingMFAFactorId = totp.id;
+        this.state = 'mfa-challenge';
+        this.render();
+        return;
+      }
+      this.close();
+      onAuthSuccess();
+    } finally {
+      this._setBusy(false);
     }
-    this.close();
-    onAuthSuccess();
   },
 
   async submitSignup() {
@@ -15579,7 +15630,13 @@ const AuthUI = {
     const password = document.getElementById('auth-password').value;
     this._showErr('');
     if (password.length < 12) { this._showErr(t('auth.err.weakPassword')); return; }
-    const { data, error } = await Auth.signUp(email, password);
+    this._setBusy(true, t('auth.signup.btn') + '…');
+    let error;
+    try {
+      ({ error } = await Auth.signUp(email, password));
+    } finally {
+      this._setBusy(false);
+    }
     if (error) { this._showErr(normalizeAuthError(error)); return; }
     showToast(t('auth.signup.checkEmail'), 'success');
     this.state = 'signin';
@@ -15734,7 +15791,7 @@ async function changeAccountPassword() {
     setMsg('You must be signed in to change your password.', false);
     return;
   }
-  if (p1.length < 8) { setMsg('Password must be at least 8 characters.', false); return; }
+  if (p1.length < 12) { setMsg('Password must be at least 12 characters.', false); return; }
   if (p1 !== p2) { setMsg('The two passwords do not match — re-type them.', false); return; }
   setMsg('Updating…', true);
   try {
@@ -16573,7 +16630,10 @@ function _bfPageGroups() {
       open: false,
       fields: [
         { key: 'day',        labelEn: 'Day',        labelFr: 'Jour' },
-        { key: 'night',      labelEn: 'Night',      labelFr: 'Nuit',   aggregate: true },
+        // NOTE: 'night' intentionally lives ONLY in the Career-totals group
+        // above. It used to be duplicated here, producing two inputs with the
+        // same id="ob-night" — the value typed here was silently dropped on
+        // save (getElementById returned the Career input). One field, one id.
         { key: 'vfr',        labelEn: 'VFR',        labelFr: 'VFR' },
         { key: 'ifr',        labelEn: 'IFR',        labelFr: 'IFR' },
         { key: 'duty',       labelEn: 'Duty Time',  labelFr: 'Temps de service' },
@@ -17500,7 +17560,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
     night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol après l’heure officielle de coucher du soleil (RAC 101.01).', en: 'Flight time after official sunset (CAR 101.01).' } },
     multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
-    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 50 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 50 NM from departure point (CAR 401.34). Auto-calculated.' } },
+    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
   };
   const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
   const title = fr ? meta.fr : meta.en;
@@ -17546,8 +17606,8 @@ function _topContributing(kind, limit) {
     const f = flights[i];
     let hrs = 0;
     switch (kind) {
-      case 'pic':   hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0); break;
-      case 'sic':   hrs = (+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0)+(+f.picus||0); break;
+      case 'pic':   hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0)+(+f.seNight||0); break;
+      case 'sic':   hrs = (+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0); break;
       case 'night': hrs = (+f.meNightPic||0)+(+f.meNightCop||0)+(+f.meNightDual||0)+(+f.heliNightPic||0)+(+f.heliNightCop||0)+(+f.heliNightDual||0)+(+f.seNight||0); break;
       case 'multi': hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0); break;
       case 'xc':    hrs = (+f.xcDayPic||0)+(+f.xcNightPic||0)+(+f.xcDayCop||0)+(+f.xcNightCop||0)+(+f.xcDayDual||0)+(+f.xcNightDual||0); break;
@@ -17810,7 +17870,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-19-3891950';
+const BUILD_VERSION = '2026-06-24-5bb6f99';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

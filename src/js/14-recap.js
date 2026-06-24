@@ -22,7 +22,12 @@ function renderRecap() {
   const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
   const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
   const ldg   = yFlights.reduce((s,f) => s + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
-  const night = yFlights.reduce((s,f) => s + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0), 0);
+  // Night = all night flying (ME + heli + single-engine) — matches calcStats().night
+  // so the Recap and the Dashboard never disagree for heli/SE pilots.
+  const night = yFlights.reduce((s,f) => s
+    + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
+    + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
+    + (+f.seNight||0), 0);
   document.getElementById('recapStats').innerHTML = [
     [t('recap.totalHoursLbl'), fmt(total), t('recap.hoursUnit')],
     [t('recap.blockHoursLbl'), fmt(block), t('recap.hoursUnit')],
@@ -92,10 +97,14 @@ function renderRecap() {
       }
       const earthCircum = 40075;
       const earthTours = km / earthCircum;
-      const daysAir = total / 24;
-      const acTypes = [...new Set(yFlights.map(f => (f.type || '').trim()).filter(Boolean))];
+      // Derived facts use BLOCK time (= Transport Canada flight time, CAR 101.01),
+      // matching the dashboard hero and the monthly chart.
+      const daysAir = block / 24;
+      // "Different aircraft" = distinct REGISTRATIONS (tails), not types — a pilot
+      // flying many tails of one type should not see "1 aircraft".
+      const acRegs = [...new Set(yFlights.map(f => (f.reg || '').trim().toUpperCase()).filter(Boolean))];
       const flightsCount = yFlights.length;
-      const avgLen = flightsCount > 0 ? total / flightsCount : 0;
+      const avgLen = flightsCount > 0 ? block / flightsCount : 0;
       const kmFmt = Math.round(km).toLocaleString(locale);
       // Sub line is transparent : if some legs couldn't be measured (unknown
       // airport), say so rather than implying the figure covers everything.
@@ -110,7 +119,7 @@ function renderRecap() {
       facts.push(
         { emoji: '⏱',  text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
         { emoji: '🛬', text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
-        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acTypes.length }),        sub: t('recap.fun.aircraftSub') }
+        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acRegs.length }),        sub: t('recap.fun.aircraftSub') }
       );
       ff.innerHTML = facts.map(f => `
         <div class="recap-fun-item">

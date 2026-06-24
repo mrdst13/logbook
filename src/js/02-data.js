@@ -8,10 +8,16 @@ function calcStats() {
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
     total += +f.total || 0;
-    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0);
+    // PIC includes single-engine time (seDay/seNight): per Transport Canada,
+    // PIC is PIC regardless of engine count. The app has a single SE bucket
+    // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
+    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
+         + (+f.seDay||0) + (+f.seNight||0);
     sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
+    // Night = all night flying, every aircraft class (ME + heli + single-engine).
     night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
-           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0);
+           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
+           + (+f.seNight||0);
     ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
     me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
     heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
