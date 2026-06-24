@@ -234,7 +234,7 @@ RULES:
     }
 
     box.classList.remove('show');
-    showImportPreview(filtered, `${filtered.length} flight${filtered.length !== 1 ? 's' : ''} extracted from Navblue PDF — review before import`);
+    showImportPreview(filtered, t('import.preview.subtitle', { n: filtered.length }));
   } catch(e) {
     box.classList.remove('show');
     showToast(e.message || 'Could not parse PDF', 'error');
@@ -246,7 +246,7 @@ function showImportPreview(list, subtitle) {
   // Each entry gets a `selected` flag (default true)
   pendingImport = list.map(f => ({ ...f, selected: true }));
   const sub = document.getElementById('importSubtitle');
-  if (sub) sub.textContent = subtitle || `${list.length} flight${list.length !== 1 ? 's' : ''} found — select what to import`;
+  if (sub) sub.textContent = subtitle || t('import.preview.flightsFound', { n: list.length });
   renderImportPreview();
   const overlay = document.getElementById('importPreview');
   overlay.classList.add('show');
@@ -257,16 +257,16 @@ function showImportPreview(list, subtitle) {
 function renderImportPreview() {
   const container = document.getElementById('extractedList');
   if (!pendingImport.length) {
-    container.innerHTML = '<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">No flights found.</p>';
+    container.innerHTML = `<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px">${t('import.preview.noFlights')}</p>`;
     updateImportButton();
     return;
   }
   container.innerHTML = `
     <div class="import-bulk-bar">
-      <span class="eyebrow" id="importCount">0 of 0 selected</span>
+      <span class="eyebrow" id="importCount">${t('import.preview.selectedCount', { selected: 0, total: 0 })}</span>
       <div style="display:flex; gap:8px;">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllImport(true)">Select all</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllImport(false)">Deselect all</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllImport(true)">${t('import.preview.selectAll')}</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllImport(false)">${t('import.preview.deselectAll')}</button>
       </div>
     </div>
     ${pendingImport.map((f, i) => `
@@ -277,13 +277,13 @@ function renderImportPreview() {
         <div class="review-body">
           <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}</div>
           <div class="review-fields">
-            <div class="review-field"><span>Total</span> ${+f.total||0}h</div>
-            <div class="review-field"><span>Block</span> ${+f.block || 0}h</div>
-            <div class="review-field"><span>PIC Day</span> ${+f.meDayPic || 0}h</div>
-            <div class="review-field"><span>PIC Night</span> ${+f.meNightPic || 0}h</div>
-            ${(f.meDayCop || f.meNightCop) ? `<div class="review-field"><span>SIC</span> ${((+f.meDayCop||0)+(+f.meNightCop||0)).toFixed(2)}h</div>` : ''}
-            <div class="review-field"><span>Ldg</span> ${(+f.ldgDay || 0) + (+f.ldgNight || 0)}</div>
-            ${f.pic ? `<div class="review-field"><span>PIC</span> ${esc(f.pic)}</div>` : ''}
+            <div class="review-field"><span>${t('import.preview.fieldTotal')}</span> ${+f.total||0}h</div>
+            <div class="review-field"><span>${t('import.preview.fieldBlock')}</span> ${+f.block || 0}h</div>
+            <div class="review-field"><span>${t('import.preview.fieldPicDay')}</span> ${+f.meDayPic || 0}h</div>
+            <div class="review-field"><span>${t('import.preview.fieldPicNight')}</span> ${+f.meNightPic || 0}h</div>
+            ${(f.meDayCop || f.meNightCop) ? `<div class="review-field"><span>${t('import.preview.fieldSic')}</span> ${((+f.meDayCop||0)+(+f.meNightCop||0)).toFixed(2)}h</div>` : ''}
+            <div class="review-field"><span>${t('import.preview.fieldLdg')}</span> ${(+f.ldgDay || 0) + (+f.ldgNight || 0)}</div>
+            ${f.pic ? `<div class="review-field"><span>${t('import.preview.fieldPic')}</span> ${esc(f.pic)}</div>` : ''}
           </div>
         </div>
       </label>`).join('')}
@@ -311,10 +311,10 @@ function updateImportButton() {
   const selected = pendingImport.filter(f => f.selected).length;
   const total = pendingImport.length;
   const counter = document.getElementById('importCount');
-  if (counter) counter.textContent = `${selected} of ${total} selected`;
+  if (counter) counter.textContent = t('import.preview.selectedCount', { selected, total });
   const btn = document.getElementById('importConfirmBtn');
   if (btn) {
-    btn.textContent = selected > 0 ? `Import ${selected} flight${selected !== 1 ? 's' : ''}` : 'Nothing to import';
+    btn.textContent = selected > 0 ? t('import.preview.importBtn', { n: selected }) : t('import.preview.nothingToImport');
     btn.disabled = selected === 0;
   }
 }

@@ -631,11 +631,11 @@
       until at least one import has happened (filled by JS in 01-router.js
       when entering this page). -->
  <div id="importRecentStrip" class="import-recent" style="display:none;">
-   <div class="import-recent-eyebrow">LAST IMPORT</div>
+   <div class="import-recent-eyebrow" data-i18n="import.lastImport.eyebrow">LAST IMPORT</div>
    <div class="import-recent-body">
      <div><span id="importRecentSummary">—</span> <span class="import-recent-when" id="importRecentWhen"></span></div>
      <div class="import-recent-actions">
-       <a href="#" onclick="undoLastOperation();return false;" class="import-recent-link">Undo</a>
+       <a href="#" onclick="undoLastOperation();return false;" class="import-recent-link" data-i18n="import.lastImport.undo">Undo</a>
      </div>
    </div>
  </div>
@@ -648,42 +648,42 @@
       the supported list aren't left scrolling for their option. -->
  <div class="import-tracks">
    <div class="import-track">
-     <div class="import-track-eyebrow">Track A · Supported airline formats</div>
-     <div class="import-track-title">Automated — iCal sync + PDF roster</div>
-     <div class="import-track-desc">If your airline publishes a <code>webcal://</code> roster feed, connect it once and Cumulo pulls every new flight automatically. The monthly PDF roster from the same system fills in your crew's names (whichever seat you fly). Currently supports one specific roster system — others on the way.</div>
+     <div class="import-track-eyebrow" data-i18n="import.trackA.eyebrow">Track A · Supported airline formats</div>
+     <div class="import-track-title" data-i18n="import.trackA.title">Automated — iCal sync + PDF roster</div>
+     <div class="import-track-desc" data-i18n-html="import.trackA.desc">If your airline publishes a <code>webcal://</code> roster feed, connect it once and Cumulo pulls every new flight automatically. The monthly PDF roster from the same system fills in your crew's names (whichever seat you fly). The PDF parser currently supports one specific roster format — others on the way.</div>
    </div>
    <div class="import-track">
-     <div class="import-track-eyebrow">Track B · Every other pilot</div>
-     <div class="import-track-title">Photo · CSV · manual</div>
-     <div class="import-track-desc">Native PDF parsers for other airline roster formats are not built yet. For now: photograph any logbook or roster page (AI reads it), import a CSV from your previous logbook app, or log each flight manually.</div>
+     <div class="import-track-eyebrow" data-i18n="import.trackB.eyebrow">Track B · Every other pilot</div>
+     <div class="import-track-title" data-i18n="import.trackB.title">CSV · manual entry</div>
+     <div class="import-track-desc" data-i18n="import.trackB.desc">Native PDF parsers for other airline roster formats are not built yet. For now: import a CSV from your previous logbook app, or log each flight manually.</div>
    </div>
  </div>
 
  <!-- ─── Hero CTA: iCal auto-sync ─────────────────────────────── -->
  <div class="form-card import-hero">
  <div class="form-card-title" style="display:flex;align-items:center;justify-content:space-between;border:0;padding-bottom:var(--s-2);margin-bottom:var(--s-2);">
-   <span>Set up iCal auto-sync</span>
-   <span class="eyebrow" style="color:var(--accent);">TRACK A · RECOMMENDED</span>
+   <span data-i18n="import.hero.title">Set up iCal auto-sync</span>
+   <span class="eyebrow" style="color:var(--accent);" data-i18n="import.hero.eyebrow">TRACK A · RECOMMENDED</span>
  </div>
- <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);">
+ <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin-bottom:var(--s-3);" data-i18n-html="import.hero.desc">
    For pilots whose airline publishes a <code>webcal://</code> roster feed. Configure once — your roster syncs automatically every time you open Cumulo.
  </div>
  <div>
-   <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);">Set up auto-sync →</button>
+   <button class="btn btn-primary btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);" data-i18n="import.hero.button">Set up auto-sync →</button>
  </div>
  </div>
 
  <!-- ─── Card: Monthly PDF roster (airline crew-scheduling export) ─── -->
  <div class="form-card import-card" id="import-navblue">
- <div class="form-card-title">Monthly PDF roster <span class="import-card-tag">Track A · Common</span></div>
- <div class="form-card-desc">Drop your monthly <strong>roster PDF</strong> from your airline's crew-scheduling system. Cumulo reads it and either imports your flights (first time) or fills in the crew names iCal can't carry (already sync'd). Currently supports one specific roster format — if yours doesn't parse, use the Photo OCR card below instead. 100% local.</div>
+ <div class="form-card-title"><span data-i18n="import.pdfCard.title">Monthly PDF roster</span> <span class="import-card-tag" data-i18n="import.pdfCard.tag">Track A · Common</span></div>
+ <div class="form-card-desc" data-i18n-html="import.pdfCard.desc">Drop your monthly <strong>roster PDF</strong> from your airline's crew-scheduling system. Cumulo reads it and either imports your flights (first time) or fills in the crew names iCal can't carry (already sync'd). Currently supports one specific roster format — if yours doesn't parse, use CSV or manual entry instead. 100% local.</div>
  <div class="drop-zone" onclick="document.getElementById('navbluePdfUnified').click()"
    ondragover="event.preventDefault();this.classList.add('dragover')"
    ondragleave="this.classList.remove('dragover')"
    ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer&&event.dataTransfer.files[0];if(f){handleMonthlyRosterPDF(f);}">
    <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 14h8M8 18h5"/></svg></span>
-   <span class="drop-title">Select roster PDF or drop here</span>
-   <span class="drop-sub">Monthly roster · PDF</span>
+   <span class="drop-title" data-i18n="import.pdfCard.dropTitle">Select roster PDF or drop here</span>
+   <span class="drop-sub" data-i18n="import.pdfCard.dropSub">Monthly roster · PDF</span>
  </div>
  <input type="file" id="navbluePdfUnified" accept=".pdf,application/pdf" style="display:none" onchange="if(this.files[0])handleMonthlyRosterPDF(this.files[0])">
  <!-- Hidden inputs kept for legacy handlers + the two drop-paths the
@@ -699,15 +699,15 @@
 
  <!-- ─── Card: CSV migration (any airline, one-time) ──────────── -->
  <div class="form-card import-card">
- <div class="form-card-title">Migrate from another logbook app <span class="import-card-tag import-card-tag-quiet">Track B · One-time</span></div>
- <div class="form-card-desc">CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens a column-mapping wizard. The best path if you're switching from another logbook app to Cumulo. 100% local.</div>
+ <div class="form-card-title"><span data-i18n="import.csvCard.title">Migrate from another logbook app</span> <span class="import-card-tag import-card-tag-quiet" data-i18n="import.csvCard.tag">Track B · One-time</span></div>
+ <div class="form-card-desc" data-i18n="import.csvCard.desc">CSV export from ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, or Safelog. Any other CSV opens a column-mapping wizard. The best path if you're switching from another logbook app to Cumulo. 100% local.</div>
  <div id="csvDropZone" class="drop-zone" onclick="document.getElementById('csvFileInput').click()"
    ondragover="event.preventDefault(); this.classList.add('dragover');"
    ondragleave="this.classList.remove('dragover');"
    ondrop="handleCsvDrop(event);">
    <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span>
-   <span class="drop-title">Select CSV or drop here</span>
-   <span class="drop-sub">ForeFlight · LogTen Pro · MyFlightbook · other</span>
+   <span class="drop-title" data-i18n="import.csvCard.dropTitle">Select CSV or drop here</span>
+   <span class="drop-sub" data-i18n="import.csvCard.dropSub">ForeFlight · LogTen Pro · MyFlightbook · other</span>
  </div>
  <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(this.files[0])">
  <div class="help-text" style="margin-top:var(--s-3);" data-i18n="sync.csv.note">
@@ -716,13 +716,13 @@
  </div>
 
  <!-- Common reassurance footer — answers the implicit "what happens next?" -->
- <div class="import-footer">
+ <div class="import-footer" data-i18n-html="import.footer">
    Every import opens a <strong>preview</strong> before anything is saved. Cumulo snapshots automatically — you can always Undo from <a href="#" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('data'),60);return false;" style="color:var(--accent);font-weight:600;">Settings → Data → Recovery</a>.
  </div>
 
  <div class="ai-box" id="aiBox">
    <div class="ai-spinner"></div>
-   <div class="ai-msg" id="aiMsg" data-i18n="import.aiAnalyzing">ANALYZING LOGBOOK IMAGE...</div>
+   <div class="ai-msg" id="aiMsg" data-i18n="import.aiBox.reading">READING ROSTER...</div>
  </div>
 
  <!-- importPreview moved to a floating modal overlay (see below, before #toast) -->
