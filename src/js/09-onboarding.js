@@ -36,10 +36,10 @@ function startOnboarding() {
 
 async function skipOnboarding() {
   if (!await confirmDialog({
-    title: 'Skip onboarding?',
+    title: t('onb.skipConfirm.title'),
     body: t('onb.skipConfirm'),
-    cancelLabel: 'Continue setup',
-    confirmLabel: 'Skip for now'
+    cancelLabel: t('onb.skipConfirm.cancel'),
+    confirmLabel: t('onb.skipConfirm.confirm')
   })) return;
   localStorage.setItem(ONBOARDING_KEY, 'skipped');
   document.getElementById('onboardingOverlay').classList.remove('show');
@@ -280,13 +280,13 @@ function renderOnboardingStep() {
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step2.base'))}</label>
-          <input type="text" id="onb-base" placeholder="e.g. CYOW, CYUL, KJFK" maxlength="4" style="text-transform:uppercase;" />
+          <input type="text" id="onb-base" placeholder="${esc(t('onb.step2.basePlaceholder'))}" maxlength="4" style="text-transform:uppercase;" />
         </div>
         <div class="form-group col-span-2">
           <label>${esc(t('onb.step2.airline'))}</label>
           <select id="onb-airline-select" onchange="onOnbAirlineChange()">
             <option value="">— ${esc(t('profile.airline.select'))} —</option>
-            <optgroup label="705 — Airline Operations">
+            <optgroup label="${esc(t('onb.airline.group705'))}">
               <option value="Air Canada|AC">Air Canada (AC)</option>
               <option value="Air Canada Express / Jazz|QK">Air Canada Express / Jazz (QK)</option>
               <option value="WestJet|WS">WestJet (WS)</option>
@@ -296,7 +296,7 @@ function renderOnboardingStep() {
               <option value="Flair Airlines|F8">Flair Airlines (F8)</option>
               <option value="Canadian North|5T">Canadian North (5T)</option>
             </optgroup>
-            <optgroup label="704 — Commuter Operations">
+            <optgroup label="${esc(t('onb.airline.group704'))}">
               <option value="PAL Airlines|PB">PAL Airlines (PB)</option>
               <option value="Pacific Coastal Airlines|8P">Pacific Coastal Airlines (8P)</option>
               <option value="Bearskin Airlines|JV">Bearskin Airlines (JV)</option>
@@ -308,13 +308,13 @@ function renderOnboardingStep() {
               <option value="Kenn Borek Air|KBA">Kenn Borek Air (KBA)</option>
               <option value="Air Creebec|YN">Air Creebec (YN)</option>
             </optgroup>
-            <optgroup label="703 — Air Taxi Operations">
+            <optgroup label="${esc(t('onb.airline.group703'))}">
               <option value="Buffalo Airways|BFL">Buffalo Airways</option>
               <option value="Wasaya Airways|WT">Wasaya Airways (WT)</option>
               <option value="Summit Air|SUT">Summit Air</option>
               <option value="Keewatin Air|FK">Keewatin Air (FK)</option>
             </optgroup>
-            <optgroup label="702 / Helicopter — Aerial work / Rotorcraft">
+            <optgroup label="${esc(t('onb.airline.group702'))}">
               <option value="Canadian Helicopters|CHL">Canadian Helicopters (CHL)</option>
               <option value="CHC Helicopter|CHC">CHC Helicopter (CHC)</option>
               <option value="Helijet International|HEJ">Helijet International</option>
@@ -323,25 +323,25 @@ function renderOnboardingStep() {
               <option value="Great Slave Helicopters|GSH">Great Slave Helicopters</option>
               <option value="Heli-One|HO">Heli-One</option>
             </optgroup>
-            <optgroup label="FTO — Flight Training Organization">
+            <optgroup label="${esc(t('onb.airline.groupFTO'))}">
               <option value="Mount Royal Aviation|MRU">Mount Royal Aviation</option>
               <option value="Confederation College Aviation|CCA">Confederation College</option>
               <option value="Brampton Flight Centre|BFC">Brampton Flight Centre</option>
               <option value="Moncton Flight College|MFC">Moncton Flight College</option>
               <option value="Seneca Aviation|SEN">Seneca Aviation</option>
               <option value="Cargair|CGR">Cargair</option>
-              <option value="Other FTO|FTO">Other FTO — flight school</option>
+              <option value="Other FTO|FTO">${esc(t('onb.airline.otherFto'))}</option>
             </optgroup>
-            <optgroup label="Other">
+            <optgroup label="${esc(t('onb.airline.groupOther'))}">
               <option value="other">— ${esc(t('profile.airline.other'))} —</option>
               <option value="none">${esc(t('profile.airline.none'))}</option>
             </optgroup>
           </select>
-          <input type="text" id="onb-airline-custom" placeholder="Type airline name" style="display:none;margin-top:6px;" />
+          <input type="text" id="onb-airline-custom" placeholder="${esc(t('onb.airline.customPlaceholder'))}" style="display:none;margin-top:6px;" />
         </div>
       </div>
       <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
-        Operator codes (the IATA prefixes Cumulo uses to recognize your flights) are filled in automatically from your airline choice. You can edit them later in Settings.
+        ${esc(t('onb.step2.codesAutoHint'))}
       </p>
     `;
     if (onbData.fname) document.getElementById('onb-fname').value = onbData.fname;
@@ -400,7 +400,7 @@ function renderOnboardingStep() {
       <div class="form-grid" style="gap:var(--s-3);">
         <div class="form-group col-span-2">
           <label>${esc(t('onb.step4.license'))}</label>
-          <input type="text" id="onb-license" placeholder="License number" style="font-family:var(--font-mono);" />
+          <input type="text" id="onb-license" placeholder="${esc(t('onb.step4.licensePlaceholder'))}" style="font-family:var(--font-mono);" />
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step4.medical'))}</label>
@@ -412,7 +412,7 @@ function renderOnboardingStep() {
         </div>
         <div class="form-group">
           <label>${esc(t('onb.step4.fleet'))}</label>
-          <input type="text" id="onb-fleet" placeholder="e.g. C172, B737, E190" />
+          <input type="text" id="onb-fleet" placeholder="${esc(t('onb.step4.fleetPlaceholder'))}" />
         </div>
       </div>
       <p style="font-size:12px; color:var(--text-muted); margin-top:var(--s-3); line-height:1.5;">
@@ -434,10 +434,10 @@ function renderOnboardingStep() {
       <div class="form-group">
         <label>${esc(t('onb.step5.url'))}</label>
         <input type="url" id="onb-navblue"
-               placeholder="Paste your Navblue iCal URL here"
+               placeholder="${esc(t('onb.step5.urlPlaceholder'))}"
                style="font-family:var(--font-mono); font-size:12px; height:44px;" />
         <div style="font-size:11px; color:var(--text-muted); margin-top:4px; line-height:1.5;">
-          Starts with <code style="font-family:var(--font-mono);background:var(--bg-subtle);padding:1px 4px;border-radius:3px;">webcal://</code> or <code style="font-family:var(--font-mono);background:var(--bg-subtle);padding:1px 4px;border-radius:3px;">https://</code> · You can also skip and set this up later in Settings.
+          ${t('onb.step5.urlHintHtml')}
         </div>
       </div>
       <div style="margin-top:var(--s-4); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-size:12px; color:var(--text-secondary); line-height:1.6;">
