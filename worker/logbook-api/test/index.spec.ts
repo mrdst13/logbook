@@ -128,19 +128,26 @@ describe("body size enforcement", () => {
 	});
 });
 
-describe("fetch-ics SSRF lock", () => {
-	it("rejects non-navblue URLs", async () => {
-		const response = await run(post({ action: "fetch-ics", url: "https://evil.com/x.navblue.cloud/cal.ics" }));
+describe("fetch-ics (any-airline iCal proxy)", () => {
+	it("rejects non-HTTPS calendar URLs", async () => {
+		const response = await run(post({ action: "fetch-ics", url: "http://insecure.example.com/cal.ics" }));
 		expect(response.status).toBe(400);
 	});
 
-	it("accepts a navblue.cloud URL (upstream stubbed)", async () => {
+	it("accepts ANY airline's https iCal feed, not just Navblue (upstream stubbed)", async () => {
 		const fetchSpy = vi.fn(async () => new Response("BEGIN:VCALENDAR", { status: 200 }));
 		vi.stubGlobal("fetch", fetchSpy);
 		const response = await run(
-			post({ action: "fetch-ics", url: "webcal://app.navblue.cloud/api/ical/feed.ics" })
+			post({ action: "fetch-ics", url: "webcal://crew.westjet.com/api/ical/feed.ics" })
 		);
 		expect(response.status).toBe(200);
-		expect((fetchSpy.mock.calls[0] as any)[0]).toMatch(/^https:\/\/app\.navblue\.cloud\//);
+		expect((fetchSpy.mock.calls[0] as any)[0]).toMatch(/^https:\/\/crew\.westjet\.com\//);
+	});
+
+	it("still accepts a Navblue feed (webcal -> https)", async () => {
+		const fetchSpy = vi.fn(async () => new Response("BEGIN:VCALENDAR", { status: 200 }));
+		vi.stubGlobal("fetch", fetchSpy);
+		const response = await run(post({ action: "fetch-ics", url: "webcal://app.navblue.cloud/api/ical/feed.ics" }));
+		expect(response.status).toBe(200);
 	});
 });

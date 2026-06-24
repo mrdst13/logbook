@@ -12,7 +12,8 @@
 //   - Field whitelist + server-side system prompt → the key cannot be
 //     repurposed as a general LLM (no client tools/system passthrough)
 //   - Generic error messages      → no env/key leak via error reflection
-//   - Navblue domain SSRF lock    → fetch-ics can only hit navblue.cloud
+//   - iCal proxy: HTTPS-only + size cap + global_fetch_strictly_public
+//                                 → any airline's public feed, no internal SSRF
 //
 // TODO Phase B (Supabase go-live): require a verified Supabase JWT on the
 // Anthropic path. Origin checks alone are spoofable outside browsers.
@@ -53,6 +54,7 @@ const ALLOWED_MODELS = new Set([
 // 2048 cap silently broke photo import (client asks for 4000).
 const MAX_TOKENS_CAP = 8192;
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB — fits photo/PDF imports
+const MAX_ICS_BYTES = 5 * 1024 * 1024;  // 5 MB — bounds the iCal proxy
 
 // System prompt is pinned SERVER-SIDE. Any `system` sent by the client is
 // ignored, so a spoofed-origin caller cannot repurpose the key as a
@@ -160,10 +162,17 @@ async function handleFetchICS(body: any, origin: string): Promise<Response> {
   let url = (body.url || '').trim();
   if (!url) return jsonError('Missing url field', 400, origin);
 
+  // webcal:// is the calendar-subscription scheme — https underneath.
   url = url.replace(/^webcal:\/\//i, 'https://');
 
-  if (!/^https:\/\/[^/]+\.navblue\.cloud\//i.test(url)) {
-    return jsonError('URL must be a navblue.cloud domain', 400, origin);
+  // Accept ANY airline's public HTTPS iCal feed (not just Navblue) — Cumulo is
+  // for all Canadian pilots. SSRF to internal/private/loopback addresses is
+  // blocked by the global_fetch_strictly_public compat flag (wrangler.jsonc).
+  // Only HTTPS is allowed and the response size is capped to bound proxy abuse.
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return jsonError('Invalid calendar URL', 400, origin); }
+  if (parsed.protocol !== 'https:') {
+    return jsonError('Calendar URL must start with https:// or webcal://', 400, origin);
   }
 
   try {
@@ -171,20 +180,26 @@ async function handleFetchICS(body: any, origin: string): Promise<Response> {
       headers: {
         'User-Agent': 'Cumulo-Logbook/1.0 (Pilot logbook app)',
         'Accept': 'text/calendar, text/plain, */*'
-      }
+      },
+      redirect: 'follow'
     });
     if (!resp.ok) {
-      console.error('[Worker] Navblue upstream status:', resp.status);
-      return jsonError('Upstream Navblue error', 502, origin);
+      console.error('[Worker] iCal upstream status:', resp.status);
+      return jsonError('Upstream calendar error', 502, origin);
     }
+    // Reject if the declared size is over the cap, then enforce on actual bytes
+    // in case the header lies or is absent.
+    const declared = parseInt(resp.headers.get('Content-Length') || '0', 10);
+    if (declared > MAX_ICS_BYTES) return jsonError('Calendar feed too large', 413, origin);
     const ics = await resp.text();
+    if (ics.length > MAX_ICS_BYTES) return jsonError('Calendar feed too large', 413, origin);
     return new Response(ics, {
       status: 200,
       headers: { ...corsHeaders(origin), 'Content-Type': 'text/calendar; charset=utf-8' }
     });
   } catch (e: any) {
-    console.error('[Worker] Navblue fetch error:', e?.message);
-    return jsonError('Upstream fetch failed', 502, origin);
+    console.error('[Worker] iCal fetch error:', e?.message);
+    return jsonError('Could not fetch the calendar feed', 502, origin);
   }
 }
 

@@ -116,60 +116,10 @@ function handleMonthlyRosterPDF(file) {
   handleRosterFile(file);
 }
 
-// ═══════════════════════════════════════════
-// IMPORT — PHOTO (AI)
-// ═══════════════════════════════════════════
-async function handlePhotoImport(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-
-  const box = document.getElementById('aiBox');
-  const msg = document.getElementById('aiMsg');
-  box.classList.add('show');
-  msg.textContent = 'Reading logbook image…';
-
-  const b64 = await new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(',')[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-
-  try {
-    msg.textContent = 'Extracting flight data…';
-    const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: b64 } },
-            { type: 'text', text: `This is a page from a Canadian ICAO pilot logbook. Extract ALL flight entries visible.
-RESPOND WITH ONLY A JSON ARRAY. NO TEXT BEFORE OR AFTER. START WITH [ END WITH ].
-[{"date":"YYYY-MM-DD","type":"","reg":"","pic":"","copilot":"","route":"","total":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"meDayCop":0,"meNightCop":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":0,"ldgNight":0,"instActual":0,"picus":0,"block":0}]
-Use 0 for empty fields. Infer year from context if not explicit.
-For the "pic" field: copy verbatim what is written in the Pilot-in-Command column. If the pilot wrote "self" / "moi" / "me" / their own name, copy that token literally — the app will resolve self-references after extraction. Do NOT substitute or translate. If the column is blank, output "".` }
-          ]
-        }]
-      })
-    });
-
-    const data = await resp.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const extracted = JSON.parse(clean);
-    box.classList.remove('show');
-    showImportPreview(extracted, `${extracted.length} flight${extracted.length !== 1 ? 's' : ''} extracted from photo — review before import`);
-  } catch(e) {
-    box.classList.remove('show');
-    showToast(t('toast.photoParseFailed'), 'error');
-    console.error(e);
-  }
-}
+// Photo-OCR import (handlePhotoImport) + its drag-drop helper (handleDrop)
+// were removed 2026-06-24 (Martin's call). Paper-logbook hours now go
+// through Brought-forward (Profile). PDF roster (parseNavbluePDF below) and
+// CSV import remain. The shared preview UI (showImportPreview) is untouched.
 
 function toggleNavbluePanel() {
   const p = document.getElementById('navbluePanel');
@@ -289,18 +239,6 @@ RULES:
     box.classList.remove('show');
     showToast(e.message || 'Could not parse PDF', 'error');
     console.error('[Navblue] Error:', e);
-  }
-}
-
-function handleDrop(event, type) {
-  event.preventDefault();
-  document.getElementById(type+'Zone').classList.remove('dragover');
-  const file = event.dataTransfer.files[0];
-  if (!file) return;
-  if (type === 'photo') {
-    const dt = new DataTransfer(); dt.items.add(file);
-    document.getElementById('photoInput').files = dt.files;
-    handlePhotoImport(document.getElementById('photoInput'));
   }
 }
 
