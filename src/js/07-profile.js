@@ -209,7 +209,19 @@ function loadProfile() {
   if (consentCb) {
     consentCb.checked = !!p.consentCaptainNames; // explicit false when missing
     consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
-    consentCb.onchange = () => consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+    // Persist on change — this is a PIPEDA consent control and lives on the
+    // Privacy tab, which has no Save button. Saving only via the Profile tab's
+    // Save button silently lost the user's choice. Now it saves immediately,
+    // like the hide-empty-columns toggle below.
+    consentCb.onchange = () => {
+      consentCb.closest('label').classList.toggle('is-on', consentCb.checked);
+      const prof = DB.loadProfile();
+      prof.consentCaptainNames = !!consentCb.checked;
+      DB.saveProfile(prof);
+      if (typeof showToast === 'function') {
+        showToast(t('toast.saved') || (getLang && getLang() === 'fr' ? 'Enregistré' : 'Saved'), 'success');
+      }
+    };
   }
   // Hide-empty-columns toggle: screen-only filtering. Persists + re-renders live.
   // Never affects the TC PDF export (always 38 columns for ramp-check compliance).

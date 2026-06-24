@@ -120,6 +120,10 @@
    hidden visually. Tapping the card opens the full detail panel via
    the existing openFlightDetail() handler. */
 @media (max-width: 700px) {
+  /* Recap "Monthly Hours" chart + "Top Airports" were crushed side-by-side
+     on phones (the only 2-up grid that wasn't responsive). Stack them. */
+  .recap-two-up { grid-template-columns: 1fr !important; }
+
   .logbook-compact { overflow-x: visible; }
   .logbook-compact table {
     display: block;

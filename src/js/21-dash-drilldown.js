@@ -444,7 +444,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
     night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol après l’heure officielle de coucher du soleil (RAC 101.01).', en: 'Flight time after official sunset (CAR 101.01).' } },
     multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
-    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 50 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 50 NM from departure point (CAR 401.34). Auto-calculated.' } },
+    xc:    { fr: 'Heures voyage',      en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
   };
   const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
   const title = fr ? meta.fr : meta.en;
@@ -490,8 +490,8 @@ function _topContributing(kind, limit) {
     const f = flights[i];
     let hrs = 0;
     switch (kind) {
-      case 'pic':   hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0); break;
-      case 'sic':   hrs = (+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0)+(+f.picus||0); break;
+      case 'pic':   hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0)+(+f.seNight||0); break;
+      case 'sic':   hrs = (+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0); break;
       case 'night': hrs = (+f.meNightPic||0)+(+f.meNightCop||0)+(+f.meNightDual||0)+(+f.heliNightPic||0)+(+f.heliNightCop||0)+(+f.heliNightDual||0)+(+f.seNight||0); break;
       case 'multi': hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0); break;
       case 'xc':    hrs = (+f.xcDayPic||0)+(+f.xcNightPic||0)+(+f.xcDayCop||0)+(+f.xcNightCop||0)+(+f.xcDayDual||0)+(+f.xcNightDual||0); break;

@@ -374,24 +374,44 @@ const AuthUI = {
     if (el) el.textContent = msg;
   },
 
+  // Disable the submit button + show a pending label during async auth calls
+  // so the user gets feedback and can't double-submit on a slow connection.
+  _setBusy(busy, label) {
+    const btn = document.querySelector('.auth-submit');
+    if (!btn) return;
+    btn.disabled = !!busy;
+    if (busy) {
+      if (btn.dataset.label === undefined) btn.dataset.label = btn.textContent;
+      btn.textContent = label || '…';
+    } else if (btn.dataset.label !== undefined) {
+      btn.textContent = btn.dataset.label;
+      delete btn.dataset.label;
+    }
+  },
+
   async submitSignin() {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
     this._showErr('');
-    const { data, error } = await Auth.signIn(email, password);
-    if (error) { this._showErr(normalizeAuthError(error)); return; }
+    this._setBusy(true, t('auth.signin.btn') + '…');
+    try {
+      const { data, error } = await Auth.signIn(email, password);
+      if (error) { this._showErr(normalizeAuthError(error)); return; }
 
-    // Check if the user has MFA enrolled and needs to challenge.
-    const factors = await Auth.listMFAFactors();
-    const totp = factors && factors.data && factors.data.totp && factors.data.totp.find(f => f.status === 'verified');
-    if (totp) {
-      this.pendingMFAFactorId = totp.id;
-      this.state = 'mfa-challenge';
-      this.render();
-      return;
+      // Check if the user has MFA enrolled and needs to challenge.
+      const factors = await Auth.listMFAFactors();
+      const totp = factors && factors.data && factors.data.totp && factors.data.totp.find(f => f.status === 'verified');
+      if (totp) {
+        this.pendingMFAFactorId = totp.id;
+        this.state = 'mfa-challenge';
+        this.render();
+        return;
+      }
+      this.close();
+      onAuthSuccess();
+    } finally {
+      this._setBusy(false);
     }
-    this.close();
-    onAuthSuccess();
   },
 
   async submitSignup() {
@@ -399,7 +419,13 @@ const AuthUI = {
     const password = document.getElementById('auth-password').value;
     this._showErr('');
     if (password.length < 12) { this._showErr(t('auth.err.weakPassword')); return; }
-    const { data, error } = await Auth.signUp(email, password);
+    this._setBusy(true, t('auth.signup.btn') + '…');
+    let error;
+    try {
+      ({ error } = await Auth.signUp(email, password));
+    } finally {
+      this._setBusy(false);
+    }
     if (error) { this._showErr(normalizeAuthError(error)); return; }
     showToast(t('auth.signup.checkEmail'), 'success');
     this.state = 'signin';
@@ -554,7 +580,7 @@ async function changeAccountPassword() {
     setMsg('You must be signed in to change your password.', false);
     return;
   }
-  if (p1.length < 8) { setMsg('Password must be at least 8 characters.', false); return; }
+  if (p1.length < 12) { setMsg('Password must be at least 12 characters.', false); return; }
   if (p1 !== p2) { setMsg('The two passwords do not match — re-type them.', false); return; }
   setMsg('Updating…', true);
   try {

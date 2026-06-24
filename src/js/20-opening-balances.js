@@ -72,7 +72,10 @@ function _bfPageGroups() {
       open: false,
       fields: [
         { key: 'day',        labelEn: 'Day',        labelFr: 'Jour' },
-        { key: 'night',      labelEn: 'Night',      labelFr: 'Nuit',   aggregate: true },
+        // NOTE: 'night' intentionally lives ONLY in the Career-totals group
+        // above. It used to be duplicated here, producing two inputs with the
+        // same id="ob-night" — the value typed here was silently dropped on
+        // save (getElementById returned the Career input). One field, one id.
         { key: 'vfr',        labelEn: 'VFR',        labelFr: 'VFR' },
         { key: 'ifr',        labelEn: 'IFR',        labelFr: 'IFR' },
         { key: 'duty',       labelEn: 'Duty Time',  labelFr: 'Temps de service' },
