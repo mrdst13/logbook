@@ -693,21 +693,9 @@
  <div id="rosterDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
  </div>
 
- <!-- ─── Card: Photo OCR (works for any airline / any layout) ─── -->
- <div class="form-card import-card">
- <div class="form-card-title">Photo of a logbook or roster page <span class="import-card-tag import-card-tag-quiet">Track B · Any airline</span></div>
- <div class="form-card-desc">Snap any logbook page — paper, or your monthly roster displayed on screen. AI reads every column. For the odd page missing from a PDF roster, or as the main path if Cumulo doesn't parse your airline's roster format yet. Not for re-typing a whole career (use <strong>Brought-forward</strong> in Profile for that).</div>
- <div class="drop-zone" id="photoZone"
-   onclick="document.getElementById('photoInput').click()"
-   ondragover="event.preventDefault();this.classList.add('dragover')"
-   ondragleave="this.classList.remove('dragover')"
-   ondrop="handleDrop(event,'photo')">
-   <span class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h8l2 3h3v13H3z"/><circle cx="12" cy="13" r="4"/></svg></span>
-   <span class="drop-title">Select photo or drop here</span>
-   <span class="drop-sub">JPG · PNG · HEIC — one page at a time</span>
- </div>
- <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoImport(this)">
- </div>
+ <!-- Photo-OCR import card removed 2026-06-24 (Martin's call): paper-logbook
+      hours go through Brought-forward (Profile) instead. PDF roster + CSV
+      remain. The handlePhotoImport/handleDrop JS was removed with it. -->
 
  <!-- ─── Card: CSV migration (any airline, one-time) ──────────── -->
  <div class="form-card import-card">
