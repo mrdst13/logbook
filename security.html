@@ -269,9 +269,19 @@ footer {
 .footer-links a { color: var(--text-mute); margin-right: 18px; }
 
 .updated { color: var(--text-mute); font-size: 13px; margin-top: 16px; }
+
+/* Bilingual toggle (Loi 25: French available). */
+[data-l] { display: none; }
+body.en [data-l="en"], body.fr [data-l="fr"] { display: contents; }
+.lang-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-mute);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 5px 12px;
+  border-radius: 8px; cursor: pointer; margin-left: 22px; line-height: 1;
+}
+.lang-btn:hover { color: var(--text); border-color: var(--accent); }
 </style>
 </head>
-<body>
+<body class="en" data-title-en="Security — Cumulo Flight Deck" data-title-fr="Sécurité — Cumulo Flight Deck">
 
 <nav class="top">
 <a href="index.html" class="logo">
@@ -279,13 +289,16 @@ footer {
   <span>Cumulo</span>
 </a>
 <div class="nav-links">
-  <a href="index.html">Home</a>
-  <a href="privacy.html">Privacy</a>
-  <a href="logbook.html?v=2026-06-25-c08b6ea">Open app →</a>
+  <a href="index.html"><span data-l="en">Home</span><span data-l="fr">Accueil</span></a>
+  <a href="privacy.html"><span data-l="en">Privacy</span><span data-l="fr">Confidentialité</span></a>
+  <a href="logbook.html?v=2026-06-25-c08b6ea"><span data-l="en">Open app →</span><span data-l="fr">Ouvrir l’app →</span></a>
+  <button type="button" id="langBtn" class="lang-btn" aria-label="Passer en français">FR</button>
 </div>
 </nav>
 
 <main>
+
+<div class="i18n" data-l="en">
 
 <h1>Your logbook is yours.</h1>
 <p class="subtitle">Four commitments that govern how Cumulo handles the most sensitive professional record you keep.</p>
@@ -370,19 +383,109 @@ footer {
 
 <p class="updated">Last updated: 2026-05-26</p>
 
+</div>
+
+<div class="i18n" data-l="fr">
+
+<h1>Votre carnet vous appartient.</h1>
+<p class="subtitle">Quatre engagements qui régissent la façon dont Cumulo traite le dossier professionnel le plus sensible que vous tenez.</p>
+
+<div class="promises">
+  <div class="promise">
+    <div class="promise-title">Vos données restent sur votre appareil</div>
+    <div class="promise-body">Votre carnet de vol vit sur votre appareil. Lorsque la sauvegarde infonuagique optionnelle est activée, vos données sont stockées exclusivement au Canada — assujetties à la loi canadienne sur la protection de la vie privée.</div>
+  </div>
+  <div class="promise">
+    <div class="promise-title">Chiffrées en transit et au repos</div>
+    <div class="promise-body">Lorsque vous activez la sauvegarde infonuagique optionnelle, vos données sont chiffrées pendant leur transit (TLS 1.3) et lorsqu’elles reposent sur disque (AES-256). Les données locales sur votre appareil sont liées à la sécurité du compte de votre système d’exploitation.</div>
+  </div>
+  <div class="promise">
+    <div class="promise-title">Vous possédez chaque octet</div>
+    <div class="promise-body">Exportez en JSON ou PDF à tout moment, en un clic. Supprimez tout de votre téléphone d’un seul geste. Aucun verrouillage de sortie. Aucuns frais de téléchargement.</div>
+  </div>
+  <div class="promise">
+    <div class="promise-title">Jamais vendues, jamais utilisées pour entraîner une IA</div>
+    <div class="promise-body">Vos vols ne seront pas vendus à des compagnies aériennes, assureurs, courtiers ou annonceurs. Ils ne serviront pas à entraîner d’IA. Un engagement écrit, pas une préférence.</div>
+  </div>
+</div>
+
+<h2>Où vivent vos données</h2>
+<p>Cumulo fonctionne <strong>entièrement sur votre appareil par défaut</strong>. Chaque vol que vous inscrivez est d’abord enregistré localement. La synchronisation infonuagique est optionnelle — lorsque vous l’activez, une copie est envoyée à un serveur canadien à Montréal, chiffrée en transit et au repos. Vous pouvez partir à tout moment et emporter vos données.</p>
+
+<h2>Ce que nous faisons, et ce que nous ne faisons pas</h2>
+
+<div class="commits">
+  <div class="commit-card we-do">
+    <h3>Ce que nous faisons</h3>
+    <ul>
+      <li>Conserver vos vols, votre profil et un journal d’audit de synchronisation.</li>
+      <li>N’envoyer que des courriels transactionnels (réinitialisation de mot de passe, reçus de facturation).</li>
+      <li>Anonymiser les noms d’équipage par défaut lorsque les données quittent votre appareil, sauf si vous y avez consenti explicitement.</li>
+    </ul>
+  </div>
+  <div class="commit-card we-dont">
+    <h3>Ce que nous ne faisons pas</h3>
+    <ul>
+      <li>Vendre vos données. À qui que ce soit. Jamais.</li>
+      <li>Afficher de la publicité dans l’application.</li>
+      <li>Entraîner des modèles d’IA sur vos vols ou votre profil.</li>
+      <li>Partager des données avec des tiers, sauf les fournisseurs d’infrastructure dont nous avons besoin par contrat (et une exception de mandat canadien que nous vous divulguerions).</li>
+      <li>Lire les entrées de votre carnet, sauf si vous nous demandez de l’aide pour diagnostiquer un problème, et uniquement avec votre consentement.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Vos contrôles</h2>
+<p>Depuis l’application, vous pouvez exporter une copie JSON complète de tout ce que vous avez inscrit, restaurer à partir de n’importe quel fichier de sauvegarde, et supprimer définitivement vos données — locales et infonuagiques — en une seule action. Il n’y a aucune étape « contactez le soutien pour fermer votre compte ». Nous ne croyons pas à la friction de sortie.</p>
+
+<details class="tech">
+  <summary>Détails techniques, pour les curieux</summary>
+  <div class="tech-body">
+
+    <h4>Hébergement</h4>
+    <p>La synchronisation infonuagique fonctionne sur Supabase dans <code>ca-central-1</code> (Montréal, Québec). Les pages statiques et le relais iCal fonctionnent sur le réseau périphérique de Cloudflare. Tout service auxiliaire qui touche brièvement à vos données est explicitement divulgué dans la politique de confidentialité et est optionnel par fonctionnalité.</p>
+
+    <h4>Chiffrement</h4>
+    <p>En transit : TLS 1.3 avec des algorithmes modernes, HSTS appliqué. Au repos : AES-256, géré par Supabase. Sur votre appareil : repose sur le chiffrement de disque de votre système d’exploitation (FileVault, BitLocker, protection des données iOS).</p>
+
+    <h4>Contrôle d’accès</h4>
+    <p>Les lignes de la base de données sont étiquetées avec votre identifiant d’utilisateur et protégées par la sécurité au niveau des lignes de Postgres. Il n’y a aucun contournement administrateur — les propres requêtes de Cumulo suivent les mêmes politiques. L’authentification utilise courriel et mot de passe, avec double authentification TOTP optionnelle (pas de SMS, vulnérable à l’échange de carte SIM).</p>
+
+    <h4>Noms d’équipage et LPRPDE</h4>
+    <p>Les noms d’équipage sur les exports partagés sont anonymisés en initiales par défaut. Vous pouvez activer les noms complets dans Paramètres → Confidentialité si vous avez le consentement de l’équipage ou si le destinataire est Transports Canada. Le carnet personnel (votre appareil) et votre sauvegarde infonuagique privée conservent toujours les noms complets — c’est protégé par l’art. 7(1)b) de la LPRPDE et l’art. 12 de la Loi 25 à titre de dossier personnel exigé par une autre loi (RAC 401.08).</p>
+
+    <h4>Notification d’incident</h4>
+    <p>Si une atteinte touche vos données, vous serez avisé directement par courriel dans les 72 heures suivant la découverte si elle atteint le seuil de « risque réel de préjudice grave » de la LPRPDE ou l’équivalent de la Loi 25. Le Commissariat à la protection de la vie privée du Canada (et la CAI pour les utilisateurs du Québec) sera avisé conformément aux exigences légales.</p>
+
+    <h4>Si Cumulo cesse ses activités</h4>
+    <p>Vous recevrez un préavis d’au moins 90 jours. L’export restera en ligne tout au long. Une dernière sauvegarde JSON automatisée sera envoyée par courriel à chaque utilisateur actif. Votre copie locale continuera de fonctionner.</p>
+
+  </div>
+</details>
+
+<div class="contact-card">
+  <h3>Vous avez remarqué quelque chose ?</h3>
+  <p>Écrivez à <a href="mailto:flycumulo@gmail.com">flycumulo@gmail.com</a>. Les problèmes de sécurité reçoivent une réponse sous 48 heures. Si une phrase ici ne correspond pas à ce que nous faisons réellement, dites-le-nous — nous la corrigerons.</p>
+</div>
+
+<p class="updated">Dernière mise à jour : 2026-05-26</p>
+
+</div>
+
 </main>
 
 <footer>
 <div class="footer-row">
-  <div>© 2026 Cumulo · Built in Canada</div>
+  <div>© 2026 Cumulo · <span data-l="en">Built in Canada</span><span data-l="fr">Conçu au Canada</span></div>
   <div class="footer-links">
-    <a href="index.html">Home</a>
-    <a href="security.html">Security</a>
-    <a href="privacy.html">Privacy</a>
+    <a href="index.html"><span data-l="en">Home</span><span data-l="fr">Accueil</span></a>
+    <a href="security.html"><span data-l="en">Security</span><span data-l="fr">Sécurité</span></a>
+    <a href="privacy.html"><span data-l="en">Privacy</span><span data-l="fr">Confidentialité</span></a>
     <a href="mailto:flycumulo@gmail.com">Contact</a>
   </div>
 </div>
 </footer>
 
+<script src="assets/lang-toggle.js"></script>
 </body>
 </html>

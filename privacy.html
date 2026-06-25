@@ -236,9 +236,20 @@ footer {
 .footer-links a { color: var(--text-mute); margin-right: 18px; }
 
 .updated { color: var(--text-mute); font-size: 13px; margin-top: 16px; }
+
+/* Bilingual toggle (Loi 25: French available). Content is duplicated in
+   [data-l="en"]/[data-l="fr"] blocks; the body.en / body.fr class shows one. */
+[data-l] { display: none; }
+body.en [data-l="en"], body.fr [data-l="fr"] { display: contents; }
+.lang-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-mute);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 5px 12px;
+  border-radius: 8px; cursor: pointer; margin-left: 22px; line-height: 1;
+}
+.lang-btn:hover { color: var(--text); border-color: var(--accent); }
 </style>
 </head>
-<body>
+<body class="en" data-title-en="Privacy — Cumulo Flight Deck" data-title-fr="Confidentialité — Cumulo Flight Deck">
 
 <nav class="top">
 <a href="index.html" class="logo">
@@ -246,13 +257,16 @@ footer {
   <span>Cumulo</span>
 </a>
 <div class="nav-links">
-  <a href="index.html">Home</a>
-  <a href="security.html">Security</a>
-  <a href="logbook.html?v=2026-06-25-c08b6ea">Open app →</a>
+  <a href="index.html"><span data-l="en">Home</span><span data-l="fr">Accueil</span></a>
+  <a href="security.html"><span data-l="en">Security</span><span data-l="fr">Sécurité</span></a>
+  <a href="logbook.html?v=2026-06-25-c08b6ea"><span data-l="en">Open app →</span><span data-l="fr">Ouvrir l’app →</span></a>
+  <button type="button" id="langBtn" class="lang-btn" aria-label="Passer en français">FR</button>
 </div>
 </nav>
 
 <main>
+
+<div class="i18n" data-l="en">
 
 <h1>Privacy, plain English.</h1>
 <p class="subtitle">No legalese. Cumulo asks for the minimum amount of data it needs, keeps it in Canada, and gives you full control. Here's the whole picture in five short sections.</p>
@@ -349,19 +363,121 @@ footer {
 
 <p class="updated">Last updated: 2026-05-26</p>
 
+</div>
+
+<div class="i18n" data-l="fr">
+
+<h1>La confidentialité, en clair.</h1>
+<p class="subtitle">Pas de jargon juridique. Cumulo demande le minimum de données dont il a besoin, les conserve au Canada et vous en laisse le plein contrôle. Voici le portrait complet en cinq courtes sections.</p>
+
+<h2>Ce que nous recueillons</h2>
+<div class="section-card">
+  <h3>Seulement le nécessaire</h3>
+  <ul>
+    <li><span class="item-title">Les vols que vous inscrivez.</span> Date, route, heures, équipage et les champs réglementaires exigés par Transports Canada.</li>
+    <li><span class="item-title">Votre profil.</span> Nom, fonction, compagnie, numéro de licence, expiration du médical, échéance ECG, base.</li>
+    <li><span class="item-title">Vos identifiants de compte.</span> Courriel et une empreinte salée de votre mot de passe. Aucun mot de passe n’est jamais stocké en clair.</li>
+    <li><span class="item-title">Les métadonnées de synchronisation.</span> Horodatage des imports et des modifications, pour vous permettre d’annuler une opération en lot. Nous ne conservons ni votre adresse IP ni l’empreinte de votre appareil au-delà de la session active.</li>
+  </ul>
+</div>
+
+<h2>Ce que nous en faisons</h2>
+<div class="section-card">
+  <h3>Faire fonctionner l’application</h3>
+  <ul>
+    <li>Afficher votre carnet de vol sur chacun de vos appareils.</li>
+    <li>Calculer la validité selon Transports Canada (RAC 401.05, médical, expérience récente).</li>
+    <li>Générer l’export PDF dont vous avez besoin pour les vérifications en piste et les demandes d’ATPL.</li>
+    <li>N’envoyer que des courriels transactionnels — réinitialisation de mot de passe, reçus de facturation, avis de sécurité. Aucune infolettre, aucune relance de vente.</li>
+  </ul>
+</div>
+
+<h2>Ce que nous ne faisons jamais</h2>
+<div class="section-card">
+  <h3>Engagements écrits</h3>
+  <ul>
+    <li>Ne jamais vendre vos données à des compagnies aériennes, assureurs, recruteurs, courtiers ou annonceurs.</li>
+    <li>Ne jamais afficher de publicité dans l’application.</li>
+    <li>Ne jamais utiliser vos vols ou votre profil pour entraîner des modèles d’IA.</li>
+    <li>Ne jamais partager vos données avec des tiers, sauf : les fournisseurs d’infrastructure dont nous dépendons par contrat (listés ci-dessous) et une demande mandatée par un tribunal canadien — que nous contesterions et vous divulguerions, à moins d’en être légalement empêchés.</li>
+    <li>Ne jamais lire les entrées de votre carnet pour « améliorer le produit ». Si nous devions un jour y accéder pour diagnostiquer un problème, nous vous le demanderions au cas par cas.</li>
+  </ul>
+</div>
+
+<h2>Vos droits en vertu de la loi canadienne</h2>
+<p>Cumulo respecte la Loi sur la protection des renseignements personnels et les documents électroniques (LPRPDE) au fédéral, et la Loi 25 au Québec. Elles vous confèrent des droits précis — et l’application Cumulo fait de chacun une action en un seul geste.</p>
+
+<div class="rights">
+  <div class="right-card">
+    <div class="right-title">Voir ce que nous détenons</div>
+    <div class="right-body">Paramètres → Confidentialité → Exporter. Télécharge un JSON complet de tout ce que nous détenons à votre sujet. Aucun champ caché.</div>
+  </div>
+  <div class="right-card">
+    <div class="right-title">Corriger les erreurs</div>
+    <div class="right-body">Modifiez n’importe quel champ dans l’application. Les changements se propagent immédiatement à la synchronisation infonuagique. Aucun billet de soutien requis.</div>
+  </div>
+  <div class="right-card">
+    <div class="right-title">Tout supprimer</div>
+    <div class="right-body">Paramètres → Confidentialité → Supprimer + purger. Efface les copies locales et infonuagiques. Permanent. Aucune boucle « êtes-vous sûr » après votre confirmation.</div>
+  </div>
+  <div class="right-card">
+    <div class="right-title">Emporter vos données ailleurs</div>
+    <div class="right-body">Exportez en JSON ou PDF à tout moment. Le JSON est importable dans tout système qui suit les conventions ouvertes de champs de carnet de vol.</div>
+  </div>
+</div>
+
+<details class="legal">
+  <summary>Sous-traitants et détails juridiques</summary>
+  <div class="legal-body">
+
+    <h4>Fournisseurs d’infrastructure</h4>
+    <p>Le minimum de fournisseurs nécessaires pour faire fonctionner Cumulo, et ce que chacun voit :</p>
+    <ul>
+      <li><strong>Supabase</strong> — base de données Postgres + authentification, hébergée dans la région <code>ca-central-1</code> (Montréal). Détient votre sauvegarde infonuagique lorsque vous l’activez.</li>
+      <li><strong>Cloudflare</strong> — diffusion de contenu + le relais de synchronisation iCal. Voit les métadonnées de requête (IP, chemins d’URL) à chaque requête.</li>
+      <li><strong>Stripe</strong> — traitement des paiements seulement. Voit vos informations de facturation, jamais vos données de vol.</li>
+    </ul>
+    <p class="mute" style="font-size:13px; margin-top:8px;">Chaque fournisseur publie ses propres engagements de sécurité et de traitement des données (SOC 2, PCI DSS, fenêtres de conservation, règles sur les données d’entraînement) sur ses pages respectives. Ces engagements leur appartiennent, pas à nous — nous y renvoyons plutôt que de les reformuler ici, car un changement de posture d’un fournisseur rendrait silencieusement toute reformulation périmée. Si un fournisseur modifie ses conditions de façon importante, nous mettons cette page à jour.</p>
+
+    <h4>Noms d’équipage et vie privée des tiers</h4>
+    <p>Les noms de commandant et de copilote sur vos vols sont des renseignements personnels concernant des personnes qui n’ont pas directement consenti à figurer dans votre compte Cumulo. Par défaut, Cumulo anonymise les noms d’équipage en initiales lorsque les données quittent votre appareil — pour la synchronisation infonuagique et tout export partageable. Vous pouvez activer les noms complets par destinataire dans Paramètres → Confidentialité si vous avez le consentement de l’équipage ou si le destinataire est Transports Canada.</p>
+    <p>Le carnet personnel sur votre propre appareil, et votre sauvegarde infonuagique mono-utilisateur, conservent les noms complets par défaut. C’est protégé par l’art. 7(1)b) de la LPRPDE et l’art. 12 de la Loi 25 à titre de dossier personnel exigé par une autre loi (RAC 401.08).</p>
+
+    <h4>Combien de temps nous conservons les données</h4>
+    <p>Comptes actifs : tant que vous utilisez Cumulo. Comptes annulés : 12 mois de grâce (3 courriels de rappel avant suppression), puis purge automatique. Suppression explicite : effacement infonuagique sous 30 jours, effacement local immédiat.</p>
+
+    <h4>Notification en cas d’atteinte</h4>
+    <p>Si vos données sont impliquées dans un incident de sécurité qui atteint le seuil de « risque réel de préjudice grave » de la LPRPDE (ou l’équivalent de la Loi 25), vous serez avisé directement par courriel dans les 72 heures suivant la découverte, avec : ce qui s’est passé, ce qui a été touché, ce que nous avons fait, ce que vous devriez faire. Le Commissariat à la protection de la vie privée du Canada (fédéral) et la Commission d’accès à l’information (Québec) seront avisés conformément aux exigences légales.</p>
+
+    <h4>Modifications de cette page</h4>
+    <p>Les changements importants font l’objet d’un préavis de 30 jours par courriel. Les modifications mineures mettent à jour la date « Dernière mise à jour » au bas de cette page. La Wayback Machine archive nos pages — quiconque peut comparer les versions s’il le souhaite.</p>
+
+  </div>
+</details>
+
+<div class="contact-card">
+  <h3>Des questions sur votre vie privée ?</h3>
+  <p>Écrivez à <a href="mailto:flycumulo@gmail.com">flycumulo@gmail.com</a>. Réponse d’un vrai humain sous 48 heures. Pour une plainte formelle en vertu de la LPRPDE, vous pouvez aussi joindre le <a href="https://www.priv.gc.ca/fr/" target="_blank" rel="noopener">Commissariat à la protection de la vie privée du Canada</a>.</p>
+</div>
+
+<p class="updated">Dernière mise à jour : 2026-05-26</p>
+
+</div>
+
 </main>
 
 <footer>
 <div class="footer-row">
-  <div>© 2026 Cumulo · Built in Canada</div>
+  <div>© 2026 Cumulo · <span data-l="en">Built in Canada</span><span data-l="fr">Conçu au Canada</span></div>
   <div class="footer-links">
-    <a href="index.html">Home</a>
-    <a href="security.html">Security</a>
-    <a href="privacy.html">Privacy</a>
+    <a href="index.html"><span data-l="en">Home</span><span data-l="fr">Accueil</span></a>
+    <a href="security.html"><span data-l="en">Security</span><span data-l="fr">Sécurité</span></a>
+    <a href="privacy.html"><span data-l="en">Privacy</span><span data-l="fr">Confidentialité</span></a>
     <a href="mailto:flycumulo@gmail.com">Contact</a>
   </div>
 </div>
 </footer>
 
+<script src="assets/lang-toggle.js"></script>
 </body>
 </html>
