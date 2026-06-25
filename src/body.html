@@ -450,13 +450,14 @@
  <div class="form-group">
  <label data-i18n="flight.aircraftConfig">Aircraft Configuration</label>
  <select id="f-acConfig">
- <option value="wheels">Wheels (standard)</option>
- <option value="floats">Floats / Seaplane</option>
- <option value="skis">Skis</option>
- <option value="amphibian">Amphibian</option>
- <option value="tailwheel">Tailwheel</option>
- <option value="ski-wheel">Ski-Wheel (combo)</option>
- <option value="other">Other</option>
+ <option value="wheels" data-i18n="profile.acConfigs.wheels">Wheels (standard)</option>
+ <option value="floats" data-i18n="profile.acConfigs.floats">Floats / Seaplane</option>
+ <option value="skis" data-i18n="profile.acConfigs.skis">Skis</option>
+ <option value="amphibian" data-i18n="profile.acConfigs.amphibian">Amphibian</option>
+ <option value="tailwheel" data-i18n="flight.acConfig.tailwheel">Tailwheel</option>
+ <option value="ski-wheel" data-i18n="flight.acConfig.skiWheel">Ski-Wheel (combo)</option>
+ <option value="helicopter" data-i18n="flight.acConfig.helicopter">Helicopter (skids)</option>
+ <option value="other" data-i18n="flight.acConfig.other">Other</option>
  </select>
  </div>
  <div class="form-group">
@@ -580,6 +581,12 @@
  <div class="form-group"><label for="f-se-night-dual" data-i18n="flight.seNightDual">SE Night — Dual</label><input type="number" id="f-se-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0"></div>
  </div>
  </div>
+
+ <!-- Reveal multi-engine fields on demand for SE-focused pilots (private /
+      student / instructor). Hidden by default so single-engine time never lands
+      in the ME buckets by reflex (Norme 421); shown automatically if the pilot
+      already has ME hours. (Audit panel 2026-06-25.) -->
+ <button type="button" id="fg-me-toggle" class="btn btn-ghost btn-sm" style="display:none; margin-bottom:var(--s-3);" onclick="revealMECard()" data-i18n="flight.addMultiEngine">+ Multi-engine time</button>
 
  <!-- Helicopter card — shown by adaptFormToProfile() for helicopter. All
       columns already exist (heli* + hoverTime); this just adds the inputs. -->

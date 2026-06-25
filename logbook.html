@@ -4921,13 +4921,14 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-group">
  <label data-i18n="flight.aircraftConfig">Aircraft Configuration</label>
  <select id="f-acConfig">
- <option value="wheels">Wheels (standard)</option>
- <option value="floats">Floats / Seaplane</option>
- <option value="skis">Skis</option>
- <option value="amphibian">Amphibian</option>
- <option value="tailwheel">Tailwheel</option>
- <option value="ski-wheel">Ski-Wheel (combo)</option>
- <option value="other">Other</option>
+ <option value="wheels" data-i18n="profile.acConfigs.wheels">Wheels (standard)</option>
+ <option value="floats" data-i18n="profile.acConfigs.floats">Floats / Seaplane</option>
+ <option value="skis" data-i18n="profile.acConfigs.skis">Skis</option>
+ <option value="amphibian" data-i18n="profile.acConfigs.amphibian">Amphibian</option>
+ <option value="tailwheel" data-i18n="flight.acConfig.tailwheel">Tailwheel</option>
+ <option value="ski-wheel" data-i18n="flight.acConfig.skiWheel">Ski-Wheel (combo)</option>
+ <option value="helicopter" data-i18n="flight.acConfig.helicopter">Helicopter (skids)</option>
+ <option value="other" data-i18n="flight.acConfig.other">Other</option>
  </select>
  </div>
  <div class="form-group">
@@ -5051,6 +5052,12 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-group"><label for="f-se-night-dual" data-i18n="flight.seNightDual">SE Night — Dual</label><input type="number" id="f-se-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0"></div>
  </div>
  </div>
+
+ <!-- Reveal multi-engine fields on demand for SE-focused pilots (private /
+      student / instructor). Hidden by default so single-engine time never lands
+      in the ME buckets by reflex (Norme 421); shown automatically if the pilot
+      already has ME hours. (Audit panel 2026-06-25.) -->
+ <button type="button" id="fg-me-toggle" class="btn btn-ghost btn-sm" style="display:none; margin-bottom:var(--s-3);" onclick="revealMECard()" data-i18n="flight.addMultiEngine">+ Multi-engine time</button>
 
  <!-- Helicopter card — shown by adaptFormToProfile() for helicopter. All
       columns already exist (heli* + hoverTime); this just adds the inputs. -->
@@ -8065,7 +8072,7 @@ function renderLogbook(filter='') {
   // rather than nth-child (which would break when column order changes).
   if (thead) {
     thead.innerHTML = '<tr>' +
-      cols.map(c => `<th data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(colLabel(c))}</th>`).join('') +
+      cols.map(c => `<th scope="col" data-col-key="${esc(c.key)}" style="text-align:${c.align||'left'};">${esc(colLabel(c))}</th>`).join('') +
     '</tr>';
   }
 
@@ -8693,6 +8700,12 @@ function editFlight(id) {
     sv('f-simInstructor', f.simInstructor);
   }
   showPage('add');
+  // If this flight has multi-engine time, make sure the ME card is visible even
+  // for an SE-focused pilot type (where it's hidden by default) — never hide a
+  // pilot's existing data on edit. Runs after showPage() so it wins over
+  // adaptFormToProfile(). (Audit panel 2026-06-25.)
+  const _me = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0);
+  if (_me > 0 && typeof revealMECard === 'function') revealMECard();
   if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
@@ -9352,6 +9365,15 @@ function highlightProfileTypeCard(type) {
   });
 }
 
+// Reveal the multi-engine card on demand (the "+ Multi-engine time" toggle a
+// single-engine pilot taps when they actually flew a twin). (Audit panel.)
+function revealMECard() {
+  const card = document.getElementById('fg-me-card');
+  if (card) card.style.display = '';
+  const tg = document.getElementById('fg-me-toggle');
+  if (tg) tg.style.display = 'none';
+}
+
 function adaptFormToProfile(type) {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
@@ -9424,6 +9446,23 @@ function adaptFormToProfile(type) {
     hide('fg-me-card');
     show('fg-heli-card');
     hide('fg-picus');
+    // Default the per-flight aircraft config to Helicopter (skids) instead of
+    // 'wheels'. editFlight() overrides this with the saved value when editing.
+    const acCfg = document.getElementById('f-acConfig');
+    if (acCfg && acCfg.querySelector('option[value="helicopter"]')) acCfg.value = 'helicopter';
+  }
+
+  // SE-focused types (private / student / instructor): keep the multi-engine
+  // card out of the way by default so single-engine time isn't logged in ME
+  // buckets by reflex (Norme 421). NEVER hide existing data: if the pilot has
+  // any ME history we show the card; otherwise we show a toggle so a twin pilot
+  // can open it on demand. editFlight() also reveals it when editing a flight
+  // that already has ME values. (Audit panel 2026-06-25 — bush contamination.)
+  if (type === 'private' || type === 'student' || type === 'instructor') {
+    const hasME = Array.isArray(flights) && flights.some(f =>
+      (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0) > 0);
+    if (hasME) { show('fg-me-card'); hide('fg-me-toggle'); }
+    else       { hide('fg-me-card'); show('fg-me-toggle'); }
   }
 
   // Rank override for Airline 705 Captains: a Captain logs PIC time, not
@@ -14821,6 +14860,7 @@ const STRINGS = {
  'flight.timeCard': 'Time',
  'flight.meCard': 'Multi-Engine Time',
  'flight.seCard': 'Single-Engine Time',
+ 'flight.addMultiEngine': '+ Multi-engine time',
  'flight.seDayPic': 'SE Day — PIC',
  'flight.seDayDual': 'SE Day — Dual',
  'flight.seNightPic': 'SE Night — PIC',
@@ -14835,6 +14875,10 @@ const STRINGS = {
  'flight.landingsCard': 'Take-offs, Landings & Instrument',
  'qa.searchPlaceholder': 'Search questions…',
  'flight.aircraftConfig': 'Aircraft Configuration',
+ 'flight.acConfig.tailwheel': 'Tailwheel',
+ 'flight.acConfig.skiWheel': 'Ski-Wheel (combo)',
+ 'flight.acConfig.helicopter': 'Helicopter (skids)',
+ 'flight.acConfig.other': 'Other',
  'flight.typeRating': 'Type Rating',
  'flight.totalTime': 'Total Flight Time',
  'flight.simTypeSelect': '— Select type —',
@@ -15819,6 +15863,7 @@ const STRINGS = {
  'qa.searchPlaceholder': 'Chercher une question…',
  'flight.meCard': 'Temps multimoteur',
  'flight.seCard': 'Temps mono-moteur',
+ 'flight.addMultiEngine': '+ Temps multimoteur',
  'flight.seDayPic': 'SE jour — PIC',
  'flight.seDayDual': 'SE jour — Double',
  'flight.seNightPic': 'SE nuit — PIC',
@@ -15832,6 +15877,10 @@ const STRINGS = {
  'flight.xcNightPic': 'XC nuit — PIC',
  'flight.landingsCard': 'Décollages, atterrissages et instruments',
  'flight.aircraftConfig': 'Configuration d’aéronef',
+ 'flight.acConfig.tailwheel': 'Roue de queue',
+ 'flight.acConfig.skiWheel': 'Ski-roue (combiné)',
+ 'flight.acConfig.helicopter': 'Hélicoptère (patins)',
+ 'flight.acConfig.other': 'Autre',
  'flight.typeRating': 'Qualification de type',
  'flight.totalTime': 'Temps de vol total',
  'flight.simTypeSelect': '— Choisir un type —',
@@ -19365,7 +19414,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-25-c08b6ea';
+const BUILD_VERSION = '2026-06-25-2bd88c1';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

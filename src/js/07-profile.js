@@ -25,6 +25,15 @@ function highlightProfileTypeCard(type) {
   });
 }
 
+// Reveal the multi-engine card on demand (the "+ Multi-engine time" toggle a
+// single-engine pilot taps when they actually flew a twin). (Audit panel.)
+function revealMECard() {
+  const card = document.getElementById('fg-me-card');
+  if (card) card.style.display = '';
+  const tg = document.getElementById('fg-me-toggle');
+  if (tg) tg.style.display = 'none';
+}
+
 function adaptFormToProfile(type) {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
@@ -97,6 +106,23 @@ function adaptFormToProfile(type) {
     hide('fg-me-card');
     show('fg-heli-card');
     hide('fg-picus');
+    // Default the per-flight aircraft config to Helicopter (skids) instead of
+    // 'wheels'. editFlight() overrides this with the saved value when editing.
+    const acCfg = document.getElementById('f-acConfig');
+    if (acCfg && acCfg.querySelector('option[value="helicopter"]')) acCfg.value = 'helicopter';
+  }
+
+  // SE-focused types (private / student / instructor): keep the multi-engine
+  // card out of the way by default so single-engine time isn't logged in ME
+  // buckets by reflex (Norme 421). NEVER hide existing data: if the pilot has
+  // any ME history we show the card; otherwise we show a toggle so a twin pilot
+  // can open it on demand. editFlight() also reveals it when editing a flight
+  // that already has ME values. (Audit panel 2026-06-25 — bush contamination.)
+  if (type === 'private' || type === 'student' || type === 'instructor') {
+    const hasME = Array.isArray(flights) && flights.some(f =>
+      (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0) > 0);
+    if (hasME) { show('fg-me-card'); hide('fg-me-toggle'); }
+    else       { hide('fg-me-card'); show('fg-me-toggle'); }
   }
 
   // Rank override for Airline 705 Captains: a Captain logs PIC time, not
