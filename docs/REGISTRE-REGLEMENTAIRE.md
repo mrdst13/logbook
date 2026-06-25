@@ -8,6 +8,17 @@ règle — on ne re-devine jamais de mémoire.
 
 Source primaire = laws-lois.justice.gc.ca (CARs SOR/96-433) et tc.canada.ca (Standards/CASS).
 
+## 🔤 GLOSSAIRE TERMINOLOGIQUE FR (termes officiels — copier VERBATIM)
+Règle : pour un terme d'aviation FR, **copier le terme officiel ci-dessous mot pour mot**.
+Interdit de substituer un terme informel « pour la cohérence » ou de « standardiser plus tard ».
+Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter ici AVANT de l'écrire dans le code.
+
+| Concept (EN) | Terme officiel FR | Source | Bannis (ne jamais utiliser) |
+|---|---|---|---|
+| Hood / view-limiting device | **dispositif limitant la vue** | CI 401-004 ; RAC DORS/96-433 (laws-lois, vérifié 2026-06-25) | ❌ « cagoule » (= masque de voleur), ❌ « capot »/« sous capot » (informel) |
+| Night | nuit (fin du crépuscule civil → début du crépuscule civil) | CAR/RAC 101.01 | — |
+| Cross-country | cross-country (gardé EN, standard Cumulo) | — | — |
+
 | Statut | Sens |
 |---|---|
 | ✅ vérifié | Cité, conforme au règlement, implémenté correctement |

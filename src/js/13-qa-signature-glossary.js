@@ -297,7 +297,7 @@ const GLOSSARY = [
 
  // Instrument
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
- ['Inst Hood', 'Instrument time under a view-limiting device (training)', 'Temps aux instruments sous capot (entraînement)'],
+ ['Inst Hood', 'Instrument time under a view-limiting device (training)', 'Temps aux instruments sous dispositif limitant la vue (entraînement)'],
  ['Inst Sim/FSTD', 'Instrument time in a Flight Simulation Training Device — logged SEPARATELY from flight time', 'Temps aux instruments dans un Flight Simulation Training Device — enregistré SÉPARÉMENT du temps de vol'],
  ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)', 'Une approche aux instruments à l\'atterrissage ou approche manquée (compte vers la validité IFR CAR 401.05 : 6 en 6 mois)'],
 

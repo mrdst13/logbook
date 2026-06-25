@@ -12977,7 +12977,7 @@ const GLOSSARY = [
 
  // Instrument
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
- ['Inst Hood', 'Instrument time under a view-limiting device (training)', 'Temps aux instruments sous capot (entraînement)'],
+ ['Inst Hood', 'Instrument time under a view-limiting device (training)', 'Temps aux instruments sous dispositif limitant la vue (entraînement)'],
  ['Inst Sim/FSTD', 'Instrument time in a Flight Simulation Training Device — logged SEPARATELY from flight time', 'Temps aux instruments dans un Flight Simulation Training Device — enregistré SÉPARÉMENT du temps de vol'],
  ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)', 'Une approche aux instruments à l\'atterrissage ou approche manquée (compte vers la validité IFR CAR 401.05 : 6 en 6 mois)'],
 
@@ -15733,7 +15733,7 @@ const STRINGS = {
  'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant).</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Ancrages légaux : LPRPDE art. 4(2)(b), art. 7(3)c.1(i), Principe 4.3 ; Loi 25 art. 1.</em>',
  'profile.display.title': 'Préférences d’affichage',
  'profile.display.label': 'Masquer les colonnes vides à l’écran (somme = 0 sur tous les vols)',
- 'profile.display.descHtml': 'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR Capot, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
+ 'profile.display.descHtml': 'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR sous dispositif, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
  'profile.acConfigs.title': 'Configurations d’aéronef (pilotes brousse / aviation générale)',
  'profile.acConfigs.descHtml':'Cochez les configurations que vous pilotez. Sert à filtrer les suggestions de type et le suivi de validité (TC exige des validités distinctes pour flotteurs, skis, train classique selon CAR 401.05).',
  'profile.acConfigs.wheels': 'Roues (standard)',
@@ -15810,7 +15810,7 @@ const STRINGS = {
  'flight.ldgNight': 'Atterrissages Nuit',
  'flight.approaches': 'Approches',
  'flight.instActual': 'IFR — Réel',
- 'flight.instHood': 'IFR — Capot',
+ 'flight.instHood': 'IFR — dispositif limitant la vue',
  'flight.instSim': 'IFR — Sim / FSTD',
  'flight.picus': 'PICUS (CDB en supervision)',
  'flight.multiCrew': 'Opération multi-équipage',
@@ -15911,7 +15911,7 @@ const STRINGS = {
  'curr.approachesSub': 'Aucun vol depuis 6 mois',
  'curr.instTime': 'Temps instruments',
  'curr.instTimeUnit': '/ 6,0 h requises',
- 'curr.instTimeSub': 'Réel + capot + simulateur approuvé',
+ 'curr.instTimeSub': 'Réel + dispositif limitant la vue + simulateur approuvé',
  'curr.statusCurrent': 'Valide',
  'curr.statusLow': 'Faible',
  'curr.statusExpired': 'Expiré',
@@ -16036,7 +16036,7 @@ const STRINGS = {
  'csv.target.night': 'Temps de nuit',
  'csv.target.xc': 'Temps cross-country',
  'csv.target.instActual': 'IFR réel',
- 'csv.target.instHood': 'IFR sim/capot',
+ 'csv.target.instHood': 'IFR simulé / dispositif',
  'csv.target.approaches': 'Approches (nombre)',
  'csv.target.ldgDay': 'Atterrissages jour',
  'csv.target.ldgNight': 'Atterrissages nuit',
@@ -16385,7 +16385,7 @@ const STRINGS = {
  'col.xcDay': 'Cross-country jour', 'colShort.xcDay': 'XC Jr',
  'col.xcNight': 'Cross-country nuit', 'colShort.xcNight': 'XC Nt',
  'col.instActual': 'IFR réel', 'colShort.instActual': 'IFR R',
- 'col.instHood': 'IFR sous capot', 'colShort.instHood': 'IFR C',
+ 'col.instHood': 'IFR dispositif', 'colShort.instHood': 'IFR D',
  'col.instSim': 'IFR sim/FSTD', 'colShort.instSim': 'IFR Sim',
  'col.approaches': 'Approches', 'colShort.approaches': 'App',
  'col.toDay': 'Décollage jour', 'colShort.toDay': 'Déc Jr',
@@ -18177,7 +18177,7 @@ function _bfPageGroups() {
       open: false,
       fields: [
         { key: 'instActual',  labelEn: 'Actual (IMC)',              labelFr: 'Réel (IMC)' },
-        { key: 'instHood',    labelEn: 'Hood (view-limiting)',      labelFr: 'Sous capot (vue limitée)' },
+        { key: 'instHood',    labelEn: 'Hood (view-limiting)',      labelFr: 'Dispositif limitant la vue' },
         { key: 'instSim',     labelEn: 'FFS / FTD (simulator)',     labelFr: 'FFS / FTD (simulateur)' },
         { key: 'approaches',  labelEn: 'Approaches',                labelFr: 'Approches', integer: true },
       ],
@@ -19388,7 +19388,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-25-7ff86a9';
+const BUILD_VERSION = '2026-06-25-2b54583';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
