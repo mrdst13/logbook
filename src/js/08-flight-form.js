@@ -103,6 +103,11 @@ const LOGBOOK_COLUMNS = [
   // Engine class (Standard 421)
   { key: 'seDay',        label: 'SE Day',              short: 'SE Day',   group: 'Engine class',   width: 10, align: 'right', decimal: true, default: false },
   { key: 'seNight',      label: 'SE Night',            short: 'SE Ngt',   group: 'Engine class',   width: 10, align: 'right', decimal: true, default: false },
+  // SE dual-received (student / training). The form already saves these and
+  // calcStats counts them, but there was no column to display them — so a
+  // student's logged dual entries appeared to vanish. (Audit panel 2026-06-25.)
+  { key: 'seDayDual',    label: 'SE Day Dual',         short: 'SED Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
+  { key: 'seNightDual',  label: 'SE Night Dual',       short: 'SEN Dual', group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
   { key: 'meDayPic',     label: 'ME Day PIC',          short: 'MED PIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
   { key: 'meNightPic',   label: 'ME Night PIC',        short: 'MEN PIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: false },
   { key: 'meDayCop',     label: 'ME Day SIC',          short: 'MED SIC',  group: 'Engine class',   width: 11, align: 'right', decimal: true, default: true },
@@ -228,8 +233,12 @@ function getVisibleColumns(context = 'table') {
 // Compute derived fields on the fly (sum aggregates)
 function computeCellValue(f, key) {
   switch (key) {
-    case 'day':         return ((+f.meDayPic||0)+(+f.meDayCop||0)+(+f.meDayDual||0)+(+f.seDay||0));
-    case 'night':       return ((+f.meNightPic||0)+(+f.meNightCop||0)+(+f.meNightDual||0)+(+f.seNight||0));
+    // Day/Night columns of the certifiable PDF + logbook table: total time
+    // across EVERY class/role via the shared helpers. Previously excluded
+    // helicopter night and seNightDual, so a heli/student pilot's PDF showed
+    // 0h of night. (Audit panel 2026-06-25 must-fix #1.)
+    case 'day':         return dayHoursOf(f);
+    case 'night':       return nightHoursOf(f);
     case 'ifr':         return ((+f.instActual||0)+(+f.instHood||0));
     case 'vfr':         {
       const total = +f.total || +f.block || 0;
@@ -239,9 +248,11 @@ function computeCellValue(f, key) {
     case 'xcDay':       return ((+f.xcDayPic||0)+(+f.xcDayCop||0)+(+f.xcDayDual||0));
     case 'xcNight':     return ((+f.xcNightPic||0)+(+f.xcNightCop||0)+(+f.xcNightDual||0));
     case 'crewPosition': {
-      if ((+f.meDayPic||0)+(+f.meNightPic||0)+(+f.seDay||0) > 0) return 'PIC';
-      if ((+f.meDayDual||0)+(+f.meNightDual||0) > 0) return t('crewPos.dual');
-      if ((+f.meDayCop||0)+(+f.meNightCop||0) > 0) return 'SIC';
+      // Include helicopter + single-engine buckets so heli/SE pilots get a
+      // real crew position instead of '—'. (Audit panel 2026-06-25.)
+      if ((+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0)+(+f.seNight||0) > 0) return 'PIC';
+      if ((+f.meDayDual||0)+(+f.meNightDual||0)+(+f.heliDayDual||0)+(+f.heliNightDual||0)+(+f.seDayDual||0)+(+f.seNightDual||0) > 0) return t('crewPos.dual');
+      if ((+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0) > 0) return 'SIC';
       return '—';
     }
     case 'multiCrew':   return f.multiCrew ? '✓' : '—';
@@ -332,7 +343,10 @@ const AIRPORT_COORDS = {
 
 // ─────────────────────────────────────────────────────────────────
 //  GEO / DISTANCE — Haversine + Cross-Country detection
-//  CAR 401.34 : cross-country = straight-line distance > 25 NM (46.3 km)
+//  Cross-country (CAR 101.01 "cross-country flight time"): destination
+//  "at least 25 nautical miles from the point of departure" (≥ 25 NM = 46.3 km).
+//  Verified against laws-lois SOR-96-433 s.101.01, 2026-06-25. See
+//  docs/REGISTRE-REGLEMENTAIRE.md.
 // ─────────────────────────────────────────────────────────────────
 function haversineKM(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -348,18 +362,20 @@ function isCrossCountry(depICAO, arrICAO) {
   if (!depICAO || !arrICAO || depICAO === arrICAO) return false;
   const dep = AIRPORT_COORDS[depICAO];
   const arr = AIRPORT_COORDS[arrICAO];
-  if (!dep || !arr) {
-    // Unknown airports — conservative: assume XC if ICAO codes differ
-    return depICAO !== arrICAO;
-  }
-  return haversineKM(dep.lat, dep.lon, arr.lat, arr.lon) > 46.3;
+  // Unknown airport(s): distance can't be measured, so we must NOT assert
+  // cross-country from differing ICAO codes alone — two strips 5 NM apart have
+  // different codes. Return null = "unknown"; callers leave XC empty rather
+  // than fabricate certifiable XC time. (Opus audit — XC over-detection.)
+  if (!dep || !arr) return null;
+  // "at least 25 NM" = ≥ 25 NM (46.3 km). Inclusive per CAR 101.01.
+  return haversineKM(dep.lat, dep.lon, arr.lat, arr.lon) >= 46.3;
 }
 
 // ─────────────────────────────────────────────────────────────────
 //  SUNRISE / SUNSET — NOAA solar position algorithm
 //  Returns { sunriseUTC, sunsetUTC, polar } for the given UTC date + coords
 // ─────────────────────────────────────────────────────────────────
-function calcSunriseSunset(date, lat, lon) {
+function calcSunriseSunset(date, lat, lon, zenithDeg) {
   const y = date.getUTCFullYear();
   const m = date.getUTCMonth() + 1;
   const d = date.getUTCDate();
@@ -376,7 +392,10 @@ function calcSunriseSunset(date, lat, lon) {
   const solarNoonMin = 720 - 4*lon - eot;
 
   const latRad = lat * Math.PI / 180;
-  const zenith = 90.833 * Math.PI / 180;
+  // Default 90.833° = geometric sunrise/sunset (incl. atmospheric refraction).
+  // Pass 96° for civil twilight (sun 6° below the horizon) — the boundary the
+  // Canadian definition of "night" (CAR 101.01) is built on.
+  const zenith = (zenithDeg || 90.833) * Math.PI / 180;
   const cosH = (Math.cos(zenith) - Math.sin(latRad)*Math.sin(decl))
              / (Math.cos(latRad) * Math.cos(decl));
 
@@ -395,18 +414,21 @@ function calcSunriseSunset(date, lat, lon) {
   };
 }
 
-// "Is this UTC time considered night under RAC 101.01 at this location?"
-// Night = from 30 min after sunset to 30 min before sunrise.
+// "Is this UTC time night under CAR 101.01 at this location?"
+// Canadian "night" = the period between the END of evening civil twilight and
+// the BEGINNING of morning civil twilight (sun 6° below the horizon → zenith
+// 96°). This replaces the old/repealed "sunset +30 min / sunrise −30 min"
+// rule, which materially over- or under-counted night at the high/bush
+// latitudes Cumulo serves. (Opus audit C1; confirmed as the official
+// Transport Canada definition.)
 function isNightUTC(utcTime, lat, lon) {
-  const ss = calcSunriseSunset(utcTime, lat, lon);
-  if (ss.polar === 'night') return true;
-  if (ss.polar === 'day')   return false;
-  const halfHour = 30 * 60 * 1000;
-  const nightStart = new Date(ss.sunsetUTC.getTime() + halfHour);
-  const nightEndMorning = new Date(ss.sunriseUTC.getTime() - halfHour);
-  // RAC night spans midnight: it's night either after nightStart (today)
-  // or before nightEndMorning (today, early hours).
-  return utcTime >= nightStart || utcTime <= nightEndMorning;
+  const ct = calcSunriseSunset(utcTime, lat, lon, 96);  // civil-twilight boundaries
+  if (ct.polar === 'night') return true;   // sun never reaches −6°: always night
+  if (ct.polar === 'day')   return false;  // sun never drops to −6°: no civil night
+  // ct.sunsetUTC  = end of evening civil twilight; ct.sunriseUTC = beginning of
+  // morning civil twilight. Night spans midnight, so it's night when the time
+  // is after evening twilight ends OR before morning twilight begins.
+  return utcTime >= ct.sunsetUTC || utcTime <= ct.sunriseUTC;
 }
 
 // Calculate the day/night split (in hours) of a flight given its
@@ -590,6 +612,11 @@ function extractNavblueCrew(desc) {
   return out;
 }
 
+// Deadhead / positioning markers — shared so the iCal path skips the same
+// non-flown legs the PDF roster import does. P\d{5} = Navblue positioning;
+// \bP\d{5}\b never matches real flight numbers like PD150 (P then a letter).
+const DEADHEAD_RE = /\(D\)|\bDH\b|\bDHD\b|\bDEADHEAD\b|\bPAX\b|\bP\d{5}\b/i;
+
 // Convert one Navblue VEVENT into a Cumulo flight object.
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
@@ -601,7 +628,11 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   // Filter: only flights from the airlines the pilot operates (per profile)
   // Default = PD (Porter). Configurable in Profile > Operator Codes.
   if (!getOperatorFlightRegex().test(summary)) return null;
-  if (summary.includes('(D)')) return null;
+  // Deadhead / positioning legs are NOT flown time. Exclude them so they are
+  // never logged as SIC time in a certifiable logbook. Broadened beyond the
+  // bare "(D)" marker to the same codes the PDF roster import skips: DH/DHD/
+  // DEADHEAD/PAX and Navblue P##### positioning. (Audit panel 2026-06-25 #7.)
+  if (DEADHEAD_RE.test(summary)) return null;
 
   // Parse SUMMARY: "PD274 YYC-YOW"
   const parts = summary.split(/\s+/);
@@ -655,7 +686,10 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   }
 
   // ── Cross-Country detection (CAR 401.34: > 25 NM) ──
+  // null = unknown airport(s): leave XC EMPTY (undefined) instead of guessing,
+  // so we never fabricate certifiable XC time. (Opus audit — XC over-detection.)
   const isXC = isCrossCountry(depICAO, arrICAO);
+  const xcKnown = isXC !== null;
 
   // ── Landing day/night based on arrival UTC time + arrival airport coords ──
   let ldgDay = 1, ldgNight = 0;
@@ -669,10 +703,10 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const meNightPic  = role === 'pic' ? nightHours : 0;
   const meDayCop    = role === 'cop' ? dayHours   : 0;
   const meNightCop  = role === 'cop' ? nightHours : 0;
-  const xcDayPic    = isXC && role === 'pic' ? dayHours   : 0;
-  const xcNightPic  = isXC && role === 'pic' ? nightHours : 0;
-  const xcDayCop    = isXC && role === 'cop' ? dayHours   : 0;
-  const xcNightCop  = isXC && role === 'cop' ? nightHours : 0;
+  const xcDayPic    = !xcKnown ? undefined : (isXC && role === 'pic' ? dayHours   : 0);
+  const xcNightPic  = !xcKnown ? undefined : (isXC && role === 'pic' ? nightHours : 0);
+  const xcDayCop    = !xcKnown ? undefined : (isXC && role === 'cop' ? dayHours   : 0);
+  const xcNightCop  = !xcKnown ? undefined : (isXC && role === 'cop' ? nightHours : 0);
 
   // Extract crew names from iCal DESCRIPTION — zero-click captain capture.
   // The user (Porter F/O Martin) does NOT want to upload a PDF roster
@@ -927,7 +961,14 @@ async function syncNavblueNow(opts) {
       let changed = false;
       const merged = { ...e };
       mergeFields.forEach(k => {
-        if ((merged[k] === undefined || merged[k] === '' || merged[k] === 0 || merged[k] === null) && f[k] !== undefined && f[k] !== '' && f[k] !== 0) {
+        // Fill ONLY genuinely-empty existing slots. An explicit 0 the pilot (or
+        // a prior fill) recorded is a REAL value — never treat it as empty and
+        // overwrite it (e.g. multiCrew=0 must not be clobbered to the iCal
+        // default of 1). Mirrors the strict undefined/null/'' rule used by the
+        // recalc. (Opus audit — iCal merge "explicit 0 = real value".)
+        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
+        const incomingPresent = (f[k] !== undefined && f[k] !== null && f[k] !== '');
+        if (existingEmpty && incomingPresent) {
           merged[k] = f[k];
           changed = true;
         }

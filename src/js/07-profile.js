@@ -45,6 +45,10 @@ function adaptFormToProfile(type) {
 
   // Reset everything to default (airline705) first
   ['fg-block', 'fg-duty', 'fg-me-day-cop', 'fg-me-night-cop', 'fg-picus'].forEach(show);
+  // Class-specific cards: ME shown by default; SE + Heli hidden until a
+  // matching pilot type asks for them. (Opus audit C4 — these inputs were
+  // missing, so SE/heli/instructor pilots logged zero.)
+  show('fg-me-card'); hide('fg-se-card'); hide('fg-heli-card'); hide('fg-dualgiven-card');
   setLbl('f-pic',          t('flight.pic'));
   setLbl('f-copilot',      t('flight.copilot'));
   setLbl('f-me-day-pic',   t('flight.meDayPic'));
@@ -57,12 +61,14 @@ function adaptFormToProfile(type) {
     hide('fg-me-day-cop');
     hide('fg-me-night-cop');
     hide('fg-picus');
+    show('fg-se-card');   // most private/recreational flying is single-engine
   } else if (type === 'student') {
     hide('fg-block');
     hide('fg-duty');
     hide('fg-me-day-cop');
     hide('fg-me-night-cop');
     hide('fg-picus');
+    show('fg-se-card');   // training is mostly single-engine (dual + solo)
     setLbl('f-pic',          t('flight.studentInstructor'));
     setLbl('f-copilot',      t('flight.studentName'));
     setLbl('f-me-day-pic',   t('flight.meDaySolo'));
@@ -82,12 +88,14 @@ function adaptFormToProfile(type) {
     setLbl('f-me-night-pic', t('flight.meNightPicSoloEval'));
     setLbl('f-me-day-dual',  t('flight.meDayDualReceived'));
     setLbl('f-me-night-dual',t('flight.meNightDualReceived'));
+    show('fg-se-card');   // instructors mostly teach in single-engine trainers
+    show('fg-dualgiven-card');  // dual given = the instructor's ATPL-credit time
   } else if (type === 'helicopter') {
-    // Heli ops: hide ME airline labels which contaminate stats; rotorcraft
-    // hours live in the dedicated Heli columns (heliDayPic/heliNightPic
-    // etc.) which the table picker exposes by default for this type.
-    hide('fg-me-day-cop');
-    hide('fg-me-night-cop');
+    // Heli ops: the ME card contaminates rotorcraft stats — hide it and show
+    // the dedicated Helicopter card (heliDayPic/heliNightPic… + hover) so heli
+    // pilots can actually log their hours by hand. (Opus audit C4.)
+    hide('fg-me-card');
+    show('fg-heli-card');
     hide('fg-picus');
   }
 
@@ -122,12 +130,13 @@ function adaptFormToProfile(type) {
       advWrap.style.display = '';
       advBtn.style.display = 'none';
     } else {
-      // Only force collapsed state when we're not currently editing — the
-      // edit flow may have legitimately expanded the wrapper to show data.
-      if (typeof editingId === 'undefined' || !editingId) {
-        advWrap.style.display = 'none';
-      }
+      // Non-airline pilots' PRIMARY class card (Single-Engine / Helicopter) now
+      // lives inside this wrapper, so open it by default — otherwise they could
+      // not see their main inputs. Toggle stays visible so they can collapse it.
+      // (Opus audit C4.)
+      advWrap.style.display = '';
       advBtn.style.display = '';
+      advBtn.textContent = (typeof t === 'function') ? t('flight.hideAdvanced') : 'Hide advanced fields';
     }
   }
 }

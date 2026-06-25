@@ -1,34 +1,40 @@
 # Cumulo Worker
 
-Hardened Cloudflare Worker that fronts the Anthropic API + a Navblue iCal
-fetch proxy for the Cumulo Flight Deck PWA.
+Hardened Cloudflare Worker that fronts (1) the Anthropic API — used by the
+**monthly PDF roster import** to extract flights — and (2) an **iCal roster
+fetch proxy**, for the Cumulo Flight Deck PWA.
 
 Deployed at: `https://logbook-api.martindaoust33.workers.dev`
 
+> **⚠️ Known gap (Opus audit C7) — not yet fixed.** The Anthropic path is gated
+> only by a spoofable `Origin` header, so it is effectively an unauthenticated
+> relay to a PAID API. It is STILL REQUIRED (the PDF roster parser calls it), so
+> it must NOT be removed. The correct fix is to gate it behind a **verified
+> Supabase JWT** (not just an Origin check) and confirm an account-level monthly
+> spend cap — to be done carefully with testing, not a rushed change.
+
 ## Why this exists
 
-The browser PWA can't call `api.anthropic.com` directly:
-- the API key would be exposed in client JS
-- the iCal endpoint at `*.navblue.cloud` has no CORS headers, so a browser
-  fetch is blocked
-
-This Worker is the thin server-side layer that:
-1. Holds the Anthropic API key as a Cloudflare Secret (never in client)
-2. Proxies POST requests to `api.anthropic.com/v1/messages`
-3. Server-side fetches the user's Navblue iCal feed and streams it back
-   with proper CORS headers
+The browser PWA can't call `api.anthropic.com` directly (the API key would be
+exposed in client JS), and airline iCal feeds (e.g. `*.navblue.cloud`) have no
+CORS headers. This Worker is the thin server-side layer that:
+1. Holds the Anthropic API key as a Cloudflare Secret (never in client).
+2. Proxies validated POSTs to `api.anthropic.com/v1/messages` for PDF flight
+   extraction (server-pinned system prompt; only model/max_tokens/messages pass).
+3. Server-side fetches the user's iCal feed and streams it back with CORS.
 
 ## Security guarantees (defense in depth)
 
 | Guard | What it does |
 |---|---|
-| Origin allow-list | Only requests with `Origin: https://flycumulo.ca` (+ www, legacy GH Pages, dev localhosts) pass — blocks browser abuse from other sites |
-| Model allow-list | Only `claude-sonnet-4-6`, `claude-sonnet-4-5`, `claude-haiku-4-5*` accepted — bounds cost per request |
-| `max_tokens` cap | Hard-coded ceiling of 2048 — bounds cost per request |
-| Body size limit | 5 MB max (Content-Length check) — fits photo/PDF imports, blocks batch abuse |
-| Generic error messages | No `env.X` reflection — keys can't leak through reflected error strings |
-| Navblue SSRF lock | `fetch-ics` action only accepts URLs matching `https://*.navblue.cloud/` |
-| Account-level spend cap | Anthropic console enforces a $/month ceiling — last-resort safety net |
+| Origin allow-list | Only requests with an allow-listed `Origin` (flycumulo.ca, www, the Cloudflare Pages URL, dev localhosts) pass — blocks browser abuse from other sites. NOTE: spoofable outside a browser — see the C7 gap above. |
+| Model allow-list | Only `claude-sonnet-4-6/4-5`, `claude-haiku-4-5*` accepted — bounds cost per request |
+| `max_tokens` cap | Hard ceiling of 8192 — bounds output cost per request |
+| Body size limit | 5 MB max, measured on the ACTUAL bytes read (not the client-supplied Content-Length) |
+| Field whitelist + server-side system prompt | Only model/max_tokens/messages forwarded; the key can't be repurposed as a general LLM |
+| iCal HTTPS-only + size cap | `fetch-ics` accepts any **public HTTPS** feed (all airlines, not just Navblue), capped at 5 MB; internal/loopback SSRF blocked by the `global_fetch_strictly_public` compat flag |
+| Generic error messages | No `env.X` reflection — nothing leaks through reflected error strings |
+| Account-level spend cap | Anthropic console $/month ceiling — last-resort safety net (confirm it's set) |
 
 ## Files
 

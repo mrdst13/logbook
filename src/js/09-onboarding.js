@@ -134,8 +134,13 @@ function onboardingNext() {
       return;
     }
   } else if (onbStep === 3) {
-    // Pilot type captured on card click via onOnbPilotType(); default if untouched.
-    if (!onbData.pilotType) onbData.pilotType = 'airline705';
+    // Pilot type MUST be chosen explicitly — never silently assume airline705,
+    // which gave bush / private / helicopter pilots the wrong form and wrong
+    // auto-calculations. (Audit panel 2026-06-25 must-fix #5.)
+    if (!onbData.pilotType) {
+      showToast(t('onb.pilotTypeRequired'), 'error');
+      return;
+    }
   } else if (onbStep === 4) {
     onbData.license = document.getElementById('onb-license')?.value?.trim() || '';
     onbData.medical = document.getElementById('onb-medical')?.value || '';
@@ -365,11 +370,14 @@ function renderOnboardingStep() {
 
   // ─── Step 3: Pilot type ───────────────────────────────────────────
   else if (onbStep === 3) {
-    const selected = onbData.pilotType || 'airline705';
+    // No pre-selection — the pilot must actively pick (no card starts active).
+    const selected = onbData.pilotType || null;
     const card = (type, name, desc) => `
       <div class="profile-type-card ${type === selected ? 'active' : ''}"
            data-onb-pilot-type="${type}"
            onclick="onOnbPilotType('${type}')"
+           role="button" tabindex="0" aria-pressed="${type === selected}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();onOnbPilotType('${type}');}"
            style="cursor:pointer;">
         <div class="pt-name">${esc(name)}</div>
         <div class="pt-desc">${esc(desc)}</div>
@@ -386,9 +394,8 @@ function renderOnboardingStep() {
         ${card('helicopter',  t('profile.type.helicopter'), t('profile.type.helicopterDesc'))}
       </div>
     `;
-    // Make sure onbData.pilotType is set so Next captures correctly even
-    // if the pilot doesn't click (default = airline705, pre-selected card above).
-    if (!onbData.pilotType) onbData.pilotType = 'airline705';
+    // Intentionally NO default here — the Next handler blocks advancing until
+    // the pilot picks a type. (Audit panel 2026-06-25 must-fix #5.)
   }
 
   // ─── Step 4: License + medical ────────────────────────────────────

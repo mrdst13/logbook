@@ -149,12 +149,32 @@ function saveFlight(options) {
     xcDayPic: gv('f-xc-day-pic'),
     xcNightDual: gv('f-xc-night-dual'),
     xcNightPic: gv('f-xc-night-pic'),
-    ldgDay: isSim ? 0 : gv('f-ldg-day'),
-    ldgNight: isSim ? 0 : gv('f-ldg-night'),
+    // Take-offs + landings. Recorded for SIM too (manual entry, never assumed):
+    // a Level B/C/D full-flight-sim session counts toward recency under
+    // CAR 401.05(2)(b). Career landing totals still exclude sim (calcStats).
+    toDay: gv('f-to-day'),
+    toNight: gv('f-to-night'),
+    ldgDay: gv('f-ldg-day'),
+    ldgNight: gv('f-ldg-night'),
     instActual: gv('f-inst-actual'),
     instHood: gv('f-inst-hood'),
     instSim: isSim ? (gv('f-total') || gv('f-inst-sim')) : gv('f-inst-sim'),
     picus: gv('f-picus'),
+    // Single-engine (seDay/seNight = PIC buckets; *Dual = instruction received)
+    // and helicopter + hover. Empty unless the pilot-type form shows them.
+    seDay: isSim ? '' : gv('f-se-day'),
+    seNight: isSim ? '' : gv('f-se-night'),
+    seDayDual: isSim ? '' : gv('f-se-day-dual'),
+    seNightDual: isSim ? '' : gv('f-se-night-dual'),
+    heliDayPic: isSim ? '' : gv('f-heli-day-pic'),
+    heliNightPic: isSim ? '' : gv('f-heli-night-pic'),
+    heliDayCop: isSim ? '' : gv('f-heli-day-cop'),
+    heliNightCop: isSim ? '' : gv('f-heli-night-cop'),
+    heliDayDual: isSim ? '' : gv('f-heli-day-dual'),
+    heliNightDual: isSim ? '' : gv('f-heli-night-dual'),
+    hoverTime: isSim ? '' : gv('f-hover'),
+    dualGivenDay: isSim ? '' : gv('f-dualgiven-day'),
+    dualGivenNight: isSim ? '' : gv('f-dualgiven-night'),
     // Simulator fields (per CAR 401.08 — separate from flight time)
     isSim,
     simType: isSim ? gv('f-simType') : '',
@@ -162,6 +182,17 @@ function saveFlight(options) {
     simRegistration: isSim ? gv('f-simRegistration') : '',
     simInstructor: isSim ? gv('f-simInstructor') : '',
   };
+
+  // Safety net: if Total was left blank but Block is logged, Total = Block.
+  // The Block->Total auto-sync flag (f-total.dataset.autoFromBlock) can get
+  // stuck at '0' across the "add another leg" flow, so a later leg could be
+  // submitted with Total empty while Block > 0 — understating logged time.
+  // (Opus audit — Block/Total auto-sync edge case.) Only fills a BLANK total;
+  // an explicit 0 the pilot typed is respected.
+  if (!isSim && (flight.total === '' || flight.total === undefined || flight.total === null)
+      && (+flight.block || 0) > 0) {
+    flight.total = flight.block;
+  }
 
   // Normalize empty form values to undefined BEFORE recalc, so the
   // recalc fill-empty logic (which strict-checks undefined/null) actually
@@ -174,6 +205,14 @@ function saveFlight(options) {
     if (flight[k] === '' || flight[k] === undefined || flight[k] === null) {
       delete flight[k];   // mark empty so recalculateFlightDayNightXC() fills it
     }
+  });
+  // Manually-entered class fields (SE / helicopter / hover): drop empties so a
+  // blank field never stores '' and, on edit, never clobbers an existing value
+  // through the merge in saveFlight (these are not auto-filled by recalc).
+  ['seDay','seNight','seDayDual','seNightDual',
+   'heliDayPic','heliNightPic','heliDayCop','heliNightCop','heliDayDual','heliNightDual',
+   'hoverTime','dualGivenDay','dualGivenNight','toDay','toNight'].forEach(k => {
+    if (flight[k] === '' || flight[k] === undefined || flight[k] === null) delete flight[k];
   });
 
   // Diversion handling : if the pilot edited the route on an existing
@@ -202,14 +241,36 @@ function saveFlight(options) {
 
   if (editingId) {
     const idx = flights.findIndex(f => f.id === editingId);
-    if (idx !== -1) flights[idx] = finalFlight;
+    if (idx !== -1) {
+      // MERGE onto the existing row — do NOT replace it. The form only reads
+      // ~30 fields; a full replacement silently dropped every field with no
+      // form input (approaches, xc*Cop, se*, heli*, hoverTime, dualGiven*,
+      // to*, flightNum, via, crewPosition, multiCrew, dtstart_utc, source…).
+      // An F/O editing an imported flight was losing IFR approaches + XC.
+      // (Opus audit C3, 2026-06-24.) Form + recalc values overlay on top.
+      const existingRow = flights[idx] || {};
+      flights[idx] = { ...existingRow, ...finalFlight };
+    }
     editingId = null;
   } else {
     flights.push(finalFlight);
   }
 
   DB.save(flights);
-  showToast(t('toast.flightSaved'), 'success');
+
+  // Warn (never fabricate) when block time was logged but NO creditable class/
+  // role time could be attributed — e.g. an F/O who entered block without a UTC
+  // time and didn't expand the ME fields. The flight is still saved (total is
+  // kept), but the pilot is told their PIC/SIC/day/night breakdown is empty so
+  // they can add a UTC time or fill the fields, rather than silently banking 0h
+  // of creditable time. (Audit panel 2026-06-25 must-fix #4.)
+  const _attributed = (typeof dayHoursOf === 'function')
+    ? (dayHoursOf(finalFlight) + nightHoursOf(finalFlight)) : 1;
+  if (!isSim && (+finalFlight.block || 0) > 0 && _attributed === 0) {
+    showToast(t('toast.timeUnattributed'), 'warning');
+  } else {
+    showToast(t('toast.flightSaved'), 'success');
+  }
 
   if (opts.addAnother) {
     // Stay on Add Flight. Reset most fields but keep Date / Aircraft type / Reg
@@ -255,7 +316,15 @@ function editFlight(id) {
   sv('f-me-night-dual', f.meNightDual); sv('f-me-night-pic', f.meNightPic); sv('f-me-night-cop', f.meNightCop);
   sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic);
   sv('f-xc-night-dual', f.xcNightDual); sv('f-xc-night-pic', f.xcNightPic);
+  sv('f-to-day', f.toDay); sv('f-to-night', f.toNight);
   sv('f-ldg-day', f.ldgDay); sv('f-ldg-night', f.ldgNight);
+  sv('f-se-day', f.seDay); sv('f-se-night', f.seNight);
+  sv('f-se-day-dual', f.seDayDual); sv('f-se-night-dual', f.seNightDual);
+  sv('f-heli-day-pic', f.heliDayPic); sv('f-heli-night-pic', f.heliNightPic);
+  sv('f-heli-day-cop', f.heliDayCop); sv('f-heli-night-cop', f.heliNightCop);
+  sv('f-heli-day-dual', f.heliDayDual); sv('f-heli-night-dual', f.heliNightDual);
+  sv('f-hover', f.hoverTime);
+  sv('f-dualgiven-day', f.dualGivenDay); sv('f-dualgiven-night', f.dualGivenNight);
   sv('f-inst-actual', f.instActual); sv('f-inst-hood', f.instHood); sv('f-inst-sim', f.instSim);
   sv('f-picus', f.picus);
   if (f.isSim) {
@@ -300,9 +369,17 @@ function isTombstoned(incoming) {
   const tombs = loadTombstones();
   const key = `${incoming.date}|${incoming.flightNum || ''}|${(incoming.route || '').toUpperCase().replace(/\s/g, '')}`;
   const inBlock = +incoming.block || 0;
+  // The loose date+block fallback catches a re-import whose flightNum/route
+  // shifted slightly after a deletion — but it must NOT permanently suppress a
+  // genuinely different flight flown on the same day with a similar block time.
+  // So: strict key match suppresses forever; the loose match only applies for a
+  // bounded window after the deletion. (Opus audit — tombstone over-suppression.)
+  const LOOSE_TTL_MS = 60 * 24 * 3600 * 1000; // 60 days
   return tombs.some(t =>
     t.key === key ||
-    (t.date === incoming.date && Math.abs((t.block || 0) - inBlock) <= 0.15)
+    (t.date === incoming.date &&
+     Math.abs((t.block || 0) - inBlock) <= 0.15 &&
+     (Date.now() - (t.at || 0)) <= LOOSE_TTL_MS)
   );
 }
 
@@ -345,11 +422,20 @@ function clearForm() {
    'f-block','f-duty','f-total','f-atd-utc','f-ata-utc',
    'f-me-day-dual','f-me-day-pic','f-me-day-cop',
    'f-me-night-dual','f-me-night-pic','f-me-night-cop','f-xc-day-dual','f-xc-day-pic',
-   'f-xc-night-dual','f-xc-night-pic','f-ldg-day','f-ldg-night',
+   'f-xc-night-dual','f-xc-night-pic','f-to-day','f-to-night','f-ldg-day','f-ldg-night',
+   'f-se-day','f-se-night','f-se-day-dual','f-se-night-dual',
+   'f-heli-day-pic','f-heli-night-pic','f-heli-day-cop','f-heli-night-cop',
+   'f-heli-day-dual','f-heli-night-dual','f-hover','f-dualgiven-day','f-dualgiven-night',
    'f-inst-actual','f-inst-hood','f-inst-sim','f-picus'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  // Reset the Block->Total auto-sync flag so the NEXT leg auto-fills Total
+  // again (it gets stuck at '0' once a pilot types Total on a prior leg).
+  // (Opus audit — Block/Total auto-sync edge case.)
+  const totalEl = document.getElementById('f-total');
+  if (totalEl) totalEl.dataset.autoFromBlock = '1';
+
   // Clear any leftover validation messages.
   document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
   if (typeof validateFlightForm === 'function') validateFlightForm();

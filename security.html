@@ -281,7 +281,7 @@ footer {
 <div class="nav-links">
   <a href="index.html">Home</a>
   <a href="privacy.html">Privacy</a>
-  <a href="logbook.html?v=2026-06-24-1046b29">Open app →</a>
+  <a href="logbook.html?v=2026-06-25-c08b6ea">Open app →</a>
 </div>
 </nav>
 
@@ -297,7 +297,7 @@ footer {
   </div>
   <div class="promise">
     <div class="promise-title">Encrypted in transit and at rest</div>
-    <div class="promise-body">When optional cloud backup launches and you enable it, your data will be encrypted while it travels (TLS 1.3) and while it sits on disk (AES-256). Local data on your device is bound to your operating system's account security.</div>
+    <div class="promise-body">When you enable optional cloud backup, your data is encrypted while it travels (TLS 1.3) and while it sits on disk (AES-256). Local data on your device is bound to your operating system's account security.</div>
   </div>
   <div class="promise">
     <div class="promise-title">You own every byte</div>
@@ -320,7 +320,6 @@ footer {
     <ul>
       <li>Keep your flights, profile, and a sync audit trail.</li>
       <li>Send transactional emails only (password resets, billing receipts).</li>
-      <li>Process AI photo imports through Anthropic, only when you trigger it. The image leaves your device only at that moment and is not retained.</li>
       <li>Anonymize crew names by default when data leaves your device, unless you've opted in explicitly.</li>
     </ul>
   </div>
@@ -344,10 +343,10 @@ footer {
   <div class="tech-body">
 
     <h4>Hosting</h4>
-    <p>Cloud sync (launching soon) will run on Supabase in <code>ca-central-1</code> (Montréal, Québec). Static pages and the iCal proxy run on Cloudflare's edge network. Auxiliary services that briefly touch your data (Anthropic for OCR) are explicitly disclosed in the Privacy Policy and are opt-in per feature.</p>
+    <p>Cloud sync runs on Supabase in <code>ca-central-1</code> (Montréal, Québec). Static pages and the iCal proxy run on Cloudflare's edge network. Any auxiliary service that briefly touches your data is explicitly disclosed in the Privacy Policy and is opt-in per feature.</p>
 
     <h4>Encryption</h4>
-    <p>Transit: TLS 1.3 with modern ciphers, HSTS enforced. At rest (once cloud sync launches): AES-256, managed by Supabase. On your device: relies on your operating system's disk encryption (FileVault, BitLocker, iOS Data Protection).</p>
+    <p>Transit: TLS 1.3 with modern ciphers, HSTS enforced. At rest: AES-256, managed by Supabase. On your device: relies on your operating system's disk encryption (FileVault, BitLocker, iOS Data Protection).</p>
 
     <h4>Access control</h4>
     <p>Database rows are tagged with your user ID and enforced by Postgres row-level security. There is no admin bypass — Cumulo's own queries follow the same policies. Authentication uses email and password with optional TOTP two-factor (no SMS, which is vulnerable to SIM swap).</p>

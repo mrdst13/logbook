@@ -163,8 +163,10 @@ const COLUMN_PRESETS = {
   // Private GA / PPL — recreational, fewer fields, currency-focused
   'private': ['date','type','reg','route','day','night','ldgDay','ldgNight','block','total'],
 
-  // Student — solo vs dual instruction, instructor name
-  'student': ['date','type','reg','route','pic','meDayDual','meNightDual','meDayPic','meNightPic','ldgDay','block','total'],
+  // Student — single-engine dual + solo. Uses SE columns (the form saves
+  // student time to seDayDual/seNightDual/seDay/seNight, not the ME buckets),
+  // so their logged entries actually show up. (Audit panel 2026-06-25 #6.)
+  'student': ['date','type','reg','route','seDayDual','seNightDual','seDay','seNight','ldgDay','ldgNight','block','total'],
 
   // Compact F/O 705 — kept for backward compatibility (this was the only
   // option before 2026-05-14; aliased to 'airline-fo').

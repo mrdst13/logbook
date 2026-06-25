@@ -118,6 +118,23 @@ function injectDemoBanner() {
      // Best-effort flush — we're on the way out, can't recover here.
    }
  });
+
+ // Cross-tab safety: when ANOTHER tab writes the logbook, adopt its version
+ // into this tab's in-memory `flights` and re-render. Without this, a stale
+ // background tab's hidden-save (above) could clobber a flight added in the
+ // other tab. (Opus audit — cross-tab concurrency.)
+ window.addEventListener('storage', (e) => {
+   if (!e || e.key !== DB.key || e.newValue == null) return;
+   if (typeof DEMO_MODE !== 'undefined' && DEMO_MODE) return;
+   try {
+     flights = DB.load();
+     if (typeof renderDashboard === 'function') renderDashboard();
+     if (typeof renderLogbook === 'function') renderLogbook();
+     if (typeof updateUndoButton === 'function') updateUndoButton();
+   } catch (e2) {
+     // Best-effort cross-tab refresh — ignore if a render isn't ready yet.
+   }
+ });
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();

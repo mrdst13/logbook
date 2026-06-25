@@ -477,6 +477,11 @@ function _generatePDF() {
     const ldg90Day = recent90.reduce((s, f) => s + (+f.ldgDay || 0), 0);
     const ldg90Night = recent90.reduce((s, f) => s + (+f.ldgNight || 0), 0);
     const ldg90Total = ldg90Day + ldg90Night;
+    // Passenger-carrying recency is a 6-MONTH window (CAR 401.05(2)), not 90 days.
+    const ldg6mDay = recent6m.reduce((s, f) => s + (+f.ldgDay || 0), 0);
+    const ldg6mNight = recent6m.reduce((s, f) => s + (+f.ldgNight || 0), 0);
+    const ldg6mTotal = ldg6mDay + ldg6mNight;
+    const to6m = recent6m.filter(f => !f.isSim).length; // take-offs = real flight legs
     // CAR 401.05: 6 instrument approaches in 6 months. Counter is approaches only.
     const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
     const instHours6m = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
@@ -486,15 +491,15 @@ function _generatePDF() {
         title: 'Passenger-carrying currency (Day)',
         reg: 'CAR 401.05(2)(a)',
         requirement: '5 take-offs and 5 landings within preceding 6 months',
-        current: `${recent6m.length} flight${recent6m.length !== 1 ? 's' : ''} in last 6 months · ${ldg90Total} landing${ldg90Total !== 1 ? 's' : ''} in last 90 days`,
-        ok: recent6m.length >= 5 && ldg90Total >= 5
+        current: `${to6m} take-off${to6m !== 1 ? 's' : ''} · ${ldg6mTotal} landing${ldg6mTotal !== 1 ? 's' : ''} in last 6 months`,
+        ok: to6m >= 5 && ldg6mTotal >= 5
       },
       {
         title: 'Passenger-carrying currency (Night)',
         reg: 'CAR 401.05(2)(b)',
         requirement: '5 night take-offs and 5 night landings within preceding 6 months',
-        current: `${ldg90Night} night landing${ldg90Night !== 1 ? 's' : ''} in last 90 days`,
-        ok: ldg90Night >= 5
+        current: `${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
+        ok: ldg6mNight >= 5
       },
       {
         title: 'IFR currency — approaches',

@@ -158,22 +158,24 @@ async function parseNavbluePDF(input) {
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-            { type: 'text', text: `This is a Navblue HrRosterReport PDF for an airline pilot. Extract ONLY real flight legs the pilot operated.
+            { type: 'text', text: `This is an airline crew roster (e.g. Navblue HrRosterReport) PDF. Extract ONLY the real flight legs the pilot operated as crew.
 
-SKIP these activity codes (NOT flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, RDG, P##### (P followed by 5 digits = deadhead positioning).
+SKIP these activity codes (NOT flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, DHD, RDG, PAX, P##### (P followed by 5 digits = deadhead positioning).
 
-KEEP only revenue flights (typically airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) where the pilot was operating as crew.
+KEEP only revenue flights (airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) where the pilot operated as crew.
 
 Output a JSON array. If nothing to extract, output [].
-Format per flight:
-{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain Name","copilot":"","route":"YOW-YYZ","block":1.10,"duty":1.50,"total":1.10,"meDayCop":1.10,"meNightCop":0,"meDayPic":0,"meNightPic":0,"meDayDual":0,"meNightDual":0,"xcDayPic":0,"xcNightPic":0,"xcDayDual":0,"xcNightDual":0,"ldgDay":1,"ldgNight":0,"instActual":0,"picus":0}
+One object per leg with EXACTLY these fields:
+{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain name or empty","copilot":"F/O name or empty","route":"YOW-YYZ","block":1.10,"duty":1.50,"atd_utc":"1230","sta_utc":"1345","ldg":1}
 
 RULES:
-- Only completed flights (date <= today)
-- BLH column = block hours (convert HH:MM to decimal, e.g. 4:30 → 4.50)
-- Pilot is F/O (SIC): put block into meDayCop (day landings) or meNightCop (night landings)
-- ldgDay/ldgNight: 1 per leg landing during day/night
-- type: "E195-E2" for 295, "DH4" for Dash 8 Q400` }
+- Only completed flights (date <= today).
+- block = BLH column, HH:MM → decimal (e.g. 4:30 → 4.50).
+- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"); if only a scheduled time is shown, use it. sta_utc = arrival UTC "HHMM" if available, else "".
+- route = departure-arrival as 3-letter IATA (e.g. "YOW-YYZ").
+- ldg = number of landings on the leg (normally 1).
+- type: "E195-E2" for 295, "DH4" for Dash 8 Q400.
+- DO NOT compute day vs night, PIC vs SIC, or cross-country — leave those out entirely. The app computes them from the real UTC times and the pilot's own profile (never assumed).` }
           ]
         }]
       })
@@ -237,8 +239,27 @@ RULES:
       return;
     }
 
+    // Compute the REAL day/night/XC split + role attribution from the actual
+    // UTC times and the pilot's profile — never fabricated from the landing.
+    // Legs the app can't anchor (unknown airport / no usable time) are left
+    // empty and flagged so the preview shows "night to confirm" instead of
+    // silently logging 0. (Audit panel 2026-06-25 must-fix #3 + #5.)
+    const processed = filtered.map(f => {
+      const flight = { ...f };
+      if (!(+flight.total) && +flight.block) flight.total = +flight.block;
+      if (flight.atd_utc != null && flight.atd_utc !== '') {
+        flight.atd_utc = String(flight.atd_utc).replace(/\D/g, '').padStart(4, '0').slice(0, 4);
+      }
+      const out = (typeof recalculateFlightDayNightXC === 'function')
+        ? recalculateFlightDayNightXC(flight) : flight;
+      const attributed = (typeof nightHoursOf === 'function')
+        && (nightHoursOf(out) > 0 || dayHoursOf(out) > 0);
+      if (!attributed && (+out.block > 0)) out._needsDayNight = true;
+      return out;
+    });
+
     box.classList.remove('show');
-    showImportPreview(filtered, t('import.preview.subtitle', { n: filtered.length }));
+    showImportPreview(processed, t('import.preview.subtitle', { n: processed.length }));
   } catch(e) {
     box.classList.remove('show');
     showToast(t('import.ai.failed'), 'error');
@@ -288,6 +309,7 @@ function renderImportPreview() {
             ${(f.meDayCop || f.meNightCop) ? `<div class="review-field"><span>${t('import.preview.fieldSic')}</span> ${((+f.meDayCop||0)+(+f.meNightCop||0)).toFixed(2)}h</div>` : ''}
             <div class="review-field"><span>${t('import.preview.fieldLdg')}</span> ${(+f.ldgDay || 0) + (+f.ldgNight || 0)}</div>
             ${f.pic ? `<div class="review-field"><span>${t('import.preview.fieldPic')}</span> ${esc(f.pic)}</div>` : ''}
+            ${f._needsDayNight ? `<div class="review-field" style="color:var(--warning)"><span>⚠︎</span> ${esc(t('import.preview.nightToConfirm'))}</div>` : ''}
           </div>
         </div>
       </label>`).join('')}

@@ -144,24 +144,31 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
 
 // ─── IFR currency drill-down ───────────────────────────────────────
 function _drillIFR(fr, addBtn, logbookBtn) {
-  const count = (typeof _dashApproachesIn6mo === 'function') ? _dashApproachesIn6mo() : 0;
+  // CAR 401.05(3.1): BOTH 6 instrument approaches AND 6 hours instrument time
+  // in the 6 months (instrument time incl. simulator per CAR 101.01).
+  const ifr = (typeof _dashIFRCurrency === 'function')
+    ? _dashIFRCurrency()
+    : { approaches: 0, hours: 0, current: false };
+  const count = ifr.approaches;
   const need = Math.max(0, 6 - count);
-  const status = count >= 6
+  const needHrs = Math.max(0, 6 - ifr.hours);
+  const status = ifr.current
     ? (fr ? 'À JOUR' : 'CURRENT')
-    : count >= 4 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
+    : (count >= 4 && ifr.hours >= 4) ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
   // Last 6 months of approaches, grouped by date — gives the pilot a visual
   // confirmation of which flights count toward the 6-in-6 minimum.
-  const cutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const cutoff = sixMonthCutoffStr();
   const contributing = (Array.isArray(flights) ? flights : [])
     .filter(f => f.date >= cutoff && (+f.approaches || 0) > 0)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .slice(0, 10);
 
   const rows = [
-    { k: fr ? 'Approches IFR dans 6 mois' : 'IFR approaches in 6 months', v: `<strong>${count}</strong> / 6` },
-    { k: fr ? 'Manquantes pour ÷à jour'    : 'Needed to be current',       v: need > 0 ? `${need}` : (fr ? 'aucune' : 'none') },
-    { k: 'Status', v: `<span class="dash-drill-pill ${count >= 6 ? 'ok' : count >= 4 ? 'warn' : 'bad'}">${status}</span>` },
+    { k: fr ? 'Approches IFR (6 mois)' : 'IFR approaches (6 months)', v: `<strong>${count}</strong> / 6` },
+    { k: fr ? 'Temps aux instruments (6 mois)' : 'Instrument time (6 months)', v: `<strong>${ifr.hours.toFixed(1)}</strong> / 6 h` },
+    { k: fr ? 'Manquant pour être à jour' : 'Needed to be current', v: (need > 0 || needHrs > 0) ? `${need > 0 ? need + (fr ? ' appr.' : ' appr') : ''}${need > 0 && needHrs > 0 ? ' + ' : ''}${needHrs > 0 ? needHrs.toFixed(1) + ' h' : ''}` : (fr ? 'aucun' : 'none') },
+    { k: 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : (count >= 4 && ifr.hours >= 4) ? 'warn' : 'bad'}">${status}</span>` },
   ];
 
   let list = '';
@@ -177,33 +184,53 @@ function _drillIFR(fr, addBtn, logbookBtn) {
   }
 
   return {
-    eyebrow: fr ? 'CAR 401.05(2) · INSTRUMENTS' : 'CAR 401.05(2) · INSTRUMENTS',
+    eyebrow: fr ? 'CAR 401.05(3.1) · INSTRUMENTS' : 'CAR 401.05(3.1) · INSTRUMENTS',
     title: fr ? 'Validité IFR' : 'IFR Currency',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
-      ? 'Règle : 6 approches IFR (ILS / RNAV / VOR / visuelle après IAP) dans les 6 derniers mois.'
-      : 'Rule: 6 IFR approaches (ILS / RNAV / VOR / visual after IAP) in the past 6 months.'}</div>`,
+      ? 'Règle (CAR 401.05(3.1)) : dans les 6 derniers mois, 6 approches IFR (ILS / RNAV / VOR / visuelle après IAP) ET 6 h de temps aux instruments (le temps en simulateur compte — CAR 101.01).'
+      : 'Rule (CAR 401.05(3.1)): in the past 6 months, 6 IFR approaches (ILS / RNAV / VOR / visual after IAP) AND 6 hours of instrument time (simulator time counts — CAR 101.01).'}</div>`,
     foot: `${logbookBtn(fr ? 'Voir le carnet' : 'See logbook')} ${addBtn(fr ? 'Enregistrer un vol' : 'Log a flight')}`
   };
 }
 
 // ─── Recency drill-down (5 landings / 6 months) ────────────────────
 function _drillRecency(fr, addBtn, logbookBtn) {
-  const count = (typeof _dashLandingsIn6mo === 'function') ? _dashLandingsIn6mo() : 0;
+  const to = (typeof _dashTakeoffsIn6mo === 'function') ? _dashTakeoffsIn6mo() : 0;
+  const ldg = (typeof _dashLandingsIn6mo === 'function') ? _dashLandingsIn6mo() : 0;
+  const count = Math.min(to, ldg);
   const need = Math.max(0, 5 - count);
   const status = count >= 5 ? (fr ? 'À JOUR' : 'CURRENT')
                 : count >= 3 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
                 : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
-  const cutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
-  const contributing = (Array.isArray(flights) ? flights : [])
-    .filter(f => f.date >= cutoff && ((+f.ldgDay || 0) + (+f.ldgNight || 0)) > 0)
+  const cutoff = sixMonthCutoffStr();
+  const eligible = (Array.isArray(flights) ? flights : [])
+    .filter(f => f.date >= cutoff && (typeof countsTowardRecency !== 'function' || countsTowardRecency(f)));
+
+  // Night passenger recency (CAR 401.05(2)(b)(i)(B)): 5 night take-offs + 5
+  // night landings in 6 months if the flight is wholly or partly by night.
+  // Only EXPLICIT night take-offs/landings count — never inferred (a day take-off
+  // can precede a night landing). Sim gated to FFS by countsTowardRecency.
+  const nightTO  = eligible.reduce((s, f) => s + (+f.toNight  || 0), 0);
+  const nightLdg = eligible.reduce((s, f) => s + (+f.ldgNight || 0), 0);
+  const nightCount = Math.min(nightTO, nightLdg);
+  const nightStatus = nightCount >= 5 ? (fr ? 'À JOUR' : 'CURRENT')
+                    : nightCount >= 3 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
+                    : (fr ? 'À CONFIRMER' : 'CHECK');
+
+  const contributing = eligible
+    .filter(f => ((+f.ldgDay || 0) + (+f.ldgNight || 0)) > 0)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .slice(0, 10);
 
   const rows = [
-    { k: fr ? 'Atterrissages dans 6 mois' : 'Landings in 6 months', v: `<strong>${count}</strong> / 5` },
-    { k: fr ? 'Manquants pour à jour'      : 'Needed to be current',  v: need > 0 ? `${need}` : (fr ? 'aucun' : 'none') },
-    { k: 'Status', v: `<span class="dash-drill-pill ${count >= 5 ? 'ok' : count >= 3 ? 'warn' : 'bad'}">${status}</span>` },
+    { k: fr ? 'Décollages jour/nuit (6 mois)' : 'Take-offs day/night (6 months)', v: `<strong>${to}</strong> / 5` },
+    { k: fr ? 'Atterrissages jour/nuit (6 mois)' : 'Landings day/night (6 months)',  v: `<strong>${ldg}</strong> / 5` },
+    { k: fr ? 'Manquants pour être à jour' : 'Needed to be current', v: need > 0 ? `${need}` : (fr ? 'aucun' : 'none') },
+    { k: fr ? 'État (jour)' : 'Status (day)', v: `<span class="dash-drill-pill ${count >= 5 ? 'ok' : count >= 3 ? 'warn' : 'bad'}">${status}</span>` },
+    { k: fr ? 'Décollages de NUIT (6 mois)' : 'NIGHT take-offs (6 months)', v: `<strong>${nightTO}</strong> / 5` },
+    { k: fr ? 'Atterrissages de NUIT (6 mois)' : 'NIGHT landings (6 months)', v: `<strong>${nightLdg}</strong> / 5` },
+    { k: fr ? 'État (nuit)' : 'Status (night)', v: `<span class="dash-drill-pill ${nightCount >= 5 ? 'ok' : nightCount >= 3 ? 'warn' : 'bad'}">${nightStatus}</span>` },
   ];
 
   let list = '';
@@ -216,11 +243,11 @@ function _drillRecency(fr, addBtn, logbookBtn) {
   }
 
   return {
-    eyebrow: fr ? 'CAR 401.05(1) · ATTERRISSAGES' : 'CAR 401.05(1) · LANDINGS',
-    title: fr ? 'Validité décollages / atterrissages' : 'Takeoff / Landing Recency',
+    eyebrow: fr ? 'CAR 401.05(2) · EXPÉRIENCE RÉCENTE' : 'CAR 401.05(2) · RECENT EXPERIENCE',
+    title: fr ? 'Expérience récente' : 'Recent experience',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
-      ? 'Règle : 5 décollages + 5 atterrissages dans les 6 derniers mois pour transporter des passagers.'
-      : 'Rule: 5 takeoffs + 5 landings in the past 6 months to carry passengers.'}</div>`,
+      ? 'Règle (CAR 401.05(2)(b)) : 5 décollages + 5 atterrissages dans les 6 derniers mois pour transporter des passagers ; de NUIT, ce sont 5 décollages de nuit + 5 atterrissages de nuit. Sim de vol complet niveau B/C/D admissible. Des exemptions peuvent s’appliquer selon l’exploitation — référez-vous à votre exploitant.'
+      : 'Rule (CAR 401.05(2)(b)): 5 takeoffs + 5 landings in the past 6 months to carry passengers; at NIGHT, 5 night takeoffs + 5 night landings. A Level B/C/D full-flight simulator is eligible. Exemptions may apply depending on the operation — refer to your operator.'}</div>`,
     foot: `${logbookBtn(fr ? 'Voir le carnet' : 'See logbook')} ${addBtn(fr ? 'Enregistrer un vol' : 'Log a flight')}`
   };
 }
@@ -442,7 +469,7 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
   const labels = {
     pic:   { fr: 'Heures PIC',         en: 'PIC hours',         desc: { fr: 'Pilote aux commandes — capitaine pour 705, instructeur pour FTO, vol solo pour student.', en: 'Pilot-in-command time — captain for 705 ops, instructor for FTO, solo for student.' } },
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
-    night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol après l’heure officielle de coucher du soleil (RAC 101.01).', en: 'Flight time after official sunset (CAR 101.01).' } },
+    night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol entre la fin du crépuscule civil du soir et le début du crépuscule civil du matin (RAC 101.01).', en: 'Flight time between the end of evening civil twilight and the beginning of morning civil twilight (CAR 101.01).' } },
     multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
     xc:    { fr: 'Heures cross-country',en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
   };
@@ -455,6 +482,12 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
   const rows = [
     { k: fr ? 'Total carrière' : 'Career total', v: `<strong>${F(value)}</strong> ${fr ? 'h' : 'hrs'}` },
   ];
+  // PICUS is ATPL-creditable but kept separate from PIC — surface it on the
+  // PIC drill-down so those hours don't appear to vanish. (Opus audit.)
+  if (kind === 'pic' && typeof calcStats === 'function') {
+    const picusH = +calcStats().picus || 0;
+    if (picusH > 0) rows.push({ k: fr ? 'dont PICUS' : 'of which PICUS', v: `${F(picusH)} ${fr ? 'h' : 'hrs'}` });
+  }
   // Show brought-forward portion if any
   if (typeof getOpening === 'function') {
     const openingKey = kind === 'multi' ? null : kind;  // me/multi has no single opening key
@@ -492,7 +525,7 @@ function _topContributing(kind, limit) {
     switch (kind) {
       case 'pic':   hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.heliDayPic||0)+(+f.heliNightPic||0)+(+f.seDay||0)+(+f.seNight||0); break;
       case 'sic':   hrs = (+f.meDayCop||0)+(+f.meNightCop||0)+(+f.heliDayCop||0)+(+f.heliNightCop||0); break;
-      case 'night': hrs = (+f.meNightPic||0)+(+f.meNightCop||0)+(+f.meNightDual||0)+(+f.heliNightPic||0)+(+f.heliNightCop||0)+(+f.heliNightDual||0)+(+f.seNight||0); break;
+      case 'night': hrs = nightHoursOf(f); break;
       case 'multi': hrs = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0); break;
       case 'xc':    hrs = (+f.xcDayPic||0)+(+f.xcNightPic||0)+(+f.xcDayCop||0)+(+f.xcNightCop||0)+(+f.xcDayDual||0)+(+f.xcNightDual||0); break;
     }

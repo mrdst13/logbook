@@ -330,6 +330,23 @@ const Sync = {
 
     const byId = new Map(flights.map(f => [f.id, f]));
     let added = 0, updated = 0, removed = 0;
+
+    // Ids with unpushed local changes — remote LWW must NEVER clobber a local
+    // edit that hasn't reached the cloud yet (offline edit loss). (Opus audit.)
+    const pendingIds = new Set();
+    try {
+      this._loadQueue().forEach(op => {
+        if ((op.type === 'upsert_flight' || op.type === 'delete_flight') && op.payload && op.payload.id) {
+          pendingIds.add(op.payload.id);
+        }
+      });
+    } catch (e) { /* queue unreadable — treat as no pending */ }
+
+    // When crew-name consent is OFF, remote pic/copilot are stored anonymized.
+    // We must never let those overwrite the fuller names kept in the local
+    // certifiable logbook ("store full locally, anonymize only at egress").
+    const _syncProf = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+    const _consentOn = !!_syncProf.consentCaptainNames;
     data.forEach(row => {
       const remote = rowToLocalFlight(row);
       if (row.deleted_at) {
@@ -359,8 +376,13 @@ const Sync = {
       // intentional: we trust the cloud after migration completion.
       const lU = local._updated_at || '';
       const rU = row.updated_at || row.client_updated_at || '';
-      if (rU > lU) {
-        Object.assign(local, remote);
+      // Remote wins only if strictly newer AND there is no unpushed local edit
+      // for this id (otherwise the local change would be silently lost).
+      if (rU > lU && !pendingIds.has(remote.id)) {
+        const incoming = { ...remote };
+        // Protect local full crew names from anonymized remote values.
+        if (!_consentOn) { delete incoming.pic; delete incoming.copilot; }
+        Object.assign(local, incoming);
         local._updated_at = rU;
         updated++;
       }

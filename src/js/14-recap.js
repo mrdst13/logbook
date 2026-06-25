@@ -21,13 +21,10 @@ function renderRecap() {
   // Stats
   const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
   const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
-  const ldg   = yFlights.reduce((s,f) => s + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
-  // Night = all night flying (ME + heli + single-engine) — matches calcStats().night
-  // so the Recap and the Dashboard never disagree for heli/SE pilots.
-  const night = yFlights.reduce((s,f) => s
-    + (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
-    + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
-    + (+f.seNight||0), 0);
+  const ldg   = yFlights.reduce((s,f) => s + (f.isSim ? 0 : (+f.ldgDay||0) + (+f.ldgNight||0)), 0);
+  // Night = all night flying — shared nightHoursOf() so the Recap, Dashboard,
+  // PDF and drill-down never disagree for heli/SE/student pilots (incl. seNightDual).
+  const night = yFlights.reduce((s,f) => s + nightHoursOf(f), 0);
   document.getElementById('recapStats').innerHTML = [
     [t('recap.totalHoursLbl'), fmt(total), t('recap.hoursUnit')],
     [t('recap.blockHoursLbl'), fmt(block), t('recap.hoursUnit')],
@@ -66,8 +63,8 @@ function renderRecap() {
       options:{
         responsive:true,animation:{duration:600},
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' '+t('hero.unitHours')}}},
-        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}},
-                x:{grid:{display:false},ticks:{font:{family:"var(--font-mono)",size:10},color:'#6b7fa3'}}}
+        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:'#6b7fa3'}},
+                x:{grid:{display:false},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:'#6b7fa3'}}}
       }
     });
   }

@@ -26,8 +26,14 @@
 
   --text-primary:  #F2F4F8;
   --text-secondary:#B0B6C4;
-  --text-muted:    #7C8497;
+  /* Lightened from #7C8497 (~3-4.2:1 on dark surfaces, failed WCAG AA) to
+     ~5:1. Most-used secondary-text token in dark mode. (Opus audit.) */
+  --text-muted:    #9AA2B4;
   --text-disabled: #4A4F5E;
+  /* Dark mode: the base warning/danger already read well on dark soft tints,
+     so the text variants alias straight onto them (audit flagged light only). */
+  --warning-text:  var(--warning);
+  --danger-text:   var(--danger);
 
   --accent:        #5B95FF;
   --accent-bright: #7AAAFF;

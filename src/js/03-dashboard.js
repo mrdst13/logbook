@@ -78,14 +78,21 @@ function renderAlerts() {
     }
   }
 
-  // Landing currency — only show if NOT current (<3 in 90 days)
-  const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
-  const cut90str = cutoff90.toISOString().split('T')[0];
-  const recentLdg = flights
-    .filter(f => f.date >= cut90str)
-    .reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
-  if (recentLdg < 3) {
-    alerts.push({ level: recentLdg > 0 ? 'yellow' : 'red', icon: ICON_LANDING_GLYPH, title: t('alert.landingCurrency', { n: recentLdg }), sub: t('alert.landingCurrencySub') });
+  // Passenger-carrying recent experience (CAR 401.05(2)(a)): within the
+  // preceding 6 MONTHS, at least 5 take-offs AND 5 landings — NOT the old
+  // (non-existent) "3 landings in 90 days" rule. Each flight leg is one
+  // take-off; landings come from the logged ldg counts.
+  // Night passenger currency (5 night take-offs + 5 night landings,
+  // CAR 401.05(2)(b)) needs per-flight night take-off data the manual form
+  // doesn't yet capture — tracked as a separate item (see C4).
+  const cutoff6mo = new Date(today); cutoff6mo.setMonth(cutoff6mo.getMonth() - 6);
+  const cut6moStr = cutoff6mo.toISOString().split('T')[0];
+  const f6mo = flights.filter(f => f.date >= cut6moStr);
+  const toCount6 = f6mo.length;
+  const ldgCount6 = f6mo.reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
+  if (toCount6 < 5 || ldgCount6 < 5) {
+    const shortfall = Math.min(toCount6, ldgCount6);
+    alerts.push({ level: shortfall > 0 ? 'yellow' : 'red', icon: ICON_LANDING_GLYPH, title: t('alert.landingCurrency', { n: shortfall }), sub: t('alert.landingCurrencySub') });
   }
 
   // IFR currency — only show if NOT current (<6 approaches in 6 months).

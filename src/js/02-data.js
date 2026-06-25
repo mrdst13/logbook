@@ -1,9 +1,52 @@
 // ═══════════════════════════════════════════
 // STATS
 // ═══════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────
+//  SHARED night/day totals — the SINGLE source of truth for how many
+//  night (and day) hours a flight contributes, across EVERY aircraft
+//  class (multi-engine + helicopter + single-engine) and EVERY role
+//  (PIC / dual / SIC). Before this existed, calcStats, the Recap, the
+//  certifiable PDF/logbook column, the drill-down and the opening
+//  balances each summed a DIFFERENT subset — so a helicopter or student
+//  pilot saw 0h of night on one screen and real hours on another.
+//  (Audit panel 2026-06-25, must-fix #1.) Use these everywhere.
+// ─────────────────────────────────────────────────────────────────
+function nightHoursOf(f) {
+  return (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
+       + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
+       + (+f.seNight||0) + (+f.seNightDual||0);
+}
+function dayHoursOf(f) {
+  return (+f.meDayPic||0) + (+f.meDayDual||0) + (+f.meDayCop||0)
+       + (+f.heliDayPic||0) + (+f.heliDayDual||0) + (+f.heliDayCop||0)
+       + (+f.seDay||0) + (+f.seDayDual||0);
+}
+
+// SINGLE definition of the recency window. The regulation (CAR 401.05(2)) is
+// 6 CALENDAR months, not a fixed 180 days. Some screens used 180*86400000 and
+// others setMonth(-6), so the dashboard, drill-down and PDF could disagree on
+// the same day about whether a pilot was current. (Audit panel 2026-06-25.)
+function sixMonthCutoffStr() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 6);
+  return d.toISOString().slice(0, 10);
+}
+
+// CAR 401.05(2)(b): the take-offs and landings for passenger recency may be
+// done "in the same category and class of aircraft ... or in a Level B, C or D
+// full-flight simulator of the same category and class as the aircraft."
+// So a full-flight simulator (FFS) DOES count; a basic device (FTD / FNPT /
+// BITD) does NOT. The sim form captures simType — only the FFS levels qualify.
+// (Verified against laws-lois.justice.gc.ca SOR-96-433 s.401.05, 2026-06-25.)
+const RECENCY_FFS_TYPES = new Set(['FFS', 'FFS-C']);
+function countsTowardRecency(f) {
+  return !f.isSim || RECENCY_FFS_TYPES.has(f.simType);
+}
+
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
-  let heli=0, hover=0, dualGiven=0;
+  let heli=0, hover=0, dualGiven=0, picus=0, dualRcvd=0;
   const now = new Date();
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
@@ -14,22 +57,31 @@ function calcStats() {
     pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
          + (+f.seDay||0) + (+f.seNight||0);
     sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
-    // Night = all night flying, every aircraft class (ME + heli + single-engine).
-    night += (+f.meNightPic||0) + (+f.meNightDual||0) + (+f.meNightCop||0)
-           + (+f.heliNightPic||0) + (+f.heliNightDual||0) + (+f.heliNightCop||0)
-           + (+f.seNight||0);
-    ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
+    // Night = all night flying, every aircraft class/role — shared helper.
+    night += nightHoursOf(f);
+    // Career landing total = aircraft landings only. Sim landings are recorded
+    // for recency (CAR 401.05(2)(b)) but are not real-aircraft landings.
+    if (!f.isSim) ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
     me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
     heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
           + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
     hover += +f.hoverTime || 0;
     dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
+    // Dual RECEIVED (student's own instruction) — every *Dual bucket. Surfaced
+    // so students/PPL see their hours (their PIC total is ~0 early on).
+    dualRcvd += (+f.seDayDual||0) + (+f.seNightDual||0)
+              + (+f.meDayDual||0) + (+f.meNightDual||0)
+              + (+f.heliDayDual||0) + (+f.heliNightDual||0);
+    // PICUS (PIC under supervision) — its own ATPL-creditable total. Collected
+    // and stored but previously never summed, so it vanished from career
+    // figures. Kept SEPARATE from PIC, never folded in. (Opus audit.)
+    picus += +f.picus || 0;
     xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
         + (+f.xcDayCop||0)+(+f.xcNightCop||0);
     block += +f.block || 0;
     if (f.date && new Date(f.date) >= cutoff30) block30 += +f.block || 0;
   });
-  return {total,pic,sic,night,ldg,me,heli,hover,dualGiven,xc,block,block30,entries:flights.length};
+  return {total,pic,sic,night,ldg,me,heli,hover,dualGiven,dualRcvd,picus,xc,block,block30,entries:flights.length};
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -85,12 +137,44 @@ function recalculateFlightDayNightXC(f) {
   const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
   const isXC = isCrossCountry(depICAO, arrICAO);
 
-  // Detect role from the flight's existing data. If the pilot has typed
-  // a value in any role's day/night/XC slots, that role is "active" and
-  // we never touch it again. Default to cop (F/O) for typical Porter use.
-  let role = 'cop';
-  if ((+f.meDayPic||0) + (+f.meNightPic||0) > 0) role = 'pic';
-  else if ((+f.meDayDual||0) + (+f.meNightDual||0) > 0) role = 'dual';
+  // Engine-class family + role come from the pilot profile + existing data —
+  // NEVER a blind "multi-engine SIC" default, which fabricated engine class and
+  // seat for single-engine and helicopter pilots. (Opus audit C2.)
+  const _prof = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  const _pilotType = _prof.pilotType || 'airline705';
+  const _rank = (_prof.rank || '').toLowerCase();
+  const _sum = (...ks) => ks.reduce((s, k) => s + (+f[k] || 0), 0);
+  // Family: helicopter profile -> heli; airline705 -> me; else infer from any
+  // existing typed values; otherwise unknown -> do NOT auto-fill the split.
+  let family = null;
+  if (_pilotType === 'helicopter') family = 'heli';
+  else if (_pilotType === 'airline705') family = 'me';
+  else if (_sum('meDayPic','meNightPic','meDayCop','meNightCop','meDayDual','meNightDual') > 0) family = 'me';
+  else if (_sum('heliDayPic','heliNightPic','heliDayCop','heliNightCop','heliDayDual','heliNightDual') > 0) family = 'heli';
+  // Single-engine family (private / student / instructor, or any flight that
+  // already has SE time typed). Without this, auto day/night/XC never ran for
+  // the PPL/bush clientele even on a known airport. (Audit panel 2026-06-25.)
+  else if (_sum('seDay','seNight','seDayDual','seNightDual') > 0) family = 'se';
+  else if (_pilotType === 'private' || _pilotType === 'student' || _pilotType === 'instructor') family = 'se';
+  // Role: existing typed values first, then profile rank; never blind-default.
+  let role = null;
+  if (family === 'me') {
+    if (_sum('meDayPic','meNightPic') > 0) role = 'pic';
+    else if (_sum('meDayDual','meNightDual') > 0) role = 'dual';
+  } else if (family === 'heli') {
+    if (_sum('heliDayPic','heliNightPic') > 0) role = 'pic';
+    else if (_sum('heliDayDual','heliNightDual') > 0) role = 'dual';
+  } else if (family === 'se') {
+    if (_sum('seDay','seNight') > 0) role = 'pic';
+    else if (_sum('seDayDual','seNightDual') > 0) role = 'dual';
+  }
+  if (!role) {
+    if (/(cpt|capt|cdb|\bpic\b|command)/.test(_rank)) role = 'pic';
+    else if (/(f\/o|\bfo\b|sic|copil|first)/.test(_rank)) role = 'cop';
+    else if (_pilotType === 'student') role = 'dual';
+    else if (_pilotType === 'airline705') role = 'cop';
+    else if (_pilotType === 'private' || _pilotType === 'instructor') role = 'pic';
+  }
 
   // Build a CANDIDATE output, then conditionally apply only-empty fills.
   // Pre-existing role-relevant values block the fill for that slot entirely.
@@ -120,21 +204,29 @@ function recalculateFlightDayNightXC(f) {
   const _isEmpty = (v) => v === undefined || v === null;
   let touched = false;
 
-  if (role === 'cop') {
-    if (_isEmpty(f.meDayCop))   { out.meDayCop   = split.dayHours;             touched = true; }
-    if (_isEmpty(f.meNightCop)) { out.meNightCop = split.nightHours;           touched = true; }
-    if (_isEmpty(f.xcDayCop))   { out.xcDayCop   = isXC ? split.dayHours   : 0; touched = true; }
-    if (_isEmpty(f.xcNightCop)) { out.xcNightCop = isXC ? split.nightHours : 0; touched = true; }
-  } else if (role === 'pic') {
-    if (_isEmpty(f.meDayPic))   { out.meDayPic   = split.dayHours;             touched = true; }
-    if (_isEmpty(f.meNightPic)) { out.meNightPic = split.nightHours;           touched = true; }
-    if (_isEmpty(f.xcDayPic))   { out.xcDayPic   = isXC ? split.dayHours   : 0; touched = true; }
-    if (_isEmpty(f.xcNightPic)) { out.xcNightPic = isXC ? split.nightHours : 0; touched = true; }
-  } else { // dual
-    if (_isEmpty(f.meDayDual))   { out.meDayDual   = split.dayHours;             touched = true; }
-    if (_isEmpty(f.meNightDual)) { out.meNightDual = split.nightHours;           touched = true; }
-    if (_isEmpty(f.xcDayDual))   { out.xcDayDual   = isXC ? split.dayHours   : 0; touched = true; }
-    if (_isEmpty(f.xcNightDual)) { out.xcNightDual = isXC ? split.nightHours : 0; touched = true; }
+  // Only auto-fill the class-specific day/night + XC split when BOTH the engine
+  // family and the role are known. If either is unknown (e.g. an engine-
+  // ambiguous private/student flight), fill nothing here — empty > guessed.
+  if (family && role) {
+    let dayK, nightK, xcDayK, xcNightK;
+    if (family === 'se') {
+      // Single-engine has no SIC seat: PIC -> seDay/seNight, dual -> seDayDual/
+      // seNightDual. XC reuses the shared role-based xc buckets.
+      const isDual = role === 'dual';
+      dayK   = isDual ? 'seDayDual'   : 'seDay';
+      nightK = isDual ? 'seNightDual' : 'seNight';
+      xcDayK   = isDual ? 'xcDayDual'   : 'xcDayPic';
+      xcNightK = isDual ? 'xcNightDual' : 'xcNightPic';
+    } else {
+      const pre = family; // 'me' or 'heli' bucket prefix
+      const cap = role === 'pic' ? 'Pic' : role === 'dual' ? 'Dual' : 'Cop';
+      dayK = pre + 'Day' + cap; nightK = pre + 'Night' + cap;
+      xcDayK = 'xcDay' + cap; xcNightK = 'xcNight' + cap;
+    }
+    if (_isEmpty(f[dayK]))     { out[dayK]     = split.dayHours;              touched = true; }
+    if (_isEmpty(f[nightK]))   { out[nightK]   = split.nightHours;            touched = true; }
+    if (_isEmpty(f[xcDayK]))   { out[xcDayK]   = isXC ? split.dayHours   : 0; touched = true; }
+    if (_isEmpty(f[xcNightK])) { out[xcNightK] = isXC ? split.nightHours : 0; touched = true; }
   }
 
   // Landing day/night based on arrival — same only-fill-empty rule.
@@ -202,7 +294,10 @@ function saveSnapshots(arr) {
 
 function snapshotBeforeOperation(operationName) {
   const snapshot = {
-    flights: flights,
+    // Deep-copy the live array — never store by reference, or later in-place
+    // mutations (recalc, Object.assign, merge) would silently corrupt the
+    // "before" state and defeat the undo guarantee. (Opus audit C5.)
+    flights: JSON.parse(JSON.stringify(flights)),
     timestamp: Date.now(),
     operation: operationName,
     flightCount: flights.length
@@ -259,9 +354,9 @@ function restoreSnapshot(index) {
 
   if (!confirm(t('confirm.restoreSnapshot', { op: _snapOpLabel(snap.operation), age: ageString(Date.now() - snap.timestamp), curN: flights.length, snapN: snap.flightCount }))) return;
 
-  // Push current state as new snapshot (so user can undo this undo)
+  // Push current state as new snapshot (so user can undo this undo) — deep copy.
   const currentSnap = {
-    flights: flights,
+    flights: JSON.parse(JSON.stringify(flights)),
     timestamp: Date.now(),
     operation: `before undo of "${snap.operation}"`,
     flightCount: flights.length
@@ -271,7 +366,9 @@ function restoreSnapshot(index) {
   history.unshift(currentSnap);
   saveSnapshots(history);
 
-  flights = snap.flights;
+  // Deep-copy on restore too, so the live array is never aliased to the
+  // snapshot object (otherwise later edits would mutate history). (Opus C5.)
+  flights = JSON.parse(JSON.stringify(snap.flights));
   DB.save(flights);
   renderDashboard();
   updateUndoButton();
@@ -505,6 +602,8 @@ function renderDashboard() {
   _dashSetStripVal('dashStripMULTI', fmt(s.me),    'hrs');
   _dashSetStripVal('dashStripXC',    fmt(s.xc),    'hrs');
   _dashSetStripVal('dashStripLDG',   '' + s.ldg);
+  _dashSetStripVal('dashStripHELI',  fmt(s.heli),     'hrs');
+  _dashSetStripVal('dashStripDUAL',  fmt(s.dualRcvd), 'hrs');
 
   // Adapt visible KPIs to the pilot's actual work (hide SIC for solo pilots,
   // hide MULTI for SE-only pilots, etc.). Runs after values are set so the
@@ -550,6 +649,17 @@ function _dashAdaptStripToPilotType(stats) {
 
   setStripItemVisible('dashStripSIC', showSIC);
   setStripItemVisible('dashStripMULTI', showMULTI);
+
+  // HELI: show for helicopter pilots or anyone with logged heli time — without
+  // it a helicopter pilot saw none of their primary hours. DUAL (dual received):
+  // show for students/instructors or anyone with dual time, so an early-career
+  // pilot whose PIC is ~0 still sees their real hours. (Audit panel 2026-06-25.)
+  const heliTotal = (stats && +stats.heli) || 0;
+  const dualTotal = (stats && +stats.dualRcvd) || 0;
+  const showHELI = (pilotType === 'helicopter') || heliTotal > 0;
+  const showDUAL = (pilotType === 'student') || (pilotType === 'instructor') || dualTotal > 0;
+  setStripItemVisible('dashStripHELI', showHELI);
+  setStripItemVisible('dashStripDUAL', showDUAL);
   // PIC / NIGHT / XC / LDG stay visible for every pilot type.
 }
 
@@ -768,13 +878,17 @@ function _dashRenderValidityRings() {
       if (cap) cap.textContent = 'CASS 725';
     }
   } else {
-    // ── IFR ring (generic CAR 401.05(2) for non-705 pilots) ──
-    const ifrCount = _dashApproachesIn6mo();
-    const ifrPct = Math.min(100, (ifrCount / 6) * 100);
-    const ifrColor = ifrCount >= 6 ? '#10A37F' : (ifrCount >= 4 ? '#B87C0C' : '#DC2A2A');
+    // ── IFR ring (CAR 401.05(3.1) for non-705 pilots) ──
+    // Requires BOTH 6 instrument approaches AND 6 hours instrument time / 6 mo.
+    // The ring shows the binding constraint so the pilot sees what's missing.
+    const ifr = _dashIFRCurrency();
+    const ifrPct = ifr.pct;
+    const ifrColor = ifr.current ? '#10A37F' : (ifrPct >= 66 ? '#B87C0C' : '#DC2A2A');
     _dashRenderRing('dashRingIFR', ifrPct, ifrColor, 'IFR');
     const ifrSub = document.getElementById('dashRingIFRSub');
-    if (ifrSub) ifrSub.textContent = `${ifrCount} / 6 ${lang === 'fr' ? 'appr.' : 'appr.'}`;
+    if (ifrSub) ifrSub.textContent = ifr.limiting === 'hours'
+      ? `${ifr.hours.toFixed(1)} / 6 h`
+      : `${ifr.approaches} / 6 ${'appr.'}`;
     const blockEl = document.getElementById('dashRingIFR')?.parentElement;
     if (blockEl) {
       const cap = blockEl.querySelector('.dash-ring-cap');
@@ -782,13 +896,19 @@ function _dashRenderValidityRings() {
     }
   }
 
-  // Recency: 5 landings in last 6 months (CAR 401.05(2))
-  const ldgCount = _dashLandingsIn6mo();
-  const recPct = Math.min(100, (ldgCount / 5) * 100);
-  const recColor = ldgCount >= 5 ? '#10A37F' : (ldgCount >= 3 ? '#B87C0C' : '#DC2A2A');
+  // Recent experience (CAR 401.05(2)): 5 take-offs AND 5 landings in the last
+  // 6 months to carry passengers. The ring shows the LIMITING factor of the
+  // two. Night-passenger recency (5 night take-offs + 5 night landings) needs
+  // per-flight night take-off data the manual form doesn't capture yet (C4) —
+  // tracked as a separate item, not represented in this single ring.
+  const recTO = _dashTakeoffsIn6mo();
+  const recLdg = _dashLandingsIn6mo();
+  const recCount = Math.min(recTO, recLdg);
+  const recPct = Math.min(100, (recCount / 5) * 100);
+  const recColor = recCount >= 5 ? '#0C6E53' : (recCount >= 3 ? '#B87C0C' : '#DC2A2A');
   _dashRenderRing('dashRingREC', recPct, recColor, 'REC');
   const recSub = document.getElementById('dashRingRECSub');
-  if (recSub) recSub.textContent = `${ldgCount} / 5 ${lang === 'fr' ? 'att.' : 'ldg'}`;
+  if (recSub) recSub.textContent = `${recCount} / 5`;
 
   // Medical
   const medDays = _dashMedicalDaysRemaining();
@@ -828,20 +948,74 @@ function _dashRenderRing(containerId, pct, color, label) {
 
 function _dashApproachesIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const cutoff = sixMonthCutoffStr();
   return flights.filter(f => f.date >= cutoff)
     .reduce((sum, f) => sum + (+f.approaches || 0), 0);
 }
 
+// Instrument time in the last 6 months. CAR 101.01: "instrument time means
+// (a) instrument ground time, (b) actual instrument flight time, or
+// (c) simulated instrument flight time" — so simulator time DOES count. We sum
+// instActual (actual IFT) + instHood (simulated IFT) + instSim (ground/sim).
+// Verified laws-lois SOR-96-433 s.101.01, 2026-06-25. See registre.
+function _dashInstrumentTimeIn6mo() {
+  if (!Array.isArray(flights)) return 0;
+  const cutoff = sixMonthCutoffStr();
+  return flights.filter(f => f.date >= cutoff)
+    .reduce((sum, f) => sum + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
+}
+
+// IFR recency (CAR 401.05(3.1)): within 6 months, the holder must have BOTH
+// (a) six hours of instrument time AND (b) six instrument approaches. Returns
+// both counts, the limiting progress ratio, and whether the pilot is current.
+function _dashIFRCurrency() {
+  const approaches = _dashApproachesIn6mo();
+  const hours = _dashInstrumentTimeIn6mo();
+  const ratio = Math.min(approaches / 6, hours / 6);
+  return {
+    approaches,
+    hours,
+    current: approaches >= 6 && hours >= 6,
+    pct: Math.min(100, ratio * 100),
+    // The binding constraint, for a compact "X / 6" sub-label.
+    limiting: (hours / 6 < approaches / 6) ? 'hours' : 'approaches',
+  };
+}
+
 function _dashLandingsIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
-  return flights.filter(f => f.date >= cutoff)
+  const cutoff = sixMonthCutoffStr();
+  // Aircraft landings + qualifying full-flight-sim landings count (CAR
+  // 401.05(2)(b)); a basic training device does not. See countsTowardRecency.
+  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.ldgDay || 0) + (+f.ldgNight || 0), 0);
 }
 
-// Days until the 6th most recent approach drops out of the 180-day window.
-// If < 6 approaches in window, returns 0 (already not current).
+// Take-offs in the last 6 months for CAR 401.05(2) recent experience.
+// Use recorded take-offs (toDay+toNight) when the pilot entered them; a
+// training flight can have many circuits (e.g. 8 landings = 8 take-offs),
+// which the old leg-count (1 per flight) under-counted — making the app tell
+// a current pilot they were NOT current. When no T/O is recorded, a real
+// flight has at least as many take-offs as landings (and at least 1), so we
+// never report fewer take-offs than landings. A basic training device is
+// excluded; a Level B/C/D full-flight simulator counts (CAR 401.05(2)(b)) —
+// see countsTowardRecency. (Audit panel 2026-06-25 must-fix #2.)
+function _dashTakeoffsIn6mo() {
+  if (!Array.isArray(flights)) return 0;
+  const cutoff = sixMonthCutoffStr();
+  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+    .reduce((sum, f) => {
+      const to  = (+f.toDay || 0) + (+f.toNight || 0);
+      // Sim (a qualifying FFS, already filtered): count ONLY the take-offs the
+      // pilot explicitly entered — never assume a number for a sim session.
+      if (f.isSim) return sum + to;
+      const ldg = (+f.ldgDay || 0) + (+f.ldgNight || 0);
+      return sum + (to > 0 ? to : Math.max(1, ldg));
+    }, 0);
+}
+
+// Days until the 6th most recent approach drops out of the 6-calendar-month
+// window. If < 6 approaches in window, returns 0 (already not current).
 function _dashIFRDaysRemaining() {
   if (!Array.isArray(flights) || flights.length === 0) return null;
   const apps = [];
@@ -854,7 +1028,7 @@ function _dashIFRDaysRemaining() {
   const sixth = apps[5];
   if (!sixth) return null;
   const expiry = new Date(sixth + 'T00:00:00');
-  expiry.setDate(expiry.getDate() + 180);
+  expiry.setMonth(expiry.getMonth() + 6);
   const days = Math.ceil((expiry - Date.now()) / 86400000);
   return Math.max(0, days);
 }
@@ -934,7 +1108,7 @@ function _dashRenderNextColumn() {
     cards.push({
       tone: 'primary',
       kicker: fr ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
-      title: fr ? 'Connecter Navblue' : 'Connect Navblue',
+      title: fr ? 'Connecter la synchro' : 'Connect roster sync',
       sub: fr ? 'Synchro iCal pour voir vos prochains vols' : 'iCal sync to see your upcoming flights',
       chip: 'iCal',
       onclick: "showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);"
@@ -966,7 +1140,7 @@ function _dashRenderNextColumn() {
       cards.push({
         tone: 'primary',
         kicker: fr ? 'PROCHAIN VOL' : 'NEXT FLIGHT',
-        title: fr ? 'Synchro Navblue active' : 'Navblue sync active',
+        title: fr ? 'Synchro horaire active' : 'Roster sync active',
         sub: fr ? 'Roster auto-sync configuré' : 'Auto-sync configured',
         chip: 'iCal',
         onclick: "showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('sync'),60);"
@@ -976,7 +1150,8 @@ function _dashRenderNextColumn() {
 
   // ─── Card 2: STATUS — most concerning currency ────────────
   const medDays = _dashMedicalDaysRemaining();
-  const ifrCount = _dashApproachesIn6mo();
+  const ifr = _dashIFRCurrency();         // {approaches, hours, current} — CAR 401.05(3.1)
+  const ifrCount = ifr.approaches;
   const ifrDays = _dashIFRDaysRemaining();
   const ldgCount = _dashLandingsIn6mo();
   // PPC only matters for 705 line pilots (multi-pilot ops under CASS 725.106).
@@ -1009,12 +1184,25 @@ function _dashRenderNextColumn() {
       sub: fr ? 'CASS 725.106 · multi-pilot 705' : 'CASS 725.106 · multi-pilot 705',
       chip: 'PPC',
       onclick: "openDashDrill('ppc')" });
-  } else if (!is705ForStatus && ifrCount < 6) {
-    // IFR 6-in-6mo only matters for non-705 pilots (no Company PPC to supersede)
-    const need = 6 - ifrCount;
+  } else if (!is705ForStatus && !ifr.current) {
+    // IFR recency only matters for non-705 pilots (no Company PPC to supersede).
+    // CAR 401.05(3.1) needs BOTH 6 approaches AND 6 h instrument time — surface
+    // whichever is short.
+    const needAppr = Math.max(0, 6 - ifr.approaches);
+    const needHrs = Math.max(0, 6 - ifr.hours);
+    const subFr = needAppr > 0 && needHrs > 0
+      ? `${needAppr} appr. + ${needHrs.toFixed(1)} h à faire · CAR 401.05(3.1)`
+      : needAppr > 0
+        ? `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · CAR 401.05(3.1)`
+        : `${needHrs.toFixed(1)} h instrument à faire · CAR 401.05(3.1)`;
+    const subEn = needAppr > 0 && needHrs > 0
+      ? `${needAppr} appr + ${needHrs.toFixed(1)} h to go · CAR 401.05(3.1)`
+      : needAppr > 0
+        ? `${needAppr} approach${needAppr !== 1 ? 'es' : ''} to go · CAR 401.05(3.1)`
+        : `${needHrs.toFixed(1)} h instrument to go · CAR 401.05(3.1)`;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
-      title: fr ? `Validité IFR · ${ifrCount}/6 appr.` : `IFR currency · ${ifrCount}/6 appr.`,
-      sub: fr ? `${need} approche${need !== 1 ? 's' : ''} restante${need !== 1 ? 's' : ''} · CAR 401.05` : `${need} approach${need !== 1 ? 'es' : ''} to go · CAR 401.05`,
+      title: fr ? `Validité IFR · ${ifr.approaches}/6 appr · ${ifr.hours.toFixed(1)}/6 h` : `IFR currency · ${ifr.approaches}/6 appr · ${ifr.hours.toFixed(1)}/6 h`,
+      sub: fr ? subFr : subEn,
       chip: 'IFR',
       onclick: "openDashDrill('ifr')" });
   } else if (ldgCount < 5) {

@@ -55,7 +55,7 @@ async function handleRosterFile(file) {
     console.log(`[Roster] Extracted ${extracted.length} flights from PDF (TimeMode: ${pdfTimeMode})`);
 
     if (extracted.length === 0) {
-      details.innerHTML = `<span style="color:var(--danger);">No flight legs detected in this PDF. Make sure it's a Navblue HrRosterReport (not a different report).</span>`;
+      details.innerHTML = `<span style="color:var(--danger);">${esc(t('roster.noLegs'))}</span>`;
       showToast(t('toast.noFlightsInPdf'), 'error');
       return;
     }

@@ -101,9 +101,9 @@ const FAQS = [
  },
  {
  q: 'Does iCal auto-sync capture crew names, or do I have to upload a PDF?',
- a: 'The iCal sync attempts to extract crew names (whoever flew the other seat with you — captain if you\'re F/O, F/O if you\'re captain) directly from the DESCRIPTION field of each VEVENT — no separate PDF upload required. Whether crew names actually appear depends on what your airline includes in its iCal feed: some carriers include the full crew list in the description, others ship the iCal stripped down. After the first sync, check your Logbook page: if the PIC / Co-pilot columns show names for recent flights, the iCal feed contains them. If they\'re empty, fall back to the monthly PDF roster import (Import → Photo / PDF). The dev console logs raw DESCRIPTION samples on any sync where crew extraction failed — paste one of those lines into a feedback ticket and the regex will be refined.',
+ a: 'The iCal sync attempts to extract crew names (whoever flew the other seat with you — captain if you\'re F/O, F/O if you\'re captain) directly from the DESCRIPTION field of each VEVENT — no separate PDF upload required. Whether crew names actually appear depends on what your airline includes in its iCal feed: some carriers include the full crew list in the description, others ship the iCal stripped down. After the first sync, check your Logbook page: if the PIC / Co-pilot columns show names for recent flights, the iCal feed contains them. If they\'re empty, fall back to the monthly PDF roster import (Import → a monthly PDF schedule).',
  qFr: 'La synchro iCal capture-t-elle les noms d\'équipage, ou dois-je téléverser un PDF ?',
- aFr: 'La synchro iCal tente d\'extraire les noms d\'équipage (qui que ce soit dans l\'autre siège — commandant si vous êtes F/O, F/O si vous êtes commandant) directement du champ DESCRIPTION de chaque VEVENT — pas besoin de téléversement PDF séparé. Que les noms apparaissent ou non dépend de ce que votre compagnie inclut dans son flux iCal : certains transporteurs incluent toute la liste d\'équipage dans la description, d\'autres envoient l\'iCal dépouillé. Après la première synchro, vérifiez votre page Logbook : si les colonnes PIC / Co-pilote montrent des noms pour les vols récents, le flux iCal les contient. Sinon, utilisez l\'import mensuel du PDF roster (Import → Photo / PDF). La console dev affiche des échantillons DESCRIPTION bruts sur chaque synchro où l\'extraction a échoué — collez une de ces lignes dans un ticket de feedback et la regex sera raffinée.'
+ aFr: 'La synchro iCal tente d\'extraire les noms d\'équipage (qui que ce soit dans l\'autre siège — commandant si vous êtes F/O, F/O si vous êtes commandant) directement du champ DESCRIPTION de chaque VEVENT — pas besoin de téléversement PDF séparé. Que les noms apparaissent ou non dépend de ce que votre compagnie inclut dans son flux iCal : certains transporteurs incluent toute la liste d\'équipage dans la description, d\'autres envoient l\'iCal dépouillé. Après la première synchro, vérifiez votre page Logbook : si les colonnes PIC / Co-pilote montrent des noms pour les vols récents, le flux iCal les contient. Sinon, utilisez l\'import mensuel du PDF d\'horaire (Importer → un horaire PDF mensuel).'
  },
  {
  q: 'How long must I keep my logbook records?',
@@ -120,10 +120,10 @@ const FAQS = [
 
  // ── Importing from other airlines ─────────────────────────────────
  {
- q: 'I don\'t fly for Porter — can I still import my roster?',
- a: 'Partly. Cumulo\'s iCal auto-sync and HrRosterReport PDF parser today both target the Navblue format used by Porter. Pilots at other carriers have three options: (1) take a phone photo of your monthly roster page — the AI OCR reads any layout, page by page; (2) import a CSV export from your previous logbook software — 5 native parsers (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus a generic column-mapping wizard for any other CSV; (3) log flights manually with auto-complete on aircraft type and crew names. Native parsers for other airline roster formats are not built yet — email flycumulo@gmail.com with an anonymized sample of your format if you\'d like one built.',
- qFr: 'Je ne vole pas pour Porter — puis-je quand même importer mon horaire ?',
- aFr: 'Partiellement. La synchro iCal automatique et le parser PDF HrRosterReport de Cumulo ciblent aujourd\'hui le format Navblue utilisé par Porter. Les pilotes d\'autres transporteurs ont trois options : (1) prendre une photo de la page de votre horaire mensuel — l\'OCR AI lit n\'importe quelle mise en page, une page à la fois ; (2) importer un CSV exporté depuis votre ancien logiciel de carnet — 5 parseurs natifs (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus un assistant de mappage de colonnes générique ; (3) entrer vos vols manuellement avec auto-complétion sur le type d\'aéronef et les noms d\'équipage. Les parseurs natifs pour les autres formats d\'horaire de compagnies ne sont pas encore construits — écrivez à flycumulo@gmail.com avec un échantillon anonymisé de votre format si vous voulez qu\'on en construise un.'
+ q: 'My airline\'s roster isn\'t auto-detected — can I still import?',
+ a: 'Yes. Cumulo\'s iCal auto-sync works with any airline that publishes a webcal:// roster feed, and the monthly PDF roster parser currently supports one specific format. If your airline isn\'t auto-detected, you have two options: (1) import a CSV export from your previous logbook software — 5 native parsers (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus a generic column-mapping wizard for any other CSV; (2) log flights manually with auto-complete on aircraft type and crew names. Email flycumulo@gmail.com with an anonymized sample of your roster format if you\'d like native support built.',
+ qFr: 'L’horaire de ma compagnie n’est pas détecté automatiquement — puis-je quand même l’importer ?',
+ aFr: 'Oui. La synchro iCal automatique de Cumulo fonctionne avec toute compagnie qui publie un flux d’horaire webcal://, et le lecteur de PDF mensuel prend actuellement en charge un format précis. Si votre compagnie n’est pas détectée automatiquement, vous avez deux options : (1) importer un CSV exporté depuis votre ancien logiciel de carnet — 5 parseurs natifs (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus un assistant de correspondance de colonnes pour tout autre CSV ; (2) saisir vos vols manuellement avec auto-complétion du type d’aéronef et des noms d’équipage. Écrivez à flycumulo@gmail.com avec un échantillon anonymisé de votre format si vous souhaitez une prise en charge native.'
  }
 ];
 
@@ -277,14 +277,14 @@ const GLOSSARY = [
  ['Solo', 'Flight time without an instructor (typically student pilot)', 'Temps de vol sans instructeur (typiquement pilote en formation)'],
 
  // Time columns (CAR 401.08)
- ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Synonym: Flight Time per CAR 101.01', 'Temps de chocks-out (démarrage / freins relâchés) à chocks-in. Synonyme : Flight Time selon CAR 101.01'],
+ ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Transport Canada generally accepts block time for logbook flight time under CAR 401.08.', 'Temps de chocks-out (démarrage / freins relâchés) à chocks-in. Transports Canada accepte généralement le block time comme temps de vol au carnet selon le CAR 401.08.'],
  ['BLH', 'Block Hours — synonym for Block Time / Flight Time', 'Block Hours — synonyme de Block Time / temps de vol'],
  ['Air Time', 'Time from wheels-up to wheels-down. Used for aircraft maintenance, NOT for the pilot logbook', 'Temps de wheels-up à wheels-down. Utilisé pour la maintenance, PAS pour le carnet du pilote'],
  ['Duty Time', 'Time on duty — typically check-in to check-out, broader than block time', 'Temps en service — typiquement check-in à check-out, plus large que le block time'],
 
  // Conditions (CAR 401.08(2)(d))
  ['Day', 'Daytime flight — sunrise to 30 min before sunset (varies by jurisdiction)', 'Vol de jour — lever du soleil à 30 min avant le coucher (varie par juridiction)'],
- ['Night', 'Per RAC 101.01 (Canada): from 30 min after sunset to 30 min before sunrise', 'Selon RAC 101.01 (Canada) : de 30 min après le coucher du soleil à 30 min avant le lever'],
+ ['Night', 'Per CAR 101.01 (Canada): from the end of evening civil twilight to the beginning of morning civil twilight', 'Selon le RAC 101.01 (Canada) : de la fin du crépuscule civil du soir au début du crépuscule civil du matin'],
  ['IFR', 'Instrument Flight Rules — flight conducted under instrument procedures', 'Instrument Flight Rules — vol selon les procédures aux instruments'],
  ['VFR', 'Visual Flight Rules — flight by visual reference', 'Visual Flight Rules — vol selon les références visuelles'],
 
@@ -328,7 +328,7 @@ const GLOSSARY = [
 
  // Roster activity codes (Navblue) — what Cumulo filters out of imports
  ['DH', 'Deadhead — crew travelling as passenger to position to another base (not loggable as PIC/SIC)', 'Deadhead — équipage voyageant comme passager pour repositionner vers une autre base (non enregistrable comme PIC/SIC)'],
- ['GD', 'Guaranteed Day Off (Porter/Navblue roster code)', 'Guaranteed Day Off (code horaire Porter/Navblue)'],
+ ['GD', 'Guaranteed Day Off (roster code)', 'Guaranteed Day Off (code d’horaire)'],
  ['SDO', 'Scheduled Day Off (rest)', 'Jour de repos planifié'],
  ['HTL', 'Hotel / layover (roster code)', 'Hôtel / escale (code horaire)'],
  ['REAX', 'Reassignable Reserve (roster code)', 'Réserve réassignable (code horaire)'],
@@ -337,7 +337,7 @@ const GLOSSARY = [
 
  // Aircraft / aerodrome identifiers
  ['ICAO', '4-letter aerodrome identifier (e.g. CYOW, KBOS) used in flight plans and logbooks', 'Code aérodrome 4-lettres (ex. CYOW, KBOS) utilisé dans les plans de vol et carnets'],
- ['IATA', '3-letter airport code (e.g. YOW, BOS) — common in tickets and Navblue rosters', 'Code aéroport 3-lettres (ex. YOW, BOS) — courant dans les billets et horaires Navblue'],
+ ['IATA', '3-letter airport code (e.g. YOW, BOS)', 'Code aéroport à 3 lettres (ex. YOW, BOS)'],
  ['MTOW', 'Maximum Take-Off Weight (sometimes referenced for aircraft class)', 'Maximum Take-Off Weight — masse maximale au décollage (référencée pour la classe d\'aéronef)'],
 
  // Regulatory

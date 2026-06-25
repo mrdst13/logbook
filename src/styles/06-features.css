@@ -369,6 +369,186 @@
   line-height: 1.55;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   IMPORT PAGE v2 — 2026 redesign (question-first → hero → tiles)
+   Replaces the old Track A/B explainer + stacked cards. One guiding
+   question, a recommended hero path, then three calm option tiles.
+   Built on the live design tokens (accent, elevation, motion easings).
+═══════════════════════════════════════════════════════════════════ */
+.import-ask {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+  margin: var(--s-5) 0 var(--s-3);
+}
+
+/* Recommended path — visually elevated hero card */
+.import-hero2 {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  box-shadow: 0 8px 24px rgba(46, 99, 216, 0.10), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+.import-hero2-badge {
+  position: absolute;
+  top: -10px;
+  left: var(--s-5);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  padding: 4px 11px;
+}
+.import-hero2-row { display: flex; gap: var(--s-4); align-items: flex-start; }
+.import-hero2-icon {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.import-hero2-icon svg { width: 24px; height: 24px; }
+.import-hero2-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.import-hero2-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.import-steps { display: flex; gap: var(--s-2); margin-top: var(--s-4); }
+.import-step {
+  flex: 1;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+.import-step-n {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.import-step-s {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.import-hero2 .btn { margin-top: var(--s-4); }
+@media (max-width: 600px) { .import-steps { flex-direction: column; } }
+
+/* "or choose another source" divider with hairlines */
+.import-or {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: var(--s-5) 0 var(--s-4);
+}
+.import-or::before, .import-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Three secondary option tiles (PDF · CSV · manual) */
+.import-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--s-3);
+}
+@media (max-width: 720px) { .import-tiles { grid-template-columns: 1fr; } }
+.import-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform var(--motion-fast) var(--ease-stable),
+              box-shadow var(--motion-fast) var(--ease-stable),
+              border-color var(--motion-fast) var(--ease-stable);
+}
+.import-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+.import-tile.dragover {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+}
+.import-tile-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.import-tile-icon svg { width: 19px; height: 19px; }
+.import-tile-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.import-tile-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-top: 4px;
+  flex: 1;
+}
+.import-tile-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+.import-tile-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  margin-top: 8px;
+}
+.import-tile-link:hover { text-decoration: underline; }
+
 
 
 /* Drop zones — compact list-row affordance. The pattern from Linear,
@@ -950,8 +1130,8 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   border-left-width: 3px;
 }
 .alert-bar.green  { background: var(--success-soft); border-color: var(--success); color: var(--success); }
-.alert-bar.yellow { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
-.alert-bar.red    { background: var(--danger-soft);  border-color: var(--danger);  color: var(--danger); }
+.alert-bar.yellow { background: var(--warning-soft); border-color: var(--warning); color: var(--warning-text); }
+.alert-bar.red    { background: var(--danger-soft);  border-color: var(--danger);  color: var(--danger-text); }
 .alert-bar .alert-icon { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 .alert-bar .alert-icon svg { width: 100%; height: 100%; display: block; }
 .alert-bar .alert-text { flex: 1; }

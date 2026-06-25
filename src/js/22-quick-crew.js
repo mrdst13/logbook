@@ -129,7 +129,9 @@ function _renderQuickCrewModal(flightList, field) {
   }, 50);
 
   // Tab/Enter on the last input wraps to Save — small keyboard nicety.
+  // Escape closes the modal (a11y — every modal must be dismissible by keyboard).
   overlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closeQuickCrewFill(); return; }
     if (e.key !== 'Enter') return;
     const inputs = Array.from(overlay.querySelectorAll('.qc-input'));
     const i = inputs.indexOf(document.activeElement);

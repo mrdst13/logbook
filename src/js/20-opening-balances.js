@@ -281,10 +281,9 @@ function totalsWithOpening(flightsTotals) {
     if (d) merged.sic = (+merged.sic||0) + d;
   }
   if (!balances.night) {
-    // Night = all night flying, every aircraft class (ME + heli + single-engine).
-    const d = (+balances.meNightPic||0)+(+balances.meNightCop||0)+(+balances.meNightDual||0)
-            + (+balances.heliNightPic||0)+(+balances.heliNightCop||0)+(+balances.heliNightDual||0)
-            + (+balances.seNight||0);
+    // Night = all night flying — shared nightHoursOf() (balances use the same
+    // field names as a flight) so opening balances agree with calcStats.
+    const d = nightHoursOf(balances);
     if (d) merged.night = (+merged.night||0) + d;
   }
   if (!balances.me) {

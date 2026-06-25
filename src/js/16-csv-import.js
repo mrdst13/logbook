@@ -909,7 +909,7 @@ function showAircraftClassifyStep() {
       <div class="review-item" style="${flag ? 'border-color: var(--warning, #d97706);' : ''}">
         <div class="review-body" style="flex:1;">
           <div class="review-item-header">${esc(ac.type)} · <span style="font-family:var(--font-mono); color:var(--text-secondary);">${esc(ac.reg)}</span></div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${ac.count} flight${ac.count !== 1 ? 's' : ''}${ac.autoDetected ? '' : ' · <strong style="color:var(--warning, #d97706);">no auto-detection — verify</strong>'}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${ac.count} ${esc(t(ac.count !== 1 ? 'word.flights' : 'word.flight'))}${ac.autoDetected ? '' : ` · <strong style="color:var(--warning, #d97706);">${esc(t('csv.review.noAutoDetect'))}</strong>`}</div>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <select onchange="csvImportState.aircraftList[${idx}].engine = this.value;"
@@ -1145,6 +1145,22 @@ function commitCsvImport() {
       numericKeys.forEach(k => {
         if ((+existing[k] || 0) === 0 && (+incoming[k] || 0) > 0) mergedFlight[k] = incoming[k];
       });
+      // Back-fill EMPTY text fields too (fill-empty rule) — a richer CSV must
+      // not silently drop remarks/route/flightNum/names/etc. onto a sparse row.
+      // (Opus audit — CSV merge discards source text.)
+      const textKeys = ['remarks','route','flightNum','pic','copilot','acConfig','via',
+                        'atd_utc','ata_utc','rating','type','reg','crewPosition','dep_icao','arr_icao'];
+      textKeys.forEach(k => {
+        const ev = existing[k];
+        const iv = incoming[k];
+        if ((ev === undefined || ev === null || ev === '') && (iv !== undefined && iv !== null && iv !== '')) {
+          mergedFlight[k] = iv;
+        }
+      });
+      // Always record the attestation on the merged row (it lived on `incoming`
+      // and was lost when `existing` won the spread).
+      if (incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
+      if (incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
       flights[match.idx] = mergedFlight;
       merged++;
     } else {

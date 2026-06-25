@@ -137,6 +137,26 @@
   --motion-base:   220ms;   /* default page transitions, dropdowns      */
   --motion-slow:   380ms;   /* dialog enter/exit, sheet present         */
   --motion-stagger: 60ms;   /* stagger between sibling reveals          */
+
+  /* ─── Compat aliases ───────────────────────────────────────────────
+     Some components (auth modal, table hover) referenced token names that
+     were never declared, so they fell back to transparent / no-shadow —
+     a real visual defect on the sign-in dialog. These alias the missing
+     names onto real tokens; because var() resolves at use time, a single
+     :root alias works in BOTH light and dark themes. (Opus audit.) */
+  --bg-elev:       var(--bg-elevated);
+  --bg-hover:      var(--bg-subtle);
+  --bg-input:      var(--bg-surface);
+  --shadow-xl:     var(--shadow-lg);
+  --accent-glow:   var(--accent-soft);
+  --text-tertiary: var(--text-muted);
+
+  /* Text-on-soft-tint colors. The base --warning/--danger are tuned for
+     borders/icons; as TEXT on their *-soft backgrounds they failed WCAG AA
+     in light mode (warning ~2.9:1, danger ~3.9:1). These darker variants
+     clear 4.5:1 for text. (Opus audit.) Borders/icons keep --warning/--danger. */
+  --warning-text:  #9A5A00;
+  --danger-text:   #B71C1C;
 }
 
 /* Accessibility: respect prefers-reduced-motion. Collapses all the
