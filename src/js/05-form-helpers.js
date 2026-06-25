@@ -334,12 +334,6 @@ function editFlight(id) {
     sv('f-simInstructor', f.simInstructor);
   }
   showPage('add');
-  // If this flight has multi-engine time, make sure the ME card is visible even
-  // for an SE-focused pilot type (where it's hidden by default) — never hide a
-  // pilot's existing data on edit. Runs after showPage() so it wins over
-  // adaptFormToProfile(). (Audit panel 2026-06-25.)
-  const _me = (+f.meDayPic||0)+(+f.meNightPic||0)+(+f.meDayCop||0)+(+f.meNightCop||0)+(+f.meDayDual||0)+(+f.meNightDual||0);
-  if (_me > 0 && typeof revealMECard === 'function') revealMECard();
   if (typeof validateFlightForm === 'function') validateFlightForm();
 }
 
