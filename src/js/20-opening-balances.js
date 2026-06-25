@@ -141,7 +141,7 @@ function _bfPageGroups() {
       open: false,
       fields: [
         { key: 'instActual',  labelEn: 'Actual (IMC)',              labelFr: 'Réel (IMC)' },
-        { key: 'instHood',    labelEn: 'Hood (view-limiting)',      labelFr: 'Cagoule (en vol)' },
+        { key: 'instHood',    labelEn: 'Hood (view-limiting)',      labelFr: 'Sous capot (vue limitée)' },
         { key: 'instSim',     labelEn: 'FFS / FTD (simulator)',     labelFr: 'FFS / FTD (simulateur)' },
         { key: 'approaches',  labelEn: 'Approaches',                labelFr: 'Approches', integer: true },
       ],
