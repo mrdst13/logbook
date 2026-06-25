@@ -2917,6 +2917,8 @@ select {
 }
 @media (max-width: 560px) {
   .qc-row { grid-template-columns: 1fr; gap: 4px; }
+  /* Touch target: bump crew inputs to the 44px minimum on phones (a11y). */
+  .qc-input { height: auto; min-height: 44px; }
 }
 
 /* ═══════════════════════════════════════
@@ -19414,7 +19416,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-25-2bd88c1';
+const BUILD_VERSION = '2026-06-25-4c5a1fd';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

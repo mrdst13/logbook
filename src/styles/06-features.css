@@ -65,6 +65,8 @@
 }
 @media (max-width: 560px) {
   .qc-row { grid-template-columns: 1fr; gap: 4px; }
+  /* Touch target: bump crew inputs to the 44px minimum on phones (a11y). */
+  .qc-input { height: auto; min-height: 44px; }
 }
 
 /* ═══════════════════════════════════════
