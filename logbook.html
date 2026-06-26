@@ -7514,7 +7514,7 @@ function _dashRenderValidities() {
   }).join('');
 
   html += '' +
-    '<div class="dash-val dash-val-add" onclick="showPage(\'backup\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showPage(\'backup\');}">' +
+    '<div class="dash-val dash-val-add" onclick="dashAddValidity()" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();dashAddValidity();}">' +
       '<div class="dash-val-add-plus">+</div>' +
       '<div class="dash-val-add-txt">' + esc(fr ? 'Ajouter une validité' : 'Add a validity') + '</div>' +
     '</div>';
@@ -7532,6 +7532,30 @@ function _dashRenderValidities() {
     };
     personaEl.textContent = (fr ? 'Profil · ' : 'Profile · ') + (LBL[pilotType] || (fr ? 'Pilote' : 'Pilot'));
   }
+}
+
+// "+ Add a validity" card → Settings → Profile, with the validity-date fields
+// (Medical / PPC) brought into view and focused. This is the SAME handler on
+// desktop and mobile: the old onclick was showPage('backup'), which dropped the
+// user on whichever Settings tab was last active (usually Sync) — a dead end with
+// no validity UI. We route through showPage('profile') (the router's back-compat
+// redirect lands on Settings → Profile tab), then scroll to the first applicable
+// validity date so the pilot arrives exactly where these are set, not at the top
+// of a long profile form. (Bug reported by Martin 2026-06-26 — web + mobile.)
+function dashAddValidity() {
+  if (typeof showPage === 'function') showPage('profile');
+  setTimeout(() => {
+    // Prefer PPC when it's surfaced (705 line pilots); fall back to Medical,
+    // which applies to every pilot type and is always present.
+    const ppcWrap = document.getElementById('p-ppc-wrap');
+    const ppcVisible = ppcWrap && ppcWrap.style.display !== 'none' && ppcWrap.offsetParent !== null;
+    const target = (ppcVisible ? document.getElementById('p-ppc') : null)
+      || document.getElementById('p-medical');
+    if (target) {
+      try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch { target.scrollIntoView(); }
+      try { target.focus({ preventScroll: true }); } catch { try { target.focus(); } catch {} }
+    }
+  }, 140);
 }
 
 function _dashApproachesIn6mo() {
@@ -19716,7 +19740,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-26-e7d7fa5';
+const BUILD_VERSION = '2026-06-26-a3f93ae';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
