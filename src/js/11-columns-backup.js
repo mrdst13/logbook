@@ -22,6 +22,14 @@ function showSettingsTab(name) {
     if (typeof initSignature === 'function') setTimeout(initSignature, 50);
     if (typeof renderOpeningBalancesSection === 'function') renderOpeningBalancesSection('openingBalancesSection');
   }
+  // Privacy tab: the consent toggle (p-consentCaptainNames) is part of profile
+  // data. If the user opens Privacy directly without first visiting Profile,
+  // loadProfile() never ran, so the toggle showed a stale/default state and a
+  // save silently dropped the real value — a PIPEDA-consent reliability bug.
+  // Load the profile here so the toggle reflects the saved consent. (Audit fix.)
+  if (name === 'privacy') {
+    if (typeof loadProfile === 'function') loadProfile();
+  }
   // Data tab: refresh the Undo button label to show what would be undone
   // (which bulk operation was snapshotted, how long ago).
   if (name === 'data') {

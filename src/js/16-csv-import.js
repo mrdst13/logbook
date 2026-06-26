@@ -1229,7 +1229,7 @@ function handleCsvFile(file) {
     return;
   }
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     const text = e.target.result || '';
     const hash = hashCsvContent(text);
     const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
@@ -1241,7 +1241,12 @@ function handleCsvFile(file) {
     const dateLocale = detectDateLocale(sampleDates);
     if (dateLocale === 'ambiguous') {
       // Force user to disambiguate.
-      const pick = window.confirm(t('toast.dateAmbiguous') + '\n\nOK = MM/DD (US)\nCancel = DD/MM (EU)');
+      const pick = await confirmDialog({
+        title: getLang && getLang() === 'fr' ? 'Format de date ambigu' : 'Ambiguous date format',
+        body: t('toast.dateAmbiguous') + '\n\nOK = MM/DD (US)\nCancel = DD/MM (EU)',
+        confirmLabel: 'MM/DD (US)',
+        cancelLabel: 'DD/MM (EU)',
+      });
       const chosen = pick ? 'us' : 'eu';
       parseAndStartFlow(text, chosen, profile, hash);
       return;

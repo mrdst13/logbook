@@ -41,6 +41,12 @@ function needsIFRTracking(profile) {
 // ═══════════════════════════════════════════
 // FEATURE 5 — MEDICAL & RECENCY ALERTS
 // ═══════════════════════════════════════════
+// Medical / ECG alert glyphs — line-art, no emoji in chrome (brand rule;
+// Martin 2026-06-25: emoji read as childish). currentColor inherits the
+// alert tint via .alert-bar.{red,yellow}.
+const ICON_MEDICAL_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z"/></svg>';
+const ICON_ECG_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2 5 4-10 2 5h6"/></svg>';
+
 function renderAlerts() {
   const section = document.getElementById('alertsSection');
   if (!section) return;
@@ -57,9 +63,9 @@ function renderAlerts() {
     const days = Math.round((exp - today) / 86400000);
     const absDays = Math.abs(days);
     if (days < 0) {
-      alerts.push({ level:'red', icon:'🏥', title: t('alert.medicalExpired'), sub: t(absDays === 1 ? 'alert.medicalExpiredSub' : 'alert.medicalExpiredSubPl', { n: absDays }) });
+      alerts.push({ level:'red', icon: ICON_MEDICAL_GLYPH, title: t('alert.medicalExpired'), sub: t(absDays === 1 ? 'alert.medicalExpiredSub' : 'alert.medicalExpiredSubPl', { n: absDays }) });
     } else if (days <= 60) {
-      alerts.push({ level:'yellow', icon:'🏥', title: t(days === 1 ? 'alert.medicalSoon2' : 'alert.medicalSoon2Pl', { n: days }), sub: t('alert.medicalExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
+      alerts.push({ level:'yellow', icon: ICON_MEDICAL_GLYPH, title: t(days === 1 ? 'alert.medicalSoon2' : 'alert.medicalSoon2Pl', { n: days }), sub: t('alert.medicalExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
     }
     // > 60 days = current = no alert shown
   }
@@ -72,9 +78,9 @@ function renderAlerts() {
     const days = Math.round((exp - today) / 86400000);
     const absDays = Math.abs(days);
     if (days < 0) {
-      alerts.push({ level:'red', icon:'❤️', title: t('alert.ecgExpired'), sub: t(absDays === 1 ? 'alert.ecgExpiredSub' : 'alert.ecgExpiredSubPl', { n: absDays }) });
+      alerts.push({ level:'red', icon: ICON_ECG_GLYPH, title: t('alert.ecgExpired'), sub: t(absDays === 1 ? 'alert.ecgExpiredSub' : 'alert.ecgExpiredSubPl', { n: absDays }) });
     } else if (days <= 60) {
-      alerts.push({ level:'yellow', icon:'❤️', title: t(days === 1 ? 'alert.ecgSoon' : 'alert.ecgSoonPl', { n: days }), sub: t('alert.ecgExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
+      alerts.push({ level:'yellow', icon: ICON_ECG_GLYPH, title: t(days === 1 ? 'alert.ecgSoon' : 'alert.ecgSoonPl', { n: days }), sub: t('alert.ecgExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
     }
   }
 

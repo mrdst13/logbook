@@ -100,7 +100,9 @@ function onOnbAirlineChange() {
 function onOnbPilotType(type) {
   onbData.pilotType = type;
   document.querySelectorAll('[data-onb-pilot-type]').forEach(card => {
-    card.classList.toggle('active', card.dataset.onbPilotType === type);
+    const isSelected = card.dataset.onbPilotType === type;
+    card.classList.toggle('active', isSelected);
+    card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
   });
 }
 

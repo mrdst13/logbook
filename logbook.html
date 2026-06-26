@@ -1107,6 +1107,29 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
 /* Validités card with status rings */
 .dash-validities { padding: 24px 26px; }
+
+/* Validités — adaptive status cards (redesign 2026-06-25). Status-colour ring
+   (fill = time remaining), metric name, status word + dot, localised date.
+   Supersedes the .dash-rings / .dash-ring-* rules above. No regulatory codes
+   on the dashboard surface — those live in the drill-down. */
+.dash-val-persona { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.dash-vals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.dash-val { text-align: center; padding: 14px 10px 12px; border-radius: var(--r-md); }
+.dash-val-ring { width: 64px; height: 64px; margin: 0 auto 10px; }
+.dash-val-ring svg { width: 100%; height: 100%; display: block; }
+.dash-val-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.dash-val-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 500; margin-top: 5px; }
+.dash-val-status .dash-val-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.dash-val-current { color: var(--success); }
+.dash-val-soon    { color: var(--warning-text); }
+.dash-val-expired { color: var(--danger-text); }
+.dash-val-notset  { color: var(--text-muted); }
+.dash-val-sub { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.dash-val-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--border-strong); border-radius: var(--r-md); cursor: pointer; }
+.dash-val-add:hover { background: var(--bg-subtle); }
+.dash-val-add-plus { font-size: 20px; color: var(--text-muted); line-height: 1; }
+.dash-val-add-txt { font-size: 11.5px; font-weight: 500; color: var(--text-secondary); }
+@media (max-width: 540px) { .dash-vals { grid-template-columns: repeat(2, 1fr); } }
 .dash-rings {
   display: flex;
   justify-content: space-between;
@@ -1423,7 +1446,9 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   transform: scale(0.985);
 }
 .dash-clickable:focus-visible {
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 /* Strip items already have a 2px colored left-border + tight padding — give
    the hover state a slightly different treatment so it doesn't feel like the
@@ -1558,9 +1583,9 @@ body.no-data .dash-hero-spark circle { opacity: 0.35; }
 .cur-value { font-family: var(--font-sans); font-weight: 700; font-size: 28px; color: var(--text); line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
 .cur-unit { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
 .cur-status { margin-left: auto; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
-.cur-status.ok { background: rgba(16,163,127,0.12); color: rgb(16,163,127); }
-.cur-status.low { background: rgba(255,176,32,0.14); color: rgb(184,124,12); }
-.cur-status.bad { background: rgba(220,42,42,0.12); color: rgb(220,42,42); }
+.cur-status.ok { background: var(--success-soft); color: var(--success); }
+.cur-status.low { background: var(--warning-soft); color: var(--warning-text); }
+.cur-status.bad { background: var(--danger-soft); color: var(--danger-text); }
 .cur-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.02em; }
 @media (max-width: 720px) {
   #currencyGrid { grid-template-columns: 1fr !important; gap: 14px !important; }
@@ -1576,7 +1601,7 @@ body.no-data .dash-hero-spark circle { opacity: 0.35; }
   margin-bottom: var(--s-2);
 }
 .stat-value {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: 32px;
   color: var(--text);
@@ -3578,7 +3603,7 @@ select {
   max-width: 320px;
 }
 .toast.show { transform: translateY(0); opacity: 1; }
-.toast.success { background: #1a5e35; }
+.toast.success { background: var(--success); }
 .toast.error { background: var(--danger); }
 @media (max-width: 480px) {
   .toast {
@@ -4402,7 +4427,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   width: 100%;
   box-sizing: border-box;
 }
-.auth-input:focus {
+.auth-input:focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow, rgba(56, 132, 255, 0.15));
@@ -4584,7 +4609,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
 
  <!-- (2) Brought-forward discovery banner — only for brand-new users. -->
- <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); display:flex; gap:var(--s-3); align-items:center; flex-wrap:wrap;">
+ <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); gap:var(--s-3); align-items:center; flex-wrap:wrap;">
  <div style="flex:1; min-width:0;">
  <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;" data-i18n="dash.brought.title">Have a paper logbook?</div>
  <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;" data-i18n="dash.brought.desc">Declare your cumulative totals as brought-forward hours — no need to re-enter every flight. One attestation, then log new flights forward from today.</div>
@@ -4631,24 +4656,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
 
  <div class="dash-card dash-validities">
+ <div class="dash-card-head">
  <div class="eyebrow" data-i18n="dash.validitiesEyebrow">CURRENT VALIDITIES</div>
- <div class="dash-rings">
- <div class="dash-ring-block dash-clickable" onclick="openDashDrill('ifr')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('ifr');}">
- <div class="dash-ring" id="dashRingIFR"><!-- SVG written by JS --></div>
- <div class="dash-ring-sub" id="dashRingIFRSub">— / 6 appr.</div>
- <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
+ <div class="dash-val-persona" id="dashValPersona"></div>
  </div>
- <div class="dash-ring-block dash-clickable" onclick="openDashDrill('recency')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('recency');}">
- <div class="dash-ring" id="dashRingREC"></div>
- <div class="dash-ring-sub" id="dashRingRECSub">— / 5 ldg</div>
- <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
- </div>
- <div class="dash-ring-block dash-clickable" id="dashRingMedBlock" onclick="openDashDrill('medical')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('medical');}">
- <div class="dash-ring" id="dashRingMED"></div>
- <div class="dash-ring-sub" id="dashRingMEDSub">—</div>
- <div class="dash-ring-cap mono" data-i18n="dash.ringCapCat1">CAT 1</div>
- </div>
- </div>
+ <div class="dash-vals" id="dashValiditiesGrid"><!-- adaptive status cards rendered by _dashRenderValidities() --></div>
  </div>
  </div>
 
@@ -5098,12 +5110,20 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="number" id="f-xc-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
  <div class="form-group">
+ <label for="f-xc-day-cop" data-i18n="flight.xcDayCop">XC Day — SIC</label>
+ <input type="number" id="f-xc-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
  <label for="f-xc-night-dual" data-i18n="flight.xcNightDual">XC Night — Dual</label>
  <input type="number" id="f-xc-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
  <div class="form-group">
  <label for="f-xc-night-pic" data-i18n="flight.xcNightPic">XC Night — PIC</label>
  <input type="number" id="f-xc-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label for="f-xc-night-cop" data-i18n="flight.xcNightCop">XC Night — SIC</label>
+ <input type="number" id="f-xc-night-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
  </div>
  </div>
@@ -5138,6 +5158,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-group">
  <label data-i18n="flight.instSim">Instrument — Sim</label>
  <input type="number" id="f-inst-sim" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label for="f-approaches" data-i18n="flight.approaches">Approaches</label>
+ <input type="number" id="f-approaches" placeholder="0" inputmode="numeric" step="1" min="0">
  </div>
  <div class="form-group" id="fg-picus">
  <label data-i18n="flight.picus">PICUS</label>
@@ -5256,7 +5280,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="page-header">
  <div>
  <h1 class="page-title" data-i18n="page.bf.title">Brought-forward hours</h1>
- <div class="page-sub" data-i18n="page.bf.sub">Paper logbook · CAR 401.08(2)(h)</div>
+ <div class="page-sub" data-i18n="page.bf.sub">Paper logbook</div>
  </div>
  <div class="page-actions">
  <button class="btn btn-ghost btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('profile'),50);">
@@ -5418,7 +5442,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
  <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
- <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · CAR 401.05 currency</div>
+ <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · recent experience</div>
  </div>
  </div>
  </div>
@@ -5539,7 +5563,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-group col-span-2" id="p-ppc-wrap">
    <label><span data-i18n="profile.ppc.label">PPC expiry</span> <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(<span data-i18n="profile.ppc.hint">Pilot Proficiency Check</span>)</span></label>
    <input type="date" id="p-ppc">
-   <div class="help-text">CASS 725.106 — every 6 months for multi-pilot 705 ops. Update this date after each PPC. For how training events (LOFT, IPC, etc.) relate to your PPC currency, refer to your operator's approved training program.</div>
+   <div class="help-text">Renew on the recurring cycle that applies to your multi-pilot 705 operation. Update this date after each PPC. For how training events (LOFT, IPC, etc.) relate to your PPC currency, refer to your operator's approved training program.</div>
  </div>
  </div>
  </div>
@@ -7260,7 +7284,11 @@ function _dashRenderSparkline(svgId, data) {
 //   intended for private/CPL pilots without a Company PPC.
 // For non-705 pilots (private/student/instructor/helicopter): IFR | REC | MED
 //   The generic CAR 401.05(2) rule applies; show the approach count.
-function _dashRenderValidityRings() {
+function _dashRenderValidityRings() { return _dashRenderValidities(); }
+// Legacy fixed PPC/REC/MED ring renderer — superseded 2026-06-25 by
+// _dashRenderValidities (adaptive status cards). Left un-called for one
+// release as a safety net; safe to delete next cleanup pass.
+function _dashRenderValidityRings_DEAD() {
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const is705 = (profile.pilotType || 'airline705') === 'airline705';
@@ -7371,6 +7399,139 @@ function _dashRenderRing(containerId, pct, color, label) {
     </svg>
     <div class="dash-ring-label">${esc(label)}</div>
   `;
+}
+
+// Tiny hex→rgba helper for the ghost (track) ring colour.
+function _dashHexA(h, a) {
+  const n = parseInt(h.slice(1), 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
+// ─── Validités — adaptive status cards (redesign 2026-06-25) ────────────────
+// Replaces the old fixed PPC/REC/MED rings. Each validity is an autonomous
+// card: a STATUS-colour ring (green current / amber due-soon / red expired /
+// dashed grey not-set), the ring fill = time remaining (fuller = further from
+// renewal), then the metric name, a status WORD and a human, localised date.
+// NO regulatory codes on the dashboard surface — those stay in the drill-down.
+// The expiry/currency maths come from the already-verified helpers; the only
+// new constants are the ADVISORY due-soon warning windows (60 d / 90 d), which
+// are display preferences, not Transport Canada limits.
+//
+// The SET of validities adapts to the pilot type:
+//   airline 705  → PPC, Medical            (PPC supersedes the IFR window;
+//                                            passenger recency is always met)
+//   everyone else → Recent experience, Medical (+ IFR if they fly instruments)
+// A trailing "+ Add" card lets a pilot track operator / personal validities.
+function _dashRenderValidities() {
+  const grid = document.getElementById('dashValiditiesGrid');
+  if (!grid) return;
+  const fr = ((typeof getLang === 'function') ? getLang() : 'en') === 'fr';
+  const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  const pilotType = profile.pilotType || 'airline705';
+  const is705 = pilotType === 'airline705';
+  // First-launch guard: with zero flights logged we cannot assess count-based
+  // currency (recent experience / IFR), so show "not set" (dashed grey) — never
+  // a red "Expired" on a brand-new logbook. (Validity-review fix.)
+  const hasFlights = Array.isArray(flights) && flights.length > 0;
+
+  const fmtDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  // Advisory display status from days-remaining (NOT a regulatory definition).
+  const dateStatus = (days, soonDays) => {
+    if (days === null || days === undefined) return 'notset';
+    if (days <= 0) return 'expired';
+    if (days <= soonDays) return 'soon';
+    return 'current';
+  };
+
+  const items = [];
+  if (is705) {
+    const ppc = _dashPPCDaysRemaining(profile);
+    items.push({ drill: 'ppc', label: 'PPC', status: dateStatus(ppc, 60), days: ppc, window: 365, sub: fmtDate(profile.ppcDueDate) });
+  } else {
+    const recTO = _dashTakeoffsIn6mo();
+    const recLdg = _dashLandingsIn6mo();
+    const rec = Math.min(recTO, recLdg);
+    items.push({
+      drill: 'recency',
+      label: fr ? 'Expérience récente' : 'Recent experience',
+      // 5 take-offs AND 5 landings within 6 months are required to be current
+      // (CAR 401.05(2)); 1-4 is NOT current — show it as such, never "due soon".
+      status: !hasFlights ? 'notset' : (rec >= 5 ? 'current' : 'expired'),
+      fill: Math.min(1, rec / 5),
+      sub: fr ? (recTO + ' décol. · ' + recLdg + ' atterr.') : (recTO + ' T/O · ' + recLdg + ' ldg')
+    });
+    if (typeof needsIFRTracking === 'function' && needsIFRTracking(profile)) {
+      const ifr = _dashIFRCurrency();
+      items.push({
+        drill: 'ifr', label: 'IFR',
+        status: !hasFlights ? 'notset' : (ifr.current ? 'current' : 'expired'),
+        fill: ifr.pct / 100,
+        sub: ifr.approaches + ' / 6 appr.'
+      });
+    }
+  }
+  const med = _dashMedicalDaysRemaining();
+  items.push({ drill: 'medical', label: fr ? 'Médical' : 'Medical', status: dateStatus(med, 90), days: med, window: 365, sub: fmtDate(profile.medical) });
+
+  const COLOR = { current: '#0EA371', soon: '#E8920F', expired: '#E24B4A', notset: '#CBD0DA' };
+  const WORD = {
+    current: fr ? 'À jour' : 'Current',
+    soon: fr ? 'Bientôt dû' : 'Due soon',
+    expired: fr ? 'Expiré' : 'Expired',
+    notset: fr ? 'Non renseigné' : 'Not set'
+  };
+
+  const ringSvg = (status, fillFrac) => {
+    const size = 64, sw = 6, r = (size - sw) / 2, c = 2 * Math.PI * r, cx = size / 2;
+    if (status === 'notset') {
+      return '<svg viewBox="0 0 ' + size + ' ' + size + '"><circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="#CBD0DA" stroke-width="' + sw + '" stroke-dasharray="5 6"/></svg>';
+    }
+    const col = COLOR[status];
+    const f = Math.max(0, Math.min(1, fillFrac == null ? 1 : fillFrac));
+    const off = (c * (1 - f)).toFixed(2);
+    const ghost = (status === 'expired') ? 'rgba(226,75,74,.20)' : _dashHexA(col, 0.16);
+    const prog = (status === 'expired') ? '' :
+      '<circle class="dash-ring-progress" cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-dasharray="' + c.toFixed(2) + '" stroke-dashoffset="' + off + '" transform="rotate(-90 ' + cx + ' ' + cx + ')"/>';
+    return '<svg viewBox="0 0 ' + size + ' ' + size + '"><circle class="dash-ring-track" cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + ghost + '" stroke-width="' + sw + '"/>' + prog + '</svg>';
+  };
+
+  const fillOf = (it) => (it.fill != null) ? it.fill : ((it.days == null || !it.window) ? 1 : Math.max(0, Math.min(1, it.days / it.window)));
+
+  let html = items.map((it) => {
+    const kd = esc(it.drill);
+    return '' +
+      '<div class="dash-val dash-clickable" onclick="openDashDrill(\'' + kd + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openDashDrill(\'' + kd + '\');}">' +
+        '<div class="dash-val-ring">' + ringSvg(it.status, fillOf(it)) + '</div>' +
+        '<div class="dash-val-name">' + esc(it.label) + '</div>' +
+        '<div class="dash-val-status dash-val-' + it.status + '"><span class="dash-val-dot"></span>' + esc(WORD[it.status]) + '</div>' +
+        '<div class="dash-val-sub">' + esc(it.sub || '') + '</div>' +
+      '</div>';
+  }).join('');
+
+  html += '' +
+    '<div class="dash-val dash-val-add" onclick="showPage(\'backup\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showPage(\'backup\');}">' +
+      '<div class="dash-val-add-plus">+</div>' +
+      '<div class="dash-val-add-txt">' + esc(fr ? 'Ajouter une validité' : 'Add a validity') + '</div>' +
+    '</div>';
+
+  grid.innerHTML = html;
+
+  const personaEl = document.getElementById('dashValPersona');
+  if (personaEl) {
+    const LBL = {
+      airline705: fr ? 'Pilote de ligne' : 'Airline pilot',
+      helicopter: fr ? 'Hélicoptère' : 'Helicopter',
+      instructor: fr ? 'Instructeur' : 'Instructor',
+      student: fr ? 'Élève-pilote' : 'Student',
+      private: fr ? 'Pilote privé' : 'Private pilot'
+    };
+    personaEl.textContent = (fr ? 'Profil · ' : 'Profile · ') + (LBL[pilotType] || (fr ? 'Pilote' : 'Pilot'));
+  }
 }
 
 function _dashApproachesIn6mo() {
@@ -7847,6 +8008,12 @@ function needsIFRTracking(profile) {
 // ═══════════════════════════════════════════
 // FEATURE 5 — MEDICAL & RECENCY ALERTS
 // ═══════════════════════════════════════════
+// Medical / ECG alert glyphs — line-art, no emoji in chrome (brand rule;
+// Martin 2026-06-25: emoji read as childish). currentColor inherits the
+// alert tint via .alert-bar.{red,yellow}.
+const ICON_MEDICAL_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z"/></svg>';
+const ICON_ECG_GLYPH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2 5 4-10 2 5h6"/></svg>';
+
 function renderAlerts() {
   const section = document.getElementById('alertsSection');
   if (!section) return;
@@ -7863,9 +8030,9 @@ function renderAlerts() {
     const days = Math.round((exp - today) / 86400000);
     const absDays = Math.abs(days);
     if (days < 0) {
-      alerts.push({ level:'red', icon:'🏥', title: t('alert.medicalExpired'), sub: t(absDays === 1 ? 'alert.medicalExpiredSub' : 'alert.medicalExpiredSubPl', { n: absDays }) });
+      alerts.push({ level:'red', icon: ICON_MEDICAL_GLYPH, title: t('alert.medicalExpired'), sub: t(absDays === 1 ? 'alert.medicalExpiredSub' : 'alert.medicalExpiredSubPl', { n: absDays }) });
     } else if (days <= 60) {
-      alerts.push({ level:'yellow', icon:'🏥', title: t(days === 1 ? 'alert.medicalSoon2' : 'alert.medicalSoon2Pl', { n: days }), sub: t('alert.medicalExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
+      alerts.push({ level:'yellow', icon: ICON_MEDICAL_GLYPH, title: t(days === 1 ? 'alert.medicalSoon2' : 'alert.medicalSoon2Pl', { n: days }), sub: t('alert.medicalExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
     }
     // > 60 days = current = no alert shown
   }
@@ -7878,9 +8045,9 @@ function renderAlerts() {
     const days = Math.round((exp - today) / 86400000);
     const absDays = Math.abs(days);
     if (days < 0) {
-      alerts.push({ level:'red', icon:'❤️', title: t('alert.ecgExpired'), sub: t(absDays === 1 ? 'alert.ecgExpiredSub' : 'alert.ecgExpiredSubPl', { n: absDays }) });
+      alerts.push({ level:'red', icon: ICON_ECG_GLYPH, title: t('alert.ecgExpired'), sub: t(absDays === 1 ? 'alert.ecgExpiredSub' : 'alert.ecgExpiredSubPl', { n: absDays }) });
     } else if (days <= 60) {
-      alerts.push({ level:'yellow', icon:'❤️', title: t(days === 1 ? 'alert.ecgSoon' : 'alert.ecgSoonPl', { n: days }), sub: t('alert.ecgExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
+      alerts.push({ level:'yellow', icon: ICON_ECG_GLYPH, title: t(days === 1 ? 'alert.ecgSoon' : 'alert.ecgSoonPl', { n: days }), sub: t('alert.ecgExpiry', { date: exp.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA') }) });
     }
   }
 
@@ -8509,8 +8676,10 @@ function saveFlight(options) {
     meNightCop: gv('f-me-night-cop'),
     xcDayDual: gv('f-xc-day-dual'),
     xcDayPic: gv('f-xc-day-pic'),
+    xcDayCop: gv('f-xc-day-cop'),
     xcNightDual: gv('f-xc-night-dual'),
     xcNightPic: gv('f-xc-night-pic'),
+    xcNightCop: gv('f-xc-night-cop'),
     // Take-offs + landings. Recorded for SIM too (manual entry, never assumed):
     // a Level B/C/D full-flight-sim session counts toward recency under
     // CAR 401.05(2)(b). Career landing totals still exclude sim (calcStats).
@@ -8518,6 +8687,7 @@ function saveFlight(options) {
     toNight: gv('f-to-night'),
     ldgDay: gv('f-ldg-day'),
     ldgNight: gv('f-ldg-night'),
+    approaches: gv('f-approaches'),
     instActual: gv('f-inst-actual'),
     instHood: gv('f-inst-hood'),
     instSim: isSim ? (gv('f-total') || gv('f-inst-sim')) : gv('f-inst-sim'),
@@ -8676,10 +8846,10 @@ function editFlight(id) {
   sv('f-ata-utc', f.ata_utc || '');
   sv('f-me-day-dual', f.meDayDual); sv('f-me-day-pic', f.meDayPic); sv('f-me-day-cop', f.meDayCop);
   sv('f-me-night-dual', f.meNightDual); sv('f-me-night-pic', f.meNightPic); sv('f-me-night-cop', f.meNightCop);
-  sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic);
-  sv('f-xc-night-dual', f.xcNightDual); sv('f-xc-night-pic', f.xcNightPic);
+  sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic); sv('f-xc-day-cop', f.xcDayCop);
+  sv('f-xc-night-dual', f.xcNightDual); sv('f-xc-night-pic', f.xcNightPic); sv('f-xc-night-cop', f.xcNightCop);
   sv('f-to-day', f.toDay); sv('f-to-night', f.toNight);
-  sv('f-ldg-day', f.ldgDay); sv('f-ldg-night', f.ldgNight);
+  sv('f-ldg-day', f.ldgDay); sv('f-ldg-night', f.ldgNight); sv('f-approaches', f.approaches);
   sv('f-se-day', f.seDay); sv('f-se-night', f.seNight);
   sv('f-se-day-dual', f.seDayDual); sv('f-se-night-dual', f.seNightDual);
   sv('f-heli-day-pic', f.heliDayPic); sv('f-heli-night-pic', f.heliNightPic);
@@ -8784,7 +8954,8 @@ function clearForm() {
    'f-block','f-duty','f-total','f-atd-utc','f-ata-utc',
    'f-me-day-dual','f-me-day-pic','f-me-day-cop',
    'f-me-night-dual','f-me-night-pic','f-me-night-cop','f-xc-day-dual','f-xc-day-pic',
-   'f-xc-night-dual','f-xc-night-pic','f-to-day','f-to-night','f-ldg-day','f-ldg-night',
+   'f-xc-night-dual','f-xc-night-pic','f-xc-day-cop','f-xc-night-cop','f-approaches',
+   'f-to-day','f-to-night','f-ldg-day','f-ldg-night',
    'f-se-day','f-se-night','f-se-day-dual','f-se-night-dual',
    'f-heli-day-pic','f-heli-night-pic','f-heli-day-cop','f-heli-night-cop',
    'f-heli-day-dual','f-heli-night-dual','f-hover','f-dualgiven-day','f-dualgiven-night',
@@ -10952,7 +11123,9 @@ function onOnbAirlineChange() {
 function onOnbPilotType(type) {
   onbData.pilotType = type;
   document.querySelectorAll('[data-onb-pilot-type]').forEach(card => {
-    card.classList.toggle('active', card.dataset.onbPilotType === type);
+    const isSelected = card.dataset.onbPilotType === type;
+    card.classList.toggle('active', isSelected);
+    card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
   });
 }
 
@@ -11666,6 +11839,14 @@ function showSettingsTab(name) {
     if (typeof initSignature === 'function') setTimeout(initSignature, 50);
     if (typeof renderOpeningBalancesSection === 'function') renderOpeningBalancesSection('openingBalancesSection');
   }
+  // Privacy tab: the consent toggle (p-consentCaptainNames) is part of profile
+  // data. If the user opens Privacy directly without first visiting Profile,
+  // loadProfile() never ran, so the toggle showed a stale/default state and a
+  // save silently dropped the real value — a PIPEDA-consent reliability bug.
+  // Load the profile here so the toggle reflects the saved consent. (Audit fix.)
+  if (name === 'privacy') {
+    if (typeof loadProfile === 'function') loadProfile();
+  }
   // Data tab: refresh the Undo button label to show what would be undone
   // (which bulk operation was snapshotted, how long ago).
   if (name === 'data') {
@@ -12162,12 +12343,12 @@ function _generatePDF() {
         textPrimary = [10, 14, 26];
 
   const name = `${p.fname||''} ${p.lname||''}`.trim() || 'Pilot';
-  const fullTitle = `${p.rank||'F/O'} ${name}`.trim();
+  const fullTitle = `${p.rank||''} ${name}`.trim();
   const license = p.license || '—';
   // No "Porter Airlines" default — a TC PDF should show "—" for an unset
   // operator (e.g. private/VFR pilot), not pretend the pilot is at Porter.
   const airline = p.airline || '—';
-  const base = p.base || 'YOW';
+  const base = p.base || '—';
   const medical = p.medical || '—';
   const ecg = p.ecg || '—';
   const fleet = p.fleet || '—';
@@ -12560,7 +12741,11 @@ function _generatePDF() {
     const ldg6mDay = recent6m.reduce((s, f) => s + (+f.ldgDay || 0), 0);
     const ldg6mNight = recent6m.reduce((s, f) => s + (+f.ldgNight || 0), 0);
     const ldg6mTotal = ldg6mDay + ldg6mNight;
-    const to6m = recent6m.filter(f => !f.isSim).length; // take-offs = real flight legs
+    // Take-offs must be SUMMED (a leg can log 0 or several), never counted as
+    // one per flight row — counting rows produced false CURRENT badges. (Audit fix.)
+    const to6mDay = recent6m.reduce((s, f) => s + (+f.toDay || 0), 0);
+    const to6mNight = recent6m.reduce((s, f) => s + (+f.toNight || 0), 0);
+    const to6m = to6mDay + to6mNight;
     // CAR 401.05: 6 instrument approaches in 6 months. Counter is approaches only.
     const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
     const instHours6m = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
@@ -12577,8 +12762,8 @@ function _generatePDF() {
         title: 'Passenger-carrying currency (Night)',
         reg: 'CAR 401.05(2)(b)',
         requirement: '5 night take-offs and 5 night landings within preceding 6 months',
-        current: `${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
-        ok: ldg6mNight >= 5
+        current: `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
+        ok: to6mNight >= 5 && ldg6mNight >= 5
       },
       {
         title: 'IFR currency — approaches',
@@ -12619,7 +12804,7 @@ function _generatePDF() {
 
     items.forEach(item => {
       const statusColor = item.ok === null ? muted : item.ok ? [16, 163, 127] : [220, 42, 42];
-      const statusText = item.ok === null ? 'UNKNOWN' : item.ok ? '✓ CURRENT' : '✗ NOT CURRENT';
+      const statusText = item.ok === null ? 'UNKNOWN' : item.ok ? 'CURRENT' : 'NOT CURRENT';
 
       doc.setDrawColor(...border);
       doc.setLineWidth(0.3);
@@ -12689,15 +12874,15 @@ const FAQS = [
  // ── Currency & recency ────────────────────────────────────────────
  {
  q: 'How many landings do I need to stay current as PIC?',
- a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(3), you need 5 take-offs and 5 landings at night within the preceding 6 months.',
+ a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(2), you need 5 take-offs and 5 landings at night within the preceding 6 months.',
  qFr: 'Combien d\'atterrissages me faut-il pour rester valide comme PIC ?',
- aFr: 'Selon CAR 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon CAR 401.05(3), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
+ aFr: 'Selon CAR 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon CAR 401.05(2), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
  },
  {
  q: 'What is IFR recency and how long is it valid?',
- a: 'Under CAR 401.05(5), to act as PIC under IFR you must have completed at least 6 instrument approaches in the preceding 6 months, either in an aircraft or approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.',
+ a: 'Under CAR 401.05(3.1), to act as PIC under IFR you must, within the preceding 6 months, have acquired 6 hours of instrument time AND completed 6 instrument approaches — in actual or simulated IMC in an aircraft, or in an approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.',
  qFr: 'Qu\'est-ce que la validité IFR et combien de temps est-elle bonne ?',
- aFr: 'Selon CAR 401.05(5), pour agir comme PIC en IFR, vous devez avoir effectué au moins 6 approches aux instruments dans les 6 mois précédents, en aéronef ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
+ aFr: 'Selon CAR 401.05(3.1), pour agir comme PIC en IFR, vous devez, dans les 6 mois précédents, avoir accumulé 6 heures de temps aux instruments ET effectué 6 approches aux instruments — en IMC réelle ou simulée en aéronef, ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
  },
  {
  q: 'What are the currency rules for helicopter pilots?',
@@ -12963,7 +13148,7 @@ const GLOSSARY = [
  ['Duty Time', 'Time on duty — typically check-in to check-out, broader than block time', 'Temps en service — typiquement check-in à check-out, plus large que le block time'],
 
  // Conditions (CAR 401.08(2)(d))
- ['Day', 'Daytime flight — sunrise to 30 min before sunset (varies by jurisdiction)', 'Vol de jour — lever du soleil à 30 min avant le coucher (varie par juridiction)'],
+ ['Day', 'Per CAR 101.01 (Canada): from the beginning of morning civil twilight to the end of evening civil twilight', 'Selon le RAC 101.01 (Canada) : du début du crépuscule civil du matin à la fin du crépuscule civil du soir'],
  ['Night', 'Per CAR 101.01 (Canada): from the end of evening civil twilight to the beginning of morning civil twilight', 'Selon le RAC 101.01 (Canada) : de la fin du crépuscule civil du soir au début du crépuscule civil du matin'],
  ['IFR', 'Instrument Flight Rules — flight conducted under instrument procedures', 'Instrument Flight Rules — vol selon les procédures aux instruments'],
  ['VFR', 'Visual Flight Rules — flight by visual reference', 'Visual Flight Rules — vol selon les références visuelles'],
@@ -12990,7 +13175,7 @@ const GLOSSARY = [
  ['FFS', 'Full Flight Simulator — highest-fidelity (Level C/D) Approved Flight Simulator', 'Full Flight Simulator — simulateur approuvé haute fidélité (Niveau C/D)'],
  ['FTD', 'Flight Training Device — fixed-base sim, lower fidelity than FFS', 'Flight Training Device — sim à base fixe, fidélité inférieure au FFS'],
  ['FNPT', 'Flight & Navigation Procedures Trainer — basic flight trainer', 'Flight & Navigation Procedures Trainer — entraîneur de vol de base'],
- ['PPC', 'Pilot Proficiency Check — annual/biannual proficiency test (CAR 421.05)', 'Pilot Proficiency Check — test de compétence annuel/semestriel (CAR 421.05)'],
+ ['PPC', 'Pilot Proficiency Check — recurrent type proficiency test (CAR 705.106 for airline ops; interval per CASS)', 'Pilot Proficiency Check — test de compétence récurrent sur type (CAR 705.106 pour le transport aérien; intervalle selon les CASS)'],
  ['IPC', 'Instrument Proficiency Check — restores expired IFR rating', 'Instrument Proficiency Check — restaure une qualification IFR expirée'],
  ['LOFT', 'Line Oriented Flight Training — full-flight scenario training in sim', 'Line Oriented Flight Training — entraînement de scénario en simulateur'],
 
@@ -13024,7 +13209,7 @@ const GLOSSARY = [
  ['TC', 'Transport Canada — Canadian aviation regulatory authority', 'Transports Canada — autorité de réglementation de l\'aviation canadienne'],
  ['CAR', 'Canadian Aviation Regulations (SOR/96-433) — primary aviation regulation in Canada', 'Canadian Aviation Regulations (DORS/96-433) — réglementation aérienne principale au Canada'],
  ['RAC', 'Règlement de l\'aviation canadien — French name for the CAR', 'Règlement de l\'aviation canadien — nom français des CAR'],
- ['CAR 401.05', 'Recency requirements (5 landings 90 days · 6 IFR approaches 6 months)', 'Exigences de validité (5 atterrissages 90 jours · 6 approches IFR 6 mois)'],
+ ['CAR 401.05', 'Recency requirements (5 take-offs/landings · 6 months; IFR: 6 approaches + 6h instrument · 6 months)', 'Exigences de validité (5 décollages/atterrissages · 6 mois; IFR : 6 approches + 6 h aux instruments · 6 mois)'],
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
  ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du cross-country (> 25 NM)'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
@@ -13081,6 +13266,21 @@ function renderRecap() {
   const year = sel.value;
   const yFlights = flights.filter(f => f.date && f.date.startsWith(year));
 
+  // Empty state — no flights logged for this year
+  if (yFlights.length === 0) {
+    const recapStats = document.getElementById('recapStats');
+    const ff = document.getElementById('recapFunFacts');
+    const canvas = document.getElementById('recapChart');
+    const recapAirports = document.getElementById('recapAirports');
+    const recapRoutes = document.getElementById('recapRoutes');
+    if (recapStats) recapStats.innerHTML = `<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:13px;grid-column:1/-1">${esc(t('recap.noFlights'))}</p>`;
+    if (ff) ff.innerHTML = '';
+    if (canvas && recapChartInst) { recapChartInst.destroy(); recapChartInst = null; }
+    if (recapAirports) recapAirports.innerHTML = '';
+    if (recapRoutes) recapRoutes.innerHTML = '';
+    return;
+  }
+
   // Stats
   const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
   const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
@@ -13114,20 +13314,35 @@ function renderRecap() {
   const canvas = document.getElementById('recapChart');
   if (canvas && typeof Chart !== 'undefined') {
     if (recapChartInst) { recapChartInst.destroy(); recapChartInst = null; }
+    // Read chart colours from CSS variables so dark mode is handled correctly.
+    const cs = getComputedStyle(document.documentElement);
+    const accentRaw   = cs.getPropertyValue('--accent').trim();
+    const textMuted   = cs.getPropertyValue('--text-muted').trim();
+    const borderColor = cs.getPropertyValue('--border').trim();
+    // Build semi-transparent fill from the accent variable.
+    // CSS custom properties may already be hex (#3d7bc4) or rgb(...).
+    // We create a temporary canvas pixel to convert to r,g,b for alpha layering.
+    let barBg = accentRaw;
+    try {
+      const tmp = document.createElement('canvas'); tmp.width = 1; tmp.height = 1;
+      const ctx2 = tmp.getContext('2d'); ctx2.fillStyle = accentRaw; ctx2.fillRect(0,0,1,1);
+      const [r,g,b] = ctx2.getImageData(0,0,1,1).data;
+      barBg = `rgba(${r},${g},${b},0.72)`;
+    } catch(_) { /* fallback: use raw value at full opacity */ }
     recapChartInst = new Chart(canvas, {
       type:'bar',
       data:{
         labels: months.map(m=>m.label),
         datasets:[{
           label:t('chart.blockHours'),data:months.map(m=>m.val),
-          backgroundColor:'rgba(61,123,196,0.72)',borderColor:'rgba(61,123,196,1)',borderWidth:1.5,borderRadius:4
+          backgroundColor:barBg,borderColor:accentRaw,borderWidth:1.5,borderRadius:4
         }]
       },
       options:{
         responsive:true,animation:{duration:600},
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' '+t('hero.unitHours')}}},
-        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:'#6b7fa3'}},
-                x:{grid:{display:false},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:'#6b7fa3'}}}
+        scales:{y:{beginAtZero:true,grid:{color:borderColor},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:textMuted}},
+                x:{grid:{display:false},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:textMuted}}}
       }
     });
   }
@@ -13174,16 +13389,15 @@ function renderRecap() {
       const facts = [];
       // Only show the Earth-tours fact when we actually measured distance.
       if (measured > 0) {
-        facts.push({ emoji: '🌍', text: t('recap.fun.earth', { n: earthTours.toFixed(2) }), sub: earthSub });
+        facts.push({ text: t('recap.fun.earth', { n: earthTours.toFixed(2) }), sub: earthSub });
       }
       facts.push(
-        { emoji: '⏱',  text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
-        { emoji: '🛬', text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
-        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acRegs.length }),        sub: t('recap.fun.aircraftSub') }
+        { text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
+        { text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
+        { text: t('recap.fun.aircraft', { n: acRegs.length }),        sub: t('recap.fun.aircraftSub') }
       );
       ff.innerHTML = facts.map(f => `
         <div class="recap-fun-item">
-          <div class="recap-fun-emoji">${f.emoji}</div>
           <div class="recap-fun-text">${esc(f.text)}</div>
           <div class="recap-fun-sub">${esc(f.sub)}</div>
         </div>`).join('');
@@ -14495,7 +14709,7 @@ function handleCsvFile(file) {
     return;
   }
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     const text = e.target.result || '';
     const hash = hashCsvContent(text);
     const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
@@ -14507,7 +14721,12 @@ function handleCsvFile(file) {
     const dateLocale = detectDateLocale(sampleDates);
     if (dateLocale === 'ambiguous') {
       // Force user to disambiguate.
-      const pick = window.confirm(t('toast.dateAmbiguous') + '\n\nOK = MM/DD (US)\nCancel = DD/MM (EU)');
+      const pick = await confirmDialog({
+        title: getLang && getLang() === 'fr' ? 'Format de date ambigu' : 'Ambiguous date format',
+        body: t('toast.dateAmbiguous') + '\n\nOK = MM/DD (US)\nCancel = DD/MM (EU)',
+        confirmLabel: 'MM/DD (US)',
+        cancelLabel: 'DD/MM (EU)',
+      });
       const chosen = pick ? 'us' : 'eu';
       parseAndStartFlow(text, chosen, profile, hash);
       return;
@@ -14612,7 +14831,7 @@ const STRINGS = {
  'page.settings.title': 'Settings',
  'page.settings.sub': 'Profile · Sync · Privacy · Data',
  'page.bf.title': 'Brought-forward hours',
- 'page.bf.sub': 'Paper logbook · CAR 401.08(2)(h)',
+ 'page.bf.sub': 'Paper logbook',
  'page.import.title': 'Import your flights',
  'page.import.sub': 'Bring your flying history into Cumulo — pick the path that matches how you fly.',
  'page.recap.title': 'Year Recap',
@@ -14621,6 +14840,7 @@ const STRINGS = {
  'page.qa.sub': 'Common aviation & logbook questions',
  'page.glossary.title': 'Aviation Glossary',
  'page.glossary.sub': 'Logbook abbreviations & definitions',
+ 'glossary.searchPlaceholder': 'Search the glossary',
 
  // ─── Common buttons / labels
  'btn.save': 'Save',
@@ -14725,7 +14945,7 @@ const STRINGS = {
  'profile.fleet': 'Primary aircraft type',
  'profile.ifr.title': 'IFR Approach Auto-Count',
  'profile.ifr.label': 'Count 1 IFR approach per flight on sync (705 line operations)',
-    'profile.ifr.descHtml':      'Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, Navblue sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.',
+    'profile.ifr.descHtml':      'Under 705 ops, virtually every flight terminates with an instrument approach (ILS / RNAV / VOR / visual after IAP). When this is on, iCal roster sync sets <code>Approaches = 1</code> on each new flight imported, feeding the CAR 401.05 currency counter (6 approaches / 6 months). Auto-enabled when you select a 705 airline above. Turn off for 704 / 703 / bush ops where flights are often VFR — enter approaches manually per flight. Existing flights and your manual entries are never overwritten.',
  'profile.captain.title': 'Crew Name Privacy (PIPEDA / Loi 25)',
  'profile.captain.label': 'Keep full crew names when syncing or sharing (I have crew consent)',
  'profile.captain.descHtml': '<strong>How Cumulo handles your crew names — applies equally to the captain (when you are F/O) AND the F/O (when you are captain).</strong><br><br>• <strong>On your device:</strong> always full names. You see exactly what you wrote in your paper logbook.<br>• <strong>TC PDF export:</strong> always full names — or "SELF" if that\'s what you wrote (TC Standard 421 / TP 14052 explicitly accepts SELF for the pilot\'s own entries).<br>• <strong>Cloud sync / shareable exports:</strong> third-party crew names (the OTHER pilot) anonymize to initials by default. Your own name (or "self") is never anonymized — it\'s not third-party data.<br>• <strong>Toggle ON</strong> only if you\'ve obtained the other pilot\'s consent OR you accept responsibility for the third-party data leaving your device.<br><br><em>Legal anchors: PIPEDA s.4(2)(b), s.7(3)(c.1)(i), Principle 4.3; Loi 25 art. 1.</em>',
@@ -14744,7 +14964,7 @@ const STRINGS = {
  'profile.acConfigs.jet': 'Jet',
  'profile.acConfigs.heli': 'Helicopter',
  'profile.acConfigs.glider': 'Glider',
- 'profile.saveBtn': ' Save Profile',
+ 'profile.saveBtn': 'Save Profile',
  'profile.type.airline': 'Airline pilot — 705 ops',
  'profile.type.airlineDesc': 'Two-pilot commercial operations. PIC + SIC, type-rated multi-crew. Default Cumulo experience.',
  'profile.type.private': 'Private pilot',
@@ -14844,8 +15064,10 @@ const STRINGS = {
  'flight.xcCard': 'Cross Country',
  'flight.xcDayDual': 'XC Day — Dual',
  'flight.xcDayPic': 'XC Day — PIC',
+ 'flight.xcDayCop': 'XC Day — SIC',
  'flight.xcNightDual': 'XC Night — Dual',
  'flight.xcNightPic': 'XC Night — PIC',
+ 'flight.xcNightCop': 'XC Night — SIC',
  'flight.landingsCard': 'Take-offs, Landings & Instrument',
  'qa.searchPlaceholder': 'Search questions…',
  'flight.aircraftConfig': 'Aircraft Configuration',
@@ -14980,8 +15202,8 @@ const STRINGS = {
  'sync.status.minAgo': '{n}M AGO',
  'sync.status.hAgo': '{n}H AGO',
  'sync.status.dAgo': '{n}D AGO',
- 'sync.btn.syncing': '⏳ Syncing…',
- 'sync.btn.syncNow': '🔄 Sync now',
+ 'sync.btn.syncing': 'Syncing…',
+ 'sync.btn.syncNow': 'Sync now',
  'sync.detail.calendar': 'Calendar: <strong>{events}</strong> {ew} · <strong>{flights}</strong> {fw}.',
  'sync.detail.enriched': 'Added UTC times + coordinates to <strong>{n}</strong> {w}.',
  'sync.detail.filled': 'Filled empty Night/XC fields on <strong>{n}</strong> {w} (pilot-entered values never modified).',
@@ -15186,6 +15408,7 @@ const STRINGS = {
  'recap.fun.aircraftSub': 'your fleet for the year',
 
  // ─── Common toast messages
+ 'toast.saved': 'Saved',
  'toast.profileSaved': 'Profile saved ✓',
  'toast.flightSaved': 'Flight saved ✓',
  'toast.timeUnattributed': 'Saved — but no PIC/SIC/night time was attributed. Add a UTC time or fill the flight-time fields so it counts.',
@@ -15419,7 +15642,7 @@ const STRINGS = {
  'pdf.picker.title': 'Export to PDF',
  'pdf.picker.subtitle': 'Choose which columns to include in your printed PDF',
  'pdf.picker.tip': '<strong>Tip:</strong> Picking fewer columns gives more space per row in landscape. Picking many makes the table denser. The cover page + currency annexe always print.',
- 'pdf.picker.generate': '📄 Generate PDF',
+ 'pdf.picker.generate': 'Generate PDF',
  // ─── Flight-form validation (05-form-helpers.js)
  'form.err.invalidTime': 'Invalid time. Use HHMM (e.g. 1235 for 12:35Z).',
  'form.err.dateRequired': 'Date is required.',
@@ -15508,12 +15731,12 @@ const STRINGS = {
  'account.showPassword': 'Show password',
  'account.changePassword': 'Change password',
  'sync.migration.prompt': 'We found {n} flights on this device. Link them to your Cumulo account? Your data stays exactly where it is — we just add cloud backup.',
- 'sync.migration.success': ' {n} flights synced to the cloud.',
+ 'sync.migration.success': '{n} flights synced to the cloud.',
  'sync.migration.failed': 'Migration failed:',
  'sync.migration.partial': 'Migration partial — some flights may not have synced. Local data is intact.',
- 'sync.pulled': ' Sync: +{added} new, {updated} updated',
+ 'sync.pulled': 'Sync: +{added} new, {updated} updated',
  'toast.captainSweepDone': ' Re-anonymized {n} captain/copilot names (consent withdrawn)',
- 'toast.accountPurged': ' Account purged. Reloading to clean state…',
+ 'toast.accountPurged': 'Account purged. Reloading to clean state…',
  'confirm.deletePurge1': 'This will permanently delete every flight, your profile, and your sync history from this device — and from the cloud if signed in. Continue?',
  'confirm.deletePurge2': 'Last warning. Type-equivalent confirmation: are you ABSOLUTELY sure?',
  'settings.section.privacy': 'Privacy & Trust',
@@ -15543,12 +15766,12 @@ const STRINGS = {
  'trust.bullet.canadian': 'Stored in Montréal',
  'trust.bullet.nosale': 'We will never sell your data',
  'trust.bullet.yours': 'Your data, your ownership — export anytime',
- 'trust.whitepaper': ' Read the full security whitepaper →',
+ 'trust.whitepaper': 'Read the full security whitepaper →',
  'trust.ownership.title': 'Your data is yours',
  'trust.ownership.desc': 'Your data lives on your device and works offline. You can optionally back it up to your private Canadian cloud to sync across your devices — and export, archive or migrate everything, anytime.',
  'trust.export.title': 'Export all my data',
  'trust.export.desc': 'Download a full JSON copy of every flight, your profile, and your import audit log. Your data is yours — take it with you anytime.',
- 'trust.export.btn': ' Export',
+ 'trust.export.btn': 'Export',
  'trust.delete.title': 'Delete my data + purge',
  'trust.delete.desc': 'Permanently delete every flight, your profile, and your sync history from this device. When cloud sync is enabled, it also requests immediate deletion of your cloud copy (purged from backups within 30 days). Cannot be undone — export a JSON backup first.',
  'trust.delete.btn': 'Delete + Purge',
@@ -15556,7 +15779,7 @@ const STRINGS = {
  'flight.ata': 'ATA (UTC) — actual arrival',
     'flight.atdHelpHtml':        'HHMM in UTC (e.g. <code>1235</code> = 12:35Z). Enter your ACTUAL block-off / block-on times — these drive the Night (CAR 101.01) and cross-country (CAR 401.34) calculations. iCal rosters publish only the scheduled time, not the actual, so adjust each value to what actually happened.',
  'profile.type.helicopter': 'Helicopter',
- 'profile.type.helicopterDesc': 'Rotorcraft ops · CAR 401.05 currency',
+ 'profile.type.helicopterDesc': 'Rotorcraft ops · recent experience',
  'profile.type.instructor': 'Instructor / CFI',
  'profile.type.instructorDesc': 'Dual given · ATPL credit focus',
  'profile.ecg': 'ECG Due Date',
@@ -15614,7 +15837,7 @@ const STRINGS = {
  'page.settings.title': 'Paramètres',
  'page.settings.sub': 'Profil · Synchro · Confidentialité · Données',
  'page.bf.title': 'Heures reportées',
- 'page.bf.sub': 'Carnet papier · CAR 401.08(2)(h)',
+ 'page.bf.sub': 'Carnet papier',
  'page.import.title': 'Importez vos vols',
  'page.import.sub': 'Faites entrer votre historique dans Cumulo — choisissez le chemin qui correspond à votre façon de voler.',
  'page.recap.title': 'Sommaire annuel',
@@ -15623,6 +15846,7 @@ const STRINGS = {
  'page.qa.sub': 'Questions courantes sur l’aviation et le carnet',
  'page.glossary.title': 'Glossaire aviation',
  'page.glossary.sub': 'Abréviations et définitions',
+ 'glossary.searchPlaceholder': 'Rechercher dans le glossaire',
 
  // ─── Boutons / libellés
  'btn.save': 'Enregistrer',
@@ -15727,7 +15951,7 @@ const STRINGS = {
  'profile.fleet': 'Type d’aéronef principal',
  'profile.ifr.title': 'Comptage auto des approches IFR',
  'profile.ifr.label': 'Compter 1 approche IFR par vol à la synchro (opérations 705 en ligne)',
-    'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro Navblue inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
+    'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro iCal inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
  'profile.captain.title': 'Confidentialité des noms d\'équipage (LPRPDE / Loi 25)',
  'profile.captain.label': 'Conserver les noms complets d\'équipage en synchronisation et partage (j\'ai le consentement)',
  'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant).</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Ancrages légaux : LPRPDE art. 4(2)(b), art. 7(3)c.1(i), Principe 4.3 ; Loi 25 art. 1.</em>',
@@ -15746,7 +15970,7 @@ const STRINGS = {
  'profile.acConfigs.jet': 'Jet',
  'profile.acConfigs.heli': 'Hélicoptère',
  'profile.acConfigs.glider': 'Planeur',
- 'profile.saveBtn': ' Enregistrer le profil',
+ 'profile.saveBtn': 'Enregistrer le profil',
  'profile.type.airline': 'Pilote de ligne — opérations 705',
  'profile.type.airlineDesc': 'Opérations commerciales à deux pilotes. Commandant + copilote, qualifié type multi-équipage. Expérience Cumulo par défaut.',
  'profile.type.private': 'Pilote privé',
@@ -15780,7 +16004,7 @@ const STRINGS = {
  'flight.stdUtc': 'Bloc départ UTC',
  'flight.staUtc': 'Bloc arrivée UTC',
  'flight.day': 'Temps jour',
- 'flight.night': 'Temps nuit',
+ 'flight.night': 'Temps de nuit',
  'flight.seDay': 'Monomoteur Jour',
  'flight.seNight': 'Monomoteur Nuit',
  'flight.meDayPic': 'ME Jour — CDB',
@@ -15847,8 +16071,10 @@ const STRINGS = {
  'flight.xcCard': 'Cross-country',
  'flight.xcDayDual': 'XC jour — Double',
  'flight.xcDayPic': 'XC jour — PIC',
+ 'flight.xcDayCop': 'XC jour — SIC',
  'flight.xcNightDual': 'XC nuit — Double',
  'flight.xcNightPic': 'XC nuit — PIC',
+ 'flight.xcNightCop': 'XC nuit — SIC',
  'flight.landingsCard': 'Décollages, atterrissages et instruments',
  'flight.aircraftConfig': 'Configuration d’aéronef',
  'flight.acConfig.tailwheel': 'Roue de queue',
@@ -15896,7 +16122,7 @@ const STRINGS = {
  'dash.viewAllBtn': 'Tout voir',
  'stats.totalTime': 'Temps total',
  'stats.picTime': 'Temps CDB',
- 'stats.nightTime': 'Temps nuit',
+ 'stats.nightTime': 'Temps de nuit',
  'stats.landings': 'Atterrissages',
  'stats.me': 'Multimoteur',
  'stats.xc': 'Cross-country',
@@ -15982,8 +16208,8 @@ const STRINGS = {
  'sync.status.minAgo': 'IL Y A {n} MIN',
  'sync.status.hAgo': 'IL Y A {n} H',
  'sync.status.dAgo': 'IL Y A {n} J',
- 'sync.btn.syncing': '⏳ Synchronisation…',
- 'sync.btn.syncNow': '🔄 Synchroniser',
+ 'sync.btn.syncing': 'Synchronisation…',
+ 'sync.btn.syncNow': 'Synchroniser',
  'sync.detail.calendar': 'Calendrier : <strong>{events}</strong> {ew} · <strong>{flights}</strong> {fw}.',
  'sync.detail.enriched': 'Heures UTC + coordonnées ajoutées à <strong>{n}</strong> {w}.',
  'sync.detail.filled': 'Champs Nuit/XC vides remplis sur <strong>{n}</strong> {w} (les valeurs saisies par le pilote ne sont jamais modifiées).',
@@ -16168,7 +16394,7 @@ const STRINGS = {
  'recap.noFlights': 'Aucun vol cette année.',
  'recap.totalHoursLbl':'Heures totales',
  'recap.blockHoursLbl':'Heures bloc',
- 'recap.nightTimeLbl': 'Temps nuit',
+ 'recap.nightTimeLbl': 'Temps de nuit',
  'recap.landingsLbl': 'Atterrissages',
  'recap.hoursUnit': 'heures',
  'recap.totalUnit': 'total',
@@ -16188,6 +16414,7 @@ const STRINGS = {
  'recap.fun.aircraftSub': 'votre flotte de l’année',
 
  // ─── Avis (toasts)
+ 'toast.saved': 'Enregistré',
  'toast.profileSaved': 'Profil enregistré ✓',
  'toast.flightSaved': 'Vol enregistré ✓',
  'toast.timeUnattributed': 'Enregistré — mais aucun temps CDB/SIC/nuit n\'a été attribué. Ajoutez une heure UTC ou remplissez les champs de temps pour qu\'il compte.',
@@ -16421,7 +16648,7 @@ const STRINGS = {
  'pdf.picker.title': 'Exporter en PDF',
  'pdf.picker.subtitle': 'Choisissez les colonnes à inclure dans votre PDF imprimé',
  'pdf.picker.tip': '<strong>Astuce :</strong> Moins de colonnes = plus d’espace par ligne en paysage. Plus de colonnes = tableau plus dense. La page couverture et l’annexe de validité s’impriment toujours.',
- 'pdf.picker.generate': '📄 Générer le PDF',
+ 'pdf.picker.generate': 'Générer le PDF',
  // ─── Validation du formulaire de vol (05-form-helpers.js)
  'form.err.invalidTime': 'Heure invalide. Format HHMM (p. ex. 1235 pour 12 h 35 Z).',
  'form.err.dateRequired': 'La date est requise.',
@@ -16510,12 +16737,12 @@ const STRINGS = {
  'account.showPassword': 'Afficher le mot de passe',
  'account.changePassword': 'Changer le mot de passe',
  'sync.migration.prompt': 'Nous avons trouvé {n} vols sur cet appareil. Les associer à votre compte Cumulo ? Vos données restent intactes — nous ajoutons simplement la sauvegarde infonuagique.',
- 'sync.migration.success': ' {n} vols synchronisés vers le nuage.',
+ 'sync.migration.success': '{n} vols synchronisés vers le nuage.',
  'sync.migration.failed': 'Échec de la migration :',
  'sync.migration.partial': 'Migration partielle — certains vols ne sont peut-être pas synchronisés. Vos données locales sont intactes.',
- 'sync.pulled': ' Synchro : +{added} nouveaux, {updated} mis à jour',
+ 'sync.pulled': 'Synchro : +{added} nouveaux, {updated} mis à jour',
  'toast.captainSweepDone': ' {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)',
- 'toast.accountPurged': ' Compte purgé. Rechargement vers un état vide…',
+ 'toast.accountPurged': 'Compte purgé. Rechargement vers un état vide…',
  'confirm.deletePurge1': 'Ceci supprimera de manière permanente tous vos vols, votre profil et votre historique de synchronisation de cet appareil — ainsi que de l\'infonuagique si connecté. Continuer ?',
  'confirm.deletePurge2': 'Dernier avertissement. Confirmation finale : êtes-vous ABSOLUMENT certain ?',
  'settings.section.privacy': 'Confidentialité et confiance',
@@ -16545,12 +16772,12 @@ const STRINGS = {
  'trust.bullet.canadian': 'Stockées à Montréal',
  'trust.bullet.nosale': 'Nous ne vendrons jamais vos données',
  'trust.bullet.yours': 'Vos données, votre propriété — exportables en tout temps',
- 'trust.whitepaper': ' Lire le livre blanc de sécurité complet →',
+ 'trust.whitepaper': 'Lire le livre blanc de sécurité complet →',
  'trust.ownership.title': 'Vos données vous appartiennent',
  'trust.ownership.desc': 'Vos données vivent sur votre appareil et fonctionnent hors ligne. Vous pouvez, si vous le souhaitez, les sauvegarder dans votre cloud privé canadien pour les synchroniser entre vos appareils — et tout exporter, archiver ou migrer, à tout moment.',
  'trust.export.title': 'Exporter toutes mes données',
  'trust.export.desc': 'Téléchargez une copie JSON complète de chaque vol, votre profil et votre journal d\'import. Vos données vous appartiennent — emportez-les avec vous en tout temps.',
- 'trust.export.btn': ' Exporter',
+ 'trust.export.btn': 'Exporter',
  'trust.delete.title': 'Supprimer mes données + purger',
  'trust.delete.desc': 'Supprimez de manière permanente chaque vol, votre profil et votre historique de synchronisation de cet appareil. Lorsque la synchronisation infonuagique est activée, ceci demande aussi la suppression immédiate de votre copie infonuagique (purgée des sauvegardes en moins de 30 jours). Action irréversible — exportez d’abord une sauvegarde JSON.',
  'trust.delete.btn': 'Supprimer + purger',
@@ -16558,7 +16785,7 @@ const STRINGS = {
  'flight.ata': 'ATA (UTC) — arrivée réelle',
     'flight.atdHelpHtml':        'HHMM en UTC (ex. <code>1235</code> = 12h35Z). Inscrivez vos heures RÉELLES de départ et d’arrivée du bloc — ce sont elles qui alimentent les calculs Nuit (RAC 101.01) et cross-country (RAC 401.34). Les horaires iCal ne publient que l’heure prévue, pas la réelle : ajustez chaque valeur à ce qui s’est réellement passé.',
  'profile.type.helicopter': 'Hélicoptère',
- 'profile.type.helicopterDesc': 'Vol giravions · expérience récente RAC 401.05',
+ 'profile.type.helicopterDesc': 'Vol giravions · expérience récente',
  'profile.type.instructor': 'Instructeur / CFI',
  'profile.type.instructorDesc': 'Instruction donnée · crédit ATPL prioritaire',
  'profile.ecg': 'Date prochain ECG',
@@ -17722,7 +17949,13 @@ const Sync = {
       if (elapsedH < 24) return;
     }
 
-    if (!confirm(t('sync.migration.prompt', { n: flights.length }))) {
+    const migrationOk = await confirmDialog({
+      title: getLang && getLang() === 'fr' ? 'Associer les vols au nuage' : 'Link flights to cloud',
+      body: t('sync.migration.prompt', { n: flights.length }),
+      confirmLabel: t('btn.confirm'),
+      cancelLabel: t('btn.cancel'),
+    });
+    if (!migrationOk) {
       // Persist a "deferred" marker so we don't ask again for 24h.
       this._saveMigrationState({ deferredAt: new Date().toISOString() });
       return;
@@ -18090,6 +18323,7 @@ function _bfPageGroups() {
         { key: 'block',      labelEn: 'Block Time',                labelFr: 'Temps bloc',                             aggregate: true },
         { key: 'pic',        labelEn: 'PIC — Pilot in Command',    labelFr: 'PIC — Pilote aux commandes',             aggregate: true },
         { key: 'sic',        labelEn: 'SIC — Co-Pilot / Second',  labelFr: 'SIC — Co-pilote / Second',               aggregate: true },
+        { key: 'dualRcvd',   labelEn: 'Dual Received',            labelFr: 'Double reçu',                            aggregate: true },
         { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
         { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Cross-country (XC)',                     aggregate: true },
@@ -18126,8 +18360,10 @@ function _bfPageGroups() {
       descFr: 'Détail ME / SE par position (Norme 421). Utilisez si votre carnet précédent distinguait ME Jour PIC, ME Nuit SIC, etc.',
       open: false,
       fields: [
-        { key: 'seDay',       labelEn: 'SE Day',         labelFr: 'SE Jour' },
-        { key: 'seNight',     labelEn: 'SE Night',       labelFr: 'SE Nuit' },
+        { key: 'seDay',       labelEn: 'SE Day — PIC',     labelFr: 'SE Jour — PIC' },
+        { key: 'seNight',     labelEn: 'SE Night — PIC',   labelFr: 'SE Nuit — PIC' },
+        { key: 'seDayDual',   labelEn: 'SE Day — Dual',    labelFr: 'SE Jour — Double' },
+        { key: 'seNightDual', labelEn: 'SE Night — Dual',  labelFr: 'SE Nuit — Double' },
         { key: 'meDayPic',    labelEn: 'ME Day PIC',     labelFr: 'ME Jour PIC' },
         { key: 'meNightPic',  labelEn: 'ME Night PIC',   labelFr: 'ME Nuit PIC' },
         { key: 'meDayCop',    labelEn: 'ME Day SIC',     labelFr: 'ME Jour SIC' },
@@ -18163,8 +18399,12 @@ function _bfPageGroups() {
       descFr: 'Totaux XC Jour et XC Nuit (Norme 421 / CAR 401.34). Seulement si votre carnet distinguait XC jour/nuit.',
       open: false,
       fields: [
-        { key: 'xcDay',   labelEn: 'XC Day',   labelFr: 'XC Jour' },
-        { key: 'xcNight', labelEn: 'XC Night', labelFr: 'XC Nuit' },
+        { key: 'xcDayPic',    labelEn: 'XC Day — PIC',    labelFr: 'XC Jour — PIC' },
+        { key: 'xcDayCop',    labelEn: 'XC Day — SIC',    labelFr: 'XC Jour — SIC' },
+        { key: 'xcDayDual',   labelEn: 'XC Day — Dual',   labelFr: 'XC Jour — Double' },
+        { key: 'xcNightPic',  labelEn: 'XC Night — PIC',  labelFr: 'XC Nuit — PIC' },
+        { key: 'xcNightCop',  labelEn: 'XC Night — SIC',  labelFr: 'XC Nuit — SIC' },
+        { key: 'xcNightDual', labelEn: 'XC Night — Dual', labelFr: 'XC Nuit — Double' },
       ],
     },
     // ── Instrument ──
@@ -18224,14 +18464,19 @@ function _bfAllKeys() {
 function loadOpeningBalances() {
   try {
     const raw = localStorage.getItem(OPENING_BALANCES_KEY);
-    if (!raw) return { balances: {}, attestedAt: null, hash: null };
+    if (!raw) return { balances: {}, cutoffDate: null, attestedAt: null, hash: null };
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || !parsed.balances) {
-      return { balances: {}, attestedAt: null, hash: null };
+      return { balances: {}, cutoffDate: null, attestedAt: null, hash: null };
     }
+    // Migrate legacy aggregate XC keys (xcDay/xcNight) to the role-split PIC
+    // keys so the new column grid shows them and they are never double-counted.
+    const _b = parsed.balances;
+    if (_b && _b.xcDay != null)   { _b.xcDayPic   = (+_b.xcDayPic||0)   + (+_b.xcDay||0);   delete _b.xcDay; }
+    if (_b && _b.xcNight != null) { _b.xcNightPic = (+_b.xcNightPic||0) + (+_b.xcNight||0); delete _b.xcNight; }
     return parsed;
   } catch {
-    return { balances: {}, attestedAt: null, hash: null };
+    return { balances: {}, cutoffDate: null, attestedAt: null, hash: null };
   }
 }
 
@@ -18259,7 +18504,7 @@ async function _hashBalances(balances) {
 }
 
 // Persist the balances + attestation metadata + append to audit log.
-async function saveOpeningBalances(balances) {
+async function saveOpeningBalances(balances, cutoffDate) {
   const clean = {};
   Object.keys(balances).forEach(k => {
     const v = +balances[k];
@@ -18267,13 +18512,16 @@ async function saveOpeningBalances(balances) {
   });
   const hash = await _hashBalances(clean);
   const attestedAt = new Date().toISOString();
-  const record = { balances: clean, attestedAt, hash };
+  // cutoffDate = the last date covered by the paper logbook (the period
+  // boundary the attestation declares). Stored as metadata; the integrity
+  // hash stays over the hour VALUES only (unchanged semantics).
+  const record = { balances: clean, cutoffDate: cutoffDate || null, attestedAt, hash };
   localStorage.setItem(OPENING_BALANCES_KEY, JSON.stringify(record));
 
   let log = [];
   try { log = JSON.parse(localStorage.getItem(OPENING_ATTEST_LOG_KEY) || '[]'); } catch { log = []; }
   if (!Array.isArray(log)) log = [];
-  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', balances: clean });
+  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
   return record;
@@ -18333,8 +18581,19 @@ function totalsWithOpening(flightsTotals) {
     if (d) merged.heli = (+merged.heli||0) + d;
   }
   if (!balances.xc) {
-    const d = (+balances.xcDay||0)+(+balances.xcNight||0);
+    const d = (+balances.xcDayPic||0)+(+balances.xcDayCop||0)+(+balances.xcDayDual||0)
+            + (+balances.xcNightPic||0)+(+balances.xcNightCop||0)+(+balances.xcNightDual||0)
+            + (+balances.xcDay||0)+(+balances.xcNight||0); // legacy aggregate keys (pre-migration)
     if (d) merged.xc = (+merged.xc||0) + d;
+  }
+  if (!balances.dualRcvd) {
+    // Dual received = all instruction-received time across classes/conditions
+    // (parallel to calcStats; orthogonal to me/heli/xc, with which it overlaps).
+    const d = (+balances.seDayDual||0)+(+balances.seNightDual||0)
+            + (+balances.meDayDual||0)+(+balances.meNightDual||0)
+            + (+balances.heliDayDual||0)+(+balances.heliNightDual||0)
+            + (+balances.xcDayDual||0)+(+balances.xcNightDual||0);
+    if (d) merged.dualRcvd = (+merged.dualRcvd||0) + d;
   }
   if (!balances.dualGiven) {
     const d = (+balances.dualGivenDay||0)+(+balances.dualGivenNight||0);
@@ -18357,18 +18616,24 @@ function totalsWithOpening(flightsTotals) {
 
 // Short human-readable summary (Dashboard hero sub-line + Settings card).
 function openingBalanceSummary() {
-  const { balances, attestedAt } = loadOpeningBalances();
+  const { balances, attestedAt, cutoffDate } = loadOpeningBalances();
   const total = +balances.total || +balances.block || 0;
   if (total <= 0) return null;
   const fmtted = typeof fmt === 'function' ? fmt(total) : total.toFixed(1);
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
-  const dateStr = attestedAt
-    ? new Date(attestedAt).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA',
+  const fmtDate = (iso) => iso
+    ? new Date(iso.length <= 10 ? iso + 'T12:00:00' : iso).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA',
         { year: 'numeric', month: 'short', day: 'numeric' })
     : '—';
+  const attDate = fmtDate(attestedAt);
+  if (cutoffDate) {
+    return lang === 'fr'
+      ? `${fmtted} h déclarées (carnet papier) au ${fmtDate(cutoffDate)} · attestées ${attDate}`
+      : `${fmtted} hrs declared (paper logbook) as of ${fmtDate(cutoffDate)} · attested ${attDate}`;
+  }
   return lang === 'fr'
-    ? `${fmtted} hrs reportées · attestées ${dateStr}`
-    : `${fmtted} hrs carried forward · attested ${dateStr}`;
+    ? `${fmtted} h reportées · attestées ${attDate}`
+    : `${fmtted} hrs carried forward · attested ${attDate}`;
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -18414,6 +18679,38 @@ function openOpeningBalancesEditor() {
   if (typeof showPage === 'function') showPage('bf');
 }
 
+// Soft, non-blocking consistency checks shown before attestation. Amber, never
+// hard blocks — the pilot may have a valid reason (e.g. SIC not yet entered).
+// "An app that catches inconsistencies is an app that knows what it's doing."
+function _bfCheckConsistency() {
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const v = (k) => { const n = document.getElementById('ob-' + k); return n ? (+n.value || 0) : 0; };
+  const fmtH = (n) => (typeof fmt === 'function' ? fmt(n) : n.toFixed(1));
+  const total = v('total') || v('block');
+  const pic = v('pic'), night = v('night'), me = v('me'), picus = v('picus');
+  // Live declared total — updates on every keystroke (Expert 2 "must").
+  const liveEl = document.getElementById('bf-live-total');
+  if (liveEl) liveEl.textContent = fmtH(total) + ' h';
+  const el = document.getElementById('bf-consistency');
+  if (!el) return;
+  const warns = [];
+  if (total > 0 && pic > total) warns.push(fr
+    ? `PIC (${fmtH(pic)} h) dépasse le temps de vol total (${fmtH(total)} h). C'est probablement une erreur de saisie — vérifiez vos totaux. Vous pouvez tout de même attester.`
+    : `PIC (${fmtH(pic)} h) exceeds total flight time (${fmtH(total)} h). This is likely a data-entry error — check your totals. You can still attest.`);
+  if (total > 0 && night > total) warns.push(fr
+    ? `Nuit (${fmtH(night)} h) dépasse le temps de vol total (${fmtH(total)} h). Vérifiez vos totaux.`
+    : `Night (${fmtH(night)} h) exceeds total flight time (${fmtH(total)} h). Check your totals.`);
+  if (total > 0 && me > total) warns.push(fr
+    ? `Multimoteur (${fmtH(me)} h) dépasse le temps de vol total (${fmtH(total)} h). Vérifiez vos totaux.`
+    : `Multi-engine (${fmtH(me)} h) exceeds total flight time (${fmtH(total)} h). Check your totals.`);
+  if (pic > 0 && picus > pic) warns.push(fr
+    ? `Le PICUS (${fmtH(picus)} h) dépasse votre PIC (${fmtH(pic)} h). Le PICUS est inclus dans le PIC — vérifiez.`
+    : `PICUS (${fmtH(picus)} h) exceeds your PIC (${fmtH(pic)} h). PICUS is part of PIC — verify.`);
+  if (!warns.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = warns.map(w => `<div style="background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--warning-text);line-height:1.5;">${esc(w)}</div>`).join('');
+}
+
 // ───────────────────────────────────────────────────────────────────
 // UI — Full page renderer
 // Called by showPage('bf') via the router hook in 01-router.js.
@@ -18422,10 +18719,16 @@ function renderBroughtForwardPage() {
   const container = document.getElementById('bf-page-body');
   if (!container) return;
 
-  const { balances } = loadOpeningBalances();
+  const _rec = loadOpeningBalances();
+  const balances = _rec.balances;
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
+  // Cut-off date (last date the paper logbook covers). Default to yesterday on
+  // first visit; keep the pilot's saved value on return. Never re-default once set.
+  const _todayISO = new Date().toISOString().slice(0, 10);
+  const _yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const cutoffDefault = _rec.cutoffDate || _yesterdayISO;
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
@@ -18454,6 +18757,7 @@ function renderBroughtForwardPage() {
           <label for="ob-${f.key}">${esc(label)}</label>
           <input type="number" id="ob-${esc(f.key)}" min="0" step="${step}"
                  value="${esc(value)}" placeholder="${ph}" inputmode="decimal"
+                 oninput="if(typeof _bfCheckConsistency==='function')_bfCheckConsistency()"
                  class="bf-input${f.hero ? ' bf-hero-input' : ''}" />
         </div>`;
     }).join('');
@@ -18495,35 +18799,50 @@ function renderBroughtForwardPage() {
       </div>
     </div>
 
+    <div class="form-card">
+      <div class="form-group" style="max-width:340px;">
+        <label for="ob-cutoff-date">${fr ? 'Dernière date de votre carnet papier' : 'Last date in your paper logbook'}</label>
+        <input type="date" id="ob-cutoff-date" value="${esc(cutoffDefault)}" max="${esc(_todayISO)}" />
+      </div>
+      <div class="bf-group-desc" style="margin-top:8px;">${fr
+        ? 'Utilisez la date de votre dernière inscription au carnet papier, même si c\'était il y a des semaines. En cas de doute, choisissez une date clairement avant votre arrivée sur Cumulo. Vous pourrez la modifier — une nouvelle attestation est générée automatiquement.'
+        : 'Use the date of your last paper logbook entry, even if it was weeks ago. If unsure, pick a date clearly before you started using Cumulo. You can change it later — a new attestation is generated automatically.'}</div>
+    </div>
+
+    <div class="form-card" style="text-align:center;padding:18px 22px;">
+      <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);">${fr ? 'Total de vol déclaré' : 'Declared total flight time'}</div>
+      <div id="bf-live-total" style="font-family:var(--font-mono);font-size:40px;font-weight:600;letter-spacing:-.02em;color:var(--text);margin-top:4px;">0,0 h</div>
+    </div>
+
     <div class="bf-groups-wrap">
       ${groupsHtml}
     </div>
 
+    <div id="bf-consistency" style="margin:0 0 var(--s-4);display:none;"></div>
+
     <div class="form-card bf-attest-card" id="bf-attest-section">
-      <div class="form-card-title">${fr ? 'Attestation (CAR 401.08(2)(h))' : 'Attestation (CAR 401.08(2)(h))'}</div>
+      <div class="form-card-title">${fr ? 'Attestation du pilote' : 'Pilot attestation'}</div>
       <div class="bf-attest-desc">
         ${fr
-          ? `En cochant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier au <strong>${esc(todayStr)}</strong>. Stocké localement avec un hash SHA-256. Toute modification exigera une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
-          : `By checking, you confirm these totals accurately reflect your paper logbook as of <strong>${esc(todayStr)}</strong>. Stored locally with a SHA-256 hash. Any edit requires a new attestation; the prior one is archived in the audit log.`}
+          ? `En signant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier à la <strong>date de coupure indiquée plus haut</strong>. Conservé localement avec une empreinte SHA-256. Toute modification exige une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
+          : `By signing, you confirm these totals accurately reflect your paper logbook as of the <strong>cut-off date shown above</strong>. Stored locally with a SHA-256 fingerprint. Any edit requires a new attestation; the prior one is archived in the audit log.`}
       </div>
-      <label class="col-option" style="margin:var(--s-3) 0;">
-        <input type="checkbox" id="ob-attest-chk" />
-        <span class="col-option-label">${fr
-          ? 'J\'atteste que ces totaux correspondent à mon carnet papier au jour d\'aujourd\'hui.'
-          : 'I attest these totals match my paper logbook as of today.'}</span>
-      </label>
-      <div class="form-group" style="max-width:320px;">
-        <label for="ob-attest-name">${fr ? 'Nom complet (signature dactylographiée)' : 'Full name (typed signature)'}</label>
+      <div class="form-group" style="max-width:340px;">
+        <label for="ob-attest-name">${fr ? 'Signez en tapant votre nom complet' : 'Sign by typing your full name'}</label>
         <input type="text" id="ob-attest-name"
                placeholder="${esc(profileName || (fr ? 'Tapez votre nom complet' : 'Type your full name'))}"
-               style="font-family:var(--font-mono);" />
+               autocomplete="name" style="font-family:var(--font-mono);" />
+        <div id="ob-name-warning" style="display:none;margin-top:8px;font-size:11.5px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:8px 10px;"></div>
       </div>
       <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Sauvegarder & attester' : 'Save & attest'}</button>
-        <button class="btn btn-ghost" onclick="showPage('backup')">${fr ? 'Annuler' : 'Cancel'}</button>
+        <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Attester' : 'Attest'}</button>
+        <button class="btn btn-ghost" onclick="showPage('dash')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
   `;
+
+  // Surface consistency warnings now and on every keystroke (oninput per field).
+  if (typeof _bfCheckConsistency === 'function') _bfCheckConsistency();
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -18531,16 +18850,7 @@ function renderBroughtForwardPage() {
 // ───────────────────────────────────────────────────────────────────
 async function commitOpeningBalances() {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
-  const attest = document.getElementById('ob-attest-chk');
   const nameEl = document.getElementById('ob-attest-name');
-
-  if (!attest || !attest.checked) {
-    if (typeof showToast === 'function') showToast(
-      fr ? 'Cochez la case d\'attestation pour confirmer que ces totaux correspondent à votre carnet papier.'
-         : 'Check the attestation box to confirm these totals match your paper logbook.',
-      'error');
-    return;
-  }
   const typedName = (nameEl && nameEl.value || '').trim();
   if (!typedName) {
     if (typeof showToast === 'function') showToast(
@@ -18552,10 +18862,28 @@ async function commitOpeningBalances() {
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const expectedName = `${profile.fname || ''} ${profile.lname || ''}`.trim();
   if (expectedName && typedName.toLowerCase() !== expectedName.toLowerCase()) {
-    const msg = fr
-      ? `Le nom saisi ("${typedName}") ne correspond pas à votre profil ("${expectedName}"). Enregistrer quand même ?`
-      : `The name you typed ("${typedName}") doesn't match your profile name ("${expectedName}"). Save anyway?`;
-    if (!confirm(msg)) return;
+    // Inline non-blocking warning instead of a native confirm() modal: the
+    // first click surfaces the warning; a second click (warning visible) proceeds.
+    const warnEl = document.getElementById('ob-name-warning');
+    if (warnEl && warnEl.style.display === 'none') {
+      warnEl.textContent = fr
+        ? `Le nom saisi ne correspond pas à votre profil (« ${expectedName} »). S'il est exact, cliquez de nouveau sur « Attester ».`
+        : `The name you typed doesn't match your profile ("${expectedName}"). If it's correct, click "Attest" again.`;
+      warnEl.style.display = 'block';
+      return;
+    }
+  }
+
+  // Cut-off date is required: the attestation declares totals "as of" a date,
+  // and without it the period boundary is legally ambiguous (CAR 401.08).
+  const cutoffEl = document.getElementById('ob-cutoff-date');
+  const cutoffDate = (cutoffEl && cutoffEl.value || '').trim();
+  if (!cutoffDate) {
+    if (typeof showToast === 'function') showToast(
+      fr ? 'Indiquez la dernière date de votre carnet papier (date de coupure).'
+         : 'Enter the last date in your paper logbook (cut-off date).',
+      'error');
+    return;
   }
 
   // Collect values from each input. Zero / empty → not persisted (sparse).
@@ -18573,7 +18901,7 @@ async function commitOpeningBalances() {
   }
 
   try {
-    await saveOpeningBalances(balances);
+    await saveOpeningBalances(balances, cutoffDate);
   } catch (e) {
     console.error('[OpeningBalances] save failed:', e);
     if (typeof showToast === 'function') showToast(
@@ -18591,11 +18919,11 @@ async function commitOpeningBalances() {
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? (filterVal || '') : '');
   renderOpeningBalancesSection('openingBalancesSection');
 
-  // Navigate back to Settings → Profile so the updated summary is visible.
-  if (typeof showPage === 'function') {
-    showPage('backup');
-    if (typeof showSettingsTab === 'function') setTimeout(() => showSettingsTab('profile'), 50);
-  }
+  // Navigate to the Dashboard so the pilot sees their career total update with
+  // the declared hours — that reveal IS the retention payoff. (Was Settings →
+  // Profile, which buried the moment in a settings pane. Panel-flagged as the
+  // single highest-impact fix on this page.)
+  if (typeof showPage === 'function') showPage('dash');
 }
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD DRILL-DOWN PANELS
@@ -19388,7 +19716,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-25-f14dccc';
+const BUILD_VERSION = '2026-06-26-e7d7fa5';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

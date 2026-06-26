@@ -320,6 +320,29 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
 /* Validités card with status rings */
 .dash-validities { padding: 24px 26px; }
+
+/* Validités — adaptive status cards (redesign 2026-06-25). Status-colour ring
+   (fill = time remaining), metric name, status word + dot, localised date.
+   Supersedes the .dash-rings / .dash-ring-* rules above. No regulatory codes
+   on the dashboard surface — those live in the drill-down. */
+.dash-val-persona { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.dash-vals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.dash-val { text-align: center; padding: 14px 10px 12px; border-radius: var(--r-md); }
+.dash-val-ring { width: 64px; height: 64px; margin: 0 auto 10px; }
+.dash-val-ring svg { width: 100%; height: 100%; display: block; }
+.dash-val-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.dash-val-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 500; margin-top: 5px; }
+.dash-val-status .dash-val-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.dash-val-current { color: var(--success); }
+.dash-val-soon    { color: var(--warning-text); }
+.dash-val-expired { color: var(--danger-text); }
+.dash-val-notset  { color: var(--text-muted); }
+.dash-val-sub { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.dash-val-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--border-strong); border-radius: var(--r-md); cursor: pointer; }
+.dash-val-add:hover { background: var(--bg-subtle); }
+.dash-val-add-plus { font-size: 20px; color: var(--text-muted); line-height: 1; }
+.dash-val-add-txt { font-size: 11.5px; font-weight: 500; color: var(--text-secondary); }
+@media (max-width: 540px) { .dash-vals { grid-template-columns: repeat(2, 1fr); } }
 .dash-rings {
   display: flex;
   justify-content: space-between;
@@ -636,7 +659,9 @@ main::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   transform: scale(0.985);
 }
 .dash-clickable:focus-visible {
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 /* Strip items already have a 2px colored left-border + tight padding — give
    the hover state a slightly different treatment so it doesn't feel like the
@@ -771,9 +796,9 @@ body.no-data .dash-hero-spark circle { opacity: 0.35; }
 .cur-value { font-family: var(--font-sans); font-weight: 700; font-size: 28px; color: var(--text); line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
 .cur-unit { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
 .cur-status { margin-left: auto; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
-.cur-status.ok { background: rgba(16,163,127,0.12); color: rgb(16,163,127); }
-.cur-status.low { background: rgba(255,176,32,0.14); color: rgb(184,124,12); }
-.cur-status.bad { background: rgba(220,42,42,0.12); color: rgb(220,42,42); }
+.cur-status.ok { background: var(--success-soft); color: var(--success); }
+.cur-status.low { background: var(--warning-soft); color: var(--warning-text); }
+.cur-status.bad { background: var(--danger-soft); color: var(--danger-text); }
 .cur-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.02em; }
 @media (max-width: 720px) {
   #currencyGrid { grid-template-columns: 1fr !important; gap: 14px !important; }
@@ -789,7 +814,7 @@ body.no-data .dash-hero-spark circle { opacity: 0.35; }
   margin-bottom: var(--s-2);
 }
 .stat-value {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: 32px;
   color: var(--text);

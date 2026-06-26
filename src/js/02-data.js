@@ -833,7 +833,11 @@ function _dashRenderSparkline(svgId, data) {
 //   intended for private/CPL pilots without a Company PPC.
 // For non-705 pilots (private/student/instructor/helicopter): IFR | REC | MED
 //   The generic CAR 401.05(2) rule applies; show the approach count.
-function _dashRenderValidityRings() {
+function _dashRenderValidityRings() { return _dashRenderValidities(); }
+// Legacy fixed PPC/REC/MED ring renderer — superseded 2026-06-25 by
+// _dashRenderValidities (adaptive status cards). Left un-called for one
+// release as a safety net; safe to delete next cleanup pass.
+function _dashRenderValidityRings_DEAD() {
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const is705 = (profile.pilotType || 'airline705') === 'airline705';
@@ -944,6 +948,139 @@ function _dashRenderRing(containerId, pct, color, label) {
     </svg>
     <div class="dash-ring-label">${esc(label)}</div>
   `;
+}
+
+// Tiny hex→rgba helper for the ghost (track) ring colour.
+function _dashHexA(h, a) {
+  const n = parseInt(h.slice(1), 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
+// ─── Validités — adaptive status cards (redesign 2026-06-25) ────────────────
+// Replaces the old fixed PPC/REC/MED rings. Each validity is an autonomous
+// card: a STATUS-colour ring (green current / amber due-soon / red expired /
+// dashed grey not-set), the ring fill = time remaining (fuller = further from
+// renewal), then the metric name, a status WORD and a human, localised date.
+// NO regulatory codes on the dashboard surface — those stay in the drill-down.
+// The expiry/currency maths come from the already-verified helpers; the only
+// new constants are the ADVISORY due-soon warning windows (60 d / 90 d), which
+// are display preferences, not Transport Canada limits.
+//
+// The SET of validities adapts to the pilot type:
+//   airline 705  → PPC, Medical            (PPC supersedes the IFR window;
+//                                            passenger recency is always met)
+//   everyone else → Recent experience, Medical (+ IFR if they fly instruments)
+// A trailing "+ Add" card lets a pilot track operator / personal validities.
+function _dashRenderValidities() {
+  const grid = document.getElementById('dashValiditiesGrid');
+  if (!grid) return;
+  const fr = ((typeof getLang === 'function') ? getLang() : 'en') === 'fr';
+  const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  const pilotType = profile.pilotType || 'airline705';
+  const is705 = pilotType === 'airline705';
+  // First-launch guard: with zero flights logged we cannot assess count-based
+  // currency (recent experience / IFR), so show "not set" (dashed grey) — never
+  // a red "Expired" on a brand-new logbook. (Validity-review fix.)
+  const hasFlights = Array.isArray(flights) && flights.length > 0;
+
+  const fmtDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  // Advisory display status from days-remaining (NOT a regulatory definition).
+  const dateStatus = (days, soonDays) => {
+    if (days === null || days === undefined) return 'notset';
+    if (days <= 0) return 'expired';
+    if (days <= soonDays) return 'soon';
+    return 'current';
+  };
+
+  const items = [];
+  if (is705) {
+    const ppc = _dashPPCDaysRemaining(profile);
+    items.push({ drill: 'ppc', label: 'PPC', status: dateStatus(ppc, 60), days: ppc, window: 365, sub: fmtDate(profile.ppcDueDate) });
+  } else {
+    const recTO = _dashTakeoffsIn6mo();
+    const recLdg = _dashLandingsIn6mo();
+    const rec = Math.min(recTO, recLdg);
+    items.push({
+      drill: 'recency',
+      label: fr ? 'Expérience récente' : 'Recent experience',
+      // 5 take-offs AND 5 landings within 6 months are required to be current
+      // (CAR 401.05(2)); 1-4 is NOT current — show it as such, never "due soon".
+      status: !hasFlights ? 'notset' : (rec >= 5 ? 'current' : 'expired'),
+      fill: Math.min(1, rec / 5),
+      sub: fr ? (recTO + ' décol. · ' + recLdg + ' atterr.') : (recTO + ' T/O · ' + recLdg + ' ldg')
+    });
+    if (typeof needsIFRTracking === 'function' && needsIFRTracking(profile)) {
+      const ifr = _dashIFRCurrency();
+      items.push({
+        drill: 'ifr', label: 'IFR',
+        status: !hasFlights ? 'notset' : (ifr.current ? 'current' : 'expired'),
+        fill: ifr.pct / 100,
+        sub: ifr.approaches + ' / 6 appr.'
+      });
+    }
+  }
+  const med = _dashMedicalDaysRemaining();
+  items.push({ drill: 'medical', label: fr ? 'Médical' : 'Medical', status: dateStatus(med, 90), days: med, window: 365, sub: fmtDate(profile.medical) });
+
+  const COLOR = { current: '#0EA371', soon: '#E8920F', expired: '#E24B4A', notset: '#CBD0DA' };
+  const WORD = {
+    current: fr ? 'À jour' : 'Current',
+    soon: fr ? 'Bientôt dû' : 'Due soon',
+    expired: fr ? 'Expiré' : 'Expired',
+    notset: fr ? 'Non renseigné' : 'Not set'
+  };
+
+  const ringSvg = (status, fillFrac) => {
+    const size = 64, sw = 6, r = (size - sw) / 2, c = 2 * Math.PI * r, cx = size / 2;
+    if (status === 'notset') {
+      return '<svg viewBox="0 0 ' + size + ' ' + size + '"><circle cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="#CBD0DA" stroke-width="' + sw + '" stroke-dasharray="5 6"/></svg>';
+    }
+    const col = COLOR[status];
+    const f = Math.max(0, Math.min(1, fillFrac == null ? 1 : fillFrac));
+    const off = (c * (1 - f)).toFixed(2);
+    const ghost = (status === 'expired') ? 'rgba(226,75,74,.20)' : _dashHexA(col, 0.16);
+    const prog = (status === 'expired') ? '' :
+      '<circle class="dash-ring-progress" cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-dasharray="' + c.toFixed(2) + '" stroke-dashoffset="' + off + '" transform="rotate(-90 ' + cx + ' ' + cx + ')"/>';
+    return '<svg viewBox="0 0 ' + size + ' ' + size + '"><circle class="dash-ring-track" cx="' + cx + '" cy="' + cx + '" r="' + r + '" fill="none" stroke="' + ghost + '" stroke-width="' + sw + '"/>' + prog + '</svg>';
+  };
+
+  const fillOf = (it) => (it.fill != null) ? it.fill : ((it.days == null || !it.window) ? 1 : Math.max(0, Math.min(1, it.days / it.window)));
+
+  let html = items.map((it) => {
+    const kd = esc(it.drill);
+    return '' +
+      '<div class="dash-val dash-clickable" onclick="openDashDrill(\'' + kd + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openDashDrill(\'' + kd + '\');}">' +
+        '<div class="dash-val-ring">' + ringSvg(it.status, fillOf(it)) + '</div>' +
+        '<div class="dash-val-name">' + esc(it.label) + '</div>' +
+        '<div class="dash-val-status dash-val-' + it.status + '"><span class="dash-val-dot"></span>' + esc(WORD[it.status]) + '</div>' +
+        '<div class="dash-val-sub">' + esc(it.sub || '') + '</div>' +
+      '</div>';
+  }).join('');
+
+  html += '' +
+    '<div class="dash-val dash-val-add" onclick="showPage(\'backup\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showPage(\'backup\');}">' +
+      '<div class="dash-val-add-plus">+</div>' +
+      '<div class="dash-val-add-txt">' + esc(fr ? 'Ajouter une validité' : 'Add a validity') + '</div>' +
+    '</div>';
+
+  grid.innerHTML = html;
+
+  const personaEl = document.getElementById('dashValPersona');
+  if (personaEl) {
+    const LBL = {
+      airline705: fr ? 'Pilote de ligne' : 'Airline pilot',
+      helicopter: fr ? 'Hélicoptère' : 'Helicopter',
+      instructor: fr ? 'Instructeur' : 'Instructor',
+      student: fr ? 'Élève-pilote' : 'Student',
+      private: fr ? 'Pilote privé' : 'Private pilot'
+    };
+    personaEl.textContent = (fr ? 'Profil · ' : 'Profile · ') + (LBL[pilotType] || (fr ? 'Pilote' : 'Pilot'));
+  }
 }
 
 function _dashApproachesIn6mo() {

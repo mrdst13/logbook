@@ -18,6 +18,21 @@ function renderRecap() {
   const year = sel.value;
   const yFlights = flights.filter(f => f.date && f.date.startsWith(year));
 
+  // Empty state — no flights logged for this year
+  if (yFlights.length === 0) {
+    const recapStats = document.getElementById('recapStats');
+    const ff = document.getElementById('recapFunFacts');
+    const canvas = document.getElementById('recapChart');
+    const recapAirports = document.getElementById('recapAirports');
+    const recapRoutes = document.getElementById('recapRoutes');
+    if (recapStats) recapStats.innerHTML = `<p style="color:var(--text-muted);font-family:var(--font-mono);font-size:13px;grid-column:1/-1">${esc(t('recap.noFlights'))}</p>`;
+    if (ff) ff.innerHTML = '';
+    if (canvas && recapChartInst) { recapChartInst.destroy(); recapChartInst = null; }
+    if (recapAirports) recapAirports.innerHTML = '';
+    if (recapRoutes) recapRoutes.innerHTML = '';
+    return;
+  }
+
   // Stats
   const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
   const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
@@ -51,20 +66,35 @@ function renderRecap() {
   const canvas = document.getElementById('recapChart');
   if (canvas && typeof Chart !== 'undefined') {
     if (recapChartInst) { recapChartInst.destroy(); recapChartInst = null; }
+    // Read chart colours from CSS variables so dark mode is handled correctly.
+    const cs = getComputedStyle(document.documentElement);
+    const accentRaw   = cs.getPropertyValue('--accent').trim();
+    const textMuted   = cs.getPropertyValue('--text-muted').trim();
+    const borderColor = cs.getPropertyValue('--border').trim();
+    // Build semi-transparent fill from the accent variable.
+    // CSS custom properties may already be hex (#3d7bc4) or rgb(...).
+    // We create a temporary canvas pixel to convert to r,g,b for alpha layering.
+    let barBg = accentRaw;
+    try {
+      const tmp = document.createElement('canvas'); tmp.width = 1; tmp.height = 1;
+      const ctx2 = tmp.getContext('2d'); ctx2.fillStyle = accentRaw; ctx2.fillRect(0,0,1,1);
+      const [r,g,b] = ctx2.getImageData(0,0,1,1).data;
+      barBg = `rgba(${r},${g},${b},0.72)`;
+    } catch(_) { /* fallback: use raw value at full opacity */ }
     recapChartInst = new Chart(canvas, {
       type:'bar',
       data:{
         labels: months.map(m=>m.label),
         datasets:[{
           label:t('chart.blockHours'),data:months.map(m=>m.val),
-          backgroundColor:'rgba(61,123,196,0.72)',borderColor:'rgba(61,123,196,1)',borderWidth:1.5,borderRadius:4
+          backgroundColor:barBg,borderColor:accentRaw,borderWidth:1.5,borderRadius:4
         }]
       },
       options:{
         responsive:true,animation:{duration:600},
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+' '+t('hero.unitHours')}}},
-        scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:'#6b7fa3'}},
-                x:{grid:{display:false},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:'#6b7fa3'}}}
+        scales:{y:{beginAtZero:true,grid:{color:borderColor},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:textMuted}},
+                x:{grid:{display:false},ticks:{font:{family:"'JetBrains Mono', ui-monospace, monospace",size:10},color:textMuted}}}
       }
     });
   }
@@ -111,16 +141,15 @@ function renderRecap() {
       const facts = [];
       // Only show the Earth-tours fact when we actually measured distance.
       if (measured > 0) {
-        facts.push({ emoji: '🌍', text: t('recap.fun.earth', { n: earthTours.toFixed(2) }), sub: earthSub });
+        facts.push({ text: t('recap.fun.earth', { n: earthTours.toFixed(2) }), sub: earthSub });
       }
       facts.push(
-        { emoji: '⏱',  text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
-        { emoji: '🛬', text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
-        { emoji: '✈️', text: t('recap.fun.aircraft', { n: acRegs.length }),        sub: t('recap.fun.aircraftSub') }
+        { text: t('recap.fun.days',     { n: daysAir.toFixed(1) }),    sub: t('recap.fun.daysSub') },
+        { text: t('recap.fun.flights',  { n: flightsCount }),          sub: t('recap.fun.flightsSub',  { avg: avgLen.toFixed(1) }) },
+        { text: t('recap.fun.aircraft', { n: acRegs.length }),        sub: t('recap.fun.aircraftSub') }
       );
       ff.innerHTML = facts.map(f => `
         <div class="recap-fun-item">
-          <div class="recap-fun-emoji">${f.emoji}</div>
           <div class="recap-fun-text">${esc(f.text)}</div>
           <div class="recap-fun-sub">${esc(f.sub)}</div>
         </div>`).join('');

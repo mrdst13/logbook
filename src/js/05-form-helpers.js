@@ -147,8 +147,10 @@ function saveFlight(options) {
     meNightCop: gv('f-me-night-cop'),
     xcDayDual: gv('f-xc-day-dual'),
     xcDayPic: gv('f-xc-day-pic'),
+    xcDayCop: gv('f-xc-day-cop'),
     xcNightDual: gv('f-xc-night-dual'),
     xcNightPic: gv('f-xc-night-pic'),
+    xcNightCop: gv('f-xc-night-cop'),
     // Take-offs + landings. Recorded for SIM too (manual entry, never assumed):
     // a Level B/C/D full-flight-sim session counts toward recency under
     // CAR 401.05(2)(b). Career landing totals still exclude sim (calcStats).
@@ -156,6 +158,7 @@ function saveFlight(options) {
     toNight: gv('f-to-night'),
     ldgDay: gv('f-ldg-day'),
     ldgNight: gv('f-ldg-night'),
+    approaches: gv('f-approaches'),
     instActual: gv('f-inst-actual'),
     instHood: gv('f-inst-hood'),
     instSim: isSim ? (gv('f-total') || gv('f-inst-sim')) : gv('f-inst-sim'),
@@ -314,10 +317,10 @@ function editFlight(id) {
   sv('f-ata-utc', f.ata_utc || '');
   sv('f-me-day-dual', f.meDayDual); sv('f-me-day-pic', f.meDayPic); sv('f-me-day-cop', f.meDayCop);
   sv('f-me-night-dual', f.meNightDual); sv('f-me-night-pic', f.meNightPic); sv('f-me-night-cop', f.meNightCop);
-  sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic);
-  sv('f-xc-night-dual', f.xcNightDual); sv('f-xc-night-pic', f.xcNightPic);
+  sv('f-xc-day-dual', f.xcDayDual); sv('f-xc-day-pic', f.xcDayPic); sv('f-xc-day-cop', f.xcDayCop);
+  sv('f-xc-night-dual', f.xcNightDual); sv('f-xc-night-pic', f.xcNightPic); sv('f-xc-night-cop', f.xcNightCop);
   sv('f-to-day', f.toDay); sv('f-to-night', f.toNight);
-  sv('f-ldg-day', f.ldgDay); sv('f-ldg-night', f.ldgNight);
+  sv('f-ldg-day', f.ldgDay); sv('f-ldg-night', f.ldgNight); sv('f-approaches', f.approaches);
   sv('f-se-day', f.seDay); sv('f-se-night', f.seNight);
   sv('f-se-day-dual', f.seDayDual); sv('f-se-night-dual', f.seNightDual);
   sv('f-heli-day-pic', f.heliDayPic); sv('f-heli-night-pic', f.heliNightPic);
@@ -422,7 +425,8 @@ function clearForm() {
    'f-block','f-duty','f-total','f-atd-utc','f-ata-utc',
    'f-me-day-dual','f-me-day-pic','f-me-day-cop',
    'f-me-night-dual','f-me-night-pic','f-me-night-cop','f-xc-day-dual','f-xc-day-pic',
-   'f-xc-night-dual','f-xc-night-pic','f-to-day','f-to-night','f-ldg-day','f-ldg-night',
+   'f-xc-night-dual','f-xc-night-pic','f-xc-day-cop','f-xc-night-cop','f-approaches',
+   'f-to-day','f-to-night','f-ldg-day','f-ldg-night',
    'f-se-day','f-se-night','f-se-day-dual','f-se-night-dual',
    'f-heli-day-pic','f-heli-night-pic','f-heli-day-cop','f-heli-night-cop',
    'f-heli-day-dual','f-heli-night-dual','f-hover','f-dualgiven-day','f-dualgiven-night',

@@ -83,12 +83,12 @@ function _generatePDF() {
         textPrimary = [10, 14, 26];
 
   const name = `${p.fname||''} ${p.lname||''}`.trim() || 'Pilot';
-  const fullTitle = `${p.rank||'F/O'} ${name}`.trim();
+  const fullTitle = `${p.rank||''} ${name}`.trim();
   const license = p.license || '—';
   // No "Porter Airlines" default — a TC PDF should show "—" for an unset
   // operator (e.g. private/VFR pilot), not pretend the pilot is at Porter.
   const airline = p.airline || '—';
-  const base = p.base || 'YOW';
+  const base = p.base || '—';
   const medical = p.medical || '—';
   const ecg = p.ecg || '—';
   const fleet = p.fleet || '—';
@@ -481,7 +481,11 @@ function _generatePDF() {
     const ldg6mDay = recent6m.reduce((s, f) => s + (+f.ldgDay || 0), 0);
     const ldg6mNight = recent6m.reduce((s, f) => s + (+f.ldgNight || 0), 0);
     const ldg6mTotal = ldg6mDay + ldg6mNight;
-    const to6m = recent6m.filter(f => !f.isSim).length; // take-offs = real flight legs
+    // Take-offs must be SUMMED (a leg can log 0 or several), never counted as
+    // one per flight row — counting rows produced false CURRENT badges. (Audit fix.)
+    const to6mDay = recent6m.reduce((s, f) => s + (+f.toDay || 0), 0);
+    const to6mNight = recent6m.reduce((s, f) => s + (+f.toNight || 0), 0);
+    const to6m = to6mDay + to6mNight;
     // CAR 401.05: 6 instrument approaches in 6 months. Counter is approaches only.
     const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
     const instHours6m = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
@@ -498,8 +502,8 @@ function _generatePDF() {
         title: 'Passenger-carrying currency (Night)',
         reg: 'CAR 401.05(2)(b)',
         requirement: '5 night take-offs and 5 night landings within preceding 6 months',
-        current: `${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
-        ok: ldg6mNight >= 5
+        current: `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
+        ok: to6mNight >= 5 && ldg6mNight >= 5
       },
       {
         title: 'IFR currency — approaches',
@@ -540,7 +544,7 @@ function _generatePDF() {
 
     items.forEach(item => {
       const statusColor = item.ok === null ? muted : item.ok ? [16, 163, 127] : [220, 42, 42];
-      const statusText = item.ok === null ? 'UNKNOWN' : item.ok ? '✓ CURRENT' : '✗ NOT CURRENT';
+      const statusText = item.ok === null ? 'UNKNOWN' : item.ok ? 'CURRENT' : 'NOT CURRENT';
 
       doc.setDrawColor(...border);
       doc.setLineWidth(0.3);

@@ -61,6 +61,12 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 
 ---
 
+## ✅ Validité du certificat médical (CAR 404.04) — vérifié 2026-06-25
+- **Périodes (404.04(6)/(6.1)/(6.2))** : non-commercial <40 ans = 60 mois (PPL/récréatif/ballon ; planeur/ultraléger 60) ; 40+ = 24 mois (planeur/ultraléger restent 60). Commercial (CPL/MCPL-avion/ATPL contre rémunération) = **12 mois**, réduit à **6 mois** si 40+ en monopilote avec passagers OU 60 ans et +. Âge évalué à la **date de l'examen**.
+- **🆕 Calcul de l'échéance (404.04(8), en vigueur 2026-06-17, Gazette II 2025-12-17)** : fin de validité calculée à partir de (a) la fin de la période précédente si l'examen est ≤ 90 jours avant cette fin ; (b) **le 1er jour du mois suivant l'examen** si l'examen est > 90 jours avant. (Avant : lié à la date d'examen.)
+- **Source** : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-404.04.html (article ATAC = source secondaire qui a alerté).
+- **Impact Cumulo** : AUCUNE casse — l'app utilise l'échéance **saisie par le pilote** (`profile.medical`), pas un calcul ; le pilote saisit la date de son certificat (déjà conforme). **Opportunité** : un calculateur/vérificateur d'échéance dans la vue détail Médical (âge + type de licence + opération + règle (8)) — à concevoir avec la refonte, soigneusement (certifiable). NE PAS auto-coder sans validation Martin.
+
 ## ⏳ À VÉRIFIER (présent dans le code, pas encore confirmé contre la source)
 - **CAR 401.08 / 401.08(2)(h)** — contenu obligatoire du carnet (colonnes). [04-logbook, 12-pdf-export, 13-glossaire]
 - **CASS 725.106** — validité PPC (705 multi-équipage) : période exacte + intervalle. Le code traite le PPC comme une date saisie par le pilote (`ppcDueDate`) ; l'échelle de l'anneau (180 j) est cosmétique. À confirmer.
@@ -68,6 +74,16 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 - **CAR 401.73** — récence/rafraîchissement (glossaire).
 - **CAR 605.x** (605.97 etc.) — exigences carnet de route / documents (glossaire).
 - **CAR 401.05(1)** — récence 5 ans / programme de formation.
+
+---
+
+## 📝 Corrections appliquées 2026-06-26 (glossaire + Q&R)
+Re-vérifié sur laws-lois (section-401.05-20251217) + CAR 705.106 le **2026-06-26** :
+- **Récence passagers** = 5 décollages + 5 atterrissages / **6 mois** (401.05(2)). Corrigé le glossaire « CAR 401.05 » qui disait « 90 jours » (= règle FAA FAR 61.57, erronée) → « 6 mois ». Citation nuit dans la Q&R : (3) → (2).
+- **Récence IFR** = **6 h de temps aux instruments ET 6 approches** / 6 mois (401.05(**3.1**)). Q&R IFR corrigée (citait 401.05(5) + approches seules) → 401.05(3.1) + les deux exigences. ⇒ La ligne « 6 h » de l'export PDF est **CORRECTE** — NE PAS la retirer (l'audit se trompait).
+- **« Jour »** (glossaire) = crépuscule civil (RAC 101.01), aligné sur « Nuit ». Retiré « lever du soleil à 30 min avant le coucher » (non réglementaire au Canada).
+- **PPC** (glossaire) : citation CAR 421.05 → **CAR 705.106** (confirmé : 705.106 exige un PPC valide selon les CASS pour les ops 705). ⏳ Intervalle exact + cycle de l'anneau (180 j) = encore à confirmer (échelle d'anneau cosmétique pour l'instant ; la date d'échéance est saisie par le pilote).
+- **🔎 Intervalle PPC — recherche 2026-06-26** : la **période de validité** du PPC vit dans **CASS 725.113** (pas 725.106). Une recherche web (résumé moteur + tc.canada.ca) indique « expire le **1er jour du 7e mois** suivant le mois du contrôle » ≈ **6 mois** pour le 705 multi-équipage. ⇒ l'aide app « tous les 6 mois » serait JUSTE et la Q&R « 12 mois » FAUSSE. ⚠️ **PAS confirmé du texte primaire 725.113** (page TC trop grosse pour l'extraction; exemptions possibles). NE PAS figer Q&R/aide/anneau avant confirmation (Martin connaît l'intervalle via sa formation récurrente). Si confirmé 6 mois → corriger Q&R (12→6), restaurer « 6 mois » dans l'aide PPC, régler l'anneau PPC à ~180 j.
 
 > Tenir à jour : toute nouvelle règle réglementaire ajoutée au code DOIT apparaître ici
 > avec sa source vérifiée le jour où elle est écrite.

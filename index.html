@@ -18,8 +18,8 @@
  <meta property="og:url" content="https://flycumulo.ca/">
  <meta property="og:site_name" content="Cumulo Flight Deck">
  <meta property="og:image" content="https://flycumulo.ca/assets/cumulo-logo.png">
- <meta property="og:image:width" content="2000">
- <meta property="og:image:height" content="1000">
+ <meta property="og:image:width" content="1200">
+ <meta property="og:image:height" content="630">
  <meta property="og:image:alt" content="Cumulo — a pilot logbook for every Canadian pilot.">
  <meta name="twitter:card" content="summary_large_image">
  <meta name="twitter:title" content="Cumulo Flight Deck — A modern pilot logbook">
@@ -412,7 +412,7 @@
  <div class="nav-links">
  <a href="security.html">Security</a>
  <a href="privacy.html">Privacy</a>
- <a href="logbook.html?v=2026-06-25-f14dccc">Open app →</a>
+ <a href="logbook.html?v=2026-06-26-e7d7fa5">Open app →</a>
  </div>
 </nav>
 
@@ -422,7 +422,7 @@
  <p class="sub">Logbook with Transport Canada PDF format, automatic Night calculation, Cross-Country detection, and an inspection-ready PDF export. Bilingual EN/FR. Your data lives on your device.</p>
  <div class="cta-row">
  <a class="btn btn-primary" href="demo.html">Try the demo (no signup)</a>
- <a class="btn btn-outline" href="logbook.html?v=2026-06-25-f14dccc">Open my logbook →</a>
+ <a class="btn btn-outline" href="logbook.html?v=2026-06-26-e7d7fa5">Open my logbook →</a>
  </div>
 </section>
 
@@ -514,7 +514,7 @@
      <!-- Greeting -->
      <text x="248" y="100" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" letter-spacing="0.08em" fill="#7C8497">TUESDAY · MAY 26, 2026 · WEEK 22</text>
      <text x="248" y="138" font-family="Inter, sans-serif" font-size="30" font-weight="700" letter-spacing="-0.025em" fill="#0A0E1A">Good morning, Jordan.</text>
-     <text x="248" y="164" font-family="Inter, sans-serif" font-size="14" fill="#475063">You've logged <tspan font-weight="700" fill="#0A0E1A">18 flights</tspan> this month. Next medical renewal in <tspan font-weight="700" fill="#0A0E1A">238 days</tspan>.</text>
+     <text x="248" y="164" font-family="Inter, sans-serif" font-size="14" fill="#475063">You've logged <tspan font-weight="700" fill="#0A0E1A">18 flights</tspan> this month. Medical renewal: <tspan font-weight="700" fill="#0A0E1A">Feb 2027</tspan>.</text>
 
      <!-- Hero card -->
      <g transform="translate(248, 196)">
@@ -542,8 +542,8 @@
          <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
          <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 32 32)"/>
          <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">PPC</text>
-         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">127 d</text>
-         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">CASS 725</text>
+         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">Current</text>
+         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">Oct 2026</text>
        </g>
        <g transform="translate(128, 64)">
          <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
@@ -556,8 +556,8 @@
          <circle cx="32" cy="32" r="28" fill="none" stroke="#E1E5EC" stroke-width="5"/>
          <circle cx="32" cy="32" r="28" fill="none" stroke="#10A37F" stroke-width="5" stroke-dasharray="175.9" stroke-dashoffset="40" stroke-linecap="round" transform="rotate(-90 32 32)"/>
          <text x="32" y="36" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" fill="#0A0E1A">MED</text>
-         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">238 d</text>
-         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">CAT 1</text>
+         <text x="32" y="88" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle" fill="#475063">Current</text>
+         <text x="32" y="102" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" fill="#7C8497" letter-spacing="0.04em">Feb 2027</text>
        </g>
      </g>
 
@@ -623,9 +623,9 @@
  <h2>Built on Transport Canada standards</h2>
  <div style="max-width:780px;margin:0 auto;">
  <p style="font-size: 16px; line-height: 1.7;">
- Cumulo Flight Deck calculates night time per <strong>RAC 101.01</strong> (sunrise/sunset, not approximations).
- Cross-country detection per <strong>CAR 401.34</strong> (great-circle distance &gt; 25 NM).
- The PDF export matches <strong>TP 14052</strong> column-for-column for ramp checks and ATPL submissions.
+ Cumulo Flight Deck calculates night time from actual sunrise/sunset at your departure airport — no approximations.
+ Cross-country detection uses great-circle distance (threshold: 25 NM), consistent with Transport Canada standards.
+ The PDF export matches the Transport Canada logbook format column-for-column for ramp checks and ATPL submissions.
  Imports today: iCal auto-sync (for airlines that publish a webcal:// roster feed), monthly roster PDF parser, and 5 CSV importers from other logbook apps (ForeFlight, LogTen Pro, MyFlightbook, Logbook Pro, Safelog) plus a generic CSV column-mapper.
  </p>
  </div>
@@ -646,14 +646,14 @@
  <div class="feature-eyebrow">Night · XC</div>
  <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
  <div class="feature-title">Night &amp; XC calculated for you</div>
- <div class="feature-desc">Per RAC 101.01 and CAR 401.34. No more manual sunrise/sunset math.</div>
+ <div class="feature-desc">Sunrise/sunset night time and great-circle cross-country — per Transport Canada standards. No more manual math.</div>
  </div>
 
  <div class="feature t-green">
  <div class="feature-eyebrow">Export · TC</div>
  <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/><path d="M9 14h6M9 17h4"/></svg></div>
  <div class="feature-title">TC-ready PDF export</div>
- <div class="feature-desc">38-column TP 14052 format with cumulative totals, signature line, and currency annex. Ramp-check ready.</div>
+ <div class="feature-desc">Transport Canada logbook format — 38 columns, cumulative totals, signature line, and currency annex. Ramp-check ready.</div>
  </div>
 
  <div class="feature t-amber">
@@ -698,7 +698,7 @@
   <p>No signup, no credit card. Try the demo, or open the full logbook in your browser. Installs to home screen as a PWA — works in the cockpit, offline.</p>
   <div class="cta-row">
    <a class="btn btn-primary" href="demo.html">Try the demo</a>
-   <a class="btn btn-outline" href="logbook.html?v=2026-06-25-f14dccc">Open the logbook →</a>
+   <a class="btn btn-outline" href="logbook.html?v=2026-06-26-e7d7fa5">Open the logbook →</a>
   </div>
   <div class="final-cta-note">PWA · iOS · Android · Desktop</div>
  </div>
@@ -714,7 +714,7 @@
  <a href="security.html">Security</a>
  <a href="privacy.html">Privacy</a>
  <a href="mailto:flycumulo@gmail.com">Contact</a>
- <a href="logbook.html?v=2026-06-25-f14dccc">Open app</a>
+ <a href="logbook.html?v=2026-06-26-e7d7fa5">Open app</a>
  </div>
  </div>
 </footer>

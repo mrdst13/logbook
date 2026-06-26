@@ -111,7 +111,7 @@
  <div id="alertsSection" style="display:none;margin-bottom:20px"></div>
 
  <!-- (2) Brought-forward discovery banner — only for brand-new users. -->
- <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); display:flex; gap:var(--s-3); align-items:center; flex-wrap:wrap;">
+ <div id="broughtForwardBanner" style="display:none; padding:var(--s-4) var(--s-5); margin-bottom:var(--s-5); background:var(--bg-surface); border:1px solid var(--accent); border-radius:var(--r-md); gap:var(--s-3); align-items:center; flex-wrap:wrap;">
  <div style="flex:1; min-width:0;">
  <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;" data-i18n="dash.brought.title">Have a paper logbook?</div>
  <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;" data-i18n="dash.brought.desc">Declare your cumulative totals as brought-forward hours — no need to re-enter every flight. One attestation, then log new flights forward from today.</div>
@@ -158,24 +158,11 @@
  </div>
 
  <div class="dash-card dash-validities">
+ <div class="dash-card-head">
  <div class="eyebrow" data-i18n="dash.validitiesEyebrow">CURRENT VALIDITIES</div>
- <div class="dash-rings">
- <div class="dash-ring-block dash-clickable" onclick="openDashDrill('ifr')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('ifr');}">
- <div class="dash-ring" id="dashRingIFR"><!-- SVG written by JS --></div>
- <div class="dash-ring-sub" id="dashRingIFRSub">— / 6 appr.</div>
- <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
+ <div class="dash-val-persona" id="dashValPersona"></div>
  </div>
- <div class="dash-ring-block dash-clickable" onclick="openDashDrill('recency')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('recency');}">
- <div class="dash-ring" id="dashRingREC"></div>
- <div class="dash-ring-sub" id="dashRingRECSub">— / 5 ldg</div>
- <div class="dash-ring-cap mono" data-i18n="dash.ringCap6mo">6 MOS</div>
- </div>
- <div class="dash-ring-block dash-clickable" id="dashRingMedBlock" onclick="openDashDrill('medical')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('medical');}">
- <div class="dash-ring" id="dashRingMED"></div>
- <div class="dash-ring-sub" id="dashRingMEDSub">—</div>
- <div class="dash-ring-cap mono" data-i18n="dash.ringCapCat1">CAT 1</div>
- </div>
- </div>
+ <div class="dash-vals" id="dashValiditiesGrid"><!-- adaptive status cards rendered by _dashRenderValidities() --></div>
  </div>
  </div>
 
@@ -625,12 +612,20 @@
  <input type="number" id="f-xc-day-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
  <div class="form-group">
+ <label for="f-xc-day-cop" data-i18n="flight.xcDayCop">XC Day — SIC</label>
+ <input type="number" id="f-xc-day-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
  <label for="f-xc-night-dual" data-i18n="flight.xcNightDual">XC Night — Dual</label>
  <input type="number" id="f-xc-night-dual" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
  <div class="form-group">
  <label for="f-xc-night-pic" data-i18n="flight.xcNightPic">XC Night — PIC</label>
  <input type="number" id="f-xc-night-pic" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label for="f-xc-night-cop" data-i18n="flight.xcNightCop">XC Night — SIC</label>
+ <input type="number" id="f-xc-night-cop" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
  </div>
  </div>
  </div>
@@ -665,6 +660,10 @@
  <div class="form-group">
  <label data-i18n="flight.instSim">Instrument — Sim</label>
  <input type="number" id="f-inst-sim" placeholder="0.0" inputmode="decimal" step="0.1" min="0">
+ </div>
+ <div class="form-group">
+ <label for="f-approaches" data-i18n="flight.approaches">Approaches</label>
+ <input type="number" id="f-approaches" placeholder="0" inputmode="numeric" step="1" min="0">
  </div>
  <div class="form-group" id="fg-picus">
  <label data-i18n="flight.picus">PICUS</label>
@@ -783,7 +782,7 @@
  <div class="page-header">
  <div>
  <h1 class="page-title" data-i18n="page.bf.title">Brought-forward hours</h1>
- <div class="page-sub" data-i18n="page.bf.sub">Paper logbook · CAR 401.08(2)(h)</div>
+ <div class="page-sub" data-i18n="page.bf.sub">Paper logbook</div>
  </div>
  <div class="page-actions">
  <button class="btn btn-ghost btn-sm" onclick="showPage('backup');setTimeout(()=>showSettingsTab&&showSettingsTab('profile'),50);">
@@ -945,7 +944,7 @@
  </div>
  <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
  <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
- <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · CAR 401.05 currency</div>
+ <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · recent experience</div>
  </div>
  </div>
  </div>
@@ -1066,7 +1065,7 @@
  <div class="form-group col-span-2" id="p-ppc-wrap">
    <label><span data-i18n="profile.ppc.label">PPC expiry</span> <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(<span data-i18n="profile.ppc.hint">Pilot Proficiency Check</span>)</span></label>
    <input type="date" id="p-ppc">
-   <div class="help-text">CASS 725.106 — every 6 months for multi-pilot 705 ops. Update this date after each PPC. For how training events (LOFT, IPC, etc.) relate to your PPC currency, refer to your operator's approved training program.</div>
+   <div class="help-text">Renew on the recurring cycle that applies to your multi-pilot 705 operation. Update this date after each PPC. For how training events (LOFT, IPC, etc.) relate to your PPC currency, refer to your operator's approved training program.</div>
  </div>
  </div>
  </div>

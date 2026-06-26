@@ -448,7 +448,13 @@ const Sync = {
       if (elapsedH < 24) return;
     }
 
-    if (!confirm(t('sync.migration.prompt', { n: flights.length }))) {
+    const migrationOk = await confirmDialog({
+      title: getLang && getLang() === 'fr' ? 'Associer les vols au nuage' : 'Link flights to cloud',
+      body: t('sync.migration.prompt', { n: flights.length }),
+      confirmLabel: t('btn.confirm'),
+      cancelLabel: t('btn.cancel'),
+    });
+    if (!migrationOk) {
       // Persist a "deferred" marker so we don't ask again for 24h.
       this._saveMigrationState({ deferredAt: new Date().toISOString() });
       return;

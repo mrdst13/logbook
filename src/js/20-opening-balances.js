@@ -54,6 +54,7 @@ function _bfPageGroups() {
         { key: 'block',      labelEn: 'Block Time',                labelFr: 'Temps bloc',                             aggregate: true },
         { key: 'pic',        labelEn: 'PIC — Pilot in Command',    labelFr: 'PIC — Pilote aux commandes',             aggregate: true },
         { key: 'sic',        labelEn: 'SIC — Co-Pilot / Second',  labelFr: 'SIC — Co-pilote / Second',               aggregate: true },
+        { key: 'dualRcvd',   labelEn: 'Dual Received',            labelFr: 'Double reçu',                            aggregate: true },
         { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
         { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Cross-country (XC)',                     aggregate: true },
@@ -90,8 +91,10 @@ function _bfPageGroups() {
       descFr: 'Détail ME / SE par position (Norme 421). Utilisez si votre carnet précédent distinguait ME Jour PIC, ME Nuit SIC, etc.',
       open: false,
       fields: [
-        { key: 'seDay',       labelEn: 'SE Day',         labelFr: 'SE Jour' },
-        { key: 'seNight',     labelEn: 'SE Night',       labelFr: 'SE Nuit' },
+        { key: 'seDay',       labelEn: 'SE Day — PIC',     labelFr: 'SE Jour — PIC' },
+        { key: 'seNight',     labelEn: 'SE Night — PIC',   labelFr: 'SE Nuit — PIC' },
+        { key: 'seDayDual',   labelEn: 'SE Day — Dual',    labelFr: 'SE Jour — Double' },
+        { key: 'seNightDual', labelEn: 'SE Night — Dual',  labelFr: 'SE Nuit — Double' },
         { key: 'meDayPic',    labelEn: 'ME Day PIC',     labelFr: 'ME Jour PIC' },
         { key: 'meNightPic',  labelEn: 'ME Night PIC',   labelFr: 'ME Nuit PIC' },
         { key: 'meDayCop',    labelEn: 'ME Day SIC',     labelFr: 'ME Jour SIC' },
@@ -127,8 +130,12 @@ function _bfPageGroups() {
       descFr: 'Totaux XC Jour et XC Nuit (Norme 421 / CAR 401.34). Seulement si votre carnet distinguait XC jour/nuit.',
       open: false,
       fields: [
-        { key: 'xcDay',   labelEn: 'XC Day',   labelFr: 'XC Jour' },
-        { key: 'xcNight', labelEn: 'XC Night', labelFr: 'XC Nuit' },
+        { key: 'xcDayPic',    labelEn: 'XC Day — PIC',    labelFr: 'XC Jour — PIC' },
+        { key: 'xcDayCop',    labelEn: 'XC Day — SIC',    labelFr: 'XC Jour — SIC' },
+        { key: 'xcDayDual',   labelEn: 'XC Day — Dual',   labelFr: 'XC Jour — Double' },
+        { key: 'xcNightPic',  labelEn: 'XC Night — PIC',  labelFr: 'XC Nuit — PIC' },
+        { key: 'xcNightCop',  labelEn: 'XC Night — SIC',  labelFr: 'XC Nuit — SIC' },
+        { key: 'xcNightDual', labelEn: 'XC Night — Dual', labelFr: 'XC Nuit — Double' },
       ],
     },
     // ── Instrument ──
@@ -188,14 +195,19 @@ function _bfAllKeys() {
 function loadOpeningBalances() {
   try {
     const raw = localStorage.getItem(OPENING_BALANCES_KEY);
-    if (!raw) return { balances: {}, attestedAt: null, hash: null };
+    if (!raw) return { balances: {}, cutoffDate: null, attestedAt: null, hash: null };
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || !parsed.balances) {
-      return { balances: {}, attestedAt: null, hash: null };
+      return { balances: {}, cutoffDate: null, attestedAt: null, hash: null };
     }
+    // Migrate legacy aggregate XC keys (xcDay/xcNight) to the role-split PIC
+    // keys so the new column grid shows them and they are never double-counted.
+    const _b = parsed.balances;
+    if (_b && _b.xcDay != null)   { _b.xcDayPic   = (+_b.xcDayPic||0)   + (+_b.xcDay||0);   delete _b.xcDay; }
+    if (_b && _b.xcNight != null) { _b.xcNightPic = (+_b.xcNightPic||0) + (+_b.xcNight||0); delete _b.xcNight; }
     return parsed;
   } catch {
-    return { balances: {}, attestedAt: null, hash: null };
+    return { balances: {}, cutoffDate: null, attestedAt: null, hash: null };
   }
 }
 
@@ -223,7 +235,7 @@ async function _hashBalances(balances) {
 }
 
 // Persist the balances + attestation metadata + append to audit log.
-async function saveOpeningBalances(balances) {
+async function saveOpeningBalances(balances, cutoffDate) {
   const clean = {};
   Object.keys(balances).forEach(k => {
     const v = +balances[k];
@@ -231,13 +243,16 @@ async function saveOpeningBalances(balances) {
   });
   const hash = await _hashBalances(clean);
   const attestedAt = new Date().toISOString();
-  const record = { balances: clean, attestedAt, hash };
+  // cutoffDate = the last date covered by the paper logbook (the period
+  // boundary the attestation declares). Stored as metadata; the integrity
+  // hash stays over the hour VALUES only (unchanged semantics).
+  const record = { balances: clean, cutoffDate: cutoffDate || null, attestedAt, hash };
   localStorage.setItem(OPENING_BALANCES_KEY, JSON.stringify(record));
 
   let log = [];
   try { log = JSON.parse(localStorage.getItem(OPENING_ATTEST_LOG_KEY) || '[]'); } catch { log = []; }
   if (!Array.isArray(log)) log = [];
-  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', balances: clean });
+  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
   return record;
@@ -297,8 +312,19 @@ function totalsWithOpening(flightsTotals) {
     if (d) merged.heli = (+merged.heli||0) + d;
   }
   if (!balances.xc) {
-    const d = (+balances.xcDay||0)+(+balances.xcNight||0);
+    const d = (+balances.xcDayPic||0)+(+balances.xcDayCop||0)+(+balances.xcDayDual||0)
+            + (+balances.xcNightPic||0)+(+balances.xcNightCop||0)+(+balances.xcNightDual||0)
+            + (+balances.xcDay||0)+(+balances.xcNight||0); // legacy aggregate keys (pre-migration)
     if (d) merged.xc = (+merged.xc||0) + d;
+  }
+  if (!balances.dualRcvd) {
+    // Dual received = all instruction-received time across classes/conditions
+    // (parallel to calcStats; orthogonal to me/heli/xc, with which it overlaps).
+    const d = (+balances.seDayDual||0)+(+balances.seNightDual||0)
+            + (+balances.meDayDual||0)+(+balances.meNightDual||0)
+            + (+balances.heliDayDual||0)+(+balances.heliNightDual||0)
+            + (+balances.xcDayDual||0)+(+balances.xcNightDual||0);
+    if (d) merged.dualRcvd = (+merged.dualRcvd||0) + d;
   }
   if (!balances.dualGiven) {
     const d = (+balances.dualGivenDay||0)+(+balances.dualGivenNight||0);
@@ -321,18 +347,24 @@ function totalsWithOpening(flightsTotals) {
 
 // Short human-readable summary (Dashboard hero sub-line + Settings card).
 function openingBalanceSummary() {
-  const { balances, attestedAt } = loadOpeningBalances();
+  const { balances, attestedAt, cutoffDate } = loadOpeningBalances();
   const total = +balances.total || +balances.block || 0;
   if (total <= 0) return null;
   const fmtted = typeof fmt === 'function' ? fmt(total) : total.toFixed(1);
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
-  const dateStr = attestedAt
-    ? new Date(attestedAt).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA',
+  const fmtDate = (iso) => iso
+    ? new Date(iso.length <= 10 ? iso + 'T12:00:00' : iso).toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA',
         { year: 'numeric', month: 'short', day: 'numeric' })
     : '—';
+  const attDate = fmtDate(attestedAt);
+  if (cutoffDate) {
+    return lang === 'fr'
+      ? `${fmtted} h déclarées (carnet papier) au ${fmtDate(cutoffDate)} · attestées ${attDate}`
+      : `${fmtted} hrs declared (paper logbook) as of ${fmtDate(cutoffDate)} · attested ${attDate}`;
+  }
   return lang === 'fr'
-    ? `${fmtted} hrs reportées · attestées ${dateStr}`
-    : `${fmtted} hrs carried forward · attested ${dateStr}`;
+    ? `${fmtted} h reportées · attestées ${attDate}`
+    : `${fmtted} hrs carried forward · attested ${attDate}`;
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -378,6 +410,38 @@ function openOpeningBalancesEditor() {
   if (typeof showPage === 'function') showPage('bf');
 }
 
+// Soft, non-blocking consistency checks shown before attestation. Amber, never
+// hard blocks — the pilot may have a valid reason (e.g. SIC not yet entered).
+// "An app that catches inconsistencies is an app that knows what it's doing."
+function _bfCheckConsistency() {
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const v = (k) => { const n = document.getElementById('ob-' + k); return n ? (+n.value || 0) : 0; };
+  const fmtH = (n) => (typeof fmt === 'function' ? fmt(n) : n.toFixed(1));
+  const total = v('total') || v('block');
+  const pic = v('pic'), night = v('night'), me = v('me'), picus = v('picus');
+  // Live declared total — updates on every keystroke (Expert 2 "must").
+  const liveEl = document.getElementById('bf-live-total');
+  if (liveEl) liveEl.textContent = fmtH(total) + ' h';
+  const el = document.getElementById('bf-consistency');
+  if (!el) return;
+  const warns = [];
+  if (total > 0 && pic > total) warns.push(fr
+    ? `PIC (${fmtH(pic)} h) dépasse le temps de vol total (${fmtH(total)} h). C'est probablement une erreur de saisie — vérifiez vos totaux. Vous pouvez tout de même attester.`
+    : `PIC (${fmtH(pic)} h) exceeds total flight time (${fmtH(total)} h). This is likely a data-entry error — check your totals. You can still attest.`);
+  if (total > 0 && night > total) warns.push(fr
+    ? `Nuit (${fmtH(night)} h) dépasse le temps de vol total (${fmtH(total)} h). Vérifiez vos totaux.`
+    : `Night (${fmtH(night)} h) exceeds total flight time (${fmtH(total)} h). Check your totals.`);
+  if (total > 0 && me > total) warns.push(fr
+    ? `Multimoteur (${fmtH(me)} h) dépasse le temps de vol total (${fmtH(total)} h). Vérifiez vos totaux.`
+    : `Multi-engine (${fmtH(me)} h) exceeds total flight time (${fmtH(total)} h). Check your totals.`);
+  if (pic > 0 && picus > pic) warns.push(fr
+    ? `Le PICUS (${fmtH(picus)} h) dépasse votre PIC (${fmtH(pic)} h). Le PICUS est inclus dans le PIC — vérifiez.`
+    : `PICUS (${fmtH(picus)} h) exceeds your PIC (${fmtH(pic)} h). PICUS is part of PIC — verify.`);
+  if (!warns.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = warns.map(w => `<div style="background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:12px;color:var(--warning-text);line-height:1.5;">${esc(w)}</div>`).join('');
+}
+
 // ───────────────────────────────────────────────────────────────────
 // UI — Full page renderer
 // Called by showPage('bf') via the router hook in 01-router.js.
@@ -386,10 +450,16 @@ function renderBroughtForwardPage() {
   const container = document.getElementById('bf-page-body');
   if (!container) return;
 
-  const { balances } = loadOpeningBalances();
+  const _rec = loadOpeningBalances();
+  const balances = _rec.balances;
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
+  // Cut-off date (last date the paper logbook covers). Default to yesterday on
+  // first visit; keep the pilot's saved value on return. Never re-default once set.
+  const _todayISO = new Date().toISOString().slice(0, 10);
+  const _yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const cutoffDefault = _rec.cutoffDate || _yesterdayISO;
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
@@ -418,6 +488,7 @@ function renderBroughtForwardPage() {
           <label for="ob-${f.key}">${esc(label)}</label>
           <input type="number" id="ob-${esc(f.key)}" min="0" step="${step}"
                  value="${esc(value)}" placeholder="${ph}" inputmode="decimal"
+                 oninput="if(typeof _bfCheckConsistency==='function')_bfCheckConsistency()"
                  class="bf-input${f.hero ? ' bf-hero-input' : ''}" />
         </div>`;
     }).join('');
@@ -459,35 +530,50 @@ function renderBroughtForwardPage() {
       </div>
     </div>
 
+    <div class="form-card">
+      <div class="form-group" style="max-width:340px;">
+        <label for="ob-cutoff-date">${fr ? 'Dernière date de votre carnet papier' : 'Last date in your paper logbook'}</label>
+        <input type="date" id="ob-cutoff-date" value="${esc(cutoffDefault)}" max="${esc(_todayISO)}" />
+      </div>
+      <div class="bf-group-desc" style="margin-top:8px;">${fr
+        ? 'Utilisez la date de votre dernière inscription au carnet papier, même si c\'était il y a des semaines. En cas de doute, choisissez une date clairement avant votre arrivée sur Cumulo. Vous pourrez la modifier — une nouvelle attestation est générée automatiquement.'
+        : 'Use the date of your last paper logbook entry, even if it was weeks ago. If unsure, pick a date clearly before you started using Cumulo. You can change it later — a new attestation is generated automatically.'}</div>
+    </div>
+
+    <div class="form-card" style="text-align:center;padding:18px 22px;">
+      <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);">${fr ? 'Total de vol déclaré' : 'Declared total flight time'}</div>
+      <div id="bf-live-total" style="font-family:var(--font-mono);font-size:40px;font-weight:600;letter-spacing:-.02em;color:var(--text);margin-top:4px;">0,0 h</div>
+    </div>
+
     <div class="bf-groups-wrap">
       ${groupsHtml}
     </div>
 
+    <div id="bf-consistency" style="margin:0 0 var(--s-4);display:none;"></div>
+
     <div class="form-card bf-attest-card" id="bf-attest-section">
-      <div class="form-card-title">${fr ? 'Attestation (CAR 401.08(2)(h))' : 'Attestation (CAR 401.08(2)(h))'}</div>
+      <div class="form-card-title">${fr ? 'Attestation du pilote' : 'Pilot attestation'}</div>
       <div class="bf-attest-desc">
         ${fr
-          ? `En cochant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier au <strong>${esc(todayStr)}</strong>. Stocké localement avec un hash SHA-256. Toute modification exigera une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
-          : `By checking, you confirm these totals accurately reflect your paper logbook as of <strong>${esc(todayStr)}</strong>. Stored locally with a SHA-256 hash. Any edit requires a new attestation; the prior one is archived in the audit log.`}
+          ? `En signant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier à la <strong>date de coupure indiquée plus haut</strong>. Conservé localement avec une empreinte SHA-256. Toute modification exige une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
+          : `By signing, you confirm these totals accurately reflect your paper logbook as of the <strong>cut-off date shown above</strong>. Stored locally with a SHA-256 fingerprint. Any edit requires a new attestation; the prior one is archived in the audit log.`}
       </div>
-      <label class="col-option" style="margin:var(--s-3) 0;">
-        <input type="checkbox" id="ob-attest-chk" />
-        <span class="col-option-label">${fr
-          ? 'J\'atteste que ces totaux correspondent à mon carnet papier au jour d\'aujourd\'hui.'
-          : 'I attest these totals match my paper logbook as of today.'}</span>
-      </label>
-      <div class="form-group" style="max-width:320px;">
-        <label for="ob-attest-name">${fr ? 'Nom complet (signature dactylographiée)' : 'Full name (typed signature)'}</label>
+      <div class="form-group" style="max-width:340px;">
+        <label for="ob-attest-name">${fr ? 'Signez en tapant votre nom complet' : 'Sign by typing your full name'}</label>
         <input type="text" id="ob-attest-name"
                placeholder="${esc(profileName || (fr ? 'Tapez votre nom complet' : 'Type your full name'))}"
-               style="font-family:var(--font-mono);" />
+               autocomplete="name" style="font-family:var(--font-mono);" />
+        <div id="ob-name-warning" style="display:none;margin-top:8px;font-size:11.5px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:8px 10px;"></div>
       </div>
       <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Sauvegarder & attester' : 'Save & attest'}</button>
-        <button class="btn btn-ghost" onclick="showPage('backup')">${fr ? 'Annuler' : 'Cancel'}</button>
+        <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Attester' : 'Attest'}</button>
+        <button class="btn btn-ghost" onclick="showPage('dash')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
   `;
+
+  // Surface consistency warnings now and on every keystroke (oninput per field).
+  if (typeof _bfCheckConsistency === 'function') _bfCheckConsistency();
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -495,16 +581,7 @@ function renderBroughtForwardPage() {
 // ───────────────────────────────────────────────────────────────────
 async function commitOpeningBalances() {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
-  const attest = document.getElementById('ob-attest-chk');
   const nameEl = document.getElementById('ob-attest-name');
-
-  if (!attest || !attest.checked) {
-    if (typeof showToast === 'function') showToast(
-      fr ? 'Cochez la case d\'attestation pour confirmer que ces totaux correspondent à votre carnet papier.'
-         : 'Check the attestation box to confirm these totals match your paper logbook.',
-      'error');
-    return;
-  }
   const typedName = (nameEl && nameEl.value || '').trim();
   if (!typedName) {
     if (typeof showToast === 'function') showToast(
@@ -516,10 +593,28 @@ async function commitOpeningBalances() {
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const expectedName = `${profile.fname || ''} ${profile.lname || ''}`.trim();
   if (expectedName && typedName.toLowerCase() !== expectedName.toLowerCase()) {
-    const msg = fr
-      ? `Le nom saisi ("${typedName}") ne correspond pas à votre profil ("${expectedName}"). Enregistrer quand même ?`
-      : `The name you typed ("${typedName}") doesn't match your profile name ("${expectedName}"). Save anyway?`;
-    if (!confirm(msg)) return;
+    // Inline non-blocking warning instead of a native confirm() modal: the
+    // first click surfaces the warning; a second click (warning visible) proceeds.
+    const warnEl = document.getElementById('ob-name-warning');
+    if (warnEl && warnEl.style.display === 'none') {
+      warnEl.textContent = fr
+        ? `Le nom saisi ne correspond pas à votre profil (« ${expectedName} »). S'il est exact, cliquez de nouveau sur « Attester ».`
+        : `The name you typed doesn't match your profile ("${expectedName}"). If it's correct, click "Attest" again.`;
+      warnEl.style.display = 'block';
+      return;
+    }
+  }
+
+  // Cut-off date is required: the attestation declares totals "as of" a date,
+  // and without it the period boundary is legally ambiguous (CAR 401.08).
+  const cutoffEl = document.getElementById('ob-cutoff-date');
+  const cutoffDate = (cutoffEl && cutoffEl.value || '').trim();
+  if (!cutoffDate) {
+    if (typeof showToast === 'function') showToast(
+      fr ? 'Indiquez la dernière date de votre carnet papier (date de coupure).'
+         : 'Enter the last date in your paper logbook (cut-off date).',
+      'error');
+    return;
   }
 
   // Collect values from each input. Zero / empty → not persisted (sparse).
@@ -537,7 +632,7 @@ async function commitOpeningBalances() {
   }
 
   try {
-    await saveOpeningBalances(balances);
+    await saveOpeningBalances(balances, cutoffDate);
   } catch (e) {
     console.error('[OpeningBalances] save failed:', e);
     if (typeof showToast === 'function') showToast(
@@ -555,9 +650,9 @@ async function commitOpeningBalances() {
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? (filterVal || '') : '');
   renderOpeningBalancesSection('openingBalancesSection');
 
-  // Navigate back to Settings → Profile so the updated summary is visible.
-  if (typeof showPage === 'function') {
-    showPage('backup');
-    if (typeof showSettingsTab === 'function') setTimeout(() => showSettingsTab('profile'), 50);
-  }
+  // Navigate to the Dashboard so the pilot sees their career total update with
+  // the declared hours — that reveal IS the retention payoff. (Was Settings →
+  // Profile, which buried the moment in a settings pane. Panel-flagged as the
+  // single highest-impact fix on this page.)
+  if (typeof showPage === 'function') showPage('dash');
 }

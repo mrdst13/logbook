@@ -9,15 +9,15 @@ const FAQS = [
  // ── Currency & recency ────────────────────────────────────────────
  {
  q: 'How many landings do I need to stay current as PIC?',
- a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(3), you need 5 take-offs and 5 landings at night within the preceding 6 months.',
+ a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(2), you need 5 take-offs and 5 landings at night within the preceding 6 months.',
  qFr: 'Combien d\'atterrissages me faut-il pour rester valide comme PIC ?',
- aFr: 'Selon CAR 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon CAR 401.05(3), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
+ aFr: 'Selon CAR 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon CAR 401.05(2), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
  },
  {
  q: 'What is IFR recency and how long is it valid?',
- a: 'Under CAR 401.05(5), to act as PIC under IFR you must have completed at least 6 instrument approaches in the preceding 6 months, either in an aircraft or approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.',
+ a: 'Under CAR 401.05(3.1), to act as PIC under IFR you must, within the preceding 6 months, have acquired 6 hours of instrument time AND completed 6 instrument approaches — in actual or simulated IMC in an aircraft, or in an approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.',
  qFr: 'Qu\'est-ce que la validité IFR et combien de temps est-elle bonne ?',
- aFr: 'Selon CAR 401.05(5), pour agir comme PIC en IFR, vous devez avoir effectué au moins 6 approches aux instruments dans les 6 mois précédents, en aéronef ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
+ aFr: 'Selon CAR 401.05(3.1), pour agir comme PIC en IFR, vous devez, dans les 6 mois précédents, avoir accumulé 6 heures de temps aux instruments ET effectué 6 approches aux instruments — en IMC réelle ou simulée en aéronef, ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
  },
  {
  q: 'What are the currency rules for helicopter pilots?',
@@ -283,7 +283,7 @@ const GLOSSARY = [
  ['Duty Time', 'Time on duty — typically check-in to check-out, broader than block time', 'Temps en service — typiquement check-in à check-out, plus large que le block time'],
 
  // Conditions (CAR 401.08(2)(d))
- ['Day', 'Daytime flight — sunrise to 30 min before sunset (varies by jurisdiction)', 'Vol de jour — lever du soleil à 30 min avant le coucher (varie par juridiction)'],
+ ['Day', 'Per CAR 101.01 (Canada): from the beginning of morning civil twilight to the end of evening civil twilight', 'Selon le RAC 101.01 (Canada) : du début du crépuscule civil du matin à la fin du crépuscule civil du soir'],
  ['Night', 'Per CAR 101.01 (Canada): from the end of evening civil twilight to the beginning of morning civil twilight', 'Selon le RAC 101.01 (Canada) : de la fin du crépuscule civil du soir au début du crépuscule civil du matin'],
  ['IFR', 'Instrument Flight Rules — flight conducted under instrument procedures', 'Instrument Flight Rules — vol selon les procédures aux instruments'],
  ['VFR', 'Visual Flight Rules — flight by visual reference', 'Visual Flight Rules — vol selon les références visuelles'],
@@ -310,7 +310,7 @@ const GLOSSARY = [
  ['FFS', 'Full Flight Simulator — highest-fidelity (Level C/D) Approved Flight Simulator', 'Full Flight Simulator — simulateur approuvé haute fidélité (Niveau C/D)'],
  ['FTD', 'Flight Training Device — fixed-base sim, lower fidelity than FFS', 'Flight Training Device — sim à base fixe, fidélité inférieure au FFS'],
  ['FNPT', 'Flight & Navigation Procedures Trainer — basic flight trainer', 'Flight & Navigation Procedures Trainer — entraîneur de vol de base'],
- ['PPC', 'Pilot Proficiency Check — annual/biannual proficiency test (CAR 421.05)', 'Pilot Proficiency Check — test de compétence annuel/semestriel (CAR 421.05)'],
+ ['PPC', 'Pilot Proficiency Check — recurrent type proficiency test (CAR 705.106 for airline ops; interval per CASS)', 'Pilot Proficiency Check — test de compétence récurrent sur type (CAR 705.106 pour le transport aérien; intervalle selon les CASS)'],
  ['IPC', 'Instrument Proficiency Check — restores expired IFR rating', 'Instrument Proficiency Check — restaure une qualification IFR expirée'],
  ['LOFT', 'Line Oriented Flight Training — full-flight scenario training in sim', 'Line Oriented Flight Training — entraînement de scénario en simulateur'],
 
@@ -344,7 +344,7 @@ const GLOSSARY = [
  ['TC', 'Transport Canada — Canadian aviation regulatory authority', 'Transports Canada — autorité de réglementation de l\'aviation canadienne'],
  ['CAR', 'Canadian Aviation Regulations (SOR/96-433) — primary aviation regulation in Canada', 'Canadian Aviation Regulations (DORS/96-433) — réglementation aérienne principale au Canada'],
  ['RAC', 'Règlement de l\'aviation canadien — French name for the CAR', 'Règlement de l\'aviation canadien — nom français des CAR'],
- ['CAR 401.05', 'Recency requirements (5 landings 90 days · 6 IFR approaches 6 months)', 'Exigences de validité (5 atterrissages 90 jours · 6 approches IFR 6 mois)'],
+ ['CAR 401.05', 'Recency requirements (5 take-offs/landings · 6 months; IFR: 6 approaches + 6h instrument · 6 months)', 'Exigences de validité (5 décollages/atterrissages · 6 mois; IFR : 6 approches + 6 h aux instruments · 6 mois)'],
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
  ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du cross-country (> 25 NM)'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
