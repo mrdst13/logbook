@@ -433,34 +433,58 @@ function updateUndoButton() {
 // ─────────────────────────────────────────────────────────────────
 function findMatchingExistingFlight(incoming) {
   if (!incoming || !incoming.date) return null;
-  // First try exact match: date + flightNum + route
+  const normRoute = r => (r || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const normFn    = n => (n || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  // Tier 1 — exact: date + flightNum + route. Block is deliberately NOT in the
+  // key, so a re-import with a corrected/actual block still matches when these
+  // three agree.
   const exactKey = `${incoming.date}|${incoming.flightNum}|${incoming.route}`;
   const exact = flights.findIndex(f =>
     `${f.date}|${f.flightNum || ''}|${f.route || ''}` === exactKey
   );
   if (exact >= 0) return { idx: exact, matchType: 'exact' };
 
-  // Fallback: match on date + route + block similar (within 0.15h = 9 min)
-  const incomingRouteNorm = (incoming.route || '').toUpperCase().replace(/\s/g,'');
-  const incomingBlock = +incoming.block || 0;
-  for (let i = 0; i < flights.length; i++) {
-    const f = flights[i];
-    if (f.date !== incoming.date) continue;
-    const fRouteNorm = (f.route || '').toUpperCase().replace(/\s/g,'');
-    if (fRouteNorm !== incomingRouteNorm) continue;
-    const fBlock = +f.block || 0;
-    if (Math.abs(fBlock - incomingBlock) > 0.15) continue;
-    return { idx: i, matchType: 'fuzzy' };
+  // Tier 2 — same DATE + FLIGHT NUMBER. A roster flight number is unique per day
+  // for an operator, so this is the SAME leg even when the block differs
+  // (scheduled block in the existing row vs actual block in the PDF) or the
+  // route is written differently (IATA "YOW-YYZ" vs ICAO "CYOW-CYYZ"). This is
+  // what stops duplicates when re-importing a Navblue PDF that overlaps flights
+  // already logged. Only applies when the incoming flight actually has a number.
+  const incFn = normFn(incoming.flightNum);
+  if (incFn) {
+    const byFn = flights.findIndex(f => f.date === incoming.date && normFn(f.flightNum) === incFn);
+    if (byFn >= 0) return { idx: byFn, matchType: 'date-flightnum' };
   }
 
-  // Also try without route (some PDF imports may have route in different format)
-  for (let i = 0; i < flights.length; i++) {
-    const f = flights[i];
-    if (f.date !== incoming.date) continue;
-    const fBlock = +f.block || 0;
-    if (Math.abs(fBlock - incomingBlock) > 0.15) continue;
-    // Same date + same block → very likely the same flight
-    return { idx: i, matchType: 'date-block' };
+  // Tier 3 — same DATE + ROUTE with a close block (±0.15h = 9 min). Route-anchored
+  // so two DIFFERENT legs the same day never collide. Catches same-leg re-imports
+  // that carry no flight number.
+  const incRouteNorm = normRoute(incoming.route);
+  const incBlock = +incoming.block || 0;
+  if (incRouteNorm) {
+    for (let i = 0; i < flights.length; i++) {
+      const f = flights[i];
+      if (f.date !== incoming.date) continue;
+      if (normRoute(f.route) !== incRouteNorm) continue;
+      const fBlock = +f.block || 0;
+      if (Math.abs(fBlock - incBlock) > 0.15) continue;
+      return { idx: i, matchType: 'fuzzy' };
+    }
+  }
+
+  // Tier 4 — same DATE + block close, no route to compare (legacy rows missing
+  // both flight number and route). Requires BOTH blocks to be > 0 so two
+  // distinct same-day flights that simply lack block data are never merged.
+  if (incBlock > 0) {
+    for (let i = 0; i < flights.length; i++) {
+      const f = flights[i];
+      if (f.date !== incoming.date) continue;
+      const fBlock = +f.block || 0;
+      if (fBlock > 0 && Math.abs(fBlock - incBlock) <= 0.15) {
+        return { idx: i, matchType: 'date-block' };
+      }
+    }
   }
 
   return null;
@@ -1278,6 +1302,7 @@ function _dashRenderNextColumn() {
     // Navblue connected — show activity insight instead.
     const daysSinceLast = _dashDaysSinceLastFlight();
     const flightsThisWeek = _dashFlightsThisWeek();
+    const hoursThisWeek = _dashHoursThisWeek();
     if (flightsThisWeek > 0) {
       cards.push({
         tone: 'primary',
@@ -1285,7 +1310,7 @@ function _dashRenderNextColumn() {
         title: fr
           ? `${flightsThisWeek} vol${flightsThisWeek !== 1 ? 's' : ''} enregistré${flightsThisWeek !== 1 ? 's' : ''}`
           : `${flightsThisWeek} flight${flightsThisWeek !== 1 ? 's' : ''} logged`,
-        sub: fr ? 'Continuez la cadence.' : 'Keep the rhythm.',
+        sub: (function(s){ return fr ? (s.replace('.', ',') + ' h cette semaine') : (s + ' h this week'); })((typeof fmt === 'function') ? fmt(hoursThisWeek) : (Math.round(hoursThisWeek * 10) / 10).toFixed(1)),
         chip: 'ACT'
       });
     } else if (daysSinceLast !== null && daysSinceLast > 0) {
@@ -1448,8 +1473,8 @@ function _dashRenderNextColumn() {
         'pic':   fr ? 'PIC'             : 'PIC',
         'sic':   fr ? 'SIC'             : 'SIC',
         'night': fr ? 'de nuit'         : 'night',
-        'xc':    fr ? 'voyage'          : 'cross-country',
-        'me':    fr ? 'multi-moteur'    : 'multi-engine',
+        'xc':    fr ? 'vol-voyage'      : 'cross-country',
+        'me':    fr ? 'multimoteur'     : 'multi-engine',
         'total': fr ? 'total'           : 'total',
       }[k]) || '';
     };
@@ -1529,6 +1554,21 @@ function _dashFlightsThisWeek() {
   monday.setHours(0, 0, 0, 0);
   const cutoff = monday.toISOString().slice(0, 10);
   return flights.filter(f => f.date && f.date >= cutoff).length;
+}
+
+// Block hours flown this week (same Monday-start window as _dashFlightsThisWeek).
+// Sums the per-flight block time (falls back to total) — the same field the
+// recent-legs list shows — so the "This week" card states a real figure, never a slogan.
+function _dashHoursThisWeek() {
+  if (!Array.isArray(flights)) return 0;
+  const now = new Date();
+  const monday = new Date(now);
+  const day = monday.getDay() || 7;
+  monday.setDate(monday.getDate() - (day - 1));
+  monday.setHours(0, 0, 0, 0);
+  const cutoff = monday.toISOString().slice(0, 10);
+  return flights.filter(f => f.date && f.date >= cutoff)
+    .reduce((s, f) => s + (+f.block || +f.total || 0), 0);
 }
 
 // ─── Stat strip cell helper ────────────────────────────────────

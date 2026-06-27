@@ -28,7 +28,7 @@
 <title>Cumulo Flight Deck — Pilot Logbook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
@@ -148,9 +148,9 @@
   --s-12: 48px; --s-16: 64px;
 
   /* V3A — Type */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-display: 'Inter', -apple-system, sans-serif;
+  --font-display: 'Hanken Grotesk', -apple-system, sans-serif;
 
   /* V3A — Motion (legacy) */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -5687,14 +5687,14 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
      <span class="privacy-row-pill privacy-row-pill-locked" data-i18n="privacy.pill.alwaysOn">ALWAYS ON</span>
    </div>
 
-   <!-- Locked ON — private cloud backup -->
-   <div class="privacy-row privacy-row-locked">
+   <!-- Cloud backup follows the egress anonymization switch below -->
+   <div class="privacy-row">
      <span class="privacy-row-icon privacy-row-icon-on" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
      <div class="privacy-row-body">
        <div class="privacy-row-title" data-i18n="privacy.cloud.title">My private cloud backup (Canada)</div>
-       <div class="privacy-row-desc" data-i18n="privacy.cloud.desc">Full names kept in your personal Canada-region backup.</div>
+       <div class="privacy-row-desc" data-i18n="privacy.cloud.desc">Anonymized to initials by default; full names only if you enable the switch below.</div>
      </div>
-     <span class="privacy-row-pill privacy-row-pill-locked" data-i18n="privacy.pill.alwaysOn">ALWAYS ON</span>
+     <span class="privacy-row-pill privacy-row-pill-toggle" data-i18n="privacy.pill.yourChoice">YOUR CHOICE</span>
    </div>
 
    <!-- The ONE real choice — a proper switch -->
@@ -5773,30 +5773,6 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="settings-section" data-settings-pane="sync" style="display:none;">
  <h2 class="settings-section-title" data-i18n="settings.section.sync">Sync</h2>
 
- <!-- ─── Card: Cloud account (sign-in state + change password) ── -->
- <div class="form-card" id="account-card">
- <div class="form-card-title" data-i18n="account.title">Cloud account</div>
- <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
- <div id="account-signedin" style="display:none;">
- <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="account-newpass"><span data-i18n="account.newPassword">New password</span> <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— <span data-i18n="account.atLeast12">at least 12 characters</span></span></label>
- <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password" data-i18n-placeholder="account.newPassword">
- </div>
- <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="account-newpass2" data-i18n="account.confirmPassword">Confirm new password</label>
- <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password" data-i18n-placeholder="account.retypePlaceholder">
- </div>
- <label style="margin-bottom:var(--s-3); display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary); cursor:pointer;">
- <input type="checkbox" id="account-showpass" onchange="toggleAccountPasswordVisibility()">
- <span data-i18n="account.showPassword">Show password</span>
- </label>
- <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
- <button class="btn btn-primary" onclick="changeAccountPassword()" data-i18n="account.changePassword">Change password</button>
- </div>
- <div id="account-msg" style="margin-top:var(--s-2); font-size:12px; line-height:1.5;"></div>
- </div>
- </div>
-
  <!-- Status banner — explains the difference between Sync (this page) and
       Import (the other page). Pilots got confused when Photo / PDF / CSV
       were in Sync; clarity wins. -->
@@ -5828,6 +5804,30 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
  </div>
  <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
+ </div>
+
+ <!-- ─── Card: Cloud account (sign-in state + change password) — moved below the sync sources: this is account management, not a sync source. ── -->
+ <div class="form-card" id="account-card">
+ <div class="form-card-title" data-i18n="account.title">Cloud account</div>
+ <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
+ <div id="account-signedin" style="display:none;">
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass"><span data-i18n="account.newPassword">New password</span> <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— <span data-i18n="account.atLeast12">at least 12 characters</span></span></label>
+ <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password" data-i18n-placeholder="account.newPassword">
+ </div>
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass2" data-i18n="account.confirmPassword">Confirm new password</label>
+ <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password" data-i18n-placeholder="account.retypePlaceholder">
+ </div>
+ <label style="margin-bottom:var(--s-3); display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary); cursor:pointer;">
+ <input type="checkbox" id="account-showpass" onchange="toggleAccountPasswordVisibility()">
+ <span data-i18n="account.showPassword">Show password</span>
+ </label>
+ <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
+ <button class="btn btn-primary" onclick="changeAccountPassword()" data-i18n="account.changePassword">Change password</button>
+ </div>
+ <div id="account-msg" style="margin-top:var(--s-2); font-size:12px; line-height:1.5;"></div>
+ </div>
  </div>
  </div>
 
@@ -6884,34 +6884,58 @@ function updateUndoButton() {
 // ─────────────────────────────────────────────────────────────────
 function findMatchingExistingFlight(incoming) {
   if (!incoming || !incoming.date) return null;
-  // First try exact match: date + flightNum + route
+  const normRoute = r => (r || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const normFn    = n => (n || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  // Tier 1 — exact: date + flightNum + route. Block is deliberately NOT in the
+  // key, so a re-import with a corrected/actual block still matches when these
+  // three agree.
   const exactKey = `${incoming.date}|${incoming.flightNum}|${incoming.route}`;
   const exact = flights.findIndex(f =>
     `${f.date}|${f.flightNum || ''}|${f.route || ''}` === exactKey
   );
   if (exact >= 0) return { idx: exact, matchType: 'exact' };
 
-  // Fallback: match on date + route + block similar (within 0.15h = 9 min)
-  const incomingRouteNorm = (incoming.route || '').toUpperCase().replace(/\s/g,'');
-  const incomingBlock = +incoming.block || 0;
-  for (let i = 0; i < flights.length; i++) {
-    const f = flights[i];
-    if (f.date !== incoming.date) continue;
-    const fRouteNorm = (f.route || '').toUpperCase().replace(/\s/g,'');
-    if (fRouteNorm !== incomingRouteNorm) continue;
-    const fBlock = +f.block || 0;
-    if (Math.abs(fBlock - incomingBlock) > 0.15) continue;
-    return { idx: i, matchType: 'fuzzy' };
+  // Tier 2 — same DATE + FLIGHT NUMBER. A roster flight number is unique per day
+  // for an operator, so this is the SAME leg even when the block differs
+  // (scheduled block in the existing row vs actual block in the PDF) or the
+  // route is written differently (IATA "YOW-YYZ" vs ICAO "CYOW-CYYZ"). This is
+  // what stops duplicates when re-importing a Navblue PDF that overlaps flights
+  // already logged. Only applies when the incoming flight actually has a number.
+  const incFn = normFn(incoming.flightNum);
+  if (incFn) {
+    const byFn = flights.findIndex(f => f.date === incoming.date && normFn(f.flightNum) === incFn);
+    if (byFn >= 0) return { idx: byFn, matchType: 'date-flightnum' };
   }
 
-  // Also try without route (some PDF imports may have route in different format)
-  for (let i = 0; i < flights.length; i++) {
-    const f = flights[i];
-    if (f.date !== incoming.date) continue;
-    const fBlock = +f.block || 0;
-    if (Math.abs(fBlock - incomingBlock) > 0.15) continue;
-    // Same date + same block → very likely the same flight
-    return { idx: i, matchType: 'date-block' };
+  // Tier 3 — same DATE + ROUTE with a close block (±0.15h = 9 min). Route-anchored
+  // so two DIFFERENT legs the same day never collide. Catches same-leg re-imports
+  // that carry no flight number.
+  const incRouteNorm = normRoute(incoming.route);
+  const incBlock = +incoming.block || 0;
+  if (incRouteNorm) {
+    for (let i = 0; i < flights.length; i++) {
+      const f = flights[i];
+      if (f.date !== incoming.date) continue;
+      if (normRoute(f.route) !== incRouteNorm) continue;
+      const fBlock = +f.block || 0;
+      if (Math.abs(fBlock - incBlock) > 0.15) continue;
+      return { idx: i, matchType: 'fuzzy' };
+    }
+  }
+
+  // Tier 4 — same DATE + block close, no route to compare (legacy rows missing
+  // both flight number and route). Requires BOTH blocks to be > 0 so two
+  // distinct same-day flights that simply lack block data are never merged.
+  if (incBlock > 0) {
+    for (let i = 0; i < flights.length; i++) {
+      const f = flights[i];
+      if (f.date !== incoming.date) continue;
+      const fBlock = +f.block || 0;
+      if (fBlock > 0 && Math.abs(fBlock - incBlock) <= 0.15) {
+        return { idx: i, matchType: 'date-block' };
+      }
+    }
   }
 
   return null;
@@ -7729,6 +7753,7 @@ function _dashRenderNextColumn() {
     // Navblue connected — show activity insight instead.
     const daysSinceLast = _dashDaysSinceLastFlight();
     const flightsThisWeek = _dashFlightsThisWeek();
+    const hoursThisWeek = _dashHoursThisWeek();
     if (flightsThisWeek > 0) {
       cards.push({
         tone: 'primary',
@@ -7736,7 +7761,7 @@ function _dashRenderNextColumn() {
         title: fr
           ? `${flightsThisWeek} vol${flightsThisWeek !== 1 ? 's' : ''} enregistré${flightsThisWeek !== 1 ? 's' : ''}`
           : `${flightsThisWeek} flight${flightsThisWeek !== 1 ? 's' : ''} logged`,
-        sub: fr ? 'Continuez la cadence.' : 'Keep the rhythm.',
+        sub: (function(s){ return fr ? (s.replace('.', ',') + ' h cette semaine') : (s + ' h this week'); })((typeof fmt === 'function') ? fmt(hoursThisWeek) : (Math.round(hoursThisWeek * 10) / 10).toFixed(1)),
         chip: 'ACT'
       });
     } else if (daysSinceLast !== null && daysSinceLast > 0) {
@@ -7899,8 +7924,8 @@ function _dashRenderNextColumn() {
         'pic':   fr ? 'PIC'             : 'PIC',
         'sic':   fr ? 'SIC'             : 'SIC',
         'night': fr ? 'de nuit'         : 'night',
-        'xc':    fr ? 'voyage'          : 'cross-country',
-        'me':    fr ? 'multi-moteur'    : 'multi-engine',
+        'xc':    fr ? 'vol-voyage'      : 'cross-country',
+        'me':    fr ? 'multimoteur'     : 'multi-engine',
         'total': fr ? 'total'           : 'total',
       }[k]) || '';
     };
@@ -7980,6 +8005,21 @@ function _dashFlightsThisWeek() {
   monday.setHours(0, 0, 0, 0);
   const cutoff = monday.toISOString().slice(0, 10);
   return flights.filter(f => f.date && f.date >= cutoff).length;
+}
+
+// Block hours flown this week (same Monday-start window as _dashFlightsThisWeek).
+// Sums the per-flight block time (falls back to total) — the same field the
+// recent-legs list shows — so the "This week" card states a real figure, never a slogan.
+function _dashHoursThisWeek() {
+  if (!Array.isArray(flights)) return 0;
+  const now = new Date();
+  const monday = new Date(now);
+  const day = monday.getDay() || 7;
+  monday.setDate(monday.getDate() - (day - 1));
+  monday.setHours(0, 0, 0, 0);
+  const cutoff = monday.toISOString().slice(0, 10);
+  return flights.filter(f => f.date && f.date >= cutoff)
+    .reduce((s, f) => s + (+f.block || +f.total || 0), 0);
 }
 
 // ─── Stat strip cell helper ────────────────────────────────────
@@ -8082,11 +8122,11 @@ function renderAlerts() {
   // Night passenger currency (5 night take-offs + 5 night landings,
   // CAR 401.05(2)(b)) needs per-flight night take-off data the manual form
   // doesn't yet capture — tracked as a separate item (see C4).
-  const cutoff6mo = new Date(today); cutoff6mo.setMonth(cutoff6mo.getMonth() - 6);
-  const cut6moStr = cutoff6mo.toISOString().split('T')[0];
-  const f6mo = flights.filter(f => f.date >= cut6moStr);
-  const toCount6 = f6mo.length;
-  const ldgCount6 = f6mo.reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
+  // Use the SAME helpers as the validity ring (countsTowardRecency-filtered,
+  // circuit-aware) so the alert bar and the ring can never disagree on the
+  // same screen — one source of truth for recent experience.
+  const toCount6 = _dashTakeoffsIn6mo();
+  const ldgCount6 = _dashLandingsIn6mo();
   if (toCount6 < 5 || ldgCount6 < 5) {
     const shortfall = Math.min(toCount6, ldgCount6);
     alerts.push({ level: shortfall > 0 ? 'yellow' : 'red', icon: ICON_LANDING_GLYPH, title: t('alert.landingCurrency', { n: shortfall }), sub: t('alert.landingCurrencySub') });
@@ -8171,7 +8211,7 @@ function renderChart() {
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = d.toISOString().substring(0, 7);
-    labels.push(d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' }));
+    labels.push(d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }));
     const hrs = flights.filter(f => f.date && f.date.startsWith(key))
                        .reduce((sum, f) => sum + (+f.block || 0), 0);
     data.push(parseFloat(hrs.toFixed(1)));
@@ -8356,7 +8396,15 @@ function openFlightDetail(id) {
     [t('flight.route'), f.route],
     [t('detail.depIcao'), f.dep_icao],
     [t('detail.arrIcao'), f.arr_icao],
-    [t('detail.crewPosition'), f.pic ? t('detail.crewPosSic', { pic: f.pic }) : 'PIC'],
+    [t('detail.crewPosition'), (() => {
+      // Prefer the explicitly logged crew position. Only fall back to the legacy
+      // "a PIC name is present ⇒ logged as SIC" heuristic when crewPosition was
+      // never recorded — otherwise a captain (crewPosition='PIC') wrongly showed
+      // as SIC just because the other pilot's name was stored.
+      const pos = f.crewPosition || (f.pic ? 'SIC' : 'PIC');
+      if (pos === 'SIC') return f.pic ? t('detail.crewPosSic', { pic: f.pic }) : 'SIC';
+      return 'PIC';
+    })()],
     [t('flight.pic'), f.pic],
     [t('detail.copilot'), f.copilot],
     [t('detail.atdUtc'), f.atd_utc],
@@ -9375,10 +9423,23 @@ RULES:
 }
 
 function showImportPreview(list, subtitle) {
-  // Each entry gets a `selected` flag (default true)
-  pendingImport = list.map(f => ({ ...f, selected: true }));
+  // Flag every entry that already exists in the logbook so we never silently
+  // create a duplicate. Duplicates start UNSELECTED; genuinely new flights start
+  // selected. This is the dedup gate for the PDF roster / photo / CSV imports
+  // (the iCal sync path has its own gate). See findMatchingExistingFlight() and
+  // feedback_never_duplicate_flights.
+  pendingImport = list.map(f => {
+    const dup = (typeof findMatchingExistingFlight === 'function') && !!findMatchingExistingFlight(f);
+    return { ...f, selected: !dup, _dup: dup };
+  });
+  const dupN = pendingImport.filter(f => f._dup).length;
+  const newN = pendingImport.length - dupN;
   const sub = document.getElementById('importSubtitle');
-  if (sub) sub.textContent = subtitle || t('import.preview.flightsFound', { n: list.length });
+  if (sub) {
+    sub.textContent = dupN > 0
+      ? t('import.preview.newVsDup', { newN, dupN })
+      : (subtitle || t('import.preview.flightsFound', { n: list.length }));
+  }
   renderImportPreview();
   const overlay = document.getElementById('importPreview');
   overlay.classList.add('show');
@@ -9407,7 +9468,7 @@ function renderImportPreview() {
                ${f.selected ? 'checked' : ''}
                onchange="toggleImportItem(${i}, this.checked)">
         <div class="review-body">
-          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}</div>
+          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}${f._dup ? ` <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.03em;background:var(--warning-soft,rgba(200,140,0,.12));color:var(--warning-text,#8a6d00);vertical-align:middle;">${esc(t('import.preview.dupBadge'))}</span>` : ''}</div>
           <div class="review-fields">
             <div class="review-field"><span>${t('import.preview.fieldTotal')}</span> ${+f.total||0}h</div>
             <div class="review-field"><span>${t('import.preview.fieldBlock')}</span> ${+f.block || 0}h</div>
@@ -9454,11 +9515,13 @@ function updateImportButton() {
 
 function confirmImport() {
   const toImport = pendingImport.filter(f => f.selected);
-  const count = toImport.length;
-  if (count === 0) {
+  if (toImport.length === 0) {
     showToast(t('toast.nothingSelected'), 'error');
     return;
   }
+  // Snapshot so the whole import (new rows + any enrichment) is one undo step.
+  if (typeof snapshotBeforeOperation === 'function') snapshotBeforeOperation('Import');
+  if (typeof updateUndoButton === 'function') updateUndoButton();
   // PIPEDA model: store full names locally.
   // Anonymization happens at egress (cloud sync, shareable PDF), not at
   // import. The user retains the ability to see who they flew with in
@@ -9471,11 +9534,36 @@ function confirmImport() {
   // and clear the redundant self-reference. A real third-party name
   // remains untouched and crewPosition defaults to 'SIC'.
   const importProfile = DB.loadProfile();
+  // Fields safe to enrich onto an existing flight — only ever fills a blank,
+  // never overwrites a value the pilot already has (mirrors the iCal sync gate).
+  const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
+                       'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
+                       'pic','copilot','crewPosition'];
   // Track the new flight IDs so we can offer quick crew-fill after save
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
+  let imported = 0, skipped = 0;
   toImport.forEach(f => {
-    const { selected, ...flightData } = f;  // strip the selected flag
+    const { selected, _dup, ...flightData } = f;  // strip UI-only flags
+    // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
+    // that already exists, NEVER create a duplicate (a single duplicate makes a
+    // certifiable logbook invalid). Enrich the existing row's empty fields and
+    // skip the push instead. See feedback_never_duplicate_flights.
+    const match = (typeof findMatchingExistingFlight === 'function')
+      ? findMatchingExistingFlight(flightData) : null;
+    if (match) {
+      const e = flights[match.idx];
+      const merged = { ...e };
+      let changed = false;
+      mergeFields.forEach(k => {
+        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
+        const incomingPresent = (flightData[k] !== undefined && flightData[k] !== null && flightData[k] !== '');
+        if (existingEmpty && incomingPresent) { merged[k] = flightData[k]; changed = true; }
+      });
+      if (changed) flights[match.idx] = merged;
+      skipped++;
+      return;
+    }
     const resolved = (typeof resolveSelfReferences === 'function')
       ? resolveSelfReferences(flightData, importProfile)
       : flightData;
@@ -9489,11 +9577,17 @@ function confirmImport() {
       : withId;
     flights.push(enriched);
     newIds.push(newId);
+    imported++;
   });
   DB.save(flights);
   pendingImport = [];
   closeImportOverlay();
-  showToast(t(count === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count }), 'success');
+  showToast(
+    skipped > 0
+      ? t('toast.importedWithDups', { count: imported, dups: skipped })
+      : t(imported === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count: imported }),
+    'success'
+  );
 
   // Quick crew-fill — opens automatically if any of the new flights lack
   // crew names. Returns true if it opened the modal (which navigates the
@@ -12916,9 +13010,9 @@ const FAQS = [
  },
  {
  q: 'How often do I need to recur on type (PPC / IPC)?',
- a: 'Under CAR 705.106, a Pilot Proficiency Check (PPC) is required every 12 months for air carrier operations, with an Instrument Proficiency Check (IPC) also normally on a 12-month cycle. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
+ a: 'Under CAR 705.106, air carrier operations require a valid Pilot Proficiency Check (PPC). The exact validity interval depends on your operation and is set out in the applicable CASS standard and your operator\'s approved training program — refer to it for the interval that applies to you. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
  qFr: 'À quelle fréquence dois-je faire mon PPC / IPC sur type ?',
- aFr: 'Selon CAR 705.106, un PPC (Pilot Proficiency Check) est requis chaque 12 mois pour les opérations de transporteur aérien, avec un IPC (Instrument Proficiency Check) aussi normalement sur un cycle de 12 mois. CAR 605.97 régit les exigences IPC générales. Plusieurs opérateurs 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
+ aFr: 'Selon CAR 705.106, les opérations de transporteur aérien exigent un PPC (Pilot Proficiency Check) valide. L\'intervalle de validité exact dépend de votre exploitation et est défini dans la norme CASS applicable et le programme de formation approuvé de votre exploitant — référez-vous-y pour l\'intervalle qui s\'applique à vous. CAR 605.97 régit les exigences IPC générales. Plusieurs exploitants 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
  },
 
  // ── Logging conventions ───────────────────────────────────────────
@@ -12936,49 +13030,49 @@ const FAQS = [
  },
  {
  q: 'What counts as "cross-country" time?',
- a: 'CAR 401.34 defines cross-country (XC) as a flight to a point more than 25 nautical miles from the departure aerodrome. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance exceeds 25 NM. Short hops (< 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.',
- qFr: 'Qu\'est-ce qui compte comme temps « cross-country » (XC) ?',
- aFr: 'CAR 401.34 définit le cross-country (XC) comme un vol vers un point à plus de 25 milles nautiques de l\'aérodrome de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique dépasse 25 NM. Les vols courts (< 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
+ a: 'CAR 101.01 defines cross-country (XC) flight time as time on a flight to a point at least 25 nautical miles from the point of departure. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance is at least 25 NM. Shorter hops (under 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.',
+ qFr: 'Qu\'est-ce qui compte comme temps « vol-voyage » (XC) ?',
+ aFr: 'RAC 101.01 définit le temps de vol en voyage (XC) comme le temps sur un vol vers un point à au moins 25 milles nautiques du point de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique est d\'au moins 25 NM. Les vols plus courts (moins de 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
  },
  {
  q: 'How do I log Multi-Crew time (MCC) for ATPL submission?',
- a: 'Multi-Crew time is flight time on aircraft that are certified for and operated with a minimum crew of two pilots (Q400, E195, A320, B737, etc.). For ATPL submission under CAR 421.34, MCC time is a separate credit. Cumulo automatically flags multi_crew = true on any flight where you logged both PIC and SIC hours on the same leg, or imported from a 705-operator roster.',
+ a: 'Multi-Crew time is flight time on aircraft that are certified for and operated with a minimum crew of two pilots (Q400, E195, A320, B737, etc.). For ATPL submission, multi-crew time is tracked as a separate credit — refer to the ATPL experience requirements in Standard 421 and Transport Canada\'s guidance. Cumulo automatically flags multi_crew = true on any flight where you logged both PIC and SIC hours on the same leg, or imported from a 705-operator roster.',
  qFr: 'Comment enregistrer le temps Multi-Crew (MCC) pour la soumission ATPL ?',
- aFr: 'Le Multi-Crew time est du temps de vol sur des aéronefs certifiés et opérés avec un équipage minimal de deux pilotes (Q400, E195, A320, B737, etc.). Pour la soumission ATPL selon CAR 421.34, le MCC est un crédit séparé. Cumulo marque automatiquement multi_crew = true sur tout vol où vous avez enregistré à la fois des heures PIC et SIC sur le même segment, ou importé depuis un horaire d\'opérateur 705.'
+ aFr: 'Le Multi-Crew time est du temps de vol sur des aéronefs certifiés et opérés avec un équipage minimal de deux pilotes (Q400, E195, A320, B737, etc.). Pour la soumission ATPL, le temps multi-équipage est suivi comme un crédit séparé — référez-vous aux exigences d\'expérience ATPL du Standard 421 et aux directives de Transports Canada. Cumulo marque automatiquement multi_crew = true sur tout vol où vous avez enregistré à la fois des heures PIC et SIC sur le même segment, ou importé depuis un horaire d\'exploitant 705.'
  },
  {
  q: 'How is Dual Given time credited for an instructor ATPL?',
- a: 'CAR 421.34(b) lets a flight instructor count dual-given time toward the 1,500 hours required for the ATPL — up to 1,200 of those hours can be flight-instruction time. Cumulo tracks Dual Given Day + Dual Given Night separately; the PDF cover page now shows a cumulative Dual Given total when you have any hours in those columns.',
+ a: 'A flight instructor may count dual-given time toward the experience required for the ATPL, within the limits set out in Standard 421 — refer to it (and Transport Canada) for the current hour limits that apply to instruction time. Cumulo tracks Dual Given Day + Dual Given Night separately; the PDF cover page now shows a cumulative Dual Given total when you have any hours in those columns.',
  qFr: 'Comment le Dual Given est-il crédité pour un ATPL d\'instructeur ?',
- aFr: 'CAR 421.34(b) permet à un instructeur de vol de compter le dual-given vers les 1 500 heures requises pour l\'ATPL — jusqu\'à 1 200 de ces heures peuvent être du temps d\'instruction. Cumulo suit Dual Given Day + Dual Given Night séparément ; la page couverture du PDF montre maintenant un total cumulatif Dual Given quand vous avez des heures dans ces colonnes.'
+ aFr: 'Un instructeur de vol peut compter le temps dual-given vers l\'expérience requise pour l\'ATPL, dans les limites prévues au Standard 421 — référez-vous-y (et à Transports Canada) pour les limites d\'heures en vigueur applicables au temps d\'instruction. Cumulo suit Dual Given Day + Dual Given Night séparément ; la page couverture du PDF montre maintenant un total cumulatif Dual Given quand vous avez des heures dans ces colonnes.'
  },
 
  // ── Medical & licensing ────────────────────────────────────────────
  {
  q: 'What medical class do airline pilots need and how often must I renew?',
- a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. For pilots under 40, it is valid for 12 months. For pilots 40 and older, it must be renewed every 6 months. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).',
+ a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. Under CAR 404.04, a Category 1 is valid for 12 months, reduced to 6 months once you turn 60 — or at 40 and older if you fly single-pilot with passengers. Age is assessed at the date of the exam. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).',
  qFr: 'Quelle catégorie médicale est requise pour un pilote de ligne et à quelle fréquence renouveler ?',
- aFr: 'Les titulaires d\'ATPL opérant selon CAR 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Pour les pilotes de moins de 40 ans, il est valide 12 mois. Pour les pilotes de 40 ans et plus, il doit être renouvelé chaque 6 mois. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
+ aFr: 'Les titulaires d\'ATPL opérant selon CAR 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Selon CAR 404.04, un Catégorie 1 est valide 12 mois, réduit à 6 mois dès 60 ans — ou à 40 ans et plus si vous volez en monopilote avec passagers. L\'âge est évalué à la date de l\'examen. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
  },
  {
  q: 'When do I need an ECG for my medical?',
- a: 'Per the TC Category 1 medical standard, an ECG is required at the initial issuance of a Category 1 medical for pilots under 40, then every 24 months between the ages of 40 and 65, and annually once you turn 65. Cumulo lets you record your next ECG due date in Profile and will alert you in the dashboard 60 days before it expires.',
+ a: 'An ECG is part of the Transport Canada Category 1 medical standard, and how often you need one is age-related and set by that standard — your Civil Aviation Medical Examiner (CAME) will tell you when your next ECG is due. Cumulo lets you record that due date in Profile and will alert you in the dashboard 60 days before it expires.',
  qFr: 'Quand ai-je besoin d\'un ECG pour mon médical ?',
- aFr: 'Selon la norme médicale TC Catégorie 1, un ECG est requis à l\'émission initiale d\'un médical Catégorie 1 pour les pilotes de moins de 40 ans, puis chaque 24 mois entre 40 et 65 ans, et annuellement à partir de 65 ans. Cumulo permet d\'enregistrer la date d\'échéance de votre prochain ECG dans Profile et vous avertit sur le tableau de bord 60 jours avant l\'expiration.'
+ aFr: 'Un ECG fait partie de la norme médicale de Catégorie 1 de Transports Canada, et sa fréquence dépend de l\'âge et est fixée par cette norme — votre médecin-examinateur de l\'aviation civile (MEAC) vous indiquera la date de votre prochain ECG. Cumulo permet d\'enregistrer cette date d\'échéance dans Profile et vous avertit sur le tableau de bord 60 jours avant l\'expiration.'
  },
 
  // ── Simulator ──────────────────────────────────────────────────────
  {
  q: 'Can I count simulator time toward my ATPL hours?',
- a: 'Yes, but with limits. Under CAR 401.73, a maximum of 25 hours of approved flight simulator time may be credited toward the 1,500-hour ATPL requirement (200 hours for multi-engine helicopter). The simulator must be approved by Transport Canada. All simulator time should be logged under the Simulator (SIM) column, not as flight time.',
+ a: 'Yes, but with limits. Approved flight simulator time may be credited toward the ATPL experience requirement, up to a maximum set out in Standard 421 — refer to it (and Transport Canada) for the current limits, which differ for aeroplanes and helicopters. The simulator must be approved by Transport Canada. All simulator time should be logged under the Simulator (SIM) column, not as flight time.',
  qFr: 'Puis-je compter le temps simulateur vers mes heures ATPL ?',
- aFr: 'Oui, avec des limites. Selon CAR 401.73, un maximum de 25 heures de temps de simulateur de vol approuvé peut être crédité vers les 1 500 heures requises pour l\'ATPL (200 heures pour hélicoptère multimoteur). Le simulateur doit être approuvé par Transports Canada. Tout le temps simulateur doit être enregistré sous la colonne Simulateur (SIM), pas comme temps de vol.'
+ aFr: 'Oui, avec des limites. Le temps de simulateur de vol approuvé peut être crédité vers l\'exigence d\'expérience ATPL, jusqu\'à un maximum prévu au Standard 421 — référez-vous-y (et à Transports Canada) pour les limites en vigueur, qui diffèrent pour les avions et les hélicoptères. Le simulateur doit être approuvé par Transports Canada. Tout le temps simulateur doit être enregistré sous la colonne Simulateur (SIM), pas comme temps de vol.'
  },
  {
  q: 'What are FFS, FTD, FNPT, and BITD?',
- a: 'These are simulator levels. FFS (Full Flight Simulator) is the highest fidelity — full motion, full cockpit. FTD (Flight Training Device) has no motion but a high-fidelity cockpit. FNPT (Flight & Navigation Procedures Trainer) is generic flight controls with realistic instruments. BITD (Basic Instrument Training Device) is the lowest level, often used for PPL/CPL instrument training. CAR 401.73 credit rules differ by device level — check with TC and your operator.',
+ a: 'These are simulator levels. FFS (Full Flight Simulator) is the highest fidelity — full motion, full cockpit. FTD (Flight Training Device) has no motion but a high-fidelity cockpit. FNPT (Flight & Navigation Procedures Trainer) is generic flight controls with realistic instruments. BITD (Basic Instrument Training Device) is the lowest level, often used for PPL/CPL instrument training. Simulator credit rules differ by device level — check with Transport Canada and your operator.',
  qFr: 'C\'est quoi FFS, FTD, FNPT et BITD ?',
- aFr: 'Ce sont des niveaux de simulateur. FFS (Full Flight Simulator) est la plus haute fidélité — mouvement complet, cockpit complet. FTD (Flight Training Device) n\'a pas de mouvement mais un cockpit haute fidélité. FNPT (Flight & Navigation Procedures Trainer) a des commandes de vol génériques avec des instruments réalistes. BITD (Basic Instrument Training Device) est le niveau le plus bas, souvent utilisé pour l\'entraînement aux instruments PPL/CPL. Les règles de crédit CAR 401.73 diffèrent par niveau — vérifiez avec TC et votre opérateur.'
+ aFr: 'Ce sont des niveaux de simulateur. FFS (Full Flight Simulator) est la plus haute fidélité — mouvement complet, cockpit complet. FTD (Flight Training Device) n\'a pas de mouvement mais un cockpit haute fidélité. FNPT (Flight & Navigation Procedures Trainer) a des commandes de vol génériques avec des instruments réalistes. BITD (Basic Instrument Training Device) est le niveau le plus bas, souvent utilisé pour l\'entraînement aux instruments PPL/CPL. Les règles de crédit diffèrent par niveau de dispositif — vérifiez avec Transports Canada et votre exploitant.'
  },
 
  // ── Privacy & compliance ──────────────────────────────────────────
@@ -13182,7 +13276,7 @@ const GLOSSARY = [
  ['ME', 'Multi-Engine — aircraft with more than one engine', 'Multimoteur — aéronef à plus d\'un moteur'],
 
  // Cross-country
- ['XC', 'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)', 'Cross-country — vol vers un aérodrome à plus de 25 NM (46,3 km) du point de départ (CAR 401.34)'],
+ ['XC', 'Cross-Country — flight to a point at least 25 NM (46.3 km) from the point of departure (CAR 101.01)', 'Vol-voyage — vol vers un point à au moins 25 NM (46,3 km) du point de départ (RAC 101.01)'],
 
  // Instrument
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
@@ -13235,7 +13329,7 @@ const GLOSSARY = [
  ['RAC', 'Règlement de l\'aviation canadien — French name for the CAR', 'Règlement de l\'aviation canadien — nom français des CAR'],
  ['CAR 401.05', 'Recency requirements (5 take-offs/landings · 6 months; IFR: 6 approaches + 6h instrument · 6 months)', 'Exigences de validité (5 décollages/atterrissages · 6 mois; IFR : 6 approches + 6 h aux instruments · 6 mois)'],
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
- ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du cross-country (> 25 NM)'],
+ ['CAR 101.01', 'Definitions — including cross-country flight time (a point at least 25 NM from departure) and day/night', 'Définitions — dont le temps de vol en voyage (un point à au moins 25 NM du départ) et jour/nuit'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
  ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série CAR 700 — opérations comme 705 transporteur aérien)'],
  ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les CAR'],
@@ -15107,7 +15201,7 @@ const STRINGS = {
 
  // ─── Currency card & dashboard
  'currency.title': 'Currency status',
- 'currency.passenger': 'Passenger PIC (90-day)',
+ 'currency.passenger': 'Passenger PIC (recent experience)',
  'currency.takeoffsLandings': 'Take-offs / Landings',
  'currency.ifrApproaches': 'IFR Approaches (6-month)',
  'currency.medical': 'Medical',
@@ -15169,9 +15263,9 @@ const STRINGS = {
  'alert.medicalSoon2Pl': 'Medical expires in {n} days',
  'alert.medicalExpiry': 'Expiry: {date}',
  'alert.landingCurrency': 'Recent experience: {n}/5 take-offs & landings in last 6 months',
- 'alert.landingCurrencySub': '5 take-offs + 5 landings required within 6 months to carry passengers — CAR 401.05(2)',
+ 'alert.landingCurrencySub': '5 take-offs + 5 landings required within 6 months to carry passengers',
  'alert.ifrCurrency': 'IFR currency: {n}/6 approaches in last 6 months',
- 'alert.ifrCurrencySub': '6 approaches required within 6 months — CAR 401.05',
+ 'alert.ifrCurrencySub': '6 approaches required within 6 months',
  'chart.monthlyTitle': 'Monthly Block Hours',
  'chart.last12mo': 'LAST 12 MONTHS',
  'lb.addFlight': ' Add Flight',
@@ -15190,7 +15284,7 @@ const STRINGS = {
  'import.lastImport.eyebrow': 'LAST IMPORT',
  'import.lastImport.undo': 'Undo',
  'import.ask': 'How are your flights stored today?',
- 'import.hero.badge': 'Recommended · simplest',
+ 'import.hero.badge': 'Recommended · least typing',
  'import.hero.title': 'My work schedule',
  'import.hero.desc': 'Automatic iCal sync. Set it up once — every new flight shows up on its own, with nothing to do.',
  'import.hero.button': 'Set up sync',
@@ -15303,6 +15397,8 @@ const STRINGS = {
  'import.preview.fieldPic': 'PIC',
  'import.preview.importBtn': 'Import {n} flight(s)',
  'import.preview.nothingToImport': 'Nothing to import',
+ 'import.preview.newVsDup': '{newN} new · {dupN} already in your logbook (unchecked)',
+ 'import.preview.dupBadge': 'Already in your logbook',
  'import.preview.subtitle': '{n} flights from your roster PDF — review before import',
  'dash.alert.medicalSoon': 'Your medical expires in {days} days — book your renewal.',
  'dash.alert.medicalExpired': 'Your medical has expired. You may not exercise the privileges of your licence.',
@@ -15357,9 +15453,9 @@ const STRINGS = {
  'onb.complete': 'Setup complete. Welcome aboard.',
  'onb.nameRequired': 'Please enter your first and last name',
  'onb.pilotTypeRequired': 'Please choose your pilot type to continue',
- 'onb.getStarted': 'Get started →',
+ 'onb.getStarted': 'Open your logbook →',
  'onb.step1.title': 'Welcome to Cumulo',
- 'onb.welcome.intro': 'A modern logbook, built by a pilot.',
+ 'onb.welcome.intro': 'Built by a pilot — to the standard you fly to.',
  'onb.welcome.bullet1Html': '<strong>Built for Transport Canada.</strong> Columns, PDF format, night and cross-country math — done right out of the box.',
  'onb.welcome.bullet2Html': '<strong>Auto-syncs your roster.</strong> Connect your airline\'s iCal feed once. Cumulo pulls new flights every time you open the app.',
  'onb.welcome.bullet3Html': '<strong>Bring forward your paper hours.</strong> Declare your career totals once, attest, then log new flights forward. No re-typing.',
@@ -15522,6 +15618,7 @@ const STRINGS = {
  'toast.acceptResponsibility':'Please check the certification box before importing.',
  'toast.flightsImportedCount': '{count} flight imported ✓',
  'toast.flightsImportedCountPl': '{count} flights imported ✓',
+ 'toast.importedWithDups': '{count} imported ✓ · {dups} already in your logbook (skipped)',
  'toast.captainsAdded': '{n} crew name added.',
  'toast.captainsAddedPl': '{n} crew names added.',
  'toast.pdfExportedPages': 'PDF exported ({pages} pages) ✓',
@@ -15729,7 +15826,7 @@ const STRINGS = {
  'auth.reset.sub': 'Choose a new password (at least 12 characters).',
  'auth.reset.btn': 'Update password',
  'auth.reset.success': 'Password updated.',
- 'auth.welcome': 'Welcome back.',
+ 'auth.welcome': 'Back at the controls.',
  'auth.err.invalidCredentials':'Incorrect email or password.',
  'auth.err.emailNotConfirmed':'Confirm your email first — check your inbox.',
  'auth.err.alreadyRegistered':'This email is already registered. Sign in instead.',
@@ -15769,7 +15866,7 @@ const STRINGS = {
  'privacy.local.title': 'My personal logbook (this device)',
  'privacy.local.desc': 'Full names always kept. Equivalent to a paper logbook — the regs (CAR 401.08) require you to track crew, and PIPEDA s.7(1)(b) exempts collection required by other law. No consent needed.',
  'privacy.cloud.title': 'My private cloud backup (Canada)',
- 'privacy.cloud.desc': 'When optional cloud backup is enabled, full names are kept in your personal Canada-region backup. You are the only one with access — an extension of your personal logbook, not a transfer to a third party.',
+ 'privacy.cloud.desc': 'Your private Canada-region backup is an extension of your personal logbook — only you can access it. By default, crew names are anonymized to initials before they reach the cloud (the same rule as shared exports); full names are kept only if you turn on "Keep full crew names when syncing or sharing."',
  'privacy.shared.title': 'Shared exports (PDFs sent to others)',
  'privacy.shared.desc': '<strong>Off</strong> (default) → crew names are anonymized to initials when you share a PDF outside this device. <strong>On</strong> → full names are kept in shared PDFs. Only turn this on if (a) you have crew consent, or (b) the recipient is Transport Canada / a regulator who already has the right to see them.',
  'privacy.public.title': 'Public or marketing surfaces',
@@ -16008,7 +16105,7 @@ const STRINGS = {
  'flight.section.crew': 'Équipage',
  'flight.section.conditions': 'Jour / Nuit',
  'flight.section.engine': 'Classe moteur',
- 'flight.section.xc': 'Cross-country',
+ 'flight.section.xc': 'Vol-voyage',
  'flight.section.instrument': 'Instruments',
  'flight.section.landings': 'Décollages et atterrissages',
  'flight.section.other': 'Autres',
@@ -16050,8 +16147,8 @@ const STRINGS = {
  'flight.meDayDualReceived': 'ME Jour — Double reçue',
  'flight.meNightDualReceived': 'ME Nuit — Double reçue',
  'flight.copilotFO': 'Copilote (F/O)',
- 'flight.xcDay': 'Cross-country jour',
- 'flight.xcNight': 'Cross-country nuit',
+ 'flight.xcDay': 'Vol-voyage jour',
+ 'flight.xcNight': 'Vol-voyage nuit',
  'flight.toDay': 'Décollage Jour',
  'flight.toNight': 'Décollage Nuit',
  'flight.ldgDay': 'Atterrissages Jour',
@@ -16073,7 +16170,7 @@ const STRINGS = {
  'flight.meDayRow': 'Jour',
  'flight.meNightRow': 'Nuit',
  'flight.cancelBtn': 'Annuler',
- 'flight.showAdvanced': 'Afficher les champs avancés (ME · Cross-country · Instrument)',
+ 'flight.showAdvanced': 'Afficher les champs avancés (ME · Vol-voyage · Instrument)',
  'flight.hideAdvanced': 'Masquer les champs avancés',
  'lb.empty': 'Aucun vol enregistré. Importez un horaire ou inscrivez votre premier vol.',
  'flight.entryFlight': 'Vol',
@@ -16084,7 +16181,7 @@ const STRINGS = {
  'flight.timeCard': 'Temps',
  'qa.searchPlaceholder': 'Chercher une question…',
  'flight.meCard': 'Temps multimoteur',
- 'flight.seCard': 'Temps mono-moteur',
+ 'flight.seCard': 'Temps monomoteur',
  'flight.addMultiEngine': '+ Temps multimoteur',
  'flight.seDayPic': 'SE jour — PIC',
  'flight.seDayDual': 'SE jour — Double',
@@ -16092,7 +16189,7 @@ const STRINGS = {
  'flight.seNightDual': 'SE nuit — Double',
  'flight.heliCard': 'Temps hélicoptère',
  'flight.dualGivenCard': 'Double donné (instructeur)',
- 'flight.xcCard': 'Cross-country',
+ 'flight.xcCard': 'Vol-voyage',
  'flight.xcDayDual': 'XC jour — Double',
  'flight.xcDayPic': 'XC jour — PIC',
  'flight.xcDayCop': 'XC jour — SIC',
@@ -16113,7 +16210,7 @@ const STRINGS = {
 
  // ─── Carte de validité + tableau de bord
  'currency.title': 'État des validités',
- 'currency.passenger': 'CDB transport passagers (90 j)',
+ 'currency.passenger': 'CDB transport passagers (expérience récente)',
  'currency.takeoffsLandings': 'Décollages / Atterrissages',
  'currency.ifrApproaches': 'Approches IFR (6 mois)',
  'currency.medical': 'Médical',
@@ -16149,7 +16246,7 @@ const STRINGS = {
  'stats.nightTime': 'Temps de nuit',
  'stats.landings': 'Atterrissages',
  'stats.me': 'Multimoteur',
- 'stats.xc': 'Cross-country',
+ 'stats.xc': 'Vol-voyage',
  'stats.blockTime': 'Temps bloc',
  'stats.entries': 'Entrées',
  'stats.hours': 'heures',
@@ -16175,9 +16272,9 @@ const STRINGS = {
  'alert.medicalSoon2Pl': 'Médical expire dans {n} jours',
  'alert.medicalExpiry': 'Expiration : {date}',
  'alert.landingCurrency': 'Expérience récente : {n}/5 décollages et atterrissages (6 derniers mois)',
- 'alert.landingCurrencySub': '5 décollages + 5 atterrissages requis dans les 6 mois pour transporter des passagers — CAR 401.05(2)',
+ 'alert.landingCurrencySub': '5 décollages + 5 atterrissages requis dans les 6 mois pour transporter des passagers',
  'alert.ifrCurrency': 'Validité IFR : {n}/6 approches au cours des 6 derniers mois',
- 'alert.ifrCurrencySub': '6 approches requises dans les 6 mois — CAR 401.05',
+ 'alert.ifrCurrencySub': '6 approches requises dans les 6 mois',
  'chart.monthlyTitle': 'Heures bloc mensuelles',
  'chart.last12mo': '12 DERNIERS MOIS',
  'lb.addFlight': ' Ajouter un vol',
@@ -16196,7 +16293,7 @@ const STRINGS = {
  'import.lastImport.eyebrow': 'DERNIER IMPORT',
  'import.lastImport.undo': 'Annuler',
  'import.ask': 'Comment vos vols sont-ils enregistrés aujourd’hui ?',
- 'import.hero.badge': 'Recommandé · le plus simple',
+ 'import.hero.badge': 'Recommandé · le moins de saisie',
  'import.hero.title': 'Mon horaire de travail',
  'import.hero.desc': 'Synchronisation iCal automatique. Réglez-la une seule fois — chaque nouveau vol apparaît tout seul, sans rien faire.',
  'import.hero.button': 'Configurer la synchro',
@@ -16284,7 +16381,7 @@ const STRINGS = {
  'csv.target.dualGiven': 'Double donnée (CFI)',
  'csv.target.picus': 'PICUS',
  'csv.target.night': 'Temps de nuit',
- 'csv.target.xc': 'Temps cross-country',
+ 'csv.target.xc': 'Temps de vol en voyage',
  'csv.target.instActual': 'IFR réel',
  'csv.target.instHood': 'IFR simulé / dispositif',
  'csv.target.approaches': 'Approches (nombre)',
@@ -16309,6 +16406,8 @@ const STRINGS = {
  'import.preview.fieldPic': 'CDB',
  'import.preview.importBtn': 'Importer {n} vol(s)',
  'import.preview.nothingToImport': 'Rien à importer',
+ 'import.preview.newVsDup': '{newN} nouveaux · {dupN} déjà dans votre carnet (décochés)',
+ 'import.preview.dupBadge': 'Déjà dans votre carnet',
  'import.preview.subtitle': '{n} vols extraits de votre horaire PDF — vérifiez avant l’import',
  'dash.alert.medicalSoon': 'Votre médical expire dans {days} jours — planifiez le renouvellement.',
  'dash.alert.medicalExpired': 'Votre médical est expiré. Vous ne pouvez pas exercer les privilèges de votre licence.',
@@ -16363,10 +16462,10 @@ const STRINGS = {
  'onb.complete': 'Configuration terminée. Bienvenue à bord.',
  'onb.nameRequired': 'Veuillez saisir votre prénom et votre nom',
  'onb.pilotTypeRequired': 'Veuillez choisir votre type de pilote pour continuer',
- 'onb.getStarted': 'Commencer →',
+ 'onb.getStarted': 'Ouvrir votre carnet →',
  'onb.step1.title': 'Bienvenue dans Cumulo',
- 'onb.welcome.intro': 'Un carnet de vol moderne, conçu par un pilote.',
- 'onb.welcome.bullet1Html': '<strong>Conçu pour Transports Canada.</strong> Colonnes, format PDF, calcul nuit et voyage — prêt dès la sortie de la boîte.',
+ 'onb.welcome.intro': 'Conçu par un pilote, à la rigueur de votre métier.',
+ 'onb.welcome.bullet1Html': '<strong>Conçu pour Transports Canada.</strong> Colonnes, format PDF, calculs nuit et vol-voyage — prêt à l\'emploi dès le départ.',
  'onb.welcome.bullet2Html': '<strong>Synchronise votre horaire.</strong> Branchez le flux iCal de votre compagnie une fois. Cumulo récupère les nouveaux vols à chaque ouverture de l\'app.',
  'onb.welcome.bullet3Html': '<strong>Reportez vos heures papier.</strong> Déclarez vos totaux carrière une fois, attestez, puis ajoutez les nouveaux vols. Aucune ressaisie.',
  'onb.welcome.bullet4Html': '<strong>Vos données restent sur votre appareil.</strong> La sauvegarde infonuagique est optionnelle et hébergée au Canada.',
@@ -16528,6 +16627,7 @@ const STRINGS = {
  'toast.acceptResponsibility':'Veuillez cocher la case de certification avant d’importer.',
  'toast.flightsImportedCount': '{count} vol importé ✓',
  'toast.flightsImportedCountPl': '{count} vols importés ✓',
+ 'toast.importedWithDups': '{count} importés ✓ · {dups} déjà dans votre carnet (ignorés)',
  'toast.captainsAdded': '{n} nom de commandant ajouté.',
  'toast.captainsAddedPl': '{n} noms de commandants ajoutés.',
  'toast.pdfExportedPages': 'PDF exporté ({pages} pages) ✓',
@@ -16633,8 +16733,8 @@ const STRINGS = {
  'col.heliDayDual': 'Héli Jour Double', 'colShort.heliDayDual': 'Héli Jr Dbl',
  'col.heliNightDual': 'Héli Nuit Double', 'colShort.heliNightDual': 'Héli Nt Dbl',
  'col.hoverTime': 'Vol stationnaire', 'colShort.hoverTime': 'Stat.',
- 'col.xcDay': 'Cross-country jour', 'colShort.xcDay': 'XC Jr',
- 'col.xcNight': 'Cross-country nuit', 'colShort.xcNight': 'XC Nt',
+ 'col.xcDay': 'Vol-voyage jour', 'colShort.xcDay': 'XC Jr',
+ 'col.xcNight': 'Vol-voyage nuit', 'colShort.xcNight': 'XC Nt',
  'col.instActual': 'IFR réel', 'colShort.instActual': 'IFR R',
  'col.instHood': 'IFR dispositif', 'colShort.instHood': 'IFR D',
  'col.instSim': 'IFR sim/FSTD', 'colShort.instSim': 'IFR Sim',
@@ -16735,7 +16835,7 @@ const STRINGS = {
  'auth.reset.sub': 'Choisissez un nouveau mot de passe (au moins 12 caractères).',
  'auth.reset.btn': 'Mettre à jour',
  'auth.reset.success': 'Mot de passe mis à jour.',
- 'auth.welcome': 'Bon retour parmi nous.',
+ 'auth.welcome': 'De retour aux commandes.',
  'auth.err.invalidCredentials':'Courriel ou mot de passe incorrect.',
  'auth.err.emailNotConfirmed':'Confirmez d’abord votre adresse courriel — vérifiez votre boîte de réception.',
  'auth.err.alreadyRegistered':'Cette adresse est déjà enregistrée. Connectez-vous plutôt.',
@@ -16775,7 +16875,7 @@ const STRINGS = {
  'privacy.local.title': 'Mon carnet personnel (cet appareil)',
  'privacy.local.desc': 'Noms complets toujours conservés. Équivalent d’un carnet papier — la réglementation (RAC 401.08) vous oblige à consigner l’équipage, et la LPRPDE, art. 7(1)b) exempte une collecte exigée par une autre loi. Aucun consentement requis.',
  'privacy.cloud.title': 'Ma sauvegarde infonuagique privée (Canada)',
- 'privacy.cloud.desc': 'Lorsque la sauvegarde infonuagique optionnelle est activée, les noms complets sont conservés dans votre sauvegarde personnelle hébergée au Canada. Vous êtes la seule personne à y avoir accès — c’est une extension de votre carnet personnel, pas un transfert à un tiers.',
+ 'privacy.cloud.desc': 'Votre sauvegarde privée hébergée au Canada est une extension de votre carnet personnel — vous seul pouvez y accéder. Par défaut, les noms d’équipage y sont anonymisés en initiales avant d’atteindre le nuage (la même règle que les exports partagés) ; les noms complets ne sont conservés que si vous activez « Conserver les noms complets d’équipage lors de la synchro ou du partage ».',
  'privacy.shared.title': 'Exports partagés (PDF envoyés à d’autres)',
  'privacy.shared.desc': '<strong>Désactivé</strong> (par défaut) → les noms d’équipage sont anonymisés en initiales lorsque vous partagez un PDF hors de cet appareil. <strong>Activé</strong> → les noms complets sont conservés dans les PDF partagés. À activer seulement si (a) vous avez le consentement de l’équipage, ou (b) le destinataire est Transports Canada / un organisme de réglementation qui a déjà le droit de les voir.',
  'privacy.public.title': 'Surfaces publiques ou marketing',
@@ -16798,7 +16898,7 @@ const STRINGS = {
  'trust.bullet.yours': 'Vos données, votre propriété — exportables en tout temps',
  'trust.whitepaper': 'Lire le livre blanc de sécurité complet →',
  'trust.ownership.title': 'Vos données vous appartiennent',
- 'trust.ownership.desc': 'Vos données vivent sur votre appareil et fonctionnent hors ligne. Vous pouvez, si vous le souhaitez, les sauvegarder dans votre cloud privé canadien pour les synchroniser entre vos appareils — et tout exporter, archiver ou migrer, à tout moment.',
+ 'trust.ownership.desc': 'Vos données vivent sur votre appareil et fonctionnent hors ligne. Vous pouvez, si vous le souhaitez, les sauvegarder dans votre infonuage privé canadien pour les synchroniser entre vos appareils — et tout exporter, archiver ou migrer, à tout moment.',
  'trust.export.title': 'Exporter toutes mes données',
  'trust.export.desc': 'Téléchargez une copie JSON complète de chaque vol, votre profil et votre journal d\'import. Vos données vous appartiennent — emportez-les avec vous en tout temps.',
  'trust.export.btn': 'Exporter',
@@ -16807,7 +16907,7 @@ const STRINGS = {
  'trust.delete.btn': 'Supprimer + purger',
  'flight.atd': 'ATD (UTC) — départ réel',
  'flight.ata': 'ATA (UTC) — arrivée réelle',
-    'flight.atdHelpHtml':        'HHMM en UTC (ex. <code>1235</code> = 12h35Z). Inscrivez vos heures RÉELLES de départ et d’arrivée du bloc — ce sont elles qui alimentent les calculs Nuit (RAC 101.01) et cross-country (RAC 401.34). Les horaires iCal ne publient que l’heure prévue, pas la réelle : ajustez chaque valeur à ce qui s’est réellement passé.',
+    'flight.atdHelpHtml':        'HHMM en UTC (ex. <code>1235</code> = 12h35Z). Inscrivez vos heures RÉELLES de départ et d’arrivée du bloc — ce sont elles qui alimentent les calculs Nuit (RAC 101.01) et vol-voyage (RAC 101.01). Les horaires iCal ne publient que l’heure prévue, pas la réelle : ajustez chaque valeur à ce qui s’est réellement passé.',
  'profile.type.helicopter': 'Hélicoptère',
  'profile.type.helicopterDesc': 'Vol giravions · expérience récente',
  'profile.type.instructor': 'Instructeur / CFI',
@@ -18350,8 +18450,8 @@ function _bfPageGroups() {
         { key: 'dualRcvd',   labelEn: 'Dual Received',            labelFr: 'Double reçu',                            aggregate: true },
         { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
-        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Cross-country (XC)',                     aggregate: true },
-        { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multi-moteur',                           aggregate: true },
+        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Vol-voyage (XC)',                        aggregate: true },
+        { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multimoteur',                            aggregate: true },
         { key: 'heli',       labelEn: 'Helicopter',                labelFr: 'Hélicoptère',                            aggregate: true },
         { key: 'dualGiven',  labelEn: 'Dual Given (instructor)',  labelFr: 'Instruction donnée (CFI)',                aggregate: true },
       ],
@@ -18418,9 +18518,9 @@ function _bfPageGroups() {
     {
       id: 'xc',
       titleEn: 'Cross-country',
-      titleFr: 'Cross-country (XC)',
-      descEn: 'XC Day and XC Night totals (Standard 421 / CAR 401.34). Only needed if your logbook tracked day/night XC separately.',
-      descFr: 'Totaux XC Jour et XC Nuit (Norme 421 / CAR 401.34). Seulement si votre carnet distinguait XC jour/nuit.',
+      titleFr: 'Vol-voyage (XC)',
+      descEn: 'XC Day and XC Night totals (Standard 421). Only needed if your logbook tracked day/night XC separately.',
+      descFr: 'Totaux XC Jour et XC Nuit (Norme 421). Seulement si votre carnet distinguait XC jour/nuit.',
       open: false,
       fields: [
         { key: 'xcDayPic',    labelEn: 'XC Day — PIC',    labelFr: 'XC Jour — PIC' },
@@ -18466,8 +18566,8 @@ function _bfPageGroups() {
       id: 'dualGiven',
       titleEn: 'Dual Given',
       titleFr: 'Instruction donnée',
-      descEn: 'CFI / instructor time (CAR 421.34 ATPL credit). Day and night totals.',
-      descFr: 'Temps instructeur (CAR 421.34 crédit ATPL). Totaux jour et nuit.',
+      descEn: 'CFI / instructor time (counts toward ATPL experience per Standard 421). Day and night totals.',
+      descFr: 'Temps instructeur (compte vers l\'expérience ATPL selon la Norme 421). Totaux jour et nuit.',
       open: false,
       fields: [
         { key: 'dualGivenDay',   labelEn: 'Dual Given — Day',   labelFr: 'Instruction — Jour' },
@@ -18715,6 +18815,20 @@ function _bfCheckConsistency() {
   // Live declared total — updates on every keystroke (Expert 2 "must").
   const liveEl = document.getElementById('bf-live-total');
   if (liveEl) liveEl.textContent = fmtH(total) + ' h';
+  // Career-total reward — declared brought-forward + your in-Cumulo flights,
+  // shown in accent so your full career lights up as you enter hours.
+  const careerWrap = document.getElementById('bf-career-wrap');
+  const careerEl = document.getElementById('bf-career-total');
+  if (careerWrap && careerEl) {
+    const cumulo = (Array.isArray(flights) ? flights : [])
+      .reduce((s, f) => s + (+f.total || +f.block || 0), 0);
+    if (total > 0 || cumulo > 0) {
+      careerWrap.style.display = 'block';
+      careerEl.textContent = fmtH(total + cumulo) + ' h';
+    } else {
+      careerWrap.style.display = 'none';
+    }
+  }
   const el = document.getElementById('bf-consistency');
   if (!el) return;
   const warns = [];
@@ -18760,32 +18874,18 @@ function renderBroughtForwardPage() {
 
   const groups = _bfPageGroups();
 
-  const groupsHtml = groups.map(g => {
+  // Render one group as the existing collapsible field grid (unchanged look).
+  const renderGroup = (g) => {
     const title = fr ? g.titleFr : g.titleEn;
     const desc  = fr ? g.descFr  : g.descEn;
-    // Force-open heli group when relevant.
     const isOpen = g.open || (g.id === 'heli' && heliRelevant);
-
     const filledCount = g.fields.filter(f => (+balances[f.key]||0) > 0).length;
-    const badge = filledCount > 0
-      ? `<span class="bf-group-badge">${filledCount}</span>`
-      : '';
-
-    const fieldsHtml = g.fields.map(f => {
-      const label = fr ? f.labelFr : f.labelEn;
-      const step  = f.integer ? '1' : '0.1';
-      const ph    = f.integer ? '0' : '0.0';
-      const value = balances[f.key] != null && +balances[f.key] > 0 ? balances[f.key] : '';
-      return `
+    const badge = filledCount > 0 ? `<span class="bf-group-badge">${filledCount}</span>` : '';
+    const fieldsHtml = g.fields.map(f => `
         <div class="form-group bf-field${f.hero ? ' bf-hero-field' : ''}">
-          <label for="ob-${f.key}">${esc(label)}</label>
-          <input type="number" id="ob-${esc(f.key)}" min="0" step="${step}"
-                 value="${esc(value)}" placeholder="${ph}" inputmode="decimal"
-                 oninput="if(typeof _bfCheckConsistency==='function')_bfCheckConsistency()"
-                 class="bf-input${f.hero ? ' bf-hero-input' : ''}" />
-        </div>`;
-    }).join('');
-
+          <label for="ob-${f.key}">${esc(fr ? f.labelFr : f.labelEn)}</label>
+          ${_bfInput(f.key, balances[f.key], f.integer, f.hero)}
+        </div>`).join('');
     return `
       <details class="bf-group" ${isOpen ? 'open' : ''}>
         <summary class="bf-group-summary">
@@ -18796,7 +18896,18 @@ function renderBroughtForwardPage() {
         <div class="bf-group-desc">${esc(desc)}</div>
         <div class="bf-fields-grid${g.id === 'career' ? ' bf-fields-hero' : ''}">${fieldsHtml}</div>
       </details>`;
-  }).join('');
+  };
+
+  // Two modes, same data. "My totals" = career aggregates. "Like my paper
+  // logbook" = the detailed breakdown, with SE/ME/XC shown as the familiar
+  // day/night-by-role column table. engine + xc keys live ONLY in that table
+  // (no duplicate ids); every other key keeps its grid. Both modes stay in the
+  // DOM (toggle is CSS show/hide), so commit reads every input — no value lost.
+  const careerHtml = renderGroup(groups.find(g => g.id === 'career'));
+  const detailGroupsHtml = groups
+    .filter(g => !['career', 'engine', 'xc'].includes(g.id))
+    .map(renderGroup).join('');
+  const logbookTableHtml = _bfLogbookTableHtml(balances, fr);
 
   const profileName = `${profile.fname || ''} ${profile.lname || ''}`.trim();
   const todayStr = new Date().toLocaleDateString(fr ? 'fr-CA' : 'en-CA',
@@ -18810,6 +18921,19 @@ function renderBroughtForwardPage() {
     : null;
 
   container.innerHTML = `
+    <style>
+      .bf-mode-toggle{display:inline-flex;gap:4px;background:var(--surface-2,#e7eef6);border-radius:11px;padding:4px;margin:4px 0}
+      .bf-mode-btn{appearance:none;border:0;background:transparent;font:inherit;font-weight:600;font-size:14px;color:var(--text-muted);padding:8px 16px;border-radius:8px;cursor:pointer}
+      .bf-mode-btn.bf-on{background:var(--surface,#fff);color:var(--text)}
+      .bf-mode-cap{font-size:12.5px;color:var(--text-muted);margin:6px 2px 14px}
+      .bf-logbook{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin:0 0 14px}
+      .bf-logbook th,.bf-logbook td{border:0.5px solid var(--border,rgba(20,40,70,.12));padding:6px 8px;text-align:center}
+      .bf-logbook thead th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);font-weight:600;background:var(--surface-2,#f3f7fb)}
+      .bf-logbook td:first-child,.bf-logbook th:first-child{text-align:left;font-weight:600;font-size:13px;white-space:nowrap}
+      .bf-logbook input{width:100%;min-width:52px;border:0;background:transparent;font:inherit;font-weight:600;text-align:right;color:var(--text)}
+      .bf-logbook input:focus{outline:none;background:var(--accent-soft,rgba(61,123,196,.10));border-radius:5px}
+      .bf-lt-blank{color:var(--text-muted);opacity:.45}
+    </style>
     <div class="bf-page-intro form-card">
       <div class="form-card-title">${fr ? 'Heures reportées — carnet papier' : 'Brought-forward hours — paper logbook'}</div>
       <div class="bf-intro-body">
@@ -18835,11 +18959,25 @@ function renderBroughtForwardPage() {
 
     <div class="form-card" style="text-align:center;padding:18px 22px;">
       <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);">${fr ? 'Total de vol déclaré' : 'Declared total flight time'}</div>
-      <div id="bf-live-total" style="font-family:var(--font-mono);font-size:40px;font-weight:600;letter-spacing:-.02em;color:var(--text);margin-top:4px;">0,0 h</div>
+      <div id="bf-live-total" style="font-family:var(--font-display);font-size:44px;font-weight:700;letter-spacing:-.03em;color:var(--text);margin-top:4px;font-variant-numeric:tabular-nums;">0,0 h</div>
+      <div id="bf-career-wrap" style="margin-top:14px;padding-top:13px;border-top:0.5px solid rgba(120,140,170,.20);display:none;">
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);">${fr ? 'Total de carrière — avec vos vols Cumulo' : 'Career total — with your Cumulo flights'}</div>
+        <div id="bf-career-total" style="font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.02em;color:var(--accent);margin-top:2px;font-variant-numeric:tabular-nums;">0,0 h</div>
+      </div>
     </div>
 
-    <div class="bf-groups-wrap">
-      ${groupsHtml}
+    <div class="bf-mode-toggle">
+      <button type="button" id="bf-tab-totals" class="bf-mode-btn bf-on" onclick="_bfSetMode('totals')">${fr ? 'Mes totaux' : 'My totals'}</button>
+      <button type="button" id="bf-tab-paper" class="bf-mode-btn" onclick="_bfSetMode('paper')">${fr ? 'Comme mon carnet papier' : 'Like my paper logbook'}</button>
+    </div>
+    <div class="bf-mode-cap" id="bf-mode-cap">${fr ? 'Saisie rapide : vos grands totaux par catégorie. La plupart des pilotes n\'ont besoin que de ça.' : 'Quick entry: your grand totals per category. Most pilots only need this.'}</div>
+
+    <div id="bf-mode-totals" class="bf-groups-wrap">
+      ${careerHtml}
+    </div>
+    <div id="bf-mode-paper" class="bf-groups-wrap" style="display:none">
+      ${logbookTableHtml}
+      ${detailGroupsHtml}
     </div>
 
     <div id="bf-consistency" style="margin:0 0 var(--s-4);display:none;"></div>
@@ -18848,8 +18986,8 @@ function renderBroughtForwardPage() {
       <div class="form-card-title">${fr ? 'Attestation du pilote' : 'Pilot attestation'}</div>
       <div class="bf-attest-desc">
         ${fr
-          ? `En signant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier à la <strong>date de coupure indiquée plus haut</strong>. Conservé localement avec une empreinte SHA-256. Toute modification exige une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
-          : `By signing, you confirm these totals accurately reflect your paper logbook as of the <strong>cut-off date shown above</strong>. Stored locally with a SHA-256 fingerprint. Any edit requires a new attestation; the prior one is archived in the audit log.`}
+          ? `En signant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier à la <strong>date de coupure indiquée plus haut</strong>. Conservé localement avec une <span title="Empreinte cryptographique SHA-256">empreinte d'intégrité</span>. Toute modification exige une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
+          : `By signing, you confirm these totals accurately reflect your paper logbook as of the <strong>cut-off date shown above</strong>. Stored locally with an <span title="SHA-256 cryptographic fingerprint">integrity fingerprint</span>. Any edit requires a new attestation; the prior one is archived in the audit log.`}
       </div>
       <div class="form-group" style="max-width:340px;">
         <label for="ob-attest-name">${fr ? 'Signez en tapant votre nom complet' : 'Sign by typing your full name'}</label>
@@ -18867,6 +19005,60 @@ function renderBroughtForwardPage() {
 
   // Surface consistency warnings now and on every keystroke (oninput per field).
   if (typeof _bfCheckConsistency === 'function') _bfCheckConsistency();
+}
+
+// Input cell shared by the grid groups and the paper-logbook table — one place
+// so both layouts stay identical (same id, same oninput, same parsing).
+function _bfInput(key, value, integer, hero) {
+  const v = (value != null && +value > 0) ? value : '';
+  const step = integer ? '1' : '0.1';
+  const ph = integer ? '0' : '0.0';
+  return `<input type="number" id="ob-${esc(key)}" min="0" step="${step}" value="${esc(v)}" placeholder="${ph}" inputmode="decimal" oninput="if(typeof _bfCheckConsistency==='function')_bfCheckConsistency()" class="bf-input${hero ? ' bf-hero-input' : ''}" />`;
+}
+
+// "Like my paper logbook" view: SE / ME / XC as day/night-by-role columns,
+// mirroring the bottom-totals row of a TC paper logbook. Same ob-<key> ids the
+// grid would use, so values flow through the exact same save path.
+function _bfLogbookTableHtml(balances, fr) {
+  const cell = (k) => k ? `<td>${_bfInput(k, balances[k], false, false)}</td>` : `<td class="bf-lt-blank">—</td>`;
+  // Day-major, Dual/PIC/Co order — mirrors a TC paper logbook page (Day {Dual,
+  // PIC, Co} · Night {Dual, PIC, Co}). SE/XC have no Co-pilot column on the card.
+  const row = (label, ks) => `<tr><td>${esc(label)}</td>${ks.map(cell).join('')}</tr>`;
+  const dpc = fr ? ['Double', 'PIC', 'Copilote'] : ['Dual', 'PIC', 'Co-pilot'];
+  return `
+    <div class="bf-group-desc" style="margin:0 0 8px">${fr
+      ? 'Reproduisez la dernière ligne de totaux de votre carnet papier de Transports Canada — mêmes colonnes, même ordre.'
+      : 'Transcribe the bottom totals row of your Transport Canada paper logbook — same columns, same order.'}</div>
+    <div style="overflow-x:auto"><table class="bf-logbook">
+      <thead>
+        <tr><th rowspan="2">${fr?'Catégorie':'Category'}</th><th colspan="3">${fr?'Jour':'Day'}</th><th colspan="3">${fr?'Nuit':'Night'}</th></tr>
+        <tr><th>${dpc[0]}</th><th>${dpc[1]}</th><th>${dpc[2]}</th><th>${dpc[0]}</th><th>${dpc[1]}</th><th>${dpc[2]}</th></tr>
+      </thead>
+      <tbody>
+        ${row(fr?'Monomoteur':'Single-engine', ['seDayDual','seDay',null,'seNightDual','seNight',null])}
+        ${row(fr?'Multimoteur':'Multi-engine', ['meDayDual','meDayPic','meDayCop','meNightDual','meNightPic','meNightCop'])}
+        ${row(fr?'Vol-voyage (XC)':'Cross-country (XC)', ['xcDayDual','xcDayPic','xcDayCop','xcNightDual','xcNightPic','xcNightCop'])}
+      </tbody>
+    </table></div>`;
+}
+
+// Toggle the two brought-forward modes (CSS show/hide — all inputs stay in the
+// DOM so saving never drops a value).
+function _bfSetMode(mode) {
+  const paper = (mode === 'paper');
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const t = document.getElementById('bf-mode-totals');
+  const p = document.getElementById('bf-mode-paper');
+  const bt = document.getElementById('bf-tab-totals');
+  const bp = document.getElementById('bf-tab-paper');
+  const cap = document.getElementById('bf-mode-cap');
+  if (t) t.style.display = paper ? 'none' : 'block';
+  if (p) p.style.display = paper ? 'block' : 'none';
+  if (bt) bt.classList.toggle('bf-on', !paper);
+  if (bp) bp.classList.toggle('bf-on', paper);
+  if (cap) cap.textContent = paper
+    ? (fr ? 'Disposition miroir du carnet papier de Transport Canada — transcrivez vos colonnes telles quelles.' : 'Mirrors the Transport Canada paper logbook layout — transcribe your columns as they are.')
+    : (fr ? 'Saisie rapide : vos grands totaux par catégorie. La plupart des pilotes n\'ont besoin que de ça.' : 'Quick entry: your grand totals per category. Most pilots only need this.');
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -19043,16 +19235,16 @@ function _drillPPC(profile, fr, settingsBtn) {
       v: esc(ppcDate || (fr ? 'non défini' : 'not set')) },
     { k: fr ? 'Jours restants' : 'Days remaining',
       v: ppcDays === null ? '—' : (ppcDays > 0 ? ppcDays : (fr ? 'expiré' : 'expired')) },
-    { k: 'Status',
+    { k: fr ? 'État' : 'Status',
       v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
   ];
 
   return {
-    eyebrow: fr ? 'CASS 725.106 · MULTI-PILOT 705' : 'CASS 725.106 · MULTI-PILOT 705',
-    title: fr ? 'Pilot Proficiency Check (PPC)' : 'Pilot Proficiency Check (PPC)',
+    eyebrow: fr ? 'CONTRÔLE RÉCURRENT · 705 MULTI-ÉQUIPAGE' : 'RECURRENT CHECK · 705 MULTI-CREW',
+    title: fr ? 'Contrôle de compétence pilote (PPC)' : 'Pilot Proficiency Check (PPC)',
     body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'Le PPC est le contrôle de compétence requis sous CASS 725.106 pour les opérations 705 multi-pilotes. Cumulo l\'affiche comme la validité principale au lieu du compteur d\'approches générique IFR. Comment le PPC interagit avec les autres règles de validité (CAR 401.05, IPC, formation récurrente) : référez-vous à votre programme de formation approuvé par votre opérateur.'
-      : 'The PPC is the proficiency check required under CASS 725.106 for multi-pilot 705 operations. Cumulo surfaces it as your primary validity instead of the generic IFR-approach counter. How the PPC interacts with other currency rules (CAR 401.05, IPC, recurrent training) is defined by your operator\'s approved training program — refer to it for the specifics.'}</div>`,
+      ? 'Le PPC est le contrôle de compétence requis sous CAR 705.106 pour les opérations 705 multi-pilotes. Cumulo l\'affiche comme la validité principale au lieu du compteur d\'approches générique IFR. L\'intervalle exact et la façon dont le PPC interagit avec les autres règles de validité (IPC, formation récurrente) sont définis par le programme de formation approuvé de votre exploitant — référez-vous-y pour les détails.'
+      : 'The PPC is the proficiency check required under CAR 705.106 for multi-pilot 705 operations. Cumulo surfaces it as your primary validity instead of the generic IFR-approach counter. The exact interval and how the PPC interacts with other currency rules (IPC, recurrent training) are defined by your operator\'s approved training program — refer to it for the specifics.'}</div>`,
     foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
   };
 }
@@ -19119,7 +19311,7 @@ function _drillIFR(fr, addBtn, logbookBtn) {
     { k: fr ? 'Approches IFR (6 mois)' : 'IFR approaches (6 months)', v: `<strong>${count}</strong> / 6` },
     { k: fr ? 'Temps aux instruments (6 mois)' : 'Instrument time (6 months)', v: `<strong>${ifr.hours.toFixed(1)}</strong> / 6 h` },
     { k: fr ? 'Manquant pour être à jour' : 'Needed to be current', v: (need > 0 || needHrs > 0) ? `${need > 0 ? need + (fr ? ' appr.' : ' appr') : ''}${need > 0 && needHrs > 0 ? ' + ' : ''}${needHrs > 0 ? needHrs.toFixed(1) + ' h' : ''}` : (fr ? 'aucun' : 'none') },
-    { k: 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : (count >= 4 && ifr.hours >= 4) ? 'warn' : 'bad'}">${status}</span>` },
+    { k: fr ? 'État' : 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : (count >= 4 && ifr.hours >= 4) ? 'warn' : 'bad'}">${status}</span>` },
   ];
 
   let list = '';
@@ -19135,7 +19327,7 @@ function _drillIFR(fr, addBtn, logbookBtn) {
   }
 
   return {
-    eyebrow: fr ? 'CAR 401.05(3.1) · INSTRUMENTS' : 'CAR 401.05(3.1) · INSTRUMENTS',
+    eyebrow: fr ? 'VALIDITÉ AUX INSTRUMENTS' : 'INSTRUMENT CURRENCY',
     title: fr ? 'Validité IFR' : 'IFR Currency',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
       ? 'Règle (CAR 401.05(3.1)) : dans les 6 derniers mois, 6 approches IFR (ILS / RNAV / VOR / visuelle après IAP) ET 6 h de temps aux instruments (le temps en simulateur compte — CAR 101.01).'
@@ -19194,7 +19386,7 @@ function _drillRecency(fr, addBtn, logbookBtn) {
   }
 
   return {
-    eyebrow: fr ? 'CAR 401.05(2) · EXPÉRIENCE RÉCENTE' : 'CAR 401.05(2) · RECENT EXPERIENCE',
+    eyebrow: fr ? 'TRANSPORT DE PASSAGERS · 6 MOIS' : 'PASSENGER-CARRYING · 6 MONTHS',
     title: fr ? 'Expérience récente' : 'Recent experience',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
       ? 'Règle (CAR 401.05(2)(b)) : 5 décollages + 5 atterrissages dans les 6 derniers mois pour transporter des passagers ; de NUIT, ce sont 5 décollages de nuit + 5 atterrissages de nuit. Sim de vol complet niveau B/C/D admissible. Des exemptions peuvent s’appliquer selon l’exploitation — référez-vous à votre exploitant.'
@@ -19231,7 +19423,7 @@ function _drillMedical(profile, fr, settingsBtn) {
   const rows = [
     { k: fr ? 'Date d’expiration' : 'Expiry date', v: esc(med || (fr ? 'non définie' : 'not set')) },
     { k: fr ? 'Jours restants'     : 'Days remaining', v: medDays === null ? '—' : (medDays > 0 ? medDays : (fr ? 'expiré' : 'expired')) },
-    { k: 'Status', v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
+    { k: fr ? 'État' : 'Status', v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
     { k: fr ? 'ECG dû'             : 'ECG due', v: ecg ? `${esc(ecg)}${ecgDays !== null ? ` (${ecgDays > 0 ? ecgDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}` : '—' },
   ];
 
@@ -19239,8 +19431,8 @@ function _drillMedical(profile, fr, settingsBtn) {
     eyebrow: fr ? 'CERTIFICAT MÉDICAL · TC' : 'TRANSPORT CANADA · CAT 1',
     title: fr ? 'Validité médicale' : 'Medical Validity',
     body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'CAT 1 (vol commercial) : 12 mois si < 40 ans, 6 mois ensuite. L’ECG accompagne le médical à intervalles définis par TC.'
-      : 'Category 1 (commercial flight): 12 months if under 40, 6 months thereafter. ECG accompanies the medical at TC-defined intervals.'}</div>`,
+      ? 'CAT 1 (vol commercial) : valide 12 mois, réduit à 6 mois dès 60 ans (ou à 40 ans et plus en monopilote avec passagers). L’ECG accompagne le médical selon la norme médicale de TC.'
+      : 'Category 1 (commercial flight): valid 12 months, reduced to 6 months from age 60 (or at 40 and older if single-pilot with passengers). ECG accompanies the medical per the TC medical standard.'}</div>`,
     foot: settingsBtn(fr ? 'Mettre à jour dans Profil' : 'Update in Profile')
   };
 }
@@ -19285,7 +19477,7 @@ function _drillMilestone(s, profile, fr, F) {
     'pic':      fr ? 'PIC seulement'     : 'PIC only',
     'sic':      fr ? 'SIC seulement'     : 'SIC only',
     'night':    fr ? 'Nuit seulement'    : 'Night only',
-    'xc':       fr ? 'Cross-country seulement'  : 'Cross-country only',
+    'xc':       fr ? 'Vol-voyage seulement'  : 'Cross-country only',
     'me':       fr ? 'Multi-moteur'      : 'Multi-engine',
     'aircraft': fr ? 'Par aéronef'       : 'By aircraft type',
   })[k] || k;
@@ -19307,8 +19499,8 @@ function _drillMilestone(s, profile, fr, F) {
     ['pic',      fr ? 'Heures PIC seulement'              : 'PIC hours only'],
     ['sic',      fr ? 'Heures SIC seulement'              : 'SIC hours only'],
     ['night',    fr ? 'Heures de nuit seulement'          : 'Night hours only'],
-    ['xc',       fr ? 'Heures voyage seulement'           : 'Cross-country hours only'],
-    ['me',       fr ? 'Heures multi-moteur'               : 'Multi-engine hours'],
+    ['xc',       fr ? 'Heures de vol-voyage seulement'    : 'Cross-country hours only'],
+    ['me',       fr ? 'Heures multimoteur'               : 'Multi-engine hours'],
     ['aircraft', fr ? 'Heures sur un type d’aéronef'      : 'Hours on a specific aircraft type'],
   ].map(([v, lbl]) => `<option value="${v}" ${v === currentKind ? 'selected' : ''}>${esc(lbl)}</option>`).join('');
 
@@ -19421,8 +19613,8 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
     pic:   { fr: 'Heures PIC',         en: 'PIC hours',         desc: { fr: 'Pilote aux commandes — capitaine pour 705, instructeur pour FTO, vol solo pour student.', en: 'Pilot-in-command time — captain for 705 ops, instructor for FTO, solo for student.' } },
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
     night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol entre la fin du crépuscule civil du soir et le début du crépuscule civil du matin (RAC 101.01).', en: 'Flight time between the end of evening civil twilight and the beginning of morning civil twilight (CAR 101.01).' } },
-    multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
-    xc:    { fr: 'Heures cross-country',en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
+    multi: { fr: 'Heures multimoteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multimoteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
+    xc:    { fr: 'Heures de vol-voyage',en: 'Cross-country hours', desc: { fr: 'Vol d\'au moins 25 NM depuis le point de départ (RAC 101.01). Calculé automatiquement.', en: 'Flight at least 25 NM from departure point (CAR 101.01). Auto-calculated.' } },
   };
   const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
   const title = fr ? meta.fr : meta.en;
@@ -19740,7 +19932,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-26-a3f93ae';
+const BUILD_VERSION = '2026-06-26-30ba38a';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

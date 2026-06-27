@@ -268,10 +268,23 @@ RULES:
 }
 
 function showImportPreview(list, subtitle) {
-  // Each entry gets a `selected` flag (default true)
-  pendingImport = list.map(f => ({ ...f, selected: true }));
+  // Flag every entry that already exists in the logbook so we never silently
+  // create a duplicate. Duplicates start UNSELECTED; genuinely new flights start
+  // selected. This is the dedup gate for the PDF roster / photo / CSV imports
+  // (the iCal sync path has its own gate). See findMatchingExistingFlight() and
+  // feedback_never_duplicate_flights.
+  pendingImport = list.map(f => {
+    const dup = (typeof findMatchingExistingFlight === 'function') && !!findMatchingExistingFlight(f);
+    return { ...f, selected: !dup, _dup: dup };
+  });
+  const dupN = pendingImport.filter(f => f._dup).length;
+  const newN = pendingImport.length - dupN;
   const sub = document.getElementById('importSubtitle');
-  if (sub) sub.textContent = subtitle || t('import.preview.flightsFound', { n: list.length });
+  if (sub) {
+    sub.textContent = dupN > 0
+      ? t('import.preview.newVsDup', { newN, dupN })
+      : (subtitle || t('import.preview.flightsFound', { n: list.length }));
+  }
   renderImportPreview();
   const overlay = document.getElementById('importPreview');
   overlay.classList.add('show');
@@ -300,7 +313,7 @@ function renderImportPreview() {
                ${f.selected ? 'checked' : ''}
                onchange="toggleImportItem(${i}, this.checked)">
         <div class="review-body">
-          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}</div>
+          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}${f._dup ? ` <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.03em;background:var(--warning-soft,rgba(200,140,0,.12));color:var(--warning-text,#8a6d00);vertical-align:middle;">${esc(t('import.preview.dupBadge'))}</span>` : ''}</div>
           <div class="review-fields">
             <div class="review-field"><span>${t('import.preview.fieldTotal')}</span> ${+f.total||0}h</div>
             <div class="review-field"><span>${t('import.preview.fieldBlock')}</span> ${+f.block || 0}h</div>
@@ -347,11 +360,13 @@ function updateImportButton() {
 
 function confirmImport() {
   const toImport = pendingImport.filter(f => f.selected);
-  const count = toImport.length;
-  if (count === 0) {
+  if (toImport.length === 0) {
     showToast(t('toast.nothingSelected'), 'error');
     return;
   }
+  // Snapshot so the whole import (new rows + any enrichment) is one undo step.
+  if (typeof snapshotBeforeOperation === 'function') snapshotBeforeOperation('Import');
+  if (typeof updateUndoButton === 'function') updateUndoButton();
   // PIPEDA model: store full names locally.
   // Anonymization happens at egress (cloud sync, shareable PDF), not at
   // import. The user retains the ability to see who they flew with in
@@ -364,11 +379,36 @@ function confirmImport() {
   // and clear the redundant self-reference. A real third-party name
   // remains untouched and crewPosition defaults to 'SIC'.
   const importProfile = DB.loadProfile();
+  // Fields safe to enrich onto an existing flight — only ever fills a blank,
+  // never overwrites a value the pilot already has (mirrors the iCal sync gate).
+  const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
+                       'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
+                       'pic','copilot','crewPosition'];
   // Track the new flight IDs so we can offer quick crew-fill after save
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
+  let imported = 0, skipped = 0;
   toImport.forEach(f => {
-    const { selected, ...flightData } = f;  // strip the selected flag
+    const { selected, _dup, ...flightData } = f;  // strip UI-only flags
+    // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
+    // that already exists, NEVER create a duplicate (a single duplicate makes a
+    // certifiable logbook invalid). Enrich the existing row's empty fields and
+    // skip the push instead. See feedback_never_duplicate_flights.
+    const match = (typeof findMatchingExistingFlight === 'function')
+      ? findMatchingExistingFlight(flightData) : null;
+    if (match) {
+      const e = flights[match.idx];
+      const merged = { ...e };
+      let changed = false;
+      mergeFields.forEach(k => {
+        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
+        const incomingPresent = (flightData[k] !== undefined && flightData[k] !== null && flightData[k] !== '');
+        if (existingEmpty && incomingPresent) { merged[k] = flightData[k]; changed = true; }
+      });
+      if (changed) flights[match.idx] = merged;
+      skipped++;
+      return;
+    }
     const resolved = (typeof resolveSelfReferences === 'function')
       ? resolveSelfReferences(flightData, importProfile)
       : flightData;
@@ -382,11 +422,17 @@ function confirmImport() {
       : withId;
     flights.push(enriched);
     newIds.push(newId);
+    imported++;
   });
   DB.save(flights);
   pendingImport = [];
   closeImportOverlay();
-  showToast(t(count === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count }), 'success');
+  showToast(
+    skipped > 0
+      ? t('toast.importedWithDups', { count: imported, dups: skipped })
+      : t(imported === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count: imported }),
+    'success'
+  );
 
   // Quick crew-fill — opens automatically if any of the new flights lack
   // crew names. Returns true if it opened the modal (which navigates the

@@ -142,7 +142,15 @@ function openFlightDetail(id) {
     [t('flight.route'), f.route],
     [t('detail.depIcao'), f.dep_icao],
     [t('detail.arrIcao'), f.arr_icao],
-    [t('detail.crewPosition'), f.pic ? t('detail.crewPosSic', { pic: f.pic }) : 'PIC'],
+    [t('detail.crewPosition'), (() => {
+      // Prefer the explicitly logged crew position. Only fall back to the legacy
+      // "a PIC name is present ⇒ logged as SIC" heuristic when crewPosition was
+      // never recorded — otherwise a captain (crewPosition='PIC') wrongly showed
+      // as SIC just because the other pilot's name was stored.
+      const pos = f.crewPosition || (f.pic ? 'SIC' : 'PIC');
+      if (pos === 'SIC') return f.pic ? t('detail.crewPosSic', { pic: f.pic }) : 'SIC';
+      return 'PIC';
+    })()],
     [t('flight.pic'), f.pic],
     [t('detail.copilot'), f.copilot],
     [t('detail.atdUtc'), f.atd_utc],

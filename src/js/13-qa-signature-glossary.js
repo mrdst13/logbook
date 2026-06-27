@@ -27,9 +27,9 @@ const FAQS = [
  },
  {
  q: 'How often do I need to recur on type (PPC / IPC)?',
- a: 'Under CAR 705.106, a Pilot Proficiency Check (PPC) is required every 12 months for air carrier operations, with an Instrument Proficiency Check (IPC) also normally on a 12-month cycle. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
+ a: 'Under CAR 705.106, air carrier operations require a valid Pilot Proficiency Check (PPC). The exact validity interval depends on your operation and is set out in the applicable CASS standard and your operator\'s approved training program — refer to it for the interval that applies to you. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
  qFr: 'À quelle fréquence dois-je faire mon PPC / IPC sur type ?',
- aFr: 'Selon CAR 705.106, un PPC (Pilot Proficiency Check) est requis chaque 12 mois pour les opérations de transporteur aérien, avec un IPC (Instrument Proficiency Check) aussi normalement sur un cycle de 12 mois. CAR 605.97 régit les exigences IPC générales. Plusieurs opérateurs 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
+ aFr: 'Selon CAR 705.106, les opérations de transporteur aérien exigent un PPC (Pilot Proficiency Check) valide. L\'intervalle de validité exact dépend de votre exploitation et est défini dans la norme CASS applicable et le programme de formation approuvé de votre exploitant — référez-vous-y pour l\'intervalle qui s\'applique à vous. CAR 605.97 régit les exigences IPC générales. Plusieurs exploitants 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
  },
 
  // ── Logging conventions ───────────────────────────────────────────
@@ -47,49 +47,49 @@ const FAQS = [
  },
  {
  q: 'What counts as "cross-country" time?',
- a: 'CAR 401.34 defines cross-country (XC) as a flight to a point more than 25 nautical miles from the departure aerodrome. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance exceeds 25 NM. Short hops (< 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.',
- qFr: 'Qu\'est-ce qui compte comme temps « cross-country » (XC) ?',
- aFr: 'CAR 401.34 définit le cross-country (XC) comme un vol vers un point à plus de 25 milles nautiques de l\'aérodrome de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique dépasse 25 NM. Les vols courts (< 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
+ a: 'CAR 101.01 defines cross-country (XC) flight time as time on a flight to a point at least 25 nautical miles from the point of departure. Cumulo automatically credits XC time when both departure and arrival ICAO codes are known and the great-circle distance is at least 25 NM. Shorter hops (under 25 NM) are correctly NOT credited as XC, even if they cross other airports en route.',
+ qFr: 'Qu\'est-ce qui compte comme temps « vol-voyage » (XC) ?',
+ aFr: 'RAC 101.01 définit le temps de vol en voyage (XC) comme le temps sur un vol vers un point à au moins 25 milles nautiques du point de départ. Cumulo crédite automatiquement le temps XC quand les codes ICAO de départ et d\'arrivée sont connus et que la distance orthodromique est d\'au moins 25 NM. Les vols plus courts (moins de 25 NM) ne sont correctement PAS crédités comme XC, même s\'ils survolent d\'autres aéroports en route.'
  },
  {
  q: 'How do I log Multi-Crew time (MCC) for ATPL submission?',
- a: 'Multi-Crew time is flight time on aircraft that are certified for and operated with a minimum crew of two pilots (Q400, E195, A320, B737, etc.). For ATPL submission under CAR 421.34, MCC time is a separate credit. Cumulo automatically flags multi_crew = true on any flight where you logged both PIC and SIC hours on the same leg, or imported from a 705-operator roster.',
+ a: 'Multi-Crew time is flight time on aircraft that are certified for and operated with a minimum crew of two pilots (Q400, E195, A320, B737, etc.). For ATPL submission, multi-crew time is tracked as a separate credit — refer to the ATPL experience requirements in Standard 421 and Transport Canada\'s guidance. Cumulo automatically flags multi_crew = true on any flight where you logged both PIC and SIC hours on the same leg, or imported from a 705-operator roster.',
  qFr: 'Comment enregistrer le temps Multi-Crew (MCC) pour la soumission ATPL ?',
- aFr: 'Le Multi-Crew time est du temps de vol sur des aéronefs certifiés et opérés avec un équipage minimal de deux pilotes (Q400, E195, A320, B737, etc.). Pour la soumission ATPL selon CAR 421.34, le MCC est un crédit séparé. Cumulo marque automatiquement multi_crew = true sur tout vol où vous avez enregistré à la fois des heures PIC et SIC sur le même segment, ou importé depuis un horaire d\'opérateur 705.'
+ aFr: 'Le Multi-Crew time est du temps de vol sur des aéronefs certifiés et opérés avec un équipage minimal de deux pilotes (Q400, E195, A320, B737, etc.). Pour la soumission ATPL, le temps multi-équipage est suivi comme un crédit séparé — référez-vous aux exigences d\'expérience ATPL du Standard 421 et aux directives de Transports Canada. Cumulo marque automatiquement multi_crew = true sur tout vol où vous avez enregistré à la fois des heures PIC et SIC sur le même segment, ou importé depuis un horaire d\'exploitant 705.'
  },
  {
  q: 'How is Dual Given time credited for an instructor ATPL?',
- a: 'CAR 421.34(b) lets a flight instructor count dual-given time toward the 1,500 hours required for the ATPL — up to 1,200 of those hours can be flight-instruction time. Cumulo tracks Dual Given Day + Dual Given Night separately; the PDF cover page now shows a cumulative Dual Given total when you have any hours in those columns.',
+ a: 'A flight instructor may count dual-given time toward the experience required for the ATPL, within the limits set out in Standard 421 — refer to it (and Transport Canada) for the current hour limits that apply to instruction time. Cumulo tracks Dual Given Day + Dual Given Night separately; the PDF cover page now shows a cumulative Dual Given total when you have any hours in those columns.',
  qFr: 'Comment le Dual Given est-il crédité pour un ATPL d\'instructeur ?',
- aFr: 'CAR 421.34(b) permet à un instructeur de vol de compter le dual-given vers les 1 500 heures requises pour l\'ATPL — jusqu\'à 1 200 de ces heures peuvent être du temps d\'instruction. Cumulo suit Dual Given Day + Dual Given Night séparément ; la page couverture du PDF montre maintenant un total cumulatif Dual Given quand vous avez des heures dans ces colonnes.'
+ aFr: 'Un instructeur de vol peut compter le temps dual-given vers l\'expérience requise pour l\'ATPL, dans les limites prévues au Standard 421 — référez-vous-y (et à Transports Canada) pour les limites d\'heures en vigueur applicables au temps d\'instruction. Cumulo suit Dual Given Day + Dual Given Night séparément ; la page couverture du PDF montre maintenant un total cumulatif Dual Given quand vous avez des heures dans ces colonnes.'
  },
 
  // ── Medical & licensing ────────────────────────────────────────────
  {
  q: 'What medical class do airline pilots need and how often must I renew?',
- a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. For pilots under 40, it is valid for 12 months. For pilots 40 and older, it must be renewed every 6 months. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).',
+ a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. Under CAR 404.04, a Category 1 is valid for 12 months, reduced to 6 months once you turn 60 — or at 40 and older if you fly single-pilot with passengers. Age is assessed at the date of the exam. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).',
  qFr: 'Quelle catégorie médicale est requise pour un pilote de ligne et à quelle fréquence renouveler ?',
- aFr: 'Les titulaires d\'ATPL opérant selon CAR 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Pour les pilotes de moins de 40 ans, il est valide 12 mois. Pour les pilotes de 40 ans et plus, il doit être renouvelé chaque 6 mois. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
+ aFr: 'Les titulaires d\'ATPL opérant selon CAR 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Selon CAR 404.04, un Catégorie 1 est valide 12 mois, réduit à 6 mois dès 60 ans — ou à 40 ans et plus si vous volez en monopilote avec passagers. L\'âge est évalué à la date de l\'examen. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
  },
  {
  q: 'When do I need an ECG for my medical?',
- a: 'Per the TC Category 1 medical standard, an ECG is required at the initial issuance of a Category 1 medical for pilots under 40, then every 24 months between the ages of 40 and 65, and annually once you turn 65. Cumulo lets you record your next ECG due date in Profile and will alert you in the dashboard 60 days before it expires.',
+ a: 'An ECG is part of the Transport Canada Category 1 medical standard, and how often you need one is age-related and set by that standard — your Civil Aviation Medical Examiner (CAME) will tell you when your next ECG is due. Cumulo lets you record that due date in Profile and will alert you in the dashboard 60 days before it expires.',
  qFr: 'Quand ai-je besoin d\'un ECG pour mon médical ?',
- aFr: 'Selon la norme médicale TC Catégorie 1, un ECG est requis à l\'émission initiale d\'un médical Catégorie 1 pour les pilotes de moins de 40 ans, puis chaque 24 mois entre 40 et 65 ans, et annuellement à partir de 65 ans. Cumulo permet d\'enregistrer la date d\'échéance de votre prochain ECG dans Profile et vous avertit sur le tableau de bord 60 jours avant l\'expiration.'
+ aFr: 'Un ECG fait partie de la norme médicale de Catégorie 1 de Transports Canada, et sa fréquence dépend de l\'âge et est fixée par cette norme — votre médecin-examinateur de l\'aviation civile (MEAC) vous indiquera la date de votre prochain ECG. Cumulo permet d\'enregistrer cette date d\'échéance dans Profile et vous avertit sur le tableau de bord 60 jours avant l\'expiration.'
  },
 
  // ── Simulator ──────────────────────────────────────────────────────
  {
  q: 'Can I count simulator time toward my ATPL hours?',
- a: 'Yes, but with limits. Under CAR 401.73, a maximum of 25 hours of approved flight simulator time may be credited toward the 1,500-hour ATPL requirement (200 hours for multi-engine helicopter). The simulator must be approved by Transport Canada. All simulator time should be logged under the Simulator (SIM) column, not as flight time.',
+ a: 'Yes, but with limits. Approved flight simulator time may be credited toward the ATPL experience requirement, up to a maximum set out in Standard 421 — refer to it (and Transport Canada) for the current limits, which differ for aeroplanes and helicopters. The simulator must be approved by Transport Canada. All simulator time should be logged under the Simulator (SIM) column, not as flight time.',
  qFr: 'Puis-je compter le temps simulateur vers mes heures ATPL ?',
- aFr: 'Oui, avec des limites. Selon CAR 401.73, un maximum de 25 heures de temps de simulateur de vol approuvé peut être crédité vers les 1 500 heures requises pour l\'ATPL (200 heures pour hélicoptère multimoteur). Le simulateur doit être approuvé par Transports Canada. Tout le temps simulateur doit être enregistré sous la colonne Simulateur (SIM), pas comme temps de vol.'
+ aFr: 'Oui, avec des limites. Le temps de simulateur de vol approuvé peut être crédité vers l\'exigence d\'expérience ATPL, jusqu\'à un maximum prévu au Standard 421 — référez-vous-y (et à Transports Canada) pour les limites en vigueur, qui diffèrent pour les avions et les hélicoptères. Le simulateur doit être approuvé par Transports Canada. Tout le temps simulateur doit être enregistré sous la colonne Simulateur (SIM), pas comme temps de vol.'
  },
  {
  q: 'What are FFS, FTD, FNPT, and BITD?',
- a: 'These are simulator levels. FFS (Full Flight Simulator) is the highest fidelity — full motion, full cockpit. FTD (Flight Training Device) has no motion but a high-fidelity cockpit. FNPT (Flight & Navigation Procedures Trainer) is generic flight controls with realistic instruments. BITD (Basic Instrument Training Device) is the lowest level, often used for PPL/CPL instrument training. CAR 401.73 credit rules differ by device level — check with TC and your operator.',
+ a: 'These are simulator levels. FFS (Full Flight Simulator) is the highest fidelity — full motion, full cockpit. FTD (Flight Training Device) has no motion but a high-fidelity cockpit. FNPT (Flight & Navigation Procedures Trainer) is generic flight controls with realistic instruments. BITD (Basic Instrument Training Device) is the lowest level, often used for PPL/CPL instrument training. Simulator credit rules differ by device level — check with Transport Canada and your operator.',
  qFr: 'C\'est quoi FFS, FTD, FNPT et BITD ?',
- aFr: 'Ce sont des niveaux de simulateur. FFS (Full Flight Simulator) est la plus haute fidélité — mouvement complet, cockpit complet. FTD (Flight Training Device) n\'a pas de mouvement mais un cockpit haute fidélité. FNPT (Flight & Navigation Procedures Trainer) a des commandes de vol génériques avec des instruments réalistes. BITD (Basic Instrument Training Device) est le niveau le plus bas, souvent utilisé pour l\'entraînement aux instruments PPL/CPL. Les règles de crédit CAR 401.73 diffèrent par niveau — vérifiez avec TC et votre opérateur.'
+ aFr: 'Ce sont des niveaux de simulateur. FFS (Full Flight Simulator) est la plus haute fidélité — mouvement complet, cockpit complet. FTD (Flight Training Device) n\'a pas de mouvement mais un cockpit haute fidélité. FNPT (Flight & Navigation Procedures Trainer) a des commandes de vol génériques avec des instruments réalistes. BITD (Basic Instrument Training Device) est le niveau le plus bas, souvent utilisé pour l\'entraînement aux instruments PPL/CPL. Les règles de crédit diffèrent par niveau de dispositif — vérifiez avec Transports Canada et votre exploitant.'
  },
 
  // ── Privacy & compliance ──────────────────────────────────────────
@@ -293,7 +293,7 @@ const GLOSSARY = [
  ['ME', 'Multi-Engine — aircraft with more than one engine', 'Multimoteur — aéronef à plus d\'un moteur'],
 
  // Cross-country
- ['XC', 'Cross-Country — flight to an aerodrome more than 25 NM (46.3 km) from the point of departure (CAR 401.34)', 'Cross-country — vol vers un aérodrome à plus de 25 NM (46,3 km) du point de départ (CAR 401.34)'],
+ ['XC', 'Cross-Country — flight to a point at least 25 NM (46.3 km) from the point of departure (CAR 101.01)', 'Vol-voyage — vol vers un point à au moins 25 NM (46,3 km) du point de départ (RAC 101.01)'],
 
  // Instrument
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
@@ -346,7 +346,7 @@ const GLOSSARY = [
  ['RAC', 'Règlement de l\'aviation canadien — French name for the CAR', 'Règlement de l\'aviation canadien — nom français des CAR'],
  ['CAR 401.05', 'Recency requirements (5 take-offs/landings · 6 months; IFR: 6 approaches + 6h instrument · 6 months)', 'Exigences de validité (5 décollages/atterrissages · 6 mois; IFR : 6 approches + 6 h aux instruments · 6 mois)'],
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
- ['CAR 401.34', 'Cross-country definition (> 25 NM)', 'Définition du cross-country (> 25 NM)'],
+ ['CAR 101.01', 'Definitions — including cross-country flight time (a point at least 25 NM from departure) and day/night', 'Définitions — dont le temps de vol en voyage (un point à au moins 25 NM du départ) et jour/nuit'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
  ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série CAR 700 — opérations comme 705 transporteur aérien)'],
  ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les CAR'],

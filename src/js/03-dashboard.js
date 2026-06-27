@@ -91,11 +91,11 @@ function renderAlerts() {
   // Night passenger currency (5 night take-offs + 5 night landings,
   // CAR 401.05(2)(b)) needs per-flight night take-off data the manual form
   // doesn't yet capture — tracked as a separate item (see C4).
-  const cutoff6mo = new Date(today); cutoff6mo.setMonth(cutoff6mo.getMonth() - 6);
-  const cut6moStr = cutoff6mo.toISOString().split('T')[0];
-  const f6mo = flights.filter(f => f.date >= cut6moStr);
-  const toCount6 = f6mo.length;
-  const ldgCount6 = f6mo.reduce((sum, f) => sum + (+f.ldgDay||0) + (+f.ldgNight||0), 0);
+  // Use the SAME helpers as the validity ring (countsTowardRecency-filtered,
+  // circuit-aware) so the alert bar and the ring can never disagree on the
+  // same screen — one source of truth for recent experience.
+  const toCount6 = _dashTakeoffsIn6mo();
+  const ldgCount6 = _dashLandingsIn6mo();
   if (toCount6 < 5 || ldgCount6 < 5) {
     const shortfall = Math.min(toCount6, ldgCount6);
     alerts.push({ level: shortfall > 0 ? 'yellow' : 'red', icon: ICON_LANDING_GLYPH, title: t('alert.landingCurrency', { n: shortfall }), sub: t('alert.landingCurrencySub') });
@@ -180,7 +180,7 @@ function renderChart() {
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = d.toISOString().substring(0, 7);
-    labels.push(d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' }));
+    labels.push(d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }));
     const hrs = flights.filter(f => f.date && f.date.startsWith(key))
                        .reduce((sum, f) => sum + (+f.block || 0), 0);
     data.push(parseFloat(hrs.toFixed(1)));

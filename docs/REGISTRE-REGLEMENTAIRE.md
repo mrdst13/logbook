@@ -17,7 +17,7 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 |---|---|---|---|
 | Hood / view-limiting device | **dispositif limitant la vue** | CI 401-004 ; RAC DORS/96-433 (laws-lois, vérifié 2026-06-25) | ❌ « cagoule » (= masque de voleur), ❌ « capot »/« sous capot » (informel) |
 | Night | nuit (fin du crépuscule civil → début du crépuscule civil) | CAR/RAC 101.01 | — |
-| Cross-country | cross-country (gardé EN, standard Cumulo) | — | — |
+| Cross-country | **vol-voyage** (le temps = « temps de vol en voyage », RAC 101.01) ; abréviation **XC** conservée | RAC 101.01 + guides de test en vol / AIM de TC (terme employé par TC en français) — vérifié 2026-06-26 | ❌ « cross-country » dans le FR (anglicisme), ❌ « voyage » seul |
 
 | Statut | Sens |
 |---|---|
@@ -84,6 +84,15 @@ Re-vérifié sur laws-lois (section-401.05-20251217) + CAR 705.106 le **2026-06-
 - **« Jour »** (glossaire) = crépuscule civil (RAC 101.01), aligné sur « Nuit ». Retiré « lever du soleil à 30 min avant le coucher » (non réglementaire au Canada).
 - **PPC** (glossaire) : citation CAR 421.05 → **CAR 705.106** (confirmé : 705.106 exige un PPC valide selon les CASS pour les ops 705). ⏳ Intervalle exact + cycle de l'anneau (180 j) = encore à confirmer (échelle d'anneau cosmétique pour l'instant ; la date d'échéance est saisie par le pilote).
 - **🔎 Intervalle PPC — recherche 2026-06-26** : la **période de validité** du PPC vit dans **CASS 725.113** (pas 725.106). Une recherche web (résumé moteur + tc.canada.ca) indique « expire le **1er jour du 7e mois** suivant le mois du contrôle » ≈ **6 mois** pour le 705 multi-équipage. ⇒ l'aide app « tous les 6 mois » serait JUSTE et la Q&R « 12 mois » FAUSSE. ⚠️ **PAS confirmé du texte primaire 725.113** (page TC trop grosse pour l'extraction; exemptions possibles). NE PAS figer Q&R/aide/anneau avant confirmation (Martin connaît l'intervalle via sa formation récurrente). Si confirmé 6 mois → corriger Q&R (12→6), restaurer « 6 mois » dans l'aide PPC, régler l'anneau PPC à ~180 j.
+
+## 📝 Corrections appliquées 2026-06-26 (passe exactitude TC — audit pré-push)
+Principe appliqué : **retirer tout chiffre/règle non confirmé au registre** (les remplacer par un renvoi à la source ou à l'exploitant), jamais ajouter de nouveau chiffre non sourcé.
+- **PPC (Q&R + glossaire)** : retiré « tous les 12 mois » → « l'intervalle dépend de votre exploitation / norme CASS / programme de formation de l'exploitant ». 705.106 (exige un PPC valide) conservé ; intervalle 725.113 toujours **non confirmé** (cf. note 2026-06-26 plus haut).
+- **XC (Q&R + glossaire + brought-forward)** : « plus de 25 NM » (>) + citation « CAR 401.34 » → « au moins 25 NM (≥) » + **CAR/RAC 101.01** (déf. confirmée, cf. section XC). Entrée glossaire « CAR 401.34 » remplacée par « CAR 101.01 ». `20-opening-balances.js` : retiré « / CAR 401.34 », gardé « Standard 421 ».
+- **Médical 705 (Q&R)** : « 40 ans et + = aux 6 mois » (trop large) → « 12 mois, réduit à 6 mois dès 60 ans, ou à 40+ en monopilote avec passagers » + **CAR 404.04** + âge évalué à la date de l'examen (cf. section médical, vérifié 2026-06-25).
+- **ECG (Q&R)** : retiré les intervalles non sourcés (« 24 mois 40-65, annuel 65+ ») → renvoi à la norme médicale Cat 1 + au médecin-examinateur (MEAC/CAME). **Aucune entrée registre pour les intervalles ECG** — à vérifier (TP 13312 / Standard 424) avant de réintroduire un chiffre.
+- **Chiffres ATPL/sim (Q&R + brought-forward)** : retiré « 1 500 h / 1 200 h / 25 h / 200 h » et les articles non vérifiés « CAR 401.73 / 421.34 » → renvoi au **Standard 421** + Transports Canada. À vérifier au texte primaire avant de réintroduire des chiffres.
+- Termes FR : « opérateur » → « exploitant », « CAR 101.01 » → « RAC 101.01 » dans les nouvelles chaînes FR touchées.
 
 > Tenir à jour : toute nouvelle règle réglementaire ajoutée au code DOIT apparaître ici
 > avec sa source vérifiée le jour où elle est écrite.

@@ -1189,14 +1189,14 @@
      <span class="privacy-row-pill privacy-row-pill-locked" data-i18n="privacy.pill.alwaysOn">ALWAYS ON</span>
    </div>
 
-   <!-- Locked ON — private cloud backup -->
-   <div class="privacy-row privacy-row-locked">
+   <!-- Cloud backup follows the egress anonymization switch below -->
+   <div class="privacy-row">
      <span class="privacy-row-icon privacy-row-icon-on" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
      <div class="privacy-row-body">
        <div class="privacy-row-title" data-i18n="privacy.cloud.title">My private cloud backup (Canada)</div>
-       <div class="privacy-row-desc" data-i18n="privacy.cloud.desc">Full names kept in your personal Canada-region backup.</div>
+       <div class="privacy-row-desc" data-i18n="privacy.cloud.desc">Anonymized to initials by default; full names only if you enable the switch below.</div>
      </div>
-     <span class="privacy-row-pill privacy-row-pill-locked" data-i18n="privacy.pill.alwaysOn">ALWAYS ON</span>
+     <span class="privacy-row-pill privacy-row-pill-toggle" data-i18n="privacy.pill.yourChoice">YOUR CHOICE</span>
    </div>
 
    <!-- The ONE real choice — a proper switch -->
@@ -1275,30 +1275,6 @@
  <div class="settings-section" data-settings-pane="sync" style="display:none;">
  <h2 class="settings-section-title" data-i18n="settings.section.sync">Sync</h2>
 
- <!-- ─── Card: Cloud account (sign-in state + change password) ── -->
- <div class="form-card" id="account-card">
- <div class="form-card-title" data-i18n="account.title">Cloud account</div>
- <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
- <div id="account-signedin" style="display:none;">
- <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="account-newpass"><span data-i18n="account.newPassword">New password</span> <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— <span data-i18n="account.atLeast12">at least 12 characters</span></span></label>
- <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password" data-i18n-placeholder="account.newPassword">
- </div>
- <div class="form-group" style="margin-bottom:var(--s-3);">
- <label for="account-newpass2" data-i18n="account.confirmPassword">Confirm new password</label>
- <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password" data-i18n-placeholder="account.retypePlaceholder">
- </div>
- <label style="margin-bottom:var(--s-3); display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary); cursor:pointer;">
- <input type="checkbox" id="account-showpass" onchange="toggleAccountPasswordVisibility()">
- <span data-i18n="account.showPassword">Show password</span>
- </label>
- <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
- <button class="btn btn-primary" onclick="changeAccountPassword()" data-i18n="account.changePassword">Change password</button>
- </div>
- <div id="account-msg" style="margin-top:var(--s-2); font-size:12px; line-height:1.5;"></div>
- </div>
- </div>
-
  <!-- Status banner — explains the difference between Sync (this page) and
       Import (the other page). Pilots got confused when Photo / PDF / CSV
       were in Sync; clarity wins. -->
@@ -1330,6 +1306,30 @@
  <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
  </div>
  <div id="navblueDetails" style="display:none; margin-top:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); line-height:1.6;"></div>
+ </div>
+
+ <!-- ─── Card: Cloud account (sign-in state + change password) — moved below the sync sources: this is account management, not a sync source. ── -->
+ <div class="form-card" id="account-card">
+ <div class="form-card-title" data-i18n="account.title">Cloud account</div>
+ <div class="form-card-desc" id="account-status">Cloud account not configured.</div>
+ <div id="account-signedin" style="display:none;">
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass"><span data-i18n="account.newPassword">New password</span> <span style="font-weight:400;color:var(--text-muted);font-size:11px;">— <span data-i18n="account.atLeast12">at least 12 characters</span></span></label>
+ <input type="password" id="account-newpass" autocomplete="new-password" placeholder="New password" data-i18n-placeholder="account.newPassword">
+ </div>
+ <div class="form-group" style="margin-bottom:var(--s-3);">
+ <label for="account-newpass2" data-i18n="account.confirmPassword">Confirm new password</label>
+ <input type="password" id="account-newpass2" autocomplete="new-password" placeholder="Re-type new password" data-i18n-placeholder="account.retypePlaceholder">
+ </div>
+ <label style="margin-bottom:var(--s-3); display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-secondary); cursor:pointer;">
+ <input type="checkbox" id="account-showpass" onchange="toggleAccountPasswordVisibility()">
+ <span data-i18n="account.showPassword">Show password</span>
+ </label>
+ <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
+ <button class="btn btn-primary" onclick="changeAccountPassword()" data-i18n="account.changePassword">Change password</button>
+ </div>
+ <div id="account-msg" style="margin-top:var(--s-2); font-size:12px; line-height:1.5;"></div>
+ </div>
  </div>
  </div>
 

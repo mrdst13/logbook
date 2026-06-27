@@ -92,16 +92,16 @@ function _drillPPC(profile, fr, settingsBtn) {
       v: esc(ppcDate || (fr ? 'non défini' : 'not set')) },
     { k: fr ? 'Jours restants' : 'Days remaining',
       v: ppcDays === null ? '—' : (ppcDays > 0 ? ppcDays : (fr ? 'expiré' : 'expired')) },
-    { k: 'Status',
+    { k: fr ? 'État' : 'Status',
       v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
   ];
 
   return {
-    eyebrow: fr ? 'CASS 725.106 · MULTI-PILOT 705' : 'CASS 725.106 · MULTI-PILOT 705',
-    title: fr ? 'Pilot Proficiency Check (PPC)' : 'Pilot Proficiency Check (PPC)',
+    eyebrow: fr ? 'CONTRÔLE RÉCURRENT · 705 MULTI-ÉQUIPAGE' : 'RECURRENT CHECK · 705 MULTI-CREW',
+    title: fr ? 'Contrôle de compétence pilote (PPC)' : 'Pilot Proficiency Check (PPC)',
     body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'Le PPC est le contrôle de compétence requis sous CASS 725.106 pour les opérations 705 multi-pilotes. Cumulo l\'affiche comme la validité principale au lieu du compteur d\'approches générique IFR. Comment le PPC interagit avec les autres règles de validité (CAR 401.05, IPC, formation récurrente) : référez-vous à votre programme de formation approuvé par votre opérateur.'
-      : 'The PPC is the proficiency check required under CASS 725.106 for multi-pilot 705 operations. Cumulo surfaces it as your primary validity instead of the generic IFR-approach counter. How the PPC interacts with other currency rules (CAR 401.05, IPC, recurrent training) is defined by your operator\'s approved training program — refer to it for the specifics.'}</div>`,
+      ? 'Le PPC est le contrôle de compétence requis sous CAR 705.106 pour les opérations 705 multi-pilotes. Cumulo l\'affiche comme la validité principale au lieu du compteur d\'approches générique IFR. L\'intervalle exact et la façon dont le PPC interagit avec les autres règles de validité (IPC, formation récurrente) sont définis par le programme de formation approuvé de votre exploitant — référez-vous-y pour les détails.'
+      : 'The PPC is the proficiency check required under CAR 705.106 for multi-pilot 705 operations. Cumulo surfaces it as your primary validity instead of the generic IFR-approach counter. The exact interval and how the PPC interacts with other currency rules (IPC, recurrent training) are defined by your operator\'s approved training program — refer to it for the specifics.'}</div>`,
     foot: settingsBtn(fr ? 'Modifier dans Profil' : 'Update in Profile')
   };
 }
@@ -168,7 +168,7 @@ function _drillIFR(fr, addBtn, logbookBtn) {
     { k: fr ? 'Approches IFR (6 mois)' : 'IFR approaches (6 months)', v: `<strong>${count}</strong> / 6` },
     { k: fr ? 'Temps aux instruments (6 mois)' : 'Instrument time (6 months)', v: `<strong>${ifr.hours.toFixed(1)}</strong> / 6 h` },
     { k: fr ? 'Manquant pour être à jour' : 'Needed to be current', v: (need > 0 || needHrs > 0) ? `${need > 0 ? need + (fr ? ' appr.' : ' appr') : ''}${need > 0 && needHrs > 0 ? ' + ' : ''}${needHrs > 0 ? needHrs.toFixed(1) + ' h' : ''}` : (fr ? 'aucun' : 'none') },
-    { k: 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : (count >= 4 && ifr.hours >= 4) ? 'warn' : 'bad'}">${status}</span>` },
+    { k: fr ? 'État' : 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : (count >= 4 && ifr.hours >= 4) ? 'warn' : 'bad'}">${status}</span>` },
   ];
 
   let list = '';
@@ -184,7 +184,7 @@ function _drillIFR(fr, addBtn, logbookBtn) {
   }
 
   return {
-    eyebrow: fr ? 'CAR 401.05(3.1) · INSTRUMENTS' : 'CAR 401.05(3.1) · INSTRUMENTS',
+    eyebrow: fr ? 'VALIDITÉ AUX INSTRUMENTS' : 'INSTRUMENT CURRENCY',
     title: fr ? 'Validité IFR' : 'IFR Currency',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
       ? 'Règle (CAR 401.05(3.1)) : dans les 6 derniers mois, 6 approches IFR (ILS / RNAV / VOR / visuelle après IAP) ET 6 h de temps aux instruments (le temps en simulateur compte — CAR 101.01).'
@@ -243,7 +243,7 @@ function _drillRecency(fr, addBtn, logbookBtn) {
   }
 
   return {
-    eyebrow: fr ? 'CAR 401.05(2) · EXPÉRIENCE RÉCENTE' : 'CAR 401.05(2) · RECENT EXPERIENCE',
+    eyebrow: fr ? 'TRANSPORT DE PASSAGERS · 6 MOIS' : 'PASSENGER-CARRYING · 6 MONTHS',
     title: fr ? 'Expérience récente' : 'Recent experience',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
       ? 'Règle (CAR 401.05(2)(b)) : 5 décollages + 5 atterrissages dans les 6 derniers mois pour transporter des passagers ; de NUIT, ce sont 5 décollages de nuit + 5 atterrissages de nuit. Sim de vol complet niveau B/C/D admissible. Des exemptions peuvent s’appliquer selon l’exploitation — référez-vous à votre exploitant.'
@@ -280,7 +280,7 @@ function _drillMedical(profile, fr, settingsBtn) {
   const rows = [
     { k: fr ? 'Date d’expiration' : 'Expiry date', v: esc(med || (fr ? 'non définie' : 'not set')) },
     { k: fr ? 'Jours restants'     : 'Days remaining', v: medDays === null ? '—' : (medDays > 0 ? medDays : (fr ? 'expiré' : 'expired')) },
-    { k: 'Status', v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
+    { k: fr ? 'État' : 'Status', v: `<span class="dash-drill-pill ${statusClass}">${statusLabel}</span>` },
     { k: fr ? 'ECG dû'             : 'ECG due', v: ecg ? `${esc(ecg)}${ecgDays !== null ? ` (${ecgDays > 0 ? ecgDays + (fr ? ' j' : ' d') : (fr ? 'dépassé' : 'overdue')})` : ''}` : '—' },
   ];
 
@@ -288,8 +288,8 @@ function _drillMedical(profile, fr, settingsBtn) {
     eyebrow: fr ? 'CERTIFICAT MÉDICAL · TC' : 'TRANSPORT CANADA · CAT 1',
     title: fr ? 'Validité médicale' : 'Medical Validity',
     body: _drillRowsHtml(rows) + `<div class="dash-drill-note">${fr
-      ? 'CAT 1 (vol commercial) : 12 mois si < 40 ans, 6 mois ensuite. L’ECG accompagne le médical à intervalles définis par TC.'
-      : 'Category 1 (commercial flight): 12 months if under 40, 6 months thereafter. ECG accompanies the medical at TC-defined intervals.'}</div>`,
+      ? 'CAT 1 (vol commercial) : valide 12 mois, réduit à 6 mois dès 60 ans (ou à 40 ans et plus en monopilote avec passagers). L’ECG accompagne le médical selon la norme médicale de TC.'
+      : 'Category 1 (commercial flight): valid 12 months, reduced to 6 months from age 60 (or at 40 and older if single-pilot with passengers). ECG accompanies the medical per the TC medical standard.'}</div>`,
     foot: settingsBtn(fr ? 'Mettre à jour dans Profil' : 'Update in Profile')
   };
 }
@@ -334,7 +334,7 @@ function _drillMilestone(s, profile, fr, F) {
     'pic':      fr ? 'PIC seulement'     : 'PIC only',
     'sic':      fr ? 'SIC seulement'     : 'SIC only',
     'night':    fr ? 'Nuit seulement'    : 'Night only',
-    'xc':       fr ? 'Cross-country seulement'  : 'Cross-country only',
+    'xc':       fr ? 'Vol-voyage seulement'  : 'Cross-country only',
     'me':       fr ? 'Multi-moteur'      : 'Multi-engine',
     'aircraft': fr ? 'Par aéronef'       : 'By aircraft type',
   })[k] || k;
@@ -356,8 +356,8 @@ function _drillMilestone(s, profile, fr, F) {
     ['pic',      fr ? 'Heures PIC seulement'              : 'PIC hours only'],
     ['sic',      fr ? 'Heures SIC seulement'              : 'SIC hours only'],
     ['night',    fr ? 'Heures de nuit seulement'          : 'Night hours only'],
-    ['xc',       fr ? 'Heures voyage seulement'           : 'Cross-country hours only'],
-    ['me',       fr ? 'Heures multi-moteur'               : 'Multi-engine hours'],
+    ['xc',       fr ? 'Heures de vol-voyage seulement'    : 'Cross-country hours only'],
+    ['me',       fr ? 'Heures multimoteur'               : 'Multi-engine hours'],
     ['aircraft', fr ? 'Heures sur un type d’aéronef'      : 'Hours on a specific aircraft type'],
   ].map(([v, lbl]) => `<option value="${v}" ${v === currentKind ? 'selected' : ''}>${esc(lbl)}</option>`).join('');
 
@@ -470,8 +470,8 @@ function _drillStripHours(kind, value, fr, profile, F, logbookBtn) {
     pic:   { fr: 'Heures PIC',         en: 'PIC hours',         desc: { fr: 'Pilote aux commandes — capitaine pour 705, instructeur pour FTO, vol solo pour student.', en: 'Pilot-in-command time — captain for 705 ops, instructor for FTO, solo for student.' } },
     sic:   { fr: 'Heures SIC',         en: 'SIC hours',         desc: { fr: 'Co-pilote / Second-In-Command — F/O pour 705.', en: 'Second-in-command / co-pilot time — F/O for 705 ops.' } },
     night: { fr: 'Heures de nuit',     en: 'Night hours',       desc: { fr: 'Temps de vol entre la fin du crépuscule civil du soir et le début du crépuscule civil du matin (RAC 101.01).', en: 'Flight time between the end of evening civil twilight and the beginning of morning civil twilight (CAR 101.01).' } },
-    multi: { fr: 'Heures multi-moteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multi-moteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
-    xc:    { fr: 'Heures cross-country',en: 'Cross-country hours', desc: { fr: 'Vol > 25 NM depuis le point de départ (CAR 401.34). Calculé automatiquement.', en: 'Flight > 25 NM from departure point (CAR 401.34). Auto-calculated.' } },
+    multi: { fr: 'Heures multimoteur',en: 'Multi-engine hours',desc: { fr: 'Temps de vol sur avion multimoteur (ME). Toutes catégories : PIC + SIC + Dual.', en: 'Flight time on multi-engine aircraft. All categories: PIC + SIC + Dual.' } },
+    xc:    { fr: 'Heures de vol-voyage',en: 'Cross-country hours', desc: { fr: 'Vol d\'au moins 25 NM depuis le point de départ (RAC 101.01). Calculé automatiquement.', en: 'Flight at least 25 NM from departure point (CAR 101.01). Auto-calculated.' } },
   };
   const meta = labels[kind] || { fr: kind, en: kind, desc: { fr: '', en: '' } };
   const title = fr ? meta.fr : meta.en;

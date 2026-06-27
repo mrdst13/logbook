@@ -57,8 +57,8 @@ function _bfPageGroups() {
         { key: 'dualRcvd',   labelEn: 'Dual Received',            labelFr: 'Double reçu',                            aggregate: true },
         { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
-        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Cross-country (XC)',                     aggregate: true },
-        { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multi-moteur',                           aggregate: true },
+        { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Vol-voyage (XC)',                        aggregate: true },
+        { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multimoteur',                            aggregate: true },
         { key: 'heli',       labelEn: 'Helicopter',                labelFr: 'Hélicoptère',                            aggregate: true },
         { key: 'dualGiven',  labelEn: 'Dual Given (instructor)',  labelFr: 'Instruction donnée (CFI)',                aggregate: true },
       ],
@@ -125,9 +125,9 @@ function _bfPageGroups() {
     {
       id: 'xc',
       titleEn: 'Cross-country',
-      titleFr: 'Cross-country (XC)',
-      descEn: 'XC Day and XC Night totals (Standard 421 / CAR 401.34). Only needed if your logbook tracked day/night XC separately.',
-      descFr: 'Totaux XC Jour et XC Nuit (Norme 421 / CAR 401.34). Seulement si votre carnet distinguait XC jour/nuit.',
+      titleFr: 'Vol-voyage (XC)',
+      descEn: 'XC Day and XC Night totals (Standard 421). Only needed if your logbook tracked day/night XC separately.',
+      descFr: 'Totaux XC Jour et XC Nuit (Norme 421). Seulement si votre carnet distinguait XC jour/nuit.',
       open: false,
       fields: [
         { key: 'xcDayPic',    labelEn: 'XC Day — PIC',    labelFr: 'XC Jour — PIC' },
@@ -173,8 +173,8 @@ function _bfPageGroups() {
       id: 'dualGiven',
       titleEn: 'Dual Given',
       titleFr: 'Instruction donnée',
-      descEn: 'CFI / instructor time (CAR 421.34 ATPL credit). Day and night totals.',
-      descFr: 'Temps instructeur (CAR 421.34 crédit ATPL). Totaux jour et nuit.',
+      descEn: 'CFI / instructor time (counts toward ATPL experience per Standard 421). Day and night totals.',
+      descFr: 'Temps instructeur (compte vers l\'expérience ATPL selon la Norme 421). Totaux jour et nuit.',
       open: false,
       fields: [
         { key: 'dualGivenDay',   labelEn: 'Dual Given — Day',   labelFr: 'Instruction — Jour' },
@@ -422,6 +422,20 @@ function _bfCheckConsistency() {
   // Live declared total — updates on every keystroke (Expert 2 "must").
   const liveEl = document.getElementById('bf-live-total');
   if (liveEl) liveEl.textContent = fmtH(total) + ' h';
+  // Career-total reward — declared brought-forward + your in-Cumulo flights,
+  // shown in accent so your full career lights up as you enter hours.
+  const careerWrap = document.getElementById('bf-career-wrap');
+  const careerEl = document.getElementById('bf-career-total');
+  if (careerWrap && careerEl) {
+    const cumulo = (Array.isArray(flights) ? flights : [])
+      .reduce((s, f) => s + (+f.total || +f.block || 0), 0);
+    if (total > 0 || cumulo > 0) {
+      careerWrap.style.display = 'block';
+      careerEl.textContent = fmtH(total + cumulo) + ' h';
+    } else {
+      careerWrap.style.display = 'none';
+    }
+  }
   const el = document.getElementById('bf-consistency');
   if (!el) return;
   const warns = [];
@@ -467,32 +481,18 @@ function renderBroughtForwardPage() {
 
   const groups = _bfPageGroups();
 
-  const groupsHtml = groups.map(g => {
+  // Render one group as the existing collapsible field grid (unchanged look).
+  const renderGroup = (g) => {
     const title = fr ? g.titleFr : g.titleEn;
     const desc  = fr ? g.descFr  : g.descEn;
-    // Force-open heli group when relevant.
     const isOpen = g.open || (g.id === 'heli' && heliRelevant);
-
     const filledCount = g.fields.filter(f => (+balances[f.key]||0) > 0).length;
-    const badge = filledCount > 0
-      ? `<span class="bf-group-badge">${filledCount}</span>`
-      : '';
-
-    const fieldsHtml = g.fields.map(f => {
-      const label = fr ? f.labelFr : f.labelEn;
-      const step  = f.integer ? '1' : '0.1';
-      const ph    = f.integer ? '0' : '0.0';
-      const value = balances[f.key] != null && +balances[f.key] > 0 ? balances[f.key] : '';
-      return `
+    const badge = filledCount > 0 ? `<span class="bf-group-badge">${filledCount}</span>` : '';
+    const fieldsHtml = g.fields.map(f => `
         <div class="form-group bf-field${f.hero ? ' bf-hero-field' : ''}">
-          <label for="ob-${f.key}">${esc(label)}</label>
-          <input type="number" id="ob-${esc(f.key)}" min="0" step="${step}"
-                 value="${esc(value)}" placeholder="${ph}" inputmode="decimal"
-                 oninput="if(typeof _bfCheckConsistency==='function')_bfCheckConsistency()"
-                 class="bf-input${f.hero ? ' bf-hero-input' : ''}" />
-        </div>`;
-    }).join('');
-
+          <label for="ob-${f.key}">${esc(fr ? f.labelFr : f.labelEn)}</label>
+          ${_bfInput(f.key, balances[f.key], f.integer, f.hero)}
+        </div>`).join('');
     return `
       <details class="bf-group" ${isOpen ? 'open' : ''}>
         <summary class="bf-group-summary">
@@ -503,7 +503,18 @@ function renderBroughtForwardPage() {
         <div class="bf-group-desc">${esc(desc)}</div>
         <div class="bf-fields-grid${g.id === 'career' ? ' bf-fields-hero' : ''}">${fieldsHtml}</div>
       </details>`;
-  }).join('');
+  };
+
+  // Two modes, same data. "My totals" = career aggregates. "Like my paper
+  // logbook" = the detailed breakdown, with SE/ME/XC shown as the familiar
+  // day/night-by-role column table. engine + xc keys live ONLY in that table
+  // (no duplicate ids); every other key keeps its grid. Both modes stay in the
+  // DOM (toggle is CSS show/hide), so commit reads every input — no value lost.
+  const careerHtml = renderGroup(groups.find(g => g.id === 'career'));
+  const detailGroupsHtml = groups
+    .filter(g => !['career', 'engine', 'xc'].includes(g.id))
+    .map(renderGroup).join('');
+  const logbookTableHtml = _bfLogbookTableHtml(balances, fr);
 
   const profileName = `${profile.fname || ''} ${profile.lname || ''}`.trim();
   const todayStr = new Date().toLocaleDateString(fr ? 'fr-CA' : 'en-CA',
@@ -517,6 +528,19 @@ function renderBroughtForwardPage() {
     : null;
 
   container.innerHTML = `
+    <style>
+      .bf-mode-toggle{display:inline-flex;gap:4px;background:var(--surface-2,#e7eef6);border-radius:11px;padding:4px;margin:4px 0}
+      .bf-mode-btn{appearance:none;border:0;background:transparent;font:inherit;font-weight:600;font-size:14px;color:var(--text-muted);padding:8px 16px;border-radius:8px;cursor:pointer}
+      .bf-mode-btn.bf-on{background:var(--surface,#fff);color:var(--text)}
+      .bf-mode-cap{font-size:12.5px;color:var(--text-muted);margin:6px 2px 14px}
+      .bf-logbook{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin:0 0 14px}
+      .bf-logbook th,.bf-logbook td{border:0.5px solid var(--border,rgba(20,40,70,.12));padding:6px 8px;text-align:center}
+      .bf-logbook thead th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);font-weight:600;background:var(--surface-2,#f3f7fb)}
+      .bf-logbook td:first-child,.bf-logbook th:first-child{text-align:left;font-weight:600;font-size:13px;white-space:nowrap}
+      .bf-logbook input{width:100%;min-width:52px;border:0;background:transparent;font:inherit;font-weight:600;text-align:right;color:var(--text)}
+      .bf-logbook input:focus{outline:none;background:var(--accent-soft,rgba(61,123,196,.10));border-radius:5px}
+      .bf-lt-blank{color:var(--text-muted);opacity:.45}
+    </style>
     <div class="bf-page-intro form-card">
       <div class="form-card-title">${fr ? 'Heures reportées — carnet papier' : 'Brought-forward hours — paper logbook'}</div>
       <div class="bf-intro-body">
@@ -542,11 +566,25 @@ function renderBroughtForwardPage() {
 
     <div class="form-card" style="text-align:center;padding:18px 22px;">
       <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);">${fr ? 'Total de vol déclaré' : 'Declared total flight time'}</div>
-      <div id="bf-live-total" style="font-family:var(--font-mono);font-size:40px;font-weight:600;letter-spacing:-.02em;color:var(--text);margin-top:4px;">0,0 h</div>
+      <div id="bf-live-total" style="font-family:var(--font-display);font-size:44px;font-weight:700;letter-spacing:-.03em;color:var(--text);margin-top:4px;font-variant-numeric:tabular-nums;">0,0 h</div>
+      <div id="bf-career-wrap" style="margin-top:14px;padding-top:13px;border-top:0.5px solid rgba(120,140,170,.20);display:none;">
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);">${fr ? 'Total de carrière — avec vos vols Cumulo' : 'Career total — with your Cumulo flights'}</div>
+        <div id="bf-career-total" style="font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.02em;color:var(--accent);margin-top:2px;font-variant-numeric:tabular-nums;">0,0 h</div>
+      </div>
     </div>
 
-    <div class="bf-groups-wrap">
-      ${groupsHtml}
+    <div class="bf-mode-toggle">
+      <button type="button" id="bf-tab-totals" class="bf-mode-btn bf-on" onclick="_bfSetMode('totals')">${fr ? 'Mes totaux' : 'My totals'}</button>
+      <button type="button" id="bf-tab-paper" class="bf-mode-btn" onclick="_bfSetMode('paper')">${fr ? 'Comme mon carnet papier' : 'Like my paper logbook'}</button>
+    </div>
+    <div class="bf-mode-cap" id="bf-mode-cap">${fr ? 'Saisie rapide : vos grands totaux par catégorie. La plupart des pilotes n\'ont besoin que de ça.' : 'Quick entry: your grand totals per category. Most pilots only need this.'}</div>
+
+    <div id="bf-mode-totals" class="bf-groups-wrap">
+      ${careerHtml}
+    </div>
+    <div id="bf-mode-paper" class="bf-groups-wrap" style="display:none">
+      ${logbookTableHtml}
+      ${detailGroupsHtml}
     </div>
 
     <div id="bf-consistency" style="margin:0 0 var(--s-4);display:none;"></div>
@@ -555,8 +593,8 @@ function renderBroughtForwardPage() {
       <div class="form-card-title">${fr ? 'Attestation du pilote' : 'Pilot attestation'}</div>
       <div class="bf-attest-desc">
         ${fr
-          ? `En signant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier à la <strong>date de coupure indiquée plus haut</strong>. Conservé localement avec une empreinte SHA-256. Toute modification exige une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
-          : `By signing, you confirm these totals accurately reflect your paper logbook as of the <strong>cut-off date shown above</strong>. Stored locally with a SHA-256 fingerprint. Any edit requires a new attestation; the prior one is archived in the audit log.`}
+          ? `En signant, vous confirmez que ces totaux reflètent fidèlement votre carnet papier à la <strong>date de coupure indiquée plus haut</strong>. Conservé localement avec une <span title="Empreinte cryptographique SHA-256">empreinte d'intégrité</span>. Toute modification exige une nouvelle attestation ; la précédente est archivée dans le journal d'audit.`
+          : `By signing, you confirm these totals accurately reflect your paper logbook as of the <strong>cut-off date shown above</strong>. Stored locally with an <span title="SHA-256 cryptographic fingerprint">integrity fingerprint</span>. Any edit requires a new attestation; the prior one is archived in the audit log.`}
       </div>
       <div class="form-group" style="max-width:340px;">
         <label for="ob-attest-name">${fr ? 'Signez en tapant votre nom complet' : 'Sign by typing your full name'}</label>
@@ -574,6 +612,60 @@ function renderBroughtForwardPage() {
 
   // Surface consistency warnings now and on every keystroke (oninput per field).
   if (typeof _bfCheckConsistency === 'function') _bfCheckConsistency();
+}
+
+// Input cell shared by the grid groups and the paper-logbook table — one place
+// so both layouts stay identical (same id, same oninput, same parsing).
+function _bfInput(key, value, integer, hero) {
+  const v = (value != null && +value > 0) ? value : '';
+  const step = integer ? '1' : '0.1';
+  const ph = integer ? '0' : '0.0';
+  return `<input type="number" id="ob-${esc(key)}" min="0" step="${step}" value="${esc(v)}" placeholder="${ph}" inputmode="decimal" oninput="if(typeof _bfCheckConsistency==='function')_bfCheckConsistency()" class="bf-input${hero ? ' bf-hero-input' : ''}" />`;
+}
+
+// "Like my paper logbook" view: SE / ME / XC as day/night-by-role columns,
+// mirroring the bottom-totals row of a TC paper logbook. Same ob-<key> ids the
+// grid would use, so values flow through the exact same save path.
+function _bfLogbookTableHtml(balances, fr) {
+  const cell = (k) => k ? `<td>${_bfInput(k, balances[k], false, false)}</td>` : `<td class="bf-lt-blank">—</td>`;
+  // Day-major, Dual/PIC/Co order — mirrors a TC paper logbook page (Day {Dual,
+  // PIC, Co} · Night {Dual, PIC, Co}). SE/XC have no Co-pilot column on the card.
+  const row = (label, ks) => `<tr><td>${esc(label)}</td>${ks.map(cell).join('')}</tr>`;
+  const dpc = fr ? ['Double', 'PIC', 'Copilote'] : ['Dual', 'PIC', 'Co-pilot'];
+  return `
+    <div class="bf-group-desc" style="margin:0 0 8px">${fr
+      ? 'Reproduisez la dernière ligne de totaux de votre carnet papier de Transports Canada — mêmes colonnes, même ordre.'
+      : 'Transcribe the bottom totals row of your Transport Canada paper logbook — same columns, same order.'}</div>
+    <div style="overflow-x:auto"><table class="bf-logbook">
+      <thead>
+        <tr><th rowspan="2">${fr?'Catégorie':'Category'}</th><th colspan="3">${fr?'Jour':'Day'}</th><th colspan="3">${fr?'Nuit':'Night'}</th></tr>
+        <tr><th>${dpc[0]}</th><th>${dpc[1]}</th><th>${dpc[2]}</th><th>${dpc[0]}</th><th>${dpc[1]}</th><th>${dpc[2]}</th></tr>
+      </thead>
+      <tbody>
+        ${row(fr?'Monomoteur':'Single-engine', ['seDayDual','seDay',null,'seNightDual','seNight',null])}
+        ${row(fr?'Multimoteur':'Multi-engine', ['meDayDual','meDayPic','meDayCop','meNightDual','meNightPic','meNightCop'])}
+        ${row(fr?'Vol-voyage (XC)':'Cross-country (XC)', ['xcDayDual','xcDayPic','xcDayCop','xcNightDual','xcNightPic','xcNightCop'])}
+      </tbody>
+    </table></div>`;
+}
+
+// Toggle the two brought-forward modes (CSS show/hide — all inputs stay in the
+// DOM so saving never drops a value).
+function _bfSetMode(mode) {
+  const paper = (mode === 'paper');
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const t = document.getElementById('bf-mode-totals');
+  const p = document.getElementById('bf-mode-paper');
+  const bt = document.getElementById('bf-tab-totals');
+  const bp = document.getElementById('bf-tab-paper');
+  const cap = document.getElementById('bf-mode-cap');
+  if (t) t.style.display = paper ? 'none' : 'block';
+  if (p) p.style.display = paper ? 'block' : 'none';
+  if (bt) bt.classList.toggle('bf-on', !paper);
+  if (bp) bp.classList.toggle('bf-on', paper);
+  if (cap) cap.textContent = paper
+    ? (fr ? 'Disposition miroir du carnet papier de Transport Canada — transcrivez vos colonnes telles quelles.' : 'Mirrors the Transport Canada paper logbook layout — transcribe your columns as they are.')
+    : (fr ? 'Saisie rapide : vos grands totaux par catégorie. La plupart des pilotes n\'ont besoin que de ça.' : 'Quick entry: your grand totals per category. Most pilots only need this.');
 }
 
 // ───────────────────────────────────────────────────────────────────
