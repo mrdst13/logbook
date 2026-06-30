@@ -302,6 +302,18 @@ async function handleAnthropic(body: any, env: Env, origin: string): Promise<Res
       body: JSON.stringify(upstreamBody)
     });
     const data = await resp.text();
+    // Capacity / spend-cap / overload → return a friendly, actionable code so
+    // the client can offer a fallback (iCal / CSV / manual) instead of a raw
+    // "extraction failed". Anthropic: 429 = rate or daily spend cap, 529 =
+    // overloaded, 503 = unavailable. The daily spend cap remains the hard
+    // financial backstop; this only makes hitting it graceful. See
+    // private/SPEC-ANTI-ABUS-2026-06-27.md PARTIE C.
+    if (resp.status === 429 || resp.status === 529 || resp.status === 503) {
+      return new Response(
+        JSON.stringify({ error: { message: 'AI extraction temporarily unavailable', code: 'capacity' } }),
+        { status: 503, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      );
+    }
     return new Response(data, {
       status: resp.status,
       headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' }

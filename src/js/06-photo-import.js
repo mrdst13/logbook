@@ -185,12 +185,24 @@ RULES:
     console.log('[Navblue] Worker HTTP status:', resp.status);
     console.log('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
 
+    // Parse first so a normalized capacity / daily-cap signal is caught even on
+    // a non-2xx status: the worker returns 503 + {error:{code:'capacity'}} when
+    // Anthropic is rate-limited / overloaded / at the spend cap. Detect it
+    // BEFORE the generic !resp.ok throw so the pilot gets a graceful fallback
+    // (their hours aren't lost) instead of a raw "extraction failed".
+    let data = null;
+    try { data = JSON.parse(rawText); } catch (e) { /* non-JSON handled below */ }
+
+    if (data && data.error && (data.error.code === 'capacity' || data.error.code === 'daily_cap')) {
+      box.classList.remove('show');
+      showImportFallback(data.error.code);
+      return;
+    }
+
     if (!resp.ok) {
       throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
     }
-
-    let data;
-    try { data = JSON.parse(rawText); } catch(e) {
+    if (!data) {
       throw new Error('Worker did not return JSON. Response: ' + rawText.substring(0, 200));
     }
 

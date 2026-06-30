@@ -109,11 +109,10 @@ function renderAlerts() {
   // pilots who don't fly IFR (no history in last 12 months). They never
   // see "0 / 6 approaches" noise.
   if (needsIFRTracking(p)) {
-    const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
-    const cut6mStr = cutoff6m.toISOString().split('T')[0];
-    const appCount = flights
-      .filter(f => f.date >= cut6mStr)
-      .reduce((sum, f) => sum + (+f.approaches||0), 0);
+    // Single source of truth: countsTowardRecency-filtered (CAR 401.05(3.1) —
+    // basic training devices don't count toward the six approaches), shared with
+    // the currency card and the validity ring so they can never disagree.
+    const appCount = _dashApproachesIn6mo();
     if (appCount < 6) {
       alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon: ICON_IFR_GLYPH, title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
     }
@@ -143,7 +142,11 @@ function renderCurrencyCard() {
   const cut6mStr = cutoff6m.toISOString().split('T')[0];
   const recent6m = flights.filter(f => f.date && f.date >= cut6mStr);
 
-  const approachCount = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
+  // Approaches: filtered to qualifying devices (CAR 401.05(3.1)) via the shared
+  // helper, so the card matches the alert bar and the validity ring. Instrument
+  // time is NOT device-filtered — CAR 101.01 counts simulated/ground instrument
+  // time too (see _dashInstrumentTimeIn6mo + registre).
+  const approachCount = _dashApproachesIn6mo();
   const instHours = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
   const setStatus = (elId, ok, low) => {

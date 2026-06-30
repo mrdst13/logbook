@@ -1131,7 +1131,12 @@ function dashAddValidity() {
 function _dashApproachesIn6mo() {
   if (!Array.isArray(flights)) return 0;
   const cutoff = sixMonthCutoffStr();
-  return flights.filter(f => f.date >= cutoff)
+  // CAR 401.05(3.1): the six approaches must be flown in an aircraft (actual or
+  // simulated IMC) or a Level B, C or D full-flight simulator — a basic training
+  // device (FTD/FNPT/BITD) does NOT qualify, exactly like landings/take-offs.
+  // Filter by countsTowardRecency so a basic-sim approach never inflates IFR
+  // currency. Verified laws-lois SOR-96-433 s.401.05(3.1); see registre.
+  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.approaches || 0), 0);
 }
 

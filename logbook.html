@@ -6387,6 +6387,41 @@ function confirmDialog({ title, body, cancelLabel = (typeof t === 'function' ? t
     setTimeout(() => overlay.querySelector('[data-cd="ok"]')?.focus(), 30);
   });
 }
+
+// Graceful fallback shown when AI extraction is unavailable: the worker
+// normalizes Anthropic 429/529/503 to code:'capacity' (and the per-IP daily
+// cap to code:'daily_cap'). The pilot's hours are never lost — the copy
+// reassures and points to the other import paths (iCal / CSV / manual entry).
+// Single dismiss; we deliberately don't wire fabricated routing buttons.
+function showImportFallback(code) {
+  const isDaily = code === 'daily_cap';
+  const title = (typeof t === 'function')
+    ? t(isDaily ? 'import.dailyCap.title' : 'import.capacity.title') : 'Extraction unavailable';
+  const body = (typeof t === 'function')
+    ? t(isDaily ? 'import.dailyCap.desc' : 'import.capacity.desc') : '';
+  const overlay = document.createElement('div');
+  overlay.className = 'import-overlay show';
+  overlay.dataset.importFallback = '1';
+  overlay.innerHTML = `
+    <div class="import-modal" style="max-width:440px;">
+      <div class="import-modal-head">
+        <div><div class="t-headline">${esc(title)}</div></div>
+      </div>
+      <div class="import-modal-body" style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">${esc(body)}</div>
+      <div class="import-modal-foot">
+        <button class="btn btn-primary" data-if="ok" autofocus>${esc(typeof t === 'function' ? t('btn.close') : 'Close')}</button>
+      </div>
+    </div>
+  `;
+  const cleanup = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') cleanup(); };
+  overlay.addEventListener('click', e => {
+    if (e.target.closest('[data-if="ok"]') || e.target === overlay) cleanup();
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.querySelector('[data-if="ok"]')?.focus(), 30);
+}
 // ═══════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════
@@ -7582,7 +7617,12 @@ function dashAddValidity() {
 function _dashApproachesIn6mo() {
   if (!Array.isArray(flights)) return 0;
   const cutoff = sixMonthCutoffStr();
-  return flights.filter(f => f.date >= cutoff)
+  // CAR 401.05(3.1): the six approaches must be flown in an aircraft (actual or
+  // simulated IMC) or a Level B, C or D full-flight simulator — a basic training
+  // device (FTD/FNPT/BITD) does NOT qualify, exactly like landings/take-offs.
+  // Filter by countsTowardRecency so a basic-sim approach never inflates IFR
+  // currency. Verified laws-lois SOR-96-433 s.401.05(3.1); see registre.
+  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.approaches || 0), 0);
 }
 
@@ -8137,11 +8177,10 @@ function renderAlerts() {
   // pilots who don't fly IFR (no history in last 12 months). They never
   // see "0 / 6 approaches" noise.
   if (needsIFRTracking(p)) {
-    const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
-    const cut6mStr = cutoff6m.toISOString().split('T')[0];
-    const appCount = flights
-      .filter(f => f.date >= cut6mStr)
-      .reduce((sum, f) => sum + (+f.approaches||0), 0);
+    // Single source of truth: countsTowardRecency-filtered (CAR 401.05(3.1) —
+    // basic training devices don't count toward the six approaches), shared with
+    // the currency card and the validity ring so they can never disagree.
+    const appCount = _dashApproachesIn6mo();
     if (appCount < 6) {
       alerts.push({ level: appCount > 0 ? 'yellow' : 'red', icon: ICON_IFR_GLYPH, title: t('alert.ifrCurrency', { n: appCount }), sub: t('alert.ifrCurrencySub') });
     }
@@ -8171,7 +8210,11 @@ function renderCurrencyCard() {
   const cut6mStr = cutoff6m.toISOString().split('T')[0];
   const recent6m = flights.filter(f => f.date && f.date >= cut6mStr);
 
-  const approachCount = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
+  // Approaches: filtered to qualifying devices (CAR 401.05(3.1)) via the shared
+  // helper, so the card matches the alert bar and the validity ring. Instrument
+  // time is NOT device-filtered — CAR 101.01 counts simulated/ground instrument
+  // time too (see _dashInstrumentTimeIn6mo + registre).
+  const approachCount = _dashApproachesIn6mo();
   const instHours = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
   const setStatus = (elId, ok, low) => {
@@ -9348,12 +9391,24 @@ RULES:
     void('[Navblue] Worker HTTP status:', resp.status);
     void('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
 
+    // Parse first so a normalized capacity / daily-cap signal is caught even on
+    // a non-2xx status: the worker returns 503 + {error:{code:'capacity'}} when
+    // Anthropic is rate-limited / overloaded / at the spend cap. Detect it
+    // BEFORE the generic !resp.ok throw so the pilot gets a graceful fallback
+    // (their hours aren't lost) instead of a raw "extraction failed".
+    let data = null;
+    try { data = JSON.parse(rawText); } catch (e) { /* non-JSON handled below */ }
+
+    if (data && data.error && (data.error.code === 'capacity' || data.error.code === 'daily_cap')) {
+      box.classList.remove('show');
+      showImportFallback(data.error.code);
+      return;
+    }
+
     if (!resp.ok) {
       throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
     }
-
-    let data;
-    try { data = JSON.parse(rawText); } catch(e) {
+    if (!data) {
       throw new Error('Worker did not return JSON. Response: ' + rawText.substring(0, 200));
     }
 
@@ -15338,6 +15393,10 @@ const STRINGS = {
  'import.aiBox.extracting': 'EXTRACTING FLIGHTS...',
  'import.ai.noFlights': 'No completed flights found in this PDF.',
  'import.ai.failed': 'Could not read this PDF. Please try again, or use CSV / iCal import.',
+ 'import.capacity.title': 'Automatic extraction is at full capacity',
+ 'import.capacity.desc': 'Your hours aren’t lost. Try again in a few minutes, or add your flights another way — just as valid.',
+ 'import.dailyCap.title': 'Daily extraction limit reached',
+ 'import.dailyCap.desc': 'You’ve reached today’s automatic-extraction limit. You can continue with iCal sync, a CSV file, or manual entry.',
  'import.recent.fromSrc': '{n} {w} from {src}',
  'import.recent.fileSrc': 'file',
  // ─── iCal roster sync UI (08-flight-form.js)
@@ -16348,6 +16407,10 @@ const STRINGS = {
  'import.aiBox.extracting': 'EXTRACTION DES VOLS…',
  'import.ai.noFlights': 'Aucun vol complété trouvé dans ce PDF.',
  'import.ai.failed': 'Impossible de lire ce PDF. Réessayez ou utilisez l’import CSV / iCal.',
+ 'import.capacity.title': 'L’extraction automatique est à pleine capacité',
+ 'import.capacity.desc': 'Vos heures ne sont pas perdues. Réessayez dans quelques minutes, ou ajoutez vos vols autrement — c’est tout aussi valide.',
+ 'import.dailyCap.title': 'Limite d’extractions atteinte pour aujourd’hui',
+ 'import.dailyCap.desc': 'Vous avez atteint le nombre d’extractions automatiques pour aujourd’hui. Vous pouvez continuer avec la synchro iCal, un fichier CSV, ou la saisie manuelle.',
  'import.recent.fromSrc': '{n} {w} depuis {src}',
  'import.recent.fileSrc': 'fichier',
  // ─── Interface de synchro iCal (08-flight-form.js)
@@ -20189,7 +20252,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-30-5ffb3ba';
+const BUILD_VERSION = '2026-06-30-290dbb6';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

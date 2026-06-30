@@ -394,3 +394,38 @@ function confirmDialog({ title, body, cancelLabel = (typeof t === 'function' ? t
     setTimeout(() => overlay.querySelector('[data-cd="ok"]')?.focus(), 30);
   });
 }
+
+// Graceful fallback shown when AI extraction is unavailable: the worker
+// normalizes Anthropic 429/529/503 to code:'capacity' (and the per-IP daily
+// cap to code:'daily_cap'). The pilot's hours are never lost — the copy
+// reassures and points to the other import paths (iCal / CSV / manual entry).
+// Single dismiss; we deliberately don't wire fabricated routing buttons.
+function showImportFallback(code) {
+  const isDaily = code === 'daily_cap';
+  const title = (typeof t === 'function')
+    ? t(isDaily ? 'import.dailyCap.title' : 'import.capacity.title') : 'Extraction unavailable';
+  const body = (typeof t === 'function')
+    ? t(isDaily ? 'import.dailyCap.desc' : 'import.capacity.desc') : '';
+  const overlay = document.createElement('div');
+  overlay.className = 'import-overlay show';
+  overlay.dataset.importFallback = '1';
+  overlay.innerHTML = `
+    <div class="import-modal" style="max-width:440px;">
+      <div class="import-modal-head">
+        <div><div class="t-headline">${esc(title)}</div></div>
+      </div>
+      <div class="import-modal-body" style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">${esc(body)}</div>
+      <div class="import-modal-foot">
+        <button class="btn btn-primary" data-if="ok" autofocus>${esc(typeof t === 'function' ? t('btn.close') : 'Close')}</button>
+      </div>
+    </div>
+  `;
+  const cleanup = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') cleanup(); };
+  overlay.addEventListener('click', e => {
+    if (e.target.closest('[data-if="ok"]') || e.target === overlay) cleanup();
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.querySelector('[data-if="ok"]')?.focus(), 30);
+}

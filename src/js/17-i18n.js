@@ -421,6 +421,10 @@ const STRINGS = {
  'import.aiBox.extracting': 'EXTRACTING FLIGHTS...',
  'import.ai.noFlights': 'No completed flights found in this PDF.',
  'import.ai.failed': 'Could not read this PDF. Please try again, or use CSV / iCal import.',
+ 'import.capacity.title': 'Automatic extraction is at full capacity',
+ 'import.capacity.desc': 'Your hours aren’t lost. Try again in a few minutes, or add your flights another way — just as valid.',
+ 'import.dailyCap.title': 'Daily extraction limit reached',
+ 'import.dailyCap.desc': 'You’ve reached today’s automatic-extraction limit. You can continue with iCal sync, a CSV file, or manual entry.',
  'import.recent.fromSrc': '{n} {w} from {src}',
  'import.recent.fileSrc': 'file',
  // ─── iCal roster sync UI (08-flight-form.js)
@@ -1431,6 +1435,10 @@ const STRINGS = {
  'import.aiBox.extracting': 'EXTRACTION DES VOLS…',
  'import.ai.noFlights': 'Aucun vol complété trouvé dans ce PDF.',
  'import.ai.failed': 'Impossible de lire ce PDF. Réessayez ou utilisez l’import CSV / iCal.',
+ 'import.capacity.title': 'L’extraction automatique est à pleine capacité',
+ 'import.capacity.desc': 'Vos heures ne sont pas perdues. Réessayez dans quelques minutes, ou ajoutez vos vols autrement — c’est tout aussi valide.',
+ 'import.dailyCap.title': 'Limite d’extractions atteinte pour aujourd’hui',
+ 'import.dailyCap.desc': 'Vous avez atteint le nombre d’extractions automatiques pour aujourd’hui. Vous pouvez continuer avec la synchro iCal, un fichier CSV, ou la saisie manuelle.',
  'import.recent.fromSrc': '{n} {w} depuis {src}',
  'import.recent.fileSrc': 'fichier',
  // ─── Interface de synchro iCal (08-flight-form.js)
