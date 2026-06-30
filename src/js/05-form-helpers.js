@@ -253,6 +253,10 @@ function saveFlight(options) {
     ? recalculateFlightDayNightXC(flight)
     : flight;
 
+  // Capture before editingId is cleared below — used to prompt for a PPC/LOFT
+  // date confirmation only on NEW entries (never on edits).
+  const wasNewEntry = !editingId;
+
   if (editingId) {
     const idx = flights.findIndex(f => f.id === editingId);
     if (idx !== -1) {
@@ -303,6 +307,17 @@ function saveFlight(options) {
     // Focus the next-likely-changed field (Route) so the pilot can type immediately.
     setTimeout(() => document.getElementById('f-route')?.focus(), 30);
     return;
+  }
+
+  // Protective (Martin 2026-06-30): after logging a NEW PPC or LOFT, prompt the
+  // pilot to confirm/update their PPC valid-until date so currency never drifts
+  // silently. Cumulo NEVER computes the date — the interval depends on the
+  // operator's approved training program (registre CAR 705.113(2)(c) AQP). The
+  // pilot attests it. Edits and add-another legs don't re-prompt.
+  if (wasNewEntry && finalFlight.isSim &&
+      (finalFlight.simType === 'PPC' || finalFlight.simType === 'LOFT') &&
+      typeof promptConfirmPPCDate === 'function') {
+    promptConfirmPPCDate(finalFlight.simType);
   }
 
   showPage('logbook');

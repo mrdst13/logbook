@@ -429,3 +429,52 @@ function showImportFallback(code) {
   document.body.appendChild(overlay);
   setTimeout(() => overlay.querySelector('[data-if="ok"]')?.focus(), 30);
 }
+
+// Protective PPC/LOFT date confirmation (Martin 2026-06-30). Fired right after a
+// pilot logs a NEW PPC or LOFT (see saveFlight). It asks the pilot to confirm or
+// update the date their PPC stays valid until — Cumulo NEVER computes it (the
+// interval depends on the operator's approved training program; see registre
+// CAR 705.113). The field is pre-filled with the existing ppcDueDate so an
+// unchanged value is kept; the pilot attests any change. Merge-save only.
+function promptConfirmPPCDate(simType) {
+  const tr = (k, v) => (typeof t === 'function') ? t(k, v) : k;
+  const prof = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  const current = prof.ppcDueDate || '';
+  const kind = simType === 'LOFT' ? 'LOFT' : 'PPC';
+  const overlay = document.createElement('div');
+  overlay.className = 'import-overlay show';
+  overlay.dataset.ppcPrompt = '1';
+  overlay.innerHTML = `
+    <div class="import-modal" style="max-width:440px;">
+      <div class="import-modal-head"><div><div class="t-headline">${esc(tr('ppcPrompt.title', { kind }))}</div></div></div>
+      <div class="import-modal-body" style="font-size:13.5px;color:var(--text-secondary);line-height:1.55;">
+        ${esc(tr('ppcPrompt.body'))}
+        <div style="margin-top:14px;">
+          <label for="ppcPromptDate" style="display:block;font-weight:600;margin-bottom:6px;color:var(--text-primary);">${esc(tr('ppcPrompt.fieldLabel'))}</label>
+          <input type="date" id="ppcPromptDate" value="${esc(current)}" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font:inherit;background:var(--surface);color:var(--text-primary);">
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.5;">${esc(tr('ppcPrompt.note'))}</div>
+      </div>
+      <div class="import-modal-foot">
+        <button class="btn btn-ghost" data-ppc="later">${esc(tr('ppcPrompt.later'))}</button>
+        <button class="btn btn-primary" data-ppc="save">${esc(tr('ppcPrompt.save'))}</button>
+      </div>
+    </div>`;
+  const cleanup = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const doSave = () => {
+    const v = overlay.querySelector('#ppcPromptDate')?.value || '';
+    if (v && typeof DB !== 'undefined' && DB.saveProfile && DB.loadProfile) {
+      DB.saveProfile({ ...(DB.loadProfile() || {}), ppcDueDate: v });
+      if (typeof showToast === 'function') showToast(tr('ppcPrompt.saved'), 'success');
+    }
+    cleanup();
+  };
+  const onKey = (e) => { if (e.key === 'Escape') cleanup(); if (e.key === 'Enter') doSave(); };
+  overlay.addEventListener('click', e => {
+    if (e.target.closest('[data-ppc="save"]')) { doSave(); return; }
+    if (e.target.closest('[data-ppc="later"]') || e.target === overlay) cleanup();
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.querySelector('#ppcPromptDate')?.focus(), 30);
+}
