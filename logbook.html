@@ -4764,8 +4764,8 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  the table stays fully visible below while toggling columns. -->
  <div class="column-menu" id="columnMenu" onclick="event.stopPropagation()">
  <div class="column-menu-head">
- <div class="t-headline">Visible columns</div>
- <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button">Reset</button>
+ <div class="t-headline" data-i18n="lb.cols.visible">Visible columns</div>
+ <button class="btn btn-ghost btn-sm" onclick="resetColumnPrefs()" type="button" data-i18n="lb.cols.reset">Reset</button>
  </div>
  <div id="columnPicker"></div>
  </div>
@@ -4838,7 +4838,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="form-group">
  <label data-i18n="flight.simInstructor">Instructor / Examiner</label>
- <input type="text" id="f-simInstructor" placeholder="Captain name or examiner #">
+ <input type="text" id="f-simInstructor" placeholder="Captain name or examiner #" data-i18n-placeholder="flight.simInstructor.ph">
  </div>
  </div>
  </div>
@@ -5335,7 +5335,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <div class="card" style="margin-bottom:16px">
  <div class="card-header">
- <input type="text" class="search-input" placeholder="Search abbreviation or definition..." oninput="filterGlossary(this.value)" id="glossarySearch">
+ <input type="text" class="search-input" placeholder="Search abbreviation or definition..." oninput="filterGlossary(this.value)" id="glossarySearch" data-i18n-placeholder="qa.glossarySearchPh">
  </div>
  <div id="glossaryList" style="padding:6px 0">
  <div class="glossary-item" id="glossaryLoading"><div class="glossary-abbr">—</div><div class="glossary-def" style="color:var(--text-muted)">Loading definitions…</div></div>
@@ -5459,11 +5459,11 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-grid">
  <div class="form-group">
  <label data-i18n="profile.fname">First name</label>
- <input type="text" id="p-fname" placeholder="First name">
+ <input type="text" id="p-fname" placeholder="First name" data-i18n-placeholder="profile.fname">
  </div>
  <div class="form-group">
  <label data-i18n="profile.lname">Last name</label>
- <input type="text" id="p-lname" placeholder="Last name">
+ <input type="text" id="p-lname" placeholder="Last name" data-i18n-placeholder="profile.lname">
  </div>
  <div class="form-group">
  <label data-i18n="profile.rank">Title / rank</label>
@@ -15253,6 +15253,10 @@ const STRINGS = {
  'flight.entrySim': 'Simulator session',
  'flight.simDetails': 'Simulator Details',
  'flight.simInstructor': 'Instructor / Examiner',
+ 'flight.simInstructor.ph': 'Captain name or examiner #',
+ 'lb.cols.visible': 'Visible columns',
+ 'lb.cols.reset': 'Reset',
+ 'qa.glossarySearchPh': 'Search abbreviation or definition...',
  'flight.flightInfo': 'Flight Information',
  'flight.timeCard': 'Time',
  'flight.meCard': 'Multi-Engine Time',
@@ -16265,6 +16269,10 @@ const STRINGS = {
  'lb.empty': 'Aucun vol enregistré. Importez un horaire ou inscrivez votre premier vol.',
  'flight.entryFlight': 'Vol',
  'flight.entrySim': 'Séance simulateur',
+ 'flight.simInstructor.ph': 'Nom du commandant ou n° d’examinateur',
+ 'lb.cols.visible': 'Colonnes visibles',
+ 'lb.cols.reset': 'Réinitialiser',
+ 'qa.glossarySearchPh': 'Rechercher une abréviation ou une définition…',
  'flight.simDetails': 'Détails simulateur',
  'flight.simInstructor': 'Instructeur / Examinateur',
  'flight.flightInfo': 'Renseignements du vol',
@@ -20252,7 +20260,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-30-290dbb6';
+const BUILD_VERSION = '2026-06-30-a913ffa';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
