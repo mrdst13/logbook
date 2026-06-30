@@ -29,6 +29,7 @@
 
 const OPENING_BALANCES_KEY = 'cumulo_opening_balances_v1';
 const OPENING_ATTEST_LOG_KEY = 'cumulo_opening_attest_log_v1';
+const OPENING_DRAFT_KEY = 'cumulo_opening_draft_v1';
 
 // ─── Page field schema ────────────────────────────────────────────
 // Mirrors LOGBOOK_COLUMNS groups + adds top-level career aggregates.
@@ -55,12 +56,25 @@ function _bfPageGroups() {
         { key: 'pic',        labelEn: 'PIC — Pilot in Command',    labelFr: 'PIC — Pilote aux commandes',             aggregate: true },
         { key: 'sic',        labelEn: 'SIC — Co-Pilot / Second',  labelFr: 'SIC — Co-pilote / Second',               aggregate: true },
         { key: 'dualRcvd',   labelEn: 'Dual Received',            labelFr: 'Double reçu',                            aggregate: true },
-        { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
         { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Vol-voyage (XC)',                        aggregate: true },
         { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multimoteur',                            aggregate: true },
         { key: 'heli',       labelEn: 'Helicopter',                labelFr: 'Hélicoptère',                            aggregate: true },
-        { key: 'dualGiven',  labelEn: 'Dual Given (instructor)',  labelFr: 'Instruction donnée (CFI)',                aggregate: true },
+      ],
+    },
+    // ── Advanced credits (folded) — PICUS sat in the career grid and read like
+    // another total to ADD, the classic double-count trap. Folded out, with an
+    // explicit "already counted" note. dualGiven (instructor) lives here too.
+    {
+      id: 'advanced',
+      titleEn: 'Advanced credits',
+      titleFr: 'Crédits avancés',
+      descEn: 'PICUS is already counted within your PIC and your total time — don\'t enter it twice. Dual given is instructor time toward ATPL experience (Standard 421).',
+      descFr: 'Le PICUS est déjà compté dans votre PIC et votre temps total — ne le comptez pas deux fois. L\'instruction donnée est du temps instructeur compté vers l\'expérience ATPL (Norme 421).',
+      open: false,
+      fields: [
+        { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
+        { key: 'dualGiven',  labelEn: 'Dual given (instructor)',  labelFr: 'Instruction donnée (instructeur)',        aggregate: true },
       ],
     },
     // ── Conditions ──
@@ -367,6 +381,75 @@ function openingBalanceSummary() {
     : `${fmtted} hrs carried forward · attested ${attDate}`;
 }
 
+// Dashboard brought-forward banner — three states, rendered into the existing
+// #broughtForwardBanner container by renderDashboard():
+//   • attested  → "Declaration sealed and verified" + plain-language seal, with
+//                 the SHA-256 fingerprint hidden behind a disclosure (never raw
+//                 on the surface) + an Edit affordance. This reveal IS the
+//                 retention payoff (career total now reflects declared hours).
+//   • draft     → "Draft — not yet attested" + Resume.
+//   • brand-new → the discovery invitation (no flights yet, nothing declared).
+//   • otherwise → hidden (don't nag an established user).
+function _dashRenderBfBanner(hasFlights) {
+  const banner = document.getElementById('broughtForwardBanner');
+  if (!banner) return;
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const rec = loadOpeningBalances();
+  const attested = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+  const draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
+  const draftPending = !!draft && (!rec.attestedAt || (draft.savedAt && draft.savedAt > rec.attestedAt));
+
+  if (attested) {
+    const summary = (typeof openingBalanceSummary === 'function') ? (openingBalanceSummary() || '') : '';
+    const hash = rec.hash || '';
+    banner.style.display = 'block';
+    banner.style.borderColor = 'var(--success, var(--accent))';
+    banner.innerHTML = `
+      <div style="display:flex;gap:11px;align-items:flex-start;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success, var(--accent))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Déclaration scellée et vérifiée' : 'Declaration sealed and verified'}</div>
+          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux sont enregistrés. Si un seul chiffre changeait après la signature, le sceau le détecterait.' : 'Your totals are saved. If a single number changed after signing, the seal would detect it.'}</div>
+          ${summary ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">${esc(summary)}</div>` : ''}
+          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Voir l\'empreinte technique' : 'View the technical fingerprint'}</summary><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);word-break:break-all;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">SHA-256 · ${esc(hash)}</div></details>` : ''}
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
+      </div>`;
+    return;
+  }
+
+  if (draftPending) {
+    const savedStr = draft.savedAt
+      ? new Date(draft.savedAt).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+      : null;
+    banner.style.display = 'block';
+    banner.style.borderColor = 'var(--warning, var(--accent))';
+    banner.innerHTML = `
+      <div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Brouillon — pas encore attesté' : 'Draft — not yet attested'}</div>
+          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;">${fr ? 'Vous avez commencé à déclarer vos heures. Rien n\'est officiellement enregistré tant que vous n\'avez pas signé.' : 'You\'ve started declaring your hours. Nothing is officially recorded until you sign.'}${savedStr ? (fr ? ` Dernière sauvegarde : ${savedStr}.` : ` Last saved: ${savedStr}.`) : ''}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Reprendre où j\'étais' : 'Resume where I left off'}</button>
+      </div>`;
+    return;
+  }
+
+  if (!hasFlights) {
+    banner.style.display = 'flex';
+    banner.style.borderColor = 'var(--accent)';
+    banner.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;">${(typeof t === 'function') ? t('dash.brought.title') : 'Have a paper logbook?'}</div>
+        <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;">${(typeof t === 'function') ? t('dash.brought.desc') : ''}</div>
+      </div>
+      <button class="btn btn-primary" onclick="showPage('bf')">${(typeof t === 'function') ? t('dash.brought.cta') : 'Declare totals'}</button>`;
+    return;
+  }
+
+  banner.style.display = 'none';
+}
+
 // ───────────────────────────────────────────────────────────────────
 // UI — Settings section card (summary + "Open" button)
 // ───────────────────────────────────────────────────────────────────
@@ -376,6 +459,15 @@ function renderOpeningBalancesSection(containerId) {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const hasAny = hasOpeningBalances();
   const summary = openingBalanceSummary();
+  const _draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
+  const _rec2 = loadOpeningBalances();
+  const _draftPending = !!_draft && (!_rec2.attestedAt || (_draft.savedAt && _draft.savedAt > _rec2.attestedAt));
+  const _draftSavedStr = (_draftPending && _draft.savedAt)
+    ? new Date(_draft.savedAt).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+    : null;
+  const draftBadgeHtml = _draftPending
+    ? `<div style="font-size:12px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:7px 10px;margin-bottom:8px;"><strong>${fr ? 'Brouillon — pas encore attesté' : 'Draft — not yet attested'}</strong>${_draftSavedStr ? (fr ? ` · dernière sauvegarde ${_draftSavedStr}` : ` · last saved ${_draftSavedStr}`) : ''}</div>`
+    : '';
 
   const summaryHtml = hasAny
     ? `<div style="font-size:13px;color:var(--text);"><strong>${esc(summary)}</strong></div>
@@ -384,7 +476,13 @@ function renderOpeningBalancesSection(containerId) {
            ? 'Modifier exige une nouvelle attestation. L\'ancienne est archivée dans le journal d\'audit.'
            : 'Editing requires a new attestation. The previous one is archived in the audit log.'
        }</div>`
-    : `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">${
+    : _draftPending
+      ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">${
+         fr
+           ? 'Brouillon en cours — vos valeurs sont conservées. Rien n\'est officiellement enregistré tant que vous n\'avez pas signé.'
+           : 'Draft in progress — your values are kept. Nothing is officially recorded until you sign.'
+       }</div>`
+      : `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">${
          fr
            ? 'Aucun total reporté déclaré. Si vous avez un carnet papier ou un ancien système électronique, déclarez vos totaux ici. Ils s\'ajouteront aux vols Cumulo sur le Tableau de bord, le Carnet et l\'export PDF TC.'
            : 'No brought-forward totals declared. If you have a paper logbook or a prior electronic system, declare your cumulative totals here. They\'ll be added to in-Cumulo flights on the Dashboard, Logbook table and TC PDF export.'
@@ -392,12 +490,15 @@ function renderOpeningBalancesSection(containerId) {
 
   const ctaLabel = hasAny
     ? (fr ? 'Modifier les heures reportées' : 'Edit brought-forward totals')
-    : (fr ? 'Déclarer les heures reportées'  : 'Declare brought-forward totals');
+    : _draftPending
+      ? (fr ? 'Reprendre où j\'étais' : 'Resume where I left off')
+      : (fr ? 'Déclarer les heures reportées'  : 'Declare brought-forward totals');
   const ctaClass = hasAny ? 'btn btn-outline' : 'btn btn-primary';
   const cardTitle = fr ? 'Heures reportées (carnet papier)' : 'Brought-forward hours (paper logbook)';
 
   el.innerHTML = `
     <div class="form-card-title">${esc(cardTitle)}</div>
+    ${draftBadgeHtml}
     ${summaryHtml}
     <div style="display:flex;gap:var(--s-2);margin-top:var(--s-4);flex-wrap:wrap;">
       <button class="${ctaClass}" onclick="openOpeningBalancesEditor()">${esc(ctaLabel)}</button>
@@ -465,7 +566,11 @@ function renderBroughtForwardPage() {
   if (!container) return;
 
   const _rec = loadOpeningBalances();
-  const balances = _rec.balances;
+  // A saved (unsigned) draft takes precedence for pre-fill so the pilot resumes
+  // exactly where they left off; the attested record wins only if it's newer.
+  const _draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
+  const _useDraft = !!_draft && (!_rec.attestedAt || (_draft.savedAt && _draft.savedAt > _rec.attestedAt));
+  const balances = _useDraft ? (_draft.balances || {}) : _rec.balances;
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
@@ -473,7 +578,7 @@ function renderBroughtForwardPage() {
   // first visit; keep the pilot's saved value on return. Never re-default once set.
   const _todayISO = new Date().toISOString().slice(0, 10);
   const _yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const cutoffDefault = _rec.cutoffDate || _yesterdayISO;
+  const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || _yesterdayISO;
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
@@ -511,10 +616,12 @@ function renderBroughtForwardPage() {
   // (no duplicate ids); every other key keeps its grid. Both modes stay in the
   // DOM (toggle is CSS show/hide), so commit reads every input — no value lost.
   const careerHtml = renderGroup(groups.find(g => g.id === 'career'));
+  const advancedHtml = renderGroup(groups.find(g => g.id === 'advanced'));
   const detailGroupsHtml = groups
-    .filter(g => !['career', 'engine', 'xc'].includes(g.id))
+    .filter(g => !['career', 'engine', 'xc', 'advanced'].includes(g.id))
     .map(renderGroup).join('');
   const logbookTableHtml = _bfLogbookTableHtml(balances, fr);
+  const columnRefHtml = _bfColumnReferenceHtml(fr);
 
   const profileName = `${profile.fname || ''} ${profile.lname || ''}`.trim();
   const todayStr = new Date().toLocaleDateString(fr ? 'fr-CA' : 'en-CA',
@@ -551,6 +658,7 @@ function renderBroughtForwardPage() {
           ? 'La plupart des pilotes n\'ont besoin que de la section <em>Totaux carrière</em> ci-dessous. Les sections de détail sont optionnelles — ouvrez seulement ce que votre carnet papier suivait.'
           : 'Most pilots only need the <em>Career totals</em> section below. The detail sections are optional — only open what your paper logbook actually tracked.'}</p>
         ${hasAny && attestedStr ? `<div class="bf-attest-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${fr ? `Attestées le ${attestedStr}` : `Attested ${attestedStr}`}</div>` : ''}
+        ${_useDraft ? `<div style="margin-top:8px;font-size:12px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:8px 10px;">${fr ? 'Vous reprenez un brouillon — pas encore attesté. Vos valeurs sont conservées ; rien n\'est attesté tant que vous n\'avez pas signé.' : 'You\'re resuming a draft — not yet attested. Your values are kept; nothing is attested until you sign.'}</div>` : ''}
       </div>
     </div>
 
@@ -581,9 +689,11 @@ function renderBroughtForwardPage() {
 
     <div id="bf-mode-totals" class="bf-groups-wrap">
       ${careerHtml}
+      ${advancedHtml}
     </div>
     <div id="bf-mode-paper" class="bf-groups-wrap" style="display:none">
       ${logbookTableHtml}
+      ${columnRefHtml}
       ${detailGroupsHtml}
     </div>
 
@@ -605,6 +715,7 @@ function renderBroughtForwardPage() {
       </div>
       <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
         <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Attester' : 'Attest'}</button>
+        <button class="btn btn-ghost" onclick="saveOpeningDraft()">${fr ? 'Enregistrer le brouillon' : 'Save draft'}</button>
         <button class="btn btn-ghost" onclick="showPage('dash')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
@@ -649,6 +760,46 @@ function _bfLogbookTableHtml(balances, fr) {
     </table></div>`;
 }
 
+// Column reference (read-only, collapsible) for the paper-logbook mode. Clarifies
+// the non-obvious mappings — where Dual Received routes, the XC by-function columns
+// that other apps drop, official instrument terminology — WITHOUT inventing TP 14052
+// header names (uses the same category structure the input table already mirrors,
+// validated against a real TC paper logbook).
+function _bfColumnReferenceHtml(fr) {
+  const rows = fr ? [
+    ['Monomoteur — Jour/Nuit (Double, PIC)', 'SE — Jour/Nuit, colonnes Double et PIC', 'Le « Double reçu » se classe sous Double, jamais sous PIC.'],
+    ['Multimoteur — Jour/Nuit (Double, PIC, Copilote)', 'ME — par fonction (jour + nuit)', '—'],
+    ['Vol-voyage (XC) — Jour/Nuit (Double, PIC, Copilote)', 'XC par fonction (jour + nuit)', 'Les colonnes Double et PIC du vol-voyage sont incluses (souvent absentes ailleurs).'],
+    ['Instruments — Réel · Sous dispositif · Sim · Approches', 'Réel · Sous dispositif limitant la vue · Simulateur · Approches', '« Sous dispositif limitant la vue » = terme officiel de Transport Canada.'],
+    ['Décollages / Atterrissages — Jour, Nuit', 'Décollages / Atterrissages, jour et nuit', 'Un compte, pas des heures.'],
+    ['PICUS', 'Crédits avancés → PICUS', 'Déjà compté dans votre PIC et votre total — ne le saisissez pas deux fois.'],
+  ] : [
+    ['Single-engine — Day/Night (Dual, PIC)', 'SE — Day/Night, Dual and PIC columns', 'Dual received routes under Dual, never under PIC.'],
+    ['Multi-engine — Day/Night (Dual, PIC, Co-pilot)', 'ME — by function (day + night)', '—'],
+    ['Cross-country (XC) — Day/Night (Dual, PIC, Co-pilot)', 'XC by function (day + night)', 'The XC Dual and PIC columns are included (often dropped elsewhere).'],
+    ['Instruments — Actual · Hood · Sim · Approaches', 'Actual · Under view-limiting device · Simulator · Approaches', '"Under view-limiting device" is the official Transport Canada term.'],
+    ['Take-offs / Landings — Day, Night', 'Take-offs / Landings, day and night', 'A count, not hours.'],
+    ['PICUS', 'Advanced credits → PICUS', 'Already counted within your PIC and total — don\'t enter it twice.'],
+  ];
+  const head = fr ? ['Votre carnet papier', 'Dans Cumulo', 'À noter'] : ['Your paper logbook', 'In Cumulo', 'Note'];
+  const thCss = 'text-align:left;padding:7px 9px;border-bottom:1px solid var(--border,rgba(20,40,70,.14));font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);font-weight:600;';
+  const tdMuted = 'padding:7px 9px;border-bottom:0.5px solid var(--border,rgba(20,40,70,.10));color:var(--text-muted);vertical-align:top;';
+  const tdStrong = 'padding:7px 9px;border-bottom:0.5px solid var(--border,rgba(20,40,70,.10));color:var(--text);font-weight:600;vertical-align:top;';
+  const body = rows.map(r =>
+    `<tr><td style="${tdMuted}">${esc(r[0])}</td><td style="${tdStrong}">${esc(r[1])}</td><td style="${tdMuted}">${esc(r[2])}</td></tr>`).join('');
+  return `
+    <details class="bf-group">
+      <summary class="bf-group-summary">
+        <svg class="bf-group-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        <span class="bf-group-title">${fr ? 'Référence des colonnes — votre carnet papier ↔ Cumulo' : 'Column reference — your paper logbook ↔ Cumulo'}</span>
+      </summary>
+      <div style="overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr><th style="${thCss}">${esc(head[0])}</th><th style="${thCss}">${esc(head[1])}</th><th style="${thCss}">${esc(head[2])}</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+    </details>`;
+}
+
 // Toggle the two brought-forward modes (CSS show/hide — all inputs stay in the
 // DOM so saving never drops a value).
 function _bfSetMode(mode) {
@@ -666,6 +817,57 @@ function _bfSetMode(mode) {
   if (cap) cap.textContent = paper
     ? (fr ? 'Disposition miroir du carnet papier de Transport Canada — transcrivez vos colonnes telles quelles.' : 'Mirrors the Transport Canada paper logbook layout — transcribe your columns as they are.')
     : (fr ? 'Saisie rapide : vos grands totaux par catégorie. La plupart des pilotes n\'ont besoin que de ça.' : 'Quick entry: your grand totals per category. Most pilots only need this.');
+}
+
+// Collect every brought-forward input into a sparse balances object (zero/empty
+// → omitted). Shared by attestation (commit) and the unsigned draft, so both
+// read the inputs identically. Mirrors Total → Block for the Dashboard hero.
+function _bfCollectCurrentBalances() {
+  const balances = {};
+  _bfAllKeys().forEach(k => {
+    const el = document.getElementById('ob-' + k);
+    if (!el) return;
+    const v = +el.value || 0;
+    if (v > 0) balances[k] = v;
+  });
+  if ((+balances.total || 0) > 0 && !(+balances.block || 0)) balances.block = balances.total;
+  return balances;
+}
+
+// Draft = work-in-progress totals saved WITHOUT signing. Nothing is officially
+// recorded (no hash, no audit entry) until the pilot attests. Kept in a separate
+// key so an unsigned draft can never be mistaken for a signed attestation.
+function loadOpeningDraft() {
+  try {
+    const raw = localStorage.getItem(OPENING_DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return (d && typeof d === 'object' && d.balances) ? d : null;
+  } catch (e) { return null; }
+}
+function clearOpeningDraft() {
+  try { localStorage.removeItem(OPENING_DRAFT_KEY); } catch (e) {}
+}
+function saveOpeningDraft() {
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const cutoffEl = document.getElementById('ob-cutoff-date');
+  const draft = {
+    balances: _bfCollectCurrentBalances(),
+    cutoffDate: (cutoffEl && cutoffEl.value || '').trim() || null,
+    savedAt: new Date().toISOString(),
+  };
+  try {
+    localStorage.setItem(OPENING_DRAFT_KEY, JSON.stringify(draft));
+  } catch (e) {
+    console.error('[OpeningBalances] draft save failed:', e);
+    if (typeof showToast === 'function') showToast(
+      fr ? 'Échec de l\'enregistrement du brouillon.' : 'Could not save the draft.', 'error');
+    return;
+  }
+  if (typeof showToast === 'function') showToast(
+    fr ? 'Brouillon enregistré. Rien n\'est attesté tant que vous n\'avez pas signé.'
+       : 'Draft saved. Nothing is attested until you sign.', 'success');
+  if (typeof renderOpeningBalancesSection === 'function') renderOpeningBalancesSection('openingBalancesSection');
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -709,19 +911,8 @@ async function commitOpeningBalances() {
     return;
   }
 
-  // Collect values from each input. Zero / empty → not persisted (sparse).
-  const balances = {};
-  _bfAllKeys().forEach(k => {
-    const el = document.getElementById('ob-' + k);
-    if (!el) return;
-    const v = +el.value || 0;
-    if (v > 0) balances[k] = v;
-  });
-
-  // Mirror Total → Block so Dashboard hero (prefers s.block) reflects BF.
-  if ((+balances.total||0) > 0 && !(+balances.block||0)) {
-    balances.block = balances.total;
-  }
+  // Collect values from each input (shared with the unsigned-draft path).
+  const balances = _bfCollectCurrentBalances();
 
   try {
     await saveOpeningBalances(balances, cutoffDate);
@@ -736,6 +927,9 @@ async function commitOpeningBalances() {
   if (typeof showToast === 'function') showToast(
     fr ? 'Totaux reportés attestés et sauvegardés.' : 'Brought-forward totals attested and saved.',
     'success');
+
+  // Attestation supersedes any unsigned draft — clear it so it can't linger.
+  clearOpeningDraft();
 
   // Refresh visible surfaces.
   if (typeof renderDashboard === 'function') renderDashboard();

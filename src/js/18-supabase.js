@@ -116,6 +116,37 @@ const Auth = {
     await this.client.auth.signOut();
   },
 
+  // ── Account deletion (server-side, atomic) ──────────────────────────
+  // POSTs to the Worker's /delete-account endpoint with the user's VERIFIED
+  // access token. The Worker resolves the uid server-side and hard-deletes the
+  // auth user with the service-role key; ON DELETE CASCADE wipes the profile,
+  // flights and trusted_devices. Returns { error } on failure so the caller can
+  // ABORT before wiping local — we never half-delete (local gone, cloud alive).
+  async deleteAccount() {
+    if (!this.isReady()) return { error: { message: 'Auth not configured.' } };
+    const { data } = await this.client.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    if (!token) return { error: { message: 'Not signed in.' } };
+    let resp;
+    try {
+      resp = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-account', accessToken: token })
+      });
+    } catch (e) {
+      return { error: { message: 'Could not reach the deletion service.' } };
+    }
+    if (!resp.ok) {
+      let msg = 'Cloud deletion failed.';
+      try { const j = await resp.json(); if (j && j.error && j.error.message) msg = j.error.message; } catch {}
+      return { error: { message: msg } };
+    }
+    try { await this.client.auth.signOut(); } catch {}
+    this.session = null; this.user = null;
+    return { error: null };
+  },
+
   // ── Password reset (TODO: re-prompt TOTP before issuing session) ───
   async requestPasswordReset(email) {
     if (!this.isReady()) return { error: { message: 'Auth not configured.' } };

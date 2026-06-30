@@ -335,7 +335,11 @@ function saveProfile() {
     // loadProfile() for rationale.
     ppcDueDate: gv('p-ppc'),
   };
-  DB.saveProfile(p);
+  // Merge over the stored profile so fields set elsewhere (e.g. the personal
+  // goal from the dashboard drill-down: personalGoalHrs/Kind/Context) survive a
+  // profile save instead of being wiped. Fill-empty / never-overwrite rule.
+  // (Adversarially verified 2026-06-27.)
+  DB.saveProfile({ ...existing, ...p });
   updateProfileDisplay(p);
   // Note: we no longer sweep+anonymize local
   // flights when the toggle flips ON→OFF. Under the new model, full names

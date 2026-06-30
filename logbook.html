@@ -7029,12 +7029,9 @@ function renderDashboard() {
   const hasOpening = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
   document.body.classList.toggle('no-data', !hasFlights && !hasOpening);
 
-  // Discovery banner — only brand-new users see it.
-  const bfBanner = document.getElementById('broughtForwardBanner');
-  if (bfBanner) {
-    const isBrandNew = !hasFlights && !hasOpening;
-    bfBanner.style.display = isBrandNew ? 'flex' : 'none';
-  }
+  // Brought-forward banner — three states (attested seal with hidden integrity
+  // fingerprint / unsigned draft / brand-new invitation). See 20-opening-balances.js.
+  if (typeof _dashRenderBfBanner === 'function') _dashRenderBfBanner(hasFlights);
 
   // (3) Greeting bar — time-aware salutation + activity sub
   _dashRenderGreeting();
@@ -7828,10 +7825,10 @@ function _dashRenderNextColumn() {
     const needAppr = Math.max(0, 6 - ifr.approaches);
     const needHrs = Math.max(0, 6 - ifr.hours);
     const subFr = needAppr > 0 && needHrs > 0
-      ? `${needAppr} appr. + ${needHrs.toFixed(1)} h à faire · CAR 401.05(3.1)`
+      ? `${needAppr} appr. + ${needHrs.toFixed(1)} h à faire · RAC 401.05(3.1)`
       : needAppr > 0
-        ? `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · CAR 401.05(3.1)`
-        : `${needHrs.toFixed(1)} h instrument à faire · CAR 401.05(3.1)`;
+        ? `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · RAC 401.05(3.1)`
+        : `${needHrs.toFixed(1)} h instrument à faire · RAC 401.05(3.1)`;
     const subEn = needAppr > 0 && needHrs > 0
       ? `${needAppr} appr + ${needHrs.toFixed(1)} h to go · CAR 401.05(3.1)`
       : needAppr > 0
@@ -7846,7 +7843,7 @@ function _dashRenderNextColumn() {
     const need = 5 - ldgCount;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
       title: fr ? `Validité passagers · ${ldgCount}/5 att.` : `Passenger recency · ${ldgCount}/5 ldg`,
-      sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · CAR 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
+      sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · RAC 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
       chip: 'REC',
       onclick: "openDashDrill('recency')" });
   } else if (medDays !== null && medDays <= 60) {
@@ -8705,6 +8702,17 @@ function setEntryType(type) {
   document.getElementById('entryTypeFlight').classList.toggle('is-active', type === 'flight');
   document.getElementById('entryTypeSim').classList.toggle('is-active', type === 'sim');
   document.getElementById('simFields').style.display = type === 'sim' ? 'block' : 'none';
+  // Lock the Flight/Sim toggle while EDITING an existing entry. Changing the
+  // type on save forces a real flight's block time to 0 (sim has block:0) and
+  // the merge would wipe the pilot's logged hours — silent data loss. A logged
+  // entry's type is part of the record; delete + re-add to reclassify. New
+  // entries keep the toggle enabled. (Adversarially verified 2026-06-27.)
+  [document.getElementById('entryTypeFlight'), document.getElementById('entryTypeSim')].forEach(function (b) {
+    if (!b) return;
+    b.disabled = !!editingId;
+    b.style.opacity = editingId ? '0.55' : '';
+    b.style.cursor = editingId ? 'not-allowed' : '';
+  });
   // Update form title
   const ft = document.getElementById('formTitle');
   if (ft && !editingId) ft.textContent = type === 'sim' ? t('form.title.logSim') : t('form.title.logFlight');
@@ -9954,7 +9962,11 @@ function saveProfile() {
     // loadProfile() for rationale.
     ppcDueDate: gv('p-ppc'),
   };
-  DB.saveProfile(p);
+  // Merge over the stored profile so fields set elsewhere (e.g. the personal
+  // goal from the dashboard drill-down: personalGoalHrs/Kind/Context) survive a
+  // profile save instead of being wiped. Fill-empty / never-overwrite rule.
+  // (Adversarially verified 2026-06-27.)
+  DB.saveProfile({ ...existing, ...p });
   updateProfileDisplay(p);
   // Note: we no longer sweep+anonymize local
   // flights when the toggle flips ON→OFF. Under the new model, full names
@@ -11306,7 +11318,12 @@ function onboardingNext() {
   }
 
   // ─── Final save ──────────────────────────────────────────────────
+  // Merge over any existing profile so fields set outside onboarding (PPC date,
+  // preferences, acConfigs…) aren't wiped if onboarding is ever re-run.
+  // (Adversarially verified 2026-06-27.)
+  const existing = DB.loadProfile() || {};
   const profile = {
+    ...existing,
     fname: onbData.fname,
     lname: onbData.lname,
     rank: onbData.rank,
@@ -12344,13 +12361,24 @@ async function deleteAccountPurge() {
     danger: true
   })) return;
 
-  // 1) If signed in to Supabase, mark account for deletion (server-side).
-  try {
-    if (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady() && Auth.deleteAccount) {
-      await Auth.deleteAccount();
+  // 1) If signed in, delete the CLOUD account FIRST (server-side). If it fails
+  //    we ABORT — wiping local while the cloud copy survives would half-delete
+  //    the account (and the cloud data would sync back on the next sign-in).
+  //    On failure nothing is deleted anywhere; the pilot can simply retry.
+  const signedIn = (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady()
+                    && Auth.isAuthenticated && Auth.isAuthenticated());
+  if (signedIn && Auth.deleteAccount) {
+    let r;
+    try {
+      r = await Auth.deleteAccount();
+    } catch (e) {
+      r = { error: { message: (e && e.message) || 'network error' } };
     }
-  } catch (e) {
-    console.warn('[Delete] cloud deletion request failed (will still wipe local):', e);
+    if (r && r.error) {
+      console.warn('[Delete] cloud deletion failed — aborting (nothing deleted):', r.error.message);
+      if (typeof showToast === 'function') showToast(t('toast.cloudDeleteFailed'), 'error');
+      return;
+    }
   }
 
   // 2) Wipe ALL local app keys (flights, profile, snapshots, prefs,
@@ -12994,25 +13022,25 @@ const FAQS = [
  q: 'How many landings do I need to stay current as PIC?',
  a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(2), you need 5 take-offs and 5 landings at night within the preceding 6 months.',
  qFr: 'Combien d\'atterrissages me faut-il pour rester valide comme PIC ?',
- aFr: 'Selon CAR 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon CAR 401.05(2), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
+ aFr: 'Selon RAC 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon RAC 401.05(2), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
  },
  {
  q: 'What is IFR recency and how long is it valid?',
  a: 'Under CAR 401.05(3.1), to act as PIC under IFR you must, within the preceding 6 months, have acquired 6 hours of instrument time AND completed 6 instrument approaches — in actual or simulated IMC in an aircraft, or in an approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.',
  qFr: 'Qu\'est-ce que la validité IFR et combien de temps est-elle bonne ?',
- aFr: 'Selon CAR 401.05(3.1), pour agir comme PIC en IFR, vous devez, dans les 6 mois précédents, avoir accumulé 6 heures de temps aux instruments ET effectué 6 approches aux instruments — en IMC réelle ou simulée en aéronef, ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
+ aFr: 'Selon RAC 401.05(3.1), pour agir comme PIC en IFR, vous devez, dans les 6 mois précédents, avoir accumulé 6 heures de temps aux instruments ET effectué 6 approches aux instruments — en IMC réelle ou simulée en aéronef, ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
  },
  {
  q: 'What are the currency rules for helicopter pilots?',
  a: 'Helicopter currency under CAR 401.05 mirrors fixed-wing: 5 take-offs and 5 landings in the preceding 6 months in the same category and class to carry passengers, plus 5 night TO/LDG in 6 months for night currency. Helicopter operations may also require additional currency for external load (CAR 702.21) and autorotation training, depending on operator and class of operation.',
  qFr: 'Quelles sont les règles de validité pour les pilotes d\'hélicoptère ?',
- aFr: 'La validité hélicoptère selon CAR 401.05 est calquée sur l\'aile fixe : 5 décollages et 5 atterrissages dans les 6 mois précédents dans la même catégorie et classe pour porter des passagers, plus 5 T/O et LDG de nuit en 6 mois pour la validité de nuit. Les opérations hélicoptère peuvent aussi exiger une validité additionnelle pour charge externe (CAR 702.21) et entraînement à l\'autorotation, selon l\'opérateur et la classe d\'opération.'
+ aFr: 'La validité hélicoptère selon RAC 401.05 est calquée sur l\'aile fixe : 5 décollages et 5 atterrissages dans les 6 mois précédents dans la même catégorie et classe pour porter des passagers, plus 5 T/O et LDG de nuit en 6 mois pour la validité de nuit. Les opérations hélicoptère peuvent aussi exiger une validité additionnelle pour charge externe (RAC 702.21) et entraînement à l\'autorotation, selon l\'opérateur et la classe d\'opération.'
  },
  {
  q: 'How often do I need to recur on type (PPC / IPC)?',
- a: 'Under CAR 705.106, air carrier operations require a valid Pilot Proficiency Check (PPC). The exact validity interval depends on your operation and is set out in the applicable CASS standard and your operator\'s approved training program — refer to it for the interval that applies to you. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
+ a: 'Under CAR 705, air carrier operations require a valid Pilot Proficiency Check (PPC). Its validity expires on the first day of the 7th month after the check (about 6 months), and extends to the first day of the 13th month (about 12 months) if you complete the approved six-month recurrent training under the Commercial Air Service Standards (CAR 705.113). Some operations may differ — your operator\'s approved training program governs. CAR 605.97 covers general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
  qFr: 'À quelle fréquence dois-je faire mon PPC / IPC sur type ?',
- aFr: 'Selon CAR 705.106, les opérations de transporteur aérien exigent un PPC (Pilot Proficiency Check) valide. L\'intervalle de validité exact dépend de votre exploitation et est défini dans la norme CASS applicable et le programme de formation approuvé de votre exploitant — référez-vous-y pour l\'intervalle qui s\'applique à vous. CAR 605.97 régit les exigences IPC générales. Plusieurs exploitants 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
+ aFr: 'Selon RAC 705, les opérations de transporteur aérien exigent un PPC (Pilot Proficiency Check) valide. Sa validité expire le 1er jour du 7e mois suivant le contrôle (environ 6 mois), et s\'étend au 1er jour du 13e mois (environ 12 mois) si vous complétez la formation périodique semestrielle approuvée selon les Normes de service aérien commercial (RAC 705.113). Certaines exploitations peuvent différer — le programme de formation approuvé de votre exploitant fait foi. RAC 605.97 couvre les exigences IPC générales. Plusieurs exploitants 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
  },
 
  // ── Logging conventions ───────────────────────────────────────────
@@ -13020,13 +13048,13 @@ const FAQS = [
  q: 'How do I count block time vs. flight time?',
  a: 'Block time (BLH) starts when the aircraft moves under its own power (chocks out / brakes released) and ends when it comes to rest at the gate (chocks in). Flight time starts at first movement for takeoff and ends at landing rollout. For airline operations, Transport Canada generally accepts block time for logbook purposes under CAR 401.08.',
  qFr: 'Comment compter le block time vs. flight time ?',
- aFr: 'Le block time (BLH) commence quand l\'aéronef bouge sous sa propre puissance (chocks out / freins relâchés) et se termine quand il s\'immobilise au stationnement (chocks in). Le flight time commence au premier mouvement pour décollage et se termine à la fin du roulage d\'atterrissage. Pour les opérations de transporteur aérien, Transports Canada accepte généralement le block time pour le carnet selon CAR 401.08.'
+ aFr: 'Le block time (BLH) commence quand l\'aéronef bouge sous sa propre puissance (chocks out / freins relâchés) et se termine quand il s\'immobilise au stationnement (chocks in). Le flight time commence au premier mouvement pour décollage et se termine à la fin du roulage d\'atterrissage. Pour les opérations de transporteur aérien, Transports Canada accepte généralement le block time pour le carnet selon RAC 401.08.'
  },
  {
  q: 'What is PICUS and when can I log it?',
  a: 'PICUS (Pilot in Command Under Supervision) is time logged by a co-pilot (F/O) when acting in the role of PIC under the supervision of a qualified captain. In Canada, this is recognized under CAR 401.08 and can be credited toward ATPL minimums. You may log PICUS only when you are the actual decision-maker for the flight under direct supervision.',
  qFr: 'Qu\'est-ce que le PICUS et quand puis-je l\'enregistrer ?',
- aFr: 'PICUS (Pilot in Command Under Supervision) est du temps enregistré par un copilote (F/O) quand il agit dans le rôle de PIC sous la supervision d\'un commandant qualifié. Au Canada, c\'est reconnu selon CAR 401.08 et peut être crédité vers les minimums ATPL. Vous ne pouvez enregistrer du PICUS que si vous êtes le décideur réel du vol sous supervision directe.'
+ aFr: 'PICUS (Pilot in Command Under Supervision) est du temps enregistré par un copilote (F/O) quand il agit dans le rôle de PIC sous la supervision d\'un commandant qualifié. Au Canada, c\'est reconnu selon RAC 401.08 et peut être crédité vers les minimums ATPL. Vous ne pouvez enregistrer du PICUS que si vous êtes le décideur réel du vol sous supervision directe.'
  },
  {
  q: 'What counts as "cross-country" time?',
@@ -13052,7 +13080,7 @@ const FAQS = [
  q: 'What medical class do airline pilots need and how often must I renew?',
  a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. Under CAR 404.04, a Category 1 is valid for 12 months, reduced to 6 months once you turn 60 — or at 40 and older if you fly single-pilot with passengers. Age is assessed at the date of the exam. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).',
  qFr: 'Quelle catégorie médicale est requise pour un pilote de ligne et à quelle fréquence renouveler ?',
- aFr: 'Les titulaires d\'ATPL opérant selon CAR 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Selon CAR 404.04, un Catégorie 1 est valide 12 mois, réduit à 6 mois dès 60 ans — ou à 40 ans et plus si vous volez en monopilote avec passagers. L\'âge est évalué à la date de l\'examen. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
+ aFr: 'Les titulaires d\'ATPL opérant selon RAC 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Selon RAC 404.04, un Catégorie 1 est valide 12 mois, réduit à 6 mois dès 60 ans — ou à 40 ans et plus si vous volez en monopilote avec passagers. L\'âge est évalué à la date de l\'examen. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
  },
  {
  q: 'When do I need an ECG for my medical?',
@@ -13080,7 +13108,7 @@ const FAQS = [
  q: 'How does Cumulo handle the OTHER pilot\'s name (captain or F/O)?',
  a: 'The rule is symmetric — whether you\'re F/O (the captain is the third party) or you\'re PIC (the F/O is the third party), the OTHER pilot is treated identically. Cumulo stores full names locally on your device — your logbook works exactly like a paper logbook (PIPEDA s.4(2)(b) and Loi 25 art. 1 personal-use exceptions). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i). Self-references (your own name, or the literal text "self" / "moi" — which TP 14052 explicitly accepts) are NEVER anonymized: they are not third-party data. Control via Profile → "Keep full crew names when syncing or sharing" (default OFF).',
  qFr: 'Comment Cumulo gère-t-il le nom de l\'AUTRE pilote (commandant ou F/O) ?',
- aFr: 'La règle est symétrique — que vous soyez F/O (le commandant est le tiers) ou PIC (le F/O est le tiers), l\'AUTRE pilote est traité identiquement. Cumulo stocke les noms complets localement sur votre appareil — votre carnet fonctionne exactement comme un carnet papier (LPRPDE art. 4(2)b) et Loi 25 art. 1 exceptions d\'usage personnel). L\'anonymisation en initiales (ex. « M.D. ») arrive seulement quand les données quittent votre appareil : synchro infonuagique, exports partageables, backups JSON. Les exports PDF pour TC contiennent toujours les noms complets — requis pour les contrôles au sol selon CAR 401.08 et permis selon LPRPDE art. 7(3)c.1)(i). Les auto-références (votre propre nom, ou le mot « self » / « moi » — que TP 14052 accepte explicitement) ne sont JAMAIS anonymisées : ce ne sont pas des données de tiers. Contrôle via Profile → « Keep full crew names when syncing or sharing » (par défaut OFF).'
+ aFr: 'La règle est symétrique — que vous soyez F/O (le commandant est le tiers) ou PIC (le F/O est le tiers), l\'AUTRE pilote est traité identiquement. Cumulo stocke les noms complets localement sur votre appareil — votre carnet fonctionne exactement comme un carnet papier (LPRPDE art. 4(2)b) et Loi 25 art. 1 exceptions d\'usage personnel). L\'anonymisation en initiales (ex. « M.D. ») arrive seulement quand les données quittent votre appareil : synchro infonuagique, exports partageables, backups JSON. Les exports PDF pour TC contiennent toujours les noms complets — requis pour les contrôles au sol selon RAC 401.08 et permis selon LPRPDE art. 7(3)c.1)(i). Les auto-références (votre propre nom, ou le mot « self » / « moi » — que TP 14052 accepte explicitement) ne sont JAMAIS anonymisées : ce ne sont pas des données de tiers. Contrôle via Profile → « Keep full crew names when syncing or sharing » (par défaut OFF).'
  },
  {
  q: 'Does iCal auto-sync capture crew names, or do I have to upload a PDF?',
@@ -13092,13 +13120,13 @@ const FAQS = [
  q: 'How long must I keep my logbook records?',
  a: 'CAR 401.08(5) requires that a personal logbook be retained for at least 5 years after the date of the last entry. For ATPL holders submitting an experience claim, all relevant entries must be available to TC inspectors on request. Cumulo backs up your data in localStorage and (once Supabase is wired) in the cloud — but a periodic PDF export to your own files is still recommended as a paper trail.',
  qFr: 'Combien de temps dois-je conserver mes enregistrements de carnet ?',
- aFr: 'CAR 401.08(5) exige qu\'un carnet personnel soit conservé au moins 5 ans après la date de la dernière entrée. Pour les titulaires d\'ATPL qui soumettent une demande d\'expérience, toutes les entrées pertinentes doivent être disponibles aux inspecteurs TC sur demande. Cumulo sauvegarde vos données dans localStorage et (une fois Supabase câblé) dans l\'infonuagique — mais un export PDF périodique vers vos propres fichiers reste recommandé comme trace papier.'
+ aFr: 'RAC 401.08(5) exige qu\'un carnet personnel soit conservé au moins 5 ans après la date de la dernière entrée. Pour les titulaires d\'ATPL qui soumettent une demande d\'expérience, toutes les entrées pertinentes doivent être disponibles aux inspecteurs TC sur demande. Cumulo sauvegarde vos données dans localStorage et (une fois Supabase câblé) dans l\'infonuagique — mais un export PDF périodique vers vos propres fichiers reste recommandé comme trace papier.'
  },
  {
  q: 'What will a TC ramp inspector want to see in my logbook?',
  a: 'A TC inspector will check that your logbook is current, complete, and matches the format described in CAR 401.08 + TP 14052. Specifically: chronological entries with date, aircraft type, registration, departure/arrival, flight time, PIC/SIC time, night time, IFR time, simulator time clearly separated, cumulative totals, and pilot signature. Cumulo\'s PDF export is designed to match this format exactly, with a cover page that includes your name, license number, medical expiry, and a signature line.',
  qFr: 'Qu\'est-ce qu\'un inspecteur TC au sol va vouloir voir dans mon carnet ?',
- aFr: 'Un inspecteur TC vérifiera que votre carnet est à jour, complet, et correspond au format décrit dans CAR 401.08 + TP 14052. Spécifiquement : entrées chronologiques avec date, type d\'aéronef, immatriculation, départ/arrivée, temps de vol, temps PIC/SIC, temps de nuit, temps IFR, temps simulateur clairement séparé, totaux cumulatifs, et signature du pilote. L\'export PDF de Cumulo est conçu pour correspondre exactement à ce format, avec une page couverture qui inclut votre nom, numéro de licence, expiration médicale, et une ligne de signature.'
+ aFr: 'Un inspecteur TC vérifiera que votre carnet est à jour, complet, et correspond au format décrit dans RAC 401.08 + TP 14052. Spécifiquement : entrées chronologiques avec date, type d\'aéronef, immatriculation, départ/arrivée, temps de vol, temps PIC/SIC, temps de nuit, temps IFR, temps simulateur clairement séparé, totaux cumulatifs, et signature du pilote. L\'export PDF de Cumulo est conçu pour correspondre exactement à ce format, avec une page couverture qui inclut votre nom, numéro de licence, expiration médicale, et une ligne de signature.'
  },
 
  // ── Importing from other airlines ─────────────────────────────────
@@ -13260,7 +13288,7 @@ const GLOSSARY = [
  ['Solo', 'Flight time without an instructor (typically student pilot)', 'Temps de vol sans instructeur (typiquement pilote en formation)'],
 
  // Time columns (CAR 401.08)
- ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Transport Canada generally accepts block time for logbook flight time under CAR 401.08.', 'Temps de chocks-out (démarrage / freins relâchés) à chocks-in. Transports Canada accepte généralement le block time comme temps de vol au carnet selon le CAR 401.08.'],
+ ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Transport Canada generally accepts block time for logbook flight time under CAR 401.08.', 'Temps de chocks-out (démarrage / freins relâchés) à chocks-in. Transports Canada accepte généralement le block time comme temps de vol au carnet selon le RAC 401.08.'],
  ['BLH', 'Block Hours — synonym for Block Time / Flight Time', 'Block Hours — synonyme de Block Time / temps de vol'],
  ['Air Time', 'Time from wheels-up to wheels-down. Used for aircraft maintenance, NOT for the pilot logbook', 'Temps de wheels-up à wheels-down. Utilisé pour la maintenance, PAS pour le carnet du pilote'],
  ['Duty Time', 'Time on duty — typically check-in to check-out, broader than block time', 'Temps en service — typiquement check-in à check-out, plus large que le block time'],
@@ -13282,18 +13310,18 @@ const GLOSSARY = [
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
  ['Inst Hood', 'Instrument time under a view-limiting device (training)', 'Temps aux instruments sous dispositif limitant la vue (entraînement)'],
  ['Inst Sim/FSTD', 'Instrument time in a Flight Simulation Training Device — logged SEPARATELY from flight time', 'Temps aux instruments dans un Flight Simulation Training Device — enregistré SÉPARÉMENT du temps de vol'],
- ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)', 'Une approche aux instruments à l\'atterrissage ou approche manquée (compte vers la validité IFR CAR 401.05 : 6 en 6 mois)'],
+ ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)', 'Une approche aux instruments à l\'atterrissage ou approche manquée (compte vers la validité IFR RAC 401.05 : 6 en 6 mois)'],
 
  // Landings & currency
  ['LDG', 'Landing', 'Atterrissage'],
  ['T/O', 'Take-off', 'Décollage'],
 
  // Simulator
- ['SIM', 'Simulator session — does NOT count as block time, logged separately per CAR 401.08', 'Session de simulateur — ne compte PAS comme block time, enregistré séparément selon CAR 401.08'],
+ ['SIM', 'Simulator session — does NOT count as block time, logged separately per CAR 401.08', 'Session de simulateur — ne compte PAS comme block time, enregistré séparément selon RAC 401.08'],
  ['FFS', 'Full Flight Simulator — highest-fidelity (Level C/D) Approved Flight Simulator', 'Full Flight Simulator — simulateur approuvé haute fidélité (Niveau C/D)'],
  ['FTD', 'Flight Training Device — fixed-base sim, lower fidelity than FFS', 'Flight Training Device — sim à base fixe, fidélité inférieure au FFS'],
  ['FNPT', 'Flight & Navigation Procedures Trainer — basic flight trainer', 'Flight & Navigation Procedures Trainer — entraîneur de vol de base'],
- ['PPC', 'Pilot Proficiency Check — recurrent type proficiency test (CAR 705.106 for airline ops; interval per CASS)', 'Pilot Proficiency Check — test de compétence récurrent sur type (CAR 705.106 pour le transport aérien; intervalle selon les CASS)'],
+ ['PPC', 'Pilot Proficiency Check — recurrent type proficiency test (CAR 705; validity ~6 months, extends to ~12 with approved recurrent training — CAR 705.113)', 'Pilot Proficiency Check — test de compétence récurrent sur type (RAC 705; validité ~6 mois, prolongée à ~12 avec formation périodique approuvée — RAC 705.113)'],
  ['IPC', 'Instrument Proficiency Check — restores expired IFR rating', 'Instrument Proficiency Check — restaure une qualification IFR expirée'],
  ['LOFT', 'Line Oriented Flight Training — full-flight scenario training in sim', 'Line Oriented Flight Training — entraînement de scénario en simulateur'],
 
@@ -13331,8 +13359,8 @@ const GLOSSARY = [
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
  ['CAR 101.01', 'Definitions — including cross-country flight time (a point at least 25 NM from departure) and day/night', 'Définitions — dont le temps de vol en voyage (un point à au moins 25 NM du départ) et jour/nuit'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
- ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série CAR 700 — opérations comme 705 transporteur aérien)'],
- ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les CAR'],
+ ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série RAC 700 — opérations comme 705 transporteur aérien)'],
+ ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les RAC'],
 ].sort((a,b) => a[0].localeCompare(b[0]));
 
 let glossaryFilter = '';
@@ -14755,10 +14783,12 @@ function commitCsvImport() {
           mergedFlight[k] = iv;
         }
       });
-      // Always record the attestation on the merged row (it lived on `incoming`
-      // and was lost when `existing` won the spread).
-      if (incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
-      if (incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
+      // Record the attestation on the merged row ONLY if the existing flight
+      // wasn't already attested. Fill-empty: a re-import must NEVER overwrite a
+      // prior signature/timestamp on an already-signed flight (audit trail
+      // integrity). (Adversarially verified 2026-06-27.)
+      if (!existing.signedBy && incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
+      if (!existing.signedAt && incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
       flights[match.idx] = mergedFlight;
       merged++;
     } else {
@@ -15858,6 +15888,7 @@ const STRINGS = {
  'sync.pulled': 'Sync: +{added} new, {updated} updated',
  'toast.captainSweepDone': ' Re-anonymized {n} captain/copilot names (consent withdrawn)',
  'toast.accountPurged': 'Account purged. Reloading to clean state…',
+ 'toast.cloudDeleteFailed': 'Cloud deletion didn\'t complete — nothing was deleted. Check your connection and try again.',
  'confirm.deletePurge1': 'This will permanently delete every flight, your profile, and your sync history from this device — and from the cloud if signed in. Continue?',
  'confirm.deletePurge2': 'Last warning. Type-equivalent confirmation: are you ABSOLUTELY sure?',
  'settings.section.privacy': 'Privacy & Trust',
@@ -16000,7 +16031,7 @@ const STRINGS = {
  'settings.language.title': 'Langue',
  'settings.language.desc': 'Langue de l’interface. L’exportation PDF pour Transports Canada reste en anglais (exigence réglementaire).',
  'settings.export.title': 'Exporter le carnet en PDF',
- 'settings.export.desc': 'Mise en page CAR 401.08 prête à l’impression avec page couverture, bloc signature et annexe de validité.',
+ 'settings.export.desc': 'Mise en page RAC 401.08 prête à l’impression avec page couverture, bloc signature et annexe de validité.',
  'settings.undo.title': 'Annuler la dernière opération en lot',
  'settings.recovery.title': 'Récupération',
  'settings.recovery.desc': 'Opérations réversibles. Cumulo crée automatiquement un instantané de vos données avant chaque import en lot ou synchronisation, pour que vous puissiez toujours revenir en arrière.',
@@ -16072,7 +16103,7 @@ const STRINGS = {
  'profile.fleet': 'Type d’aéronef principal',
  'profile.ifr.title': 'Comptage auto des approches IFR',
  'profile.ifr.label': 'Compter 1 approche IFR par vol à la synchro (opérations 705 en ligne)',
-    'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro iCal inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité CAR 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
+    'profile.ifr.descHtml':      'En 705, presque chaque vol se termine par une approche aux instruments (ILS / RNAV / VOR / visuelle après IAP). Lorsque cette option est active, la synchro iCal inscrit <code>Approches = 1</code> à chaque nouveau vol importé, alimentant le compteur de validité RAC 401.05 (6 approches / 6 mois). Activée automatiquement quand vous sélectionnez une compagnie 705 ci-dessus. Désactivez pour les opérations 704 / 703 / brousse souvent VFR — saisissez alors les approches manuellement. Vols existants et saisies manuelles ne sont jamais écrasés.',
  'profile.captain.title': 'Confidentialité des noms d\'équipage (LPRPDE / Loi 25)',
  'profile.captain.label': 'Conserver les noms complets d\'équipage en synchronisation et partage (j\'ai le consentement)',
  'profile.captain.descHtml': '<strong>Comment Cumulo traite les noms d\'équipage — s\'applique symétriquement au commandant (quand vous êtes F/O) ET au F/O (quand vous êtes commandant).</strong><br><br>• <strong>Sur votre appareil :</strong> toujours les noms complets. Vous voyez exactement ce que vous avez écrit dans votre carnet papier.<br>• <strong>Export PDF pour TC :</strong> toujours les noms complets — ou "SELF" si c\'est ce que vous avez écrit (la norme TC TP 14052 accepte explicitement SELF pour vos propres entrées).<br>• <strong>Synchro infonuagique / exports partageables :</strong> les noms de tiers (l\'AUTRE pilote) s\'anonymisent en initiales par défaut. Votre propre nom (ou "self") n\'est jamais anonymisé — ce n\'est pas une donnée tierce.<br>• <strong>Activez</strong> seulement si vous avez obtenu le consentement de l\'autre pilote OU si vous assumez la responsabilité du transit des données tierces hors de votre appareil.<br><br><em>Ancrages légaux : LPRPDE art. 4(2)(b), art. 7(3)c.1(i), Principe 4.3 ; Loi 25 art. 1.</em>',
@@ -16080,7 +16111,7 @@ const STRINGS = {
  'profile.display.label': 'Masquer les colonnes vides à l’écran (somme = 0 sur tous les vols)',
  'profile.display.descHtml': 'Vue de carnet plus épurée — toute colonne dont chaque vol affiche 0 est masquée du tableau à l’écran. Pratique si vous avez importé un CSV sans la granularité TC complète (ex. ForeFlight laisse SE Jour, IFR sous dispositif, etc. vides). <strong>L’exportation PDF pour Transports Canada conserve toujours les 38 colonnes</strong> pour la conformité au contrôle au sol, peu importe ce réglage.',
  'profile.acConfigs.title': 'Configurations d’aéronef (pilotes brousse / aviation générale)',
- 'profile.acConfigs.descHtml':'Cochez les configurations que vous pilotez. Sert à filtrer les suggestions de type et le suivi de validité (TC exige des validités distinctes pour flotteurs, skis, train classique selon CAR 401.05).',
+ 'profile.acConfigs.descHtml':'Cochez les configurations que vous pilotez. Sert à filtrer les suggestions de type et le suivi de validité (TC exige des validités distinctes pour flotteurs, skis, train classique selon RAC 401.05).',
  'profile.acConfigs.wheels': 'Roues (standard)',
  'profile.acConfigs.floats': 'Flotteurs / Hydravion',
  'profile.acConfigs.skis': 'Skis',
@@ -16610,7 +16641,7 @@ const STRINGS = {
  'csv.config.tailwheel': 'Train classique',
  'csv.config.na': 'S.O. (hélico/planeur/sim)',
  'csv.attest.title': 'Certification du pilote (obligatoire)',
- 'csv.attest.introHtml': 'Vous êtes sur le point d’importer <strong>{n} vols</strong> depuis <strong>{source}</strong> dans votre carnet Cumulo. <strong>Vous — pilote certifié — demeurez seul responsable de l’exactitude de chaque entrée.</strong><br><br>Les données importées d’apps tierces peuvent contenir des erreurs (classe moteur, sim vs vol réel, format de date). Cumulo a signalé ce qu’il a pu mais ne peut pas valider chaque ligne. Présenter un carnet inexact à un inspecteur Transports Canada, ou comme appui d’une demande ATPL/CPL, constitue <strong>une falsification au sens du CAR 401.08(3)</strong> — passible d’amendes et de suspension de licence.',
+ 'csv.attest.introHtml': 'Vous êtes sur le point d’importer <strong>{n} vols</strong> depuis <strong>{source}</strong> dans votre carnet Cumulo. <strong>Vous — pilote certifié — demeurez seul responsable de l’exactitude de chaque entrée.</strong><br><br>Les données importées d’apps tierces peuvent contenir des erreurs (classe moteur, sim vs vol réel, format de date). Cumulo a signalé ce qu’il a pu mais ne peut pas valider chaque ligne. Présenter un carnet inexact à un inspecteur Transports Canada, ou comme appui d’une demande ATPL/CPL, constitue <strong>une falsification au sens du RAC 401.08(3)</strong> — passible d’amendes et de suspension de licence.',
  'csv.attest.checkbox': 'Je certifie que les données importées reflètent mes heures de vol réelles à ma connaissance. J’assume la responsabilité de réviser chaque entrée avant de soumettre ce carnet à TC ou à un tiers.',
  'csv.attest.signLabel': 'Tapez votre nom complet pour signer',
  'csv.attest.signPlaceholder':'Tapez votre nom complet',
@@ -16621,7 +16652,7 @@ const STRINGS = {
  'csv.audit.flagged': 'Vols signalés pour révision',
  'csv.audit.flaggedSim': '{n} vol pourrait être une séance simulateur (détecté via immatriculation/type). À vérifier avant d’importer.',
  'csv.audit.flaggedSimPl': '{n} vols pourraient être des séances simulateur. À vérifier avant d’importer.',
- 'csv.audit.flaggedXC': 'L’app source peut définir le voyage (XC) différemment du CAR 401.34 (25 NM en ligne droite). Vos totaux XC sont tels que rapportés par la source.',
+ 'csv.audit.flaggedXC': 'L’app source peut définir le voyage (XC) différemment du RAC 401.34 (25 NM en ligne droite). Vos totaux XC sont tels que rapportés par la source.',
  'csv.audit.flaggedDate': 'Certaines dates étaient ambiguës (MM/JJ vs JJ/MM). Cumulo les a interprétées selon le format dominant détecté.',
  'toast.signRequired': 'Veuillez taper votre nom complet pour signer avant d’importer.',
  'toast.acceptResponsibility':'Veuillez cocher la case de certification avant d’importer.',
@@ -16867,6 +16898,7 @@ const STRINGS = {
  'sync.pulled': 'Synchro : +{added} nouveaux, {updated} mis à jour',
  'toast.captainSweepDone': ' {n} noms de capitaine/copilote ré-anonymisés (consentement retiré)',
  'toast.accountPurged': 'Compte purgé. Rechargement vers un état vide…',
+ 'toast.cloudDeleteFailed': 'La suppression infonuagique n\'a pas abouti — rien n\'a été supprimé. Vérifiez votre connexion et réessayez.',
  'confirm.deletePurge1': 'Ceci supprimera de manière permanente tous vos vols, votre profil et votre historique de synchronisation de cet appareil — ainsi que de l\'infonuagique si connecté. Continuer ?',
  'confirm.deletePurge2': 'Dernier avertissement. Confirmation finale : êtes-vous ABSOLUMENT certain ?',
  'settings.section.privacy': 'Confidentialité et confiance',
@@ -17132,6 +17164,37 @@ const Auth = {
   async signOut() {
     if (!this.isReady()) return;
     await this.client.auth.signOut();
+  },
+
+  // ── Account deletion (server-side, atomic) ──────────────────────────
+  // POSTs to the Worker's /delete-account endpoint with the user's VERIFIED
+  // access token. The Worker resolves the uid server-side and hard-deletes the
+  // auth user with the service-role key; ON DELETE CASCADE wipes the profile,
+  // flights and trusted_devices. Returns { error } on failure so the caller can
+  // ABORT before wiping local — we never half-delete (local gone, cloud alive).
+  async deleteAccount() {
+    if (!this.isReady()) return { error: { message: 'Auth not configured.' } };
+    const { data } = await this.client.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    if (!token) return { error: { message: 'Not signed in.' } };
+    let resp;
+    try {
+      resp = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-account', accessToken: token })
+      });
+    } catch (e) {
+      return { error: { message: 'Could not reach the deletion service.' } };
+    }
+    if (!resp.ok) {
+      let msg = 'Cloud deletion failed.';
+      try { const j = await resp.json(); if (j && j.error && j.error.message) msg = j.error.message; } catch {}
+      return { error: { message: msg } };
+    }
+    try { await this.client.auth.signOut(); } catch {}
+    this.session = null; this.user = null;
+    return { error: null };
   },
 
   // ── Password reset (TODO: re-prompt TOTP before issuing session) ───
@@ -18422,6 +18485,7 @@ function wireSyncEvents() {
 
 const OPENING_BALANCES_KEY = 'cumulo_opening_balances_v1';
 const OPENING_ATTEST_LOG_KEY = 'cumulo_opening_attest_log_v1';
+const OPENING_DRAFT_KEY = 'cumulo_opening_draft_v1';
 
 // ─── Page field schema ────────────────────────────────────────────
 // Mirrors LOGBOOK_COLUMNS groups + adds top-level career aggregates.
@@ -18448,12 +18512,25 @@ function _bfPageGroups() {
         { key: 'pic',        labelEn: 'PIC — Pilot in Command',    labelFr: 'PIC — Pilote aux commandes',             aggregate: true },
         { key: 'sic',        labelEn: 'SIC — Co-Pilot / Second',  labelFr: 'SIC — Co-pilote / Second',               aggregate: true },
         { key: 'dualRcvd',   labelEn: 'Dual Received',            labelFr: 'Double reçu',                            aggregate: true },
-        { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
         { key: 'night',      labelEn: 'Night',                     labelFr: 'Nuit',                                   aggregate: true },
         { key: 'xc',         labelEn: 'Cross-Country (XC)',        labelFr: 'Vol-voyage (XC)',                        aggregate: true },
         { key: 'me',         labelEn: 'Multi-Engine',              labelFr: 'Multimoteur',                            aggregate: true },
         { key: 'heli',       labelEn: 'Helicopter',                labelFr: 'Hélicoptère',                            aggregate: true },
-        { key: 'dualGiven',  labelEn: 'Dual Given (instructor)',  labelFr: 'Instruction donnée (CFI)',                aggregate: true },
+      ],
+    },
+    // ── Advanced credits (folded) — PICUS sat in the career grid and read like
+    // another total to ADD, the classic double-count trap. Folded out, with an
+    // explicit "already counted" note. dualGiven (instructor) lives here too.
+    {
+      id: 'advanced',
+      titleEn: 'Advanced credits',
+      titleFr: 'Crédits avancés',
+      descEn: 'PICUS is already counted within your PIC and your total time — don\'t enter it twice. Dual given is instructor time toward ATPL experience (Standard 421).',
+      descFr: 'Le PICUS est déjà compté dans votre PIC et votre temps total — ne le comptez pas deux fois. L\'instruction donnée est du temps instructeur compté vers l\'expérience ATPL (Norme 421).',
+      open: false,
+      fields: [
+        { key: 'picus',      labelEn: 'PICUS — PIC under supervision', labelFr: 'PICUS — PIC sous supervision',       aggregate: true },
+        { key: 'dualGiven',  labelEn: 'Dual given (instructor)',  labelFr: 'Instruction donnée (instructeur)',        aggregate: true },
       ],
     },
     // ── Conditions ──
@@ -18760,6 +18837,75 @@ function openingBalanceSummary() {
     : `${fmtted} hrs carried forward · attested ${attDate}`;
 }
 
+// Dashboard brought-forward banner — three states, rendered into the existing
+// #broughtForwardBanner container by renderDashboard():
+//   • attested  → "Declaration sealed and verified" + plain-language seal, with
+//                 the SHA-256 fingerprint hidden behind a disclosure (never raw
+//                 on the surface) + an Edit affordance. This reveal IS the
+//                 retention payoff (career total now reflects declared hours).
+//   • draft     → "Draft — not yet attested" + Resume.
+//   • brand-new → the discovery invitation (no flights yet, nothing declared).
+//   • otherwise → hidden (don't nag an established user).
+function _dashRenderBfBanner(hasFlights) {
+  const banner = document.getElementById('broughtForwardBanner');
+  if (!banner) return;
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const rec = loadOpeningBalances();
+  const attested = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+  const draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
+  const draftPending = !!draft && (!rec.attestedAt || (draft.savedAt && draft.savedAt > rec.attestedAt));
+
+  if (attested) {
+    const summary = (typeof openingBalanceSummary === 'function') ? (openingBalanceSummary() || '') : '';
+    const hash = rec.hash || '';
+    banner.style.display = 'block';
+    banner.style.borderColor = 'var(--success, var(--accent))';
+    banner.innerHTML = `
+      <div style="display:flex;gap:11px;align-items:flex-start;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success, var(--accent))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Déclaration scellée et vérifiée' : 'Declaration sealed and verified'}</div>
+          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux sont enregistrés. Si un seul chiffre changeait après la signature, le sceau le détecterait.' : 'Your totals are saved. If a single number changed after signing, the seal would detect it.'}</div>
+          ${summary ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">${esc(summary)}</div>` : ''}
+          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Voir l\'empreinte technique' : 'View the technical fingerprint'}</summary><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);word-break:break-all;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">SHA-256 · ${esc(hash)}</div></details>` : ''}
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
+      </div>`;
+    return;
+  }
+
+  if (draftPending) {
+    const savedStr = draft.savedAt
+      ? new Date(draft.savedAt).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+      : null;
+    banner.style.display = 'block';
+    banner.style.borderColor = 'var(--warning, var(--accent))';
+    banner.innerHTML = `
+      <div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Brouillon — pas encore attesté' : 'Draft — not yet attested'}</div>
+          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;">${fr ? 'Vous avez commencé à déclarer vos heures. Rien n\'est officiellement enregistré tant que vous n\'avez pas signé.' : 'You\'ve started declaring your hours. Nothing is officially recorded until you sign.'}${savedStr ? (fr ? ` Dernière sauvegarde : ${savedStr}.` : ` Last saved: ${savedStr}.`) : ''}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Reprendre où j\'étais' : 'Resume where I left off'}</button>
+      </div>`;
+    return;
+  }
+
+  if (!hasFlights) {
+    banner.style.display = 'flex';
+    banner.style.borderColor = 'var(--accent)';
+    banner.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:14px; color:var(--text); margin-bottom:2px;">${(typeof t === 'function') ? t('dash.brought.title') : 'Have a paper logbook?'}</div>
+        <div style="font-size:12.5px; color:var(--text-secondary); line-height:1.5;">${(typeof t === 'function') ? t('dash.brought.desc') : ''}</div>
+      </div>
+      <button class="btn btn-primary" onclick="showPage('bf')">${(typeof t === 'function') ? t('dash.brought.cta') : 'Declare totals'}</button>`;
+    return;
+  }
+
+  banner.style.display = 'none';
+}
+
 // ───────────────────────────────────────────────────────────────────
 // UI — Settings section card (summary + "Open" button)
 // ───────────────────────────────────────────────────────────────────
@@ -18769,6 +18915,15 @@ function renderOpeningBalancesSection(containerId) {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const hasAny = hasOpeningBalances();
   const summary = openingBalanceSummary();
+  const _draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
+  const _rec2 = loadOpeningBalances();
+  const _draftPending = !!_draft && (!_rec2.attestedAt || (_draft.savedAt && _draft.savedAt > _rec2.attestedAt));
+  const _draftSavedStr = (_draftPending && _draft.savedAt)
+    ? new Date(_draft.savedAt).toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+    : null;
+  const draftBadgeHtml = _draftPending
+    ? `<div style="font-size:12px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:7px 10px;margin-bottom:8px;"><strong>${fr ? 'Brouillon — pas encore attesté' : 'Draft — not yet attested'}</strong>${_draftSavedStr ? (fr ? ` · dernière sauvegarde ${_draftSavedStr}` : ` · last saved ${_draftSavedStr}`) : ''}</div>`
+    : '';
 
   const summaryHtml = hasAny
     ? `<div style="font-size:13px;color:var(--text);"><strong>${esc(summary)}</strong></div>
@@ -18777,7 +18932,13 @@ function renderOpeningBalancesSection(containerId) {
            ? 'Modifier exige une nouvelle attestation. L\'ancienne est archivée dans le journal d\'audit.'
            : 'Editing requires a new attestation. The previous one is archived in the audit log.'
        }</div>`
-    : `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">${
+    : _draftPending
+      ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">${
+         fr
+           ? 'Brouillon en cours — vos valeurs sont conservées. Rien n\'est officiellement enregistré tant que vous n\'avez pas signé.'
+           : 'Draft in progress — your values are kept. Nothing is officially recorded until you sign.'
+       }</div>`
+      : `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">${
          fr
            ? 'Aucun total reporté déclaré. Si vous avez un carnet papier ou un ancien système électronique, déclarez vos totaux ici. Ils s\'ajouteront aux vols Cumulo sur le Tableau de bord, le Carnet et l\'export PDF TC.'
            : 'No brought-forward totals declared. If you have a paper logbook or a prior electronic system, declare your cumulative totals here. They\'ll be added to in-Cumulo flights on the Dashboard, Logbook table and TC PDF export.'
@@ -18785,12 +18946,15 @@ function renderOpeningBalancesSection(containerId) {
 
   const ctaLabel = hasAny
     ? (fr ? 'Modifier les heures reportées' : 'Edit brought-forward totals')
-    : (fr ? 'Déclarer les heures reportées'  : 'Declare brought-forward totals');
+    : _draftPending
+      ? (fr ? 'Reprendre où j\'étais' : 'Resume where I left off')
+      : (fr ? 'Déclarer les heures reportées'  : 'Declare brought-forward totals');
   const ctaClass = hasAny ? 'btn btn-outline' : 'btn btn-primary';
   const cardTitle = fr ? 'Heures reportées (carnet papier)' : 'Brought-forward hours (paper logbook)';
 
   el.innerHTML = `
     <div class="form-card-title">${esc(cardTitle)}</div>
+    ${draftBadgeHtml}
     ${summaryHtml}
     <div style="display:flex;gap:var(--s-2);margin-top:var(--s-4);flex-wrap:wrap;">
       <button class="${ctaClass}" onclick="openOpeningBalancesEditor()">${esc(ctaLabel)}</button>
@@ -18858,7 +19022,11 @@ function renderBroughtForwardPage() {
   if (!container) return;
 
   const _rec = loadOpeningBalances();
-  const balances = _rec.balances;
+  // A saved (unsigned) draft takes precedence for pre-fill so the pilot resumes
+  // exactly where they left off; the attested record wins only if it's newer.
+  const _draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
+  const _useDraft = !!_draft && (!_rec.attestedAt || (_draft.savedAt && _draft.savedAt > _rec.attestedAt));
+  const balances = _useDraft ? (_draft.balances || {}) : _rec.balances;
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
@@ -18866,7 +19034,7 @@ function renderBroughtForwardPage() {
   // first visit; keep the pilot's saved value on return. Never re-default once set.
   const _todayISO = new Date().toISOString().slice(0, 10);
   const _yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const cutoffDefault = _rec.cutoffDate || _yesterdayISO;
+  const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || _yesterdayISO;
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
@@ -18904,10 +19072,12 @@ function renderBroughtForwardPage() {
   // (no duplicate ids); every other key keeps its grid. Both modes stay in the
   // DOM (toggle is CSS show/hide), so commit reads every input — no value lost.
   const careerHtml = renderGroup(groups.find(g => g.id === 'career'));
+  const advancedHtml = renderGroup(groups.find(g => g.id === 'advanced'));
   const detailGroupsHtml = groups
-    .filter(g => !['career', 'engine', 'xc'].includes(g.id))
+    .filter(g => !['career', 'engine', 'xc', 'advanced'].includes(g.id))
     .map(renderGroup).join('');
   const logbookTableHtml = _bfLogbookTableHtml(balances, fr);
+  const columnRefHtml = _bfColumnReferenceHtml(fr);
 
   const profileName = `${profile.fname || ''} ${profile.lname || ''}`.trim();
   const todayStr = new Date().toLocaleDateString(fr ? 'fr-CA' : 'en-CA',
@@ -18944,6 +19114,7 @@ function renderBroughtForwardPage() {
           ? 'La plupart des pilotes n\'ont besoin que de la section <em>Totaux carrière</em> ci-dessous. Les sections de détail sont optionnelles — ouvrez seulement ce que votre carnet papier suivait.'
           : 'Most pilots only need the <em>Career totals</em> section below. The detail sections are optional — only open what your paper logbook actually tracked.'}</p>
         ${hasAny && attestedStr ? `<div class="bf-attest-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${fr ? `Attestées le ${attestedStr}` : `Attested ${attestedStr}`}</div>` : ''}
+        ${_useDraft ? `<div style="margin-top:8px;font-size:12px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:8px 10px;">${fr ? 'Vous reprenez un brouillon — pas encore attesté. Vos valeurs sont conservées ; rien n\'est attesté tant que vous n\'avez pas signé.' : 'You\'re resuming a draft — not yet attested. Your values are kept; nothing is attested until you sign.'}</div>` : ''}
       </div>
     </div>
 
@@ -18974,9 +19145,11 @@ function renderBroughtForwardPage() {
 
     <div id="bf-mode-totals" class="bf-groups-wrap">
       ${careerHtml}
+      ${advancedHtml}
     </div>
     <div id="bf-mode-paper" class="bf-groups-wrap" style="display:none">
       ${logbookTableHtml}
+      ${columnRefHtml}
       ${detailGroupsHtml}
     </div>
 
@@ -18998,6 +19171,7 @@ function renderBroughtForwardPage() {
       </div>
       <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
         <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Attester' : 'Attest'}</button>
+        <button class="btn btn-ghost" onclick="saveOpeningDraft()">${fr ? 'Enregistrer le brouillon' : 'Save draft'}</button>
         <button class="btn btn-ghost" onclick="showPage('dash')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
@@ -19042,6 +19216,46 @@ function _bfLogbookTableHtml(balances, fr) {
     </table></div>`;
 }
 
+// Column reference (read-only, collapsible) for the paper-logbook mode. Clarifies
+// the non-obvious mappings — where Dual Received routes, the XC by-function columns
+// that other apps drop, official instrument terminology — WITHOUT inventing TP 14052
+// header names (uses the same category structure the input table already mirrors,
+// validated against a real TC paper logbook).
+function _bfColumnReferenceHtml(fr) {
+  const rows = fr ? [
+    ['Monomoteur — Jour/Nuit (Double, PIC)', 'SE — Jour/Nuit, colonnes Double et PIC', 'Le « Double reçu » se classe sous Double, jamais sous PIC.'],
+    ['Multimoteur — Jour/Nuit (Double, PIC, Copilote)', 'ME — par fonction (jour + nuit)', '—'],
+    ['Vol-voyage (XC) — Jour/Nuit (Double, PIC, Copilote)', 'XC par fonction (jour + nuit)', 'Les colonnes Double et PIC du vol-voyage sont incluses (souvent absentes ailleurs).'],
+    ['Instruments — Réel · Sous dispositif · Sim · Approches', 'Réel · Sous dispositif limitant la vue · Simulateur · Approches', '« Sous dispositif limitant la vue » = terme officiel de Transport Canada.'],
+    ['Décollages / Atterrissages — Jour, Nuit', 'Décollages / Atterrissages, jour et nuit', 'Un compte, pas des heures.'],
+    ['PICUS', 'Crédits avancés → PICUS', 'Déjà compté dans votre PIC et votre total — ne le saisissez pas deux fois.'],
+  ] : [
+    ['Single-engine — Day/Night (Dual, PIC)', 'SE — Day/Night, Dual and PIC columns', 'Dual received routes under Dual, never under PIC.'],
+    ['Multi-engine — Day/Night (Dual, PIC, Co-pilot)', 'ME — by function (day + night)', '—'],
+    ['Cross-country (XC) — Day/Night (Dual, PIC, Co-pilot)', 'XC by function (day + night)', 'The XC Dual and PIC columns are included (often dropped elsewhere).'],
+    ['Instruments — Actual · Hood · Sim · Approaches', 'Actual · Under view-limiting device · Simulator · Approaches', '"Under view-limiting device" is the official Transport Canada term.'],
+    ['Take-offs / Landings — Day, Night', 'Take-offs / Landings, day and night', 'A count, not hours.'],
+    ['PICUS', 'Advanced credits → PICUS', 'Already counted within your PIC and total — don\'t enter it twice.'],
+  ];
+  const head = fr ? ['Votre carnet papier', 'Dans Cumulo', 'À noter'] : ['Your paper logbook', 'In Cumulo', 'Note'];
+  const thCss = 'text-align:left;padding:7px 9px;border-bottom:1px solid var(--border,rgba(20,40,70,.14));font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);font-weight:600;';
+  const tdMuted = 'padding:7px 9px;border-bottom:0.5px solid var(--border,rgba(20,40,70,.10));color:var(--text-muted);vertical-align:top;';
+  const tdStrong = 'padding:7px 9px;border-bottom:0.5px solid var(--border,rgba(20,40,70,.10));color:var(--text);font-weight:600;vertical-align:top;';
+  const body = rows.map(r =>
+    `<tr><td style="${tdMuted}">${esc(r[0])}</td><td style="${tdStrong}">${esc(r[1])}</td><td style="${tdMuted}">${esc(r[2])}</td></tr>`).join('');
+  return `
+    <details class="bf-group">
+      <summary class="bf-group-summary">
+        <svg class="bf-group-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        <span class="bf-group-title">${fr ? 'Référence des colonnes — votre carnet papier ↔ Cumulo' : 'Column reference — your paper logbook ↔ Cumulo'}</span>
+      </summary>
+      <div style="overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr><th style="${thCss}">${esc(head[0])}</th><th style="${thCss}">${esc(head[1])}</th><th style="${thCss}">${esc(head[2])}</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+    </details>`;
+}
+
 // Toggle the two brought-forward modes (CSS show/hide — all inputs stay in the
 // DOM so saving never drops a value).
 function _bfSetMode(mode) {
@@ -19059,6 +19273,57 @@ function _bfSetMode(mode) {
   if (cap) cap.textContent = paper
     ? (fr ? 'Disposition miroir du carnet papier de Transport Canada — transcrivez vos colonnes telles quelles.' : 'Mirrors the Transport Canada paper logbook layout — transcribe your columns as they are.')
     : (fr ? 'Saisie rapide : vos grands totaux par catégorie. La plupart des pilotes n\'ont besoin que de ça.' : 'Quick entry: your grand totals per category. Most pilots only need this.');
+}
+
+// Collect every brought-forward input into a sparse balances object (zero/empty
+// → omitted). Shared by attestation (commit) and the unsigned draft, so both
+// read the inputs identically. Mirrors Total → Block for the Dashboard hero.
+function _bfCollectCurrentBalances() {
+  const balances = {};
+  _bfAllKeys().forEach(k => {
+    const el = document.getElementById('ob-' + k);
+    if (!el) return;
+    const v = +el.value || 0;
+    if (v > 0) balances[k] = v;
+  });
+  if ((+balances.total || 0) > 0 && !(+balances.block || 0)) balances.block = balances.total;
+  return balances;
+}
+
+// Draft = work-in-progress totals saved WITHOUT signing. Nothing is officially
+// recorded (no hash, no audit entry) until the pilot attests. Kept in a separate
+// key so an unsigned draft can never be mistaken for a signed attestation.
+function loadOpeningDraft() {
+  try {
+    const raw = localStorage.getItem(OPENING_DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return (d && typeof d === 'object' && d.balances) ? d : null;
+  } catch (e) { return null; }
+}
+function clearOpeningDraft() {
+  try { localStorage.removeItem(OPENING_DRAFT_KEY); } catch (e) {}
+}
+function saveOpeningDraft() {
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const cutoffEl = document.getElementById('ob-cutoff-date');
+  const draft = {
+    balances: _bfCollectCurrentBalances(),
+    cutoffDate: (cutoffEl && cutoffEl.value || '').trim() || null,
+    savedAt: new Date().toISOString(),
+  };
+  try {
+    localStorage.setItem(OPENING_DRAFT_KEY, JSON.stringify(draft));
+  } catch (e) {
+    console.error('[OpeningBalances] draft save failed:', e);
+    if (typeof showToast === 'function') showToast(
+      fr ? 'Échec de l\'enregistrement du brouillon.' : 'Could not save the draft.', 'error');
+    return;
+  }
+  if (typeof showToast === 'function') showToast(
+    fr ? 'Brouillon enregistré. Rien n\'est attesté tant que vous n\'avez pas signé.'
+       : 'Draft saved. Nothing is attested until you sign.', 'success');
+  if (typeof renderOpeningBalancesSection === 'function') renderOpeningBalancesSection('openingBalancesSection');
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -19102,19 +19367,8 @@ async function commitOpeningBalances() {
     return;
   }
 
-  // Collect values from each input. Zero / empty → not persisted (sparse).
-  const balances = {};
-  _bfAllKeys().forEach(k => {
-    const el = document.getElementById('ob-' + k);
-    if (!el) return;
-    const v = +el.value || 0;
-    if (v > 0) balances[k] = v;
-  });
-
-  // Mirror Total → Block so Dashboard hero (prefers s.block) reflects BF.
-  if ((+balances.total||0) > 0 && !(+balances.block||0)) {
-    balances.block = balances.total;
-  }
+  // Collect values from each input (shared with the unsigned-draft path).
+  const balances = _bfCollectCurrentBalances();
 
   try {
     await saveOpeningBalances(balances, cutoffDate);
@@ -19129,6 +19383,9 @@ async function commitOpeningBalances() {
   if (typeof showToast === 'function') showToast(
     fr ? 'Totaux reportés attestés et sauvegardés.' : 'Brought-forward totals attested and saved.',
     'success');
+
+  // Attestation supersedes any unsigned draft — clear it so it can't linger.
+  clearOpeningDraft();
 
   // Refresh visible surfaces.
   if (typeof renderDashboard === 'function') renderDashboard();
@@ -19932,7 +20189,7 @@ function saveQuickCrewFill() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-06-26-30ba38a';
+const BUILD_VERSION = '2026-06-30-5ffb3ba';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

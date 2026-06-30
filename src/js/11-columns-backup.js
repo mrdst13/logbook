@@ -409,13 +409,24 @@ async function deleteAccountPurge() {
     danger: true
   })) return;
 
-  // 1) If signed in to Supabase, mark account for deletion (server-side).
-  try {
-    if (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady() && Auth.deleteAccount) {
-      await Auth.deleteAccount();
+  // 1) If signed in, delete the CLOUD account FIRST (server-side). If it fails
+  //    we ABORT — wiping local while the cloud copy survives would half-delete
+  //    the account (and the cloud data would sync back on the next sign-in).
+  //    On failure nothing is deleted anywhere; the pilot can simply retry.
+  const signedIn = (typeof Auth !== 'undefined' && Auth.isReady && Auth.isReady()
+                    && Auth.isAuthenticated && Auth.isAuthenticated());
+  if (signedIn && Auth.deleteAccount) {
+    let r;
+    try {
+      r = await Auth.deleteAccount();
+    } catch (e) {
+      r = { error: { message: (e && e.message) || 'network error' } };
     }
-  } catch (e) {
-    console.warn('[Delete] cloud deletion request failed (will still wipe local):', e);
+    if (r && r.error) {
+      console.warn('[Delete] cloud deletion failed — aborting (nothing deleted):', r.error.message);
+      if (typeof showToast === 'function') showToast(t('toast.cloudDeleteFailed'), 'error');
+      return;
+    }
   }
 
   // 2) Wipe ALL local app keys (flights, profile, snapshots, prefs,

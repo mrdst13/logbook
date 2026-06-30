@@ -11,25 +11,25 @@ const FAQS = [
  q: 'How many landings do I need to stay current as PIC?',
  a: 'Under CAR 401.05(2), to act as PIC carrying passengers you need at least 5 take-offs and 5 landings in the same category and class within the preceding 6 months. For night currency under CAR 401.05(2), you need 5 take-offs and 5 landings at night within the preceding 6 months.',
  qFr: 'Combien d\'atterrissages me faut-il pour rester valide comme PIC ?',
- aFr: 'Selon CAR 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon CAR 401.05(2), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
+ aFr: 'Selon RAC 401.05(2), pour agir comme PIC avec passagers, il vous faut au moins 5 décollages et 5 atterrissages dans la même catégorie et classe durant les 6 mois précédents. Pour la validité de nuit selon RAC 401.05(2), il vous faut 5 décollages et 5 atterrissages de nuit dans les 6 mois précédents.'
  },
  {
  q: 'What is IFR recency and how long is it valid?',
  a: 'Under CAR 401.05(3.1), to act as PIC under IFR you must, within the preceding 6 months, have acquired 6 hours of instrument time AND completed 6 instrument approaches — in actual or simulated IMC in an aircraft, or in an approved simulator. The 6 months is a rolling window — counted backward from the day you want to fly IFR.',
  qFr: 'Qu\'est-ce que la validité IFR et combien de temps est-elle bonne ?',
- aFr: 'Selon CAR 401.05(3.1), pour agir comme PIC en IFR, vous devez, dans les 6 mois précédents, avoir accumulé 6 heures de temps aux instruments ET effectué 6 approches aux instruments — en IMC réelle ou simulée en aéronef, ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
+ aFr: 'Selon RAC 401.05(3.1), pour agir comme PIC en IFR, vous devez, dans les 6 mois précédents, avoir accumulé 6 heures de temps aux instruments ET effectué 6 approches aux instruments — en IMC réelle ou simulée en aéronef, ou en simulateur approuvé. La fenêtre de 6 mois est glissante — comptée à rebours à partir du jour où vous voulez voler en IFR.'
  },
  {
  q: 'What are the currency rules for helicopter pilots?',
  a: 'Helicopter currency under CAR 401.05 mirrors fixed-wing: 5 take-offs and 5 landings in the preceding 6 months in the same category and class to carry passengers, plus 5 night TO/LDG in 6 months for night currency. Helicopter operations may also require additional currency for external load (CAR 702.21) and autorotation training, depending on operator and class of operation.',
  qFr: 'Quelles sont les règles de validité pour les pilotes d\'hélicoptère ?',
- aFr: 'La validité hélicoptère selon CAR 401.05 est calquée sur l\'aile fixe : 5 décollages et 5 atterrissages dans les 6 mois précédents dans la même catégorie et classe pour porter des passagers, plus 5 T/O et LDG de nuit en 6 mois pour la validité de nuit. Les opérations hélicoptère peuvent aussi exiger une validité additionnelle pour charge externe (CAR 702.21) et entraînement à l\'autorotation, selon l\'opérateur et la classe d\'opération.'
+ aFr: 'La validité hélicoptère selon RAC 401.05 est calquée sur l\'aile fixe : 5 décollages et 5 atterrissages dans les 6 mois précédents dans la même catégorie et classe pour porter des passagers, plus 5 T/O et LDG de nuit en 6 mois pour la validité de nuit. Les opérations hélicoptère peuvent aussi exiger une validité additionnelle pour charge externe (RAC 702.21) et entraînement à l\'autorotation, selon l\'opérateur et la classe d\'opération.'
  },
  {
  q: 'How often do I need to recur on type (PPC / IPC)?',
- a: 'Under CAR 705.106, air carrier operations require a valid Pilot Proficiency Check (PPC). The exact validity interval depends on your operation and is set out in the applicable CASS standard and your operator\'s approved training program — refer to it for the interval that applies to you. CAR 605.97 governs general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
+ a: 'Under CAR 705, air carrier operations require a valid Pilot Proficiency Check (PPC). Its validity expires on the first day of the 7th month after the check (about 6 months), and extends to the first day of the 13th month (about 12 months) if you complete the approved six-month recurrent training under the Commercial Air Service Standards (CAR 705.113). Some operations may differ — your operator\'s approved training program governs. CAR 605.97 covers general IPC requirements. Many 705 operators check both during the same recurrent training event. Log every PPC / IPC in the Simulator section with the appropriate Session Type tag.',
  qFr: 'À quelle fréquence dois-je faire mon PPC / IPC sur type ?',
- aFr: 'Selon CAR 705.106, les opérations de transporteur aérien exigent un PPC (Pilot Proficiency Check) valide. L\'intervalle de validité exact dépend de votre exploitation et est défini dans la norme CASS applicable et le programme de formation approuvé de votre exploitant — référez-vous-y pour l\'intervalle qui s\'applique à vous. CAR 605.97 régit les exigences IPC générales. Plusieurs exploitants 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
+ aFr: 'Selon RAC 705, les opérations de transporteur aérien exigent un PPC (Pilot Proficiency Check) valide. Sa validité expire le 1er jour du 7e mois suivant le contrôle (environ 6 mois), et s\'étend au 1er jour du 13e mois (environ 12 mois) si vous complétez la formation périodique semestrielle approuvée selon les Normes de service aérien commercial (RAC 705.113). Certaines exploitations peuvent différer — le programme de formation approuvé de votre exploitant fait foi. RAC 605.97 couvre les exigences IPC générales. Plusieurs exploitants 705 effectuent les deux pendant le même entraînement récurrent. Enregistrez chaque PPC / IPC dans la section Simulateur avec le bon Session Type.'
  },
 
  // ── Logging conventions ───────────────────────────────────────────
@@ -37,13 +37,13 @@ const FAQS = [
  q: 'How do I count block time vs. flight time?',
  a: 'Block time (BLH) starts when the aircraft moves under its own power (chocks out / brakes released) and ends when it comes to rest at the gate (chocks in). Flight time starts at first movement for takeoff and ends at landing rollout. For airline operations, Transport Canada generally accepts block time for logbook purposes under CAR 401.08.',
  qFr: 'Comment compter le block time vs. flight time ?',
- aFr: 'Le block time (BLH) commence quand l\'aéronef bouge sous sa propre puissance (chocks out / freins relâchés) et se termine quand il s\'immobilise au stationnement (chocks in). Le flight time commence au premier mouvement pour décollage et se termine à la fin du roulage d\'atterrissage. Pour les opérations de transporteur aérien, Transports Canada accepte généralement le block time pour le carnet selon CAR 401.08.'
+ aFr: 'Le block time (BLH) commence quand l\'aéronef bouge sous sa propre puissance (chocks out / freins relâchés) et se termine quand il s\'immobilise au stationnement (chocks in). Le flight time commence au premier mouvement pour décollage et se termine à la fin du roulage d\'atterrissage. Pour les opérations de transporteur aérien, Transports Canada accepte généralement le block time pour le carnet selon RAC 401.08.'
  },
  {
  q: 'What is PICUS and when can I log it?',
  a: 'PICUS (Pilot in Command Under Supervision) is time logged by a co-pilot (F/O) when acting in the role of PIC under the supervision of a qualified captain. In Canada, this is recognized under CAR 401.08 and can be credited toward ATPL minimums. You may log PICUS only when you are the actual decision-maker for the flight under direct supervision.',
  qFr: 'Qu\'est-ce que le PICUS et quand puis-je l\'enregistrer ?',
- aFr: 'PICUS (Pilot in Command Under Supervision) est du temps enregistré par un copilote (F/O) quand il agit dans le rôle de PIC sous la supervision d\'un commandant qualifié. Au Canada, c\'est reconnu selon CAR 401.08 et peut être crédité vers les minimums ATPL. Vous ne pouvez enregistrer du PICUS que si vous êtes le décideur réel du vol sous supervision directe.'
+ aFr: 'PICUS (Pilot in Command Under Supervision) est du temps enregistré par un copilote (F/O) quand il agit dans le rôle de PIC sous la supervision d\'un commandant qualifié. Au Canada, c\'est reconnu selon RAC 401.08 et peut être crédité vers les minimums ATPL. Vous ne pouvez enregistrer du PICUS que si vous êtes le décideur réel du vol sous supervision directe.'
  },
  {
  q: 'What counts as "cross-country" time?',
@@ -69,7 +69,7 @@ const FAQS = [
  q: 'What medical class do airline pilots need and how often must I renew?',
  a: 'ATPL holders operating under CAR 705 (air carrier) require a Category 1 Medical Certificate. Under CAR 404.04, a Category 1 is valid for 12 months, reduced to 6 months once you turn 60 — or at 40 and older if you fly single-pilot with passengers. Age is assessed at the date of the exam. Transport Canada medical exams are conducted by designated Aviation Medical Examiners (AMEs).',
  qFr: 'Quelle catégorie médicale est requise pour un pilote de ligne et à quelle fréquence renouveler ?',
- aFr: 'Les titulaires d\'ATPL opérant selon CAR 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Selon CAR 404.04, un Catégorie 1 est valide 12 mois, réduit à 6 mois dès 60 ans — ou à 40 ans et plus si vous volez en monopilote avec passagers. L\'âge est évalué à la date de l\'examen. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
+ aFr: 'Les titulaires d\'ATPL opérant selon RAC 705 (transporteur aérien) doivent détenir un Certificat médical de Catégorie 1. Selon RAC 404.04, un Catégorie 1 est valide 12 mois, réduit à 6 mois dès 60 ans — ou à 40 ans et plus si vous volez en monopilote avec passagers. L\'âge est évalué à la date de l\'examen. Les examens médicaux de Transports Canada sont effectués par des médecins-examinateurs de l\'aviation civile (MEAC).'
  },
  {
  q: 'When do I need an ECG for my medical?',
@@ -97,7 +97,7 @@ const FAQS = [
  q: 'How does Cumulo handle the OTHER pilot\'s name (captain or F/O)?',
  a: 'The rule is symmetric — whether you\'re F/O (the captain is the third party) or you\'re PIC (the F/O is the third party), the OTHER pilot is treated identically. Cumulo stores full names locally on your device — your logbook works exactly like a paper logbook (PIPEDA s.4(2)(b) and Loi 25 art. 1 personal-use exceptions). Anonymization to initials (e.g. "M.D.") only happens when data leaves your device: cloud sync, shareable exports, JSON backups. TC PDF exports always include full names — required for ramp checks under CAR 401.08 and permitted under PIPEDA s.7(3)(c.1)(i). Self-references (your own name, or the literal text "self" / "moi" — which TP 14052 explicitly accepts) are NEVER anonymized: they are not third-party data. Control via Profile → "Keep full crew names when syncing or sharing" (default OFF).',
  qFr: 'Comment Cumulo gère-t-il le nom de l\'AUTRE pilote (commandant ou F/O) ?',
- aFr: 'La règle est symétrique — que vous soyez F/O (le commandant est le tiers) ou PIC (le F/O est le tiers), l\'AUTRE pilote est traité identiquement. Cumulo stocke les noms complets localement sur votre appareil — votre carnet fonctionne exactement comme un carnet papier (LPRPDE art. 4(2)b) et Loi 25 art. 1 exceptions d\'usage personnel). L\'anonymisation en initiales (ex. « M.D. ») arrive seulement quand les données quittent votre appareil : synchro infonuagique, exports partageables, backups JSON. Les exports PDF pour TC contiennent toujours les noms complets — requis pour les contrôles au sol selon CAR 401.08 et permis selon LPRPDE art. 7(3)c.1)(i). Les auto-références (votre propre nom, ou le mot « self » / « moi » — que TP 14052 accepte explicitement) ne sont JAMAIS anonymisées : ce ne sont pas des données de tiers. Contrôle via Profile → « Keep full crew names when syncing or sharing » (par défaut OFF).'
+ aFr: 'La règle est symétrique — que vous soyez F/O (le commandant est le tiers) ou PIC (le F/O est le tiers), l\'AUTRE pilote est traité identiquement. Cumulo stocke les noms complets localement sur votre appareil — votre carnet fonctionne exactement comme un carnet papier (LPRPDE art. 4(2)b) et Loi 25 art. 1 exceptions d\'usage personnel). L\'anonymisation en initiales (ex. « M.D. ») arrive seulement quand les données quittent votre appareil : synchro infonuagique, exports partageables, backups JSON. Les exports PDF pour TC contiennent toujours les noms complets — requis pour les contrôles au sol selon RAC 401.08 et permis selon LPRPDE art. 7(3)c.1)(i). Les auto-références (votre propre nom, ou le mot « self » / « moi » — que TP 14052 accepte explicitement) ne sont JAMAIS anonymisées : ce ne sont pas des données de tiers. Contrôle via Profile → « Keep full crew names when syncing or sharing » (par défaut OFF).'
  },
  {
  q: 'Does iCal auto-sync capture crew names, or do I have to upload a PDF?',
@@ -109,13 +109,13 @@ const FAQS = [
  q: 'How long must I keep my logbook records?',
  a: 'CAR 401.08(5) requires that a personal logbook be retained for at least 5 years after the date of the last entry. For ATPL holders submitting an experience claim, all relevant entries must be available to TC inspectors on request. Cumulo backs up your data in localStorage and (once Supabase is wired) in the cloud — but a periodic PDF export to your own files is still recommended as a paper trail.',
  qFr: 'Combien de temps dois-je conserver mes enregistrements de carnet ?',
- aFr: 'CAR 401.08(5) exige qu\'un carnet personnel soit conservé au moins 5 ans après la date de la dernière entrée. Pour les titulaires d\'ATPL qui soumettent une demande d\'expérience, toutes les entrées pertinentes doivent être disponibles aux inspecteurs TC sur demande. Cumulo sauvegarde vos données dans localStorage et (une fois Supabase câblé) dans l\'infonuagique — mais un export PDF périodique vers vos propres fichiers reste recommandé comme trace papier.'
+ aFr: 'RAC 401.08(5) exige qu\'un carnet personnel soit conservé au moins 5 ans après la date de la dernière entrée. Pour les titulaires d\'ATPL qui soumettent une demande d\'expérience, toutes les entrées pertinentes doivent être disponibles aux inspecteurs TC sur demande. Cumulo sauvegarde vos données dans localStorage et (une fois Supabase câblé) dans l\'infonuagique — mais un export PDF périodique vers vos propres fichiers reste recommandé comme trace papier.'
  },
  {
  q: 'What will a TC ramp inspector want to see in my logbook?',
  a: 'A TC inspector will check that your logbook is current, complete, and matches the format described in CAR 401.08 + TP 14052. Specifically: chronological entries with date, aircraft type, registration, departure/arrival, flight time, PIC/SIC time, night time, IFR time, simulator time clearly separated, cumulative totals, and pilot signature. Cumulo\'s PDF export is designed to match this format exactly, with a cover page that includes your name, license number, medical expiry, and a signature line.',
  qFr: 'Qu\'est-ce qu\'un inspecteur TC au sol va vouloir voir dans mon carnet ?',
- aFr: 'Un inspecteur TC vérifiera que votre carnet est à jour, complet, et correspond au format décrit dans CAR 401.08 + TP 14052. Spécifiquement : entrées chronologiques avec date, type d\'aéronef, immatriculation, départ/arrivée, temps de vol, temps PIC/SIC, temps de nuit, temps IFR, temps simulateur clairement séparé, totaux cumulatifs, et signature du pilote. L\'export PDF de Cumulo est conçu pour correspondre exactement à ce format, avec une page couverture qui inclut votre nom, numéro de licence, expiration médicale, et une ligne de signature.'
+ aFr: 'Un inspecteur TC vérifiera que votre carnet est à jour, complet, et correspond au format décrit dans RAC 401.08 + TP 14052. Spécifiquement : entrées chronologiques avec date, type d\'aéronef, immatriculation, départ/arrivée, temps de vol, temps PIC/SIC, temps de nuit, temps IFR, temps simulateur clairement séparé, totaux cumulatifs, et signature du pilote. L\'export PDF de Cumulo est conçu pour correspondre exactement à ce format, avec une page couverture qui inclut votre nom, numéro de licence, expiration médicale, et une ligne de signature.'
  },
 
  // ── Importing from other airlines ─────────────────────────────────
@@ -277,7 +277,7 @@ const GLOSSARY = [
  ['Solo', 'Flight time without an instructor (typically student pilot)', 'Temps de vol sans instructeur (typiquement pilote en formation)'],
 
  // Time columns (CAR 401.08)
- ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Transport Canada generally accepts block time for logbook flight time under CAR 401.08.', 'Temps de chocks-out (démarrage / freins relâchés) à chocks-in. Transports Canada accepte généralement le block time comme temps de vol au carnet selon le CAR 401.08.'],
+ ['Block Time', 'Time from chocks-out (engine start / brake release) to chocks-in. Transport Canada generally accepts block time for logbook flight time under CAR 401.08.', 'Temps de chocks-out (démarrage / freins relâchés) à chocks-in. Transports Canada accepte généralement le block time comme temps de vol au carnet selon le RAC 401.08.'],
  ['BLH', 'Block Hours — synonym for Block Time / Flight Time', 'Block Hours — synonyme de Block Time / temps de vol'],
  ['Air Time', 'Time from wheels-up to wheels-down. Used for aircraft maintenance, NOT for the pilot logbook', 'Temps de wheels-up à wheels-down. Utilisé pour la maintenance, PAS pour le carnet du pilote'],
  ['Duty Time', 'Time on duty — typically check-in to check-out, broader than block time', 'Temps en service — typiquement check-in à check-out, plus large que le block time'],
@@ -299,18 +299,18 @@ const GLOSSARY = [
  ['Inst Actual', 'Instrument time in actual IMC (clouds, low vis)', 'Temps aux instruments en IMC réel (nuages, faible visibilité)'],
  ['Inst Hood', 'Instrument time under a view-limiting device (training)', 'Temps aux instruments sous dispositif limitant la vue (entraînement)'],
  ['Inst Sim/FSTD', 'Instrument time in a Flight Simulation Training Device — logged SEPARATELY from flight time', 'Temps aux instruments dans un Flight Simulation Training Device — enregistré SÉPARÉMENT du temps de vol'],
- ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)', 'Une approche aux instruments à l\'atterrissage ou approche manquée (compte vers la validité IFR CAR 401.05 : 6 en 6 mois)'],
+ ['Approach', 'An instrument approach to landing or missed approach (counts toward CAR 401.05 IFR currency: 6 in 6 months)', 'Une approche aux instruments à l\'atterrissage ou approche manquée (compte vers la validité IFR RAC 401.05 : 6 en 6 mois)'],
 
  // Landings & currency
  ['LDG', 'Landing', 'Atterrissage'],
  ['T/O', 'Take-off', 'Décollage'],
 
  // Simulator
- ['SIM', 'Simulator session — does NOT count as block time, logged separately per CAR 401.08', 'Session de simulateur — ne compte PAS comme block time, enregistré séparément selon CAR 401.08'],
+ ['SIM', 'Simulator session — does NOT count as block time, logged separately per CAR 401.08', 'Session de simulateur — ne compte PAS comme block time, enregistré séparément selon RAC 401.08'],
  ['FFS', 'Full Flight Simulator — highest-fidelity (Level C/D) Approved Flight Simulator', 'Full Flight Simulator — simulateur approuvé haute fidélité (Niveau C/D)'],
  ['FTD', 'Flight Training Device — fixed-base sim, lower fidelity than FFS', 'Flight Training Device — sim à base fixe, fidélité inférieure au FFS'],
  ['FNPT', 'Flight & Navigation Procedures Trainer — basic flight trainer', 'Flight & Navigation Procedures Trainer — entraîneur de vol de base'],
- ['PPC', 'Pilot Proficiency Check — recurrent type proficiency test (CAR 705.106 for airline ops; interval per CASS)', 'Pilot Proficiency Check — test de compétence récurrent sur type (CAR 705.106 pour le transport aérien; intervalle selon les CASS)'],
+ ['PPC', 'Pilot Proficiency Check — recurrent type proficiency test (CAR 705; validity ~6 months, extends to ~12 with approved recurrent training — CAR 705.113)', 'Pilot Proficiency Check — test de compétence récurrent sur type (RAC 705; validité ~6 mois, prolongée à ~12 avec formation périodique approuvée — RAC 705.113)'],
  ['IPC', 'Instrument Proficiency Check — restores expired IFR rating', 'Instrument Proficiency Check — restaure une qualification IFR expirée'],
  ['LOFT', 'Line Oriented Flight Training — full-flight scenario training in sim', 'Line Oriented Flight Training — entraînement de scénario en simulateur'],
 
@@ -348,8 +348,8 @@ const GLOSSARY = [
  ['CAR 401.08', 'Personal Log requirements (the 9 mandatory fields per flight)', 'Exigences du carnet personnel (les 9 champs obligatoires par vol)'],
  ['CAR 101.01', 'Definitions — including cross-country flight time (a point at least 25 NM from departure) and day/night', 'Définitions — dont le temps de vol en voyage (un point à au moins 25 NM du départ) et jour/nuit'],
  ['Standard 421', 'Personnel Licensing Standards — categories of experience for licence applications', 'Normes de délivrance des licences du personnel — catégories d\'expérience pour les demandes de licence'],
- ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série CAR 700 — opérations comme 705 transporteur aérien)'],
- ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les CAR'],
+ ['CARS', 'Commercial Air Service Standards (CAR 700 series — operations like 705 airline)', 'Normes de service aérien commercial (série RAC 700 — opérations comme 705 transporteur aérien)'],
+ ['705', 'Subpart 705 — Airline Operations under the CARs', 'Sous-partie 705 — Opérations de transporteur aérien selon les RAC'],
 ].sort((a,b) => a[0].localeCompare(b[0]));
 
 let glossaryFilter = '';

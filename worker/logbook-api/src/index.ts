@@ -15,8 +15,14 @@
 //   - iCal proxy: HTTPS-only + size cap + global_fetch_strictly_public
 //                                 → any airline's public feed, no internal SSRF
 //
-// TODO Phase B (Supabase go-live): require a verified Supabase JWT on the
-// Anthropic path. Origin checks alone are spoofable outside browsers.
+// Auth posture (decided 2026-06-26): the Anthropic path is deliberately NOT
+// gated behind a Supabase JWT. The paid AI call powers PDF-roster extraction,
+// which pilots run during onboarding BEFORE they have an account — a JWT gate
+// would break that core import flow (Cumulo is local-first; cloud is optional).
+// The financial worst case is bounded by THREE layers: the Anthropic daily
+// spend cap (set in the Anthropic console), the per-IP rate limit, and the
+// origin allow-list. The /delete-account path below DOES require a verified
+// Supabase user token (it's a destructive, per-user action).
 
 const ALLOWED_ORIGINS = new Set([
   // Production
@@ -154,6 +160,9 @@ export default {
     if (body.action === 'fetch-ics') {
       return await handleFetchICS(body, origin);
     }
+    if (body.action === 'delete-account') {
+      return await handleDeleteAccount(body, env, origin);
+    }
     return await handleAnthropic(body, env, origin);
   }
 } satisfies ExportedHandler<Env>;
@@ -201,6 +210,57 @@ async function handleFetchICS(body: any, origin: string): Promise<Response> {
     console.error('[Worker] iCal fetch error:', e?.message);
     return jsonError('Could not fetch the calendar feed', 502, origin);
   }
+}
+
+// Account deletion — requires a VERIFIED Supabase user token (we never trust a
+// client-supplied user id). The FK ON DELETE CASCADE on profiles / flights /
+// trusted_devices means deleting the auth user wipes all their data atomically.
+async function handleDeleteAccount(body: any, env: Env, origin: string): Promise<Response> {
+  const e = env as Env & { SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string };
+  const token = (typeof body.accessToken === 'string' ? body.accessToken : '').trim();
+  if (!token) return jsonError('Missing access token', 401, origin);
+  if (!e.SUPABASE_URL || !e.SUPABASE_ANON_KEY || !e.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[Worker] Supabase env missing for delete-account');
+    return jsonError('Service misconfigured', 500, origin);
+  }
+  const base = e.SUPABASE_URL.replace(/\/+$/, '');
+
+  // 1) Verify the token and resolve the real uid server-side.
+  let uid = '';
+  try {
+    const ur = await fetch(`${base}/auth/v1/user`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'apikey': e.SUPABASE_ANON_KEY }
+    });
+    if (!ur.ok) return jsonError('Invalid or expired session', 401, origin);
+    const u: any = await ur.json();
+    uid = (u && typeof u.id === 'string') ? u.id : '';
+  } catch (err: any) {
+    console.error('[Worker] verify user failed:', err?.message);
+    return jsonError('Could not verify session', 502, origin);
+  }
+  if (!uid) return jsonError('Invalid session', 401, origin);
+
+  // 2) Hard-delete the auth user with the service-role key. ON DELETE CASCADE
+  //    removes profiles, flights and trusted_devices for this uid.
+  try {
+    const dr = await fetch(`${base}/auth/v1/admin/users/${uid}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${e.SUPABASE_SERVICE_ROLE_KEY}`, 'apikey': e.SUPABASE_SERVICE_ROLE_KEY }
+    });
+    // 404 = already gone → idempotent success.
+    if (!dr.ok && dr.status !== 404) {
+      console.error('[Worker] admin delete status:', dr.status);
+      return jsonError('Cloud deletion failed', 502, origin);
+    }
+  } catch (err: any) {
+    console.error('[Worker] admin delete error:', err?.message);
+    return jsonError('Cloud deletion failed', 502, origin);
+  }
+
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' }
+  });
 }
 
 async function handleAnthropic(body: any, env: Env, origin: string): Promise<Response> {

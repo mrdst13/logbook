@@ -578,12 +578,9 @@ function renderDashboard() {
   const hasOpening = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
   document.body.classList.toggle('no-data', !hasFlights && !hasOpening);
 
-  // Discovery banner — only brand-new users see it.
-  const bfBanner = document.getElementById('broughtForwardBanner');
-  if (bfBanner) {
-    const isBrandNew = !hasFlights && !hasOpening;
-    bfBanner.style.display = isBrandNew ? 'flex' : 'none';
-  }
+  // Brought-forward banner — three states (attested seal with hidden integrity
+  // fingerprint / unsigned draft / brand-new invitation). See 20-opening-balances.js.
+  if (typeof _dashRenderBfBanner === 'function') _dashRenderBfBanner(hasFlights);
 
   // (3) Greeting bar — time-aware salutation + activity sub
   _dashRenderGreeting();
@@ -1377,10 +1374,10 @@ function _dashRenderNextColumn() {
     const needAppr = Math.max(0, 6 - ifr.approaches);
     const needHrs = Math.max(0, 6 - ifr.hours);
     const subFr = needAppr > 0 && needHrs > 0
-      ? `${needAppr} appr. + ${needHrs.toFixed(1)} h à faire · CAR 401.05(3.1)`
+      ? `${needAppr} appr. + ${needHrs.toFixed(1)} h à faire · RAC 401.05(3.1)`
       : needAppr > 0
-        ? `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · CAR 401.05(3.1)`
-        : `${needHrs.toFixed(1)} h instrument à faire · CAR 401.05(3.1)`;
+        ? `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · RAC 401.05(3.1)`
+        : `${needHrs.toFixed(1)} h instrument à faire · RAC 401.05(3.1)`;
     const subEn = needAppr > 0 && needHrs > 0
       ? `${needAppr} appr + ${needHrs.toFixed(1)} h to go · CAR 401.05(3.1)`
       : needAppr > 0
@@ -1395,7 +1392,7 @@ function _dashRenderNextColumn() {
     const need = 5 - ldgCount;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
       title: fr ? `Validité passagers · ${ldgCount}/5 att.` : `Passenger recency · ${ldgCount}/5 ldg`,
-      sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · CAR 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
+      sub: fr ? `${need} atterrissage${need !== 1 ? 's' : ''} restant${need !== 1 ? 's' : ''} · RAC 401.05(2)` : `${need} landing${need !== 1 ? 's' : ''} to go · CAR 401.05(2)`,
       chip: 'REC',
       onclick: "openDashDrill('recency')" });
   } else if (medDays !== null && medDays <= 60) {

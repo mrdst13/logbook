@@ -1157,10 +1157,12 @@ function commitCsvImport() {
           mergedFlight[k] = iv;
         }
       });
-      // Always record the attestation on the merged row (it lived on `incoming`
-      // and was lost when `existing` won the spread).
-      if (incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
-      if (incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
+      // Record the attestation on the merged row ONLY if the existing flight
+      // wasn't already attested. Fill-empty: a re-import must NEVER overwrite a
+      // prior signature/timestamp on an already-signed flight (audit trail
+      // integrity). (Adversarially verified 2026-06-27.)
+      if (!existing.signedBy && incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
+      if (!existing.signedAt && incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
       flights[match.idx] = mergedFlight;
       merged++;
     } else {

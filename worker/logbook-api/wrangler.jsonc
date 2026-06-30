@@ -3,8 +3,12 @@
  *
  * Deploys to: https://logbook-api.martindaoust33.workers.dev
  *
- * Required env (set as Cloudflare Worker secret, NOT in this file):
- *   ANTHROPIC_API_KEY — wrangler secret put ANTHROPIC_API_KEY
+ * Secrets (set with `wrangler secret put`, NOT in this file):
+ *   ANTHROPIC_API_KEY          — paid AI key for PDF extraction
+ *   SUPABASE_SERVICE_ROLE_KEY  — privileged; powers /delete-account (admin user
+ *                                delete). NEVER put this in client code or vars.
+ * Public config lives in "vars" below (SUPABASE_URL + publishable key — the same
+ * values already shipped in the client bundle, safe to commit).
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
@@ -18,17 +22,26 @@
 	"observability": {
 		"enabled": true
 	},
+	// Public Supabase config (same values shipped in the client bundle — the
+	// publishable key is safe to expose). The privileged service-role key is a
+	// SECRET, set via `wrangler secret put SUPABASE_SERVICE_ROLE_KEY`.
+	"vars": {
+		"SUPABASE_URL": "https://hhsuvauqpgyzrxxqxoss.supabase.co",
+		"SUPABASE_ANON_KEY": "sb_publishable_fjdRGE_-1-VO2YUKVVWrGQ_Yqr4HJ-A"
+	},
 	"upload_source_maps": true,
-	// Per-IP rate limit: 20 requests / 60 s. "unsafe" is Cloudflare's label
-	// for the beta binding API, not a danger flag. namespace_id is an
-	// arbitrary app-unique integer.
+	// Per-IP rate limit: 12 requests / 60 s (tightened from 20 on 2026-06-26).
+	// Real use is a handful of calls (iCal sync on open/refocus + the odd PDF
+	// import); 12/min stays comfortable for pilots while bounding abuse of the
+	// paid AI path. The Anthropic daily spend cap is the hard financial backstop.
+	// "unsafe" is Cloudflare's label for the beta binding API, not a danger flag.
 	"unsafe": {
 		"bindings": [
 			{
 				"name": "RATE_LIMITER",
 				"type": "ratelimit",
 				"namespace_id": "1001",
-				"simple": { "limit": 20, "period": 60 }
+				"simple": { "limit": 12, "period": 60 }
 			}
 		]
 	}

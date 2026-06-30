@@ -67,9 +67,15 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 - **Source** : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-404.04.html (article ATAC = source secondaire qui a alerté).
 - **Impact Cumulo** : AUCUNE casse — l'app utilise l'échéance **saisie par le pilote** (`profile.medical`), pas un calcul ; le pilote saisit la date de son certificat (déjà conforme). **Opportunité** : un calculateur/vérificateur d'échéance dans la vue détail Médical (âge + type de licence + opération + règle (8)) — à concevoir avec la refonte, soigneusement (certifiable). NE PAS auto-coder sans validation Martin.
 
+## ✅ Validité du PPC — contrôle de compétence pilote (CAR 705.113) — vérifié 2026-06-27
+- **Règle (705.113(2))** : la validité du PPC expire **(a)** le 1er jour du **7e mois** suivant le mois du contrôle (≈ **6 mois**) ; **(b)** le 1er jour du **13e mois** (≈ **12 mois**) si le pilote réussit la **formation périodique semestrielle approuvée par le ministre** selon les CASS ; **(c)** option de programme de qualification avancée (AQP). **705.113(4)** : renouvellement dans les **90 derniers jours** de validité → prolongé de 6 ou 12 mois selon le cas.
+- **Source primaire** : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-705.113.html (WebFetch direct, 2026-06-27).
+- **Implémentation** : Q&R + glossaire mis à jour (6 mois base / 12 mois avec formation approuvée, cite 705.113). La date d'échéance reste **saisie par le pilote** (`ppcDueDate`) — aucune donnée calculée/inventée. 705.106 = exige un PPC valide ; **705.113 = la période de validité**.
+- ⏳ Reste cosmétique : l'échelle de l'anneau PPC (365 j) → à régler à ~180 j. Exemptions possibles par exploitation → la Q&R renvoie aussi au programme de l'exploitant.
+
 ## ⏳ À VÉRIFIER (présent dans le code, pas encore confirmé contre la source)
 - **CAR 401.08 / 401.08(2)(h)** — contenu obligatoire du carnet (colonnes). [04-logbook, 12-pdf-export, 13-glossaire]
-- **CASS 725.106** — validité PPC (705 multi-équipage) : période exacte + intervalle. Le code traite le PPC comme une date saisie par le pilote (`ppcDueDate`) ; l'échelle de l'anneau (180 j) est cosmétique. À confirmer.
+- ~~**CASS 725.106** — validité PPC~~ → **CONFIRMÉ 2026-06-27** au texte primaire **CAR 705.113** (voir la section ✅ ci-dessus : 6 mois base / 12 mois avec formation approuvée). Reste cosmétique : régler l'échelle de l'anneau PPC à ~180 j.
 - **CAR 401.34 / Standard 421.34** — usage exact (vs 101.01 pour la déf. XC).
 - **CAR 401.73** — récence/rafraîchissement (glossaire).
 - **CAR 605.x** (605.97 etc.) — exigences carnet de route / documents (glossaire).

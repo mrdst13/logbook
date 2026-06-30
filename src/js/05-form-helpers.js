@@ -104,6 +104,17 @@ function setEntryType(type) {
   document.getElementById('entryTypeFlight').classList.toggle('is-active', type === 'flight');
   document.getElementById('entryTypeSim').classList.toggle('is-active', type === 'sim');
   document.getElementById('simFields').style.display = type === 'sim' ? 'block' : 'none';
+  // Lock the Flight/Sim toggle while EDITING an existing entry. Changing the
+  // type on save forces a real flight's block time to 0 (sim has block:0) and
+  // the merge would wipe the pilot's logged hours — silent data loss. A logged
+  // entry's type is part of the record; delete + re-add to reclassify. New
+  // entries keep the toggle enabled. (Adversarially verified 2026-06-27.)
+  [document.getElementById('entryTypeFlight'), document.getElementById('entryTypeSim')].forEach(function (b) {
+    if (!b) return;
+    b.disabled = !!editingId;
+    b.style.opacity = editingId ? '0.55' : '';
+    b.style.cursor = editingId ? 'not-allowed' : '';
+  });
   // Update form title
   const ft = document.getElementById('formTitle');
   if (ft && !editingId) ft.textContent = type === 'sim' ? t('form.title.logSim') : t('form.title.logFlight');

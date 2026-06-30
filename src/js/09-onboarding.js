@@ -165,7 +165,12 @@ function onboardingNext() {
   }
 
   // ─── Final save ──────────────────────────────────────────────────
+  // Merge over any existing profile so fields set outside onboarding (PPC date,
+  // preferences, acConfigs…) aren't wiped if onboarding is ever re-run.
+  // (Adversarially verified 2026-06-27.)
+  const existing = DB.loadProfile() || {};
   const profile = {
+    ...existing,
     fname: onbData.fname,
     lname: onbData.lname,
     rank: onbData.rank,
