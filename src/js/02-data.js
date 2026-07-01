@@ -899,7 +899,7 @@ function _dashRenderValidities() {
   const items = [];
   if (is705) {
     const ppc = _dashPPCDaysRemaining(profile);
-    items.push({ drill: 'ppc', label: 'PPC', status: dateStatus(ppc, 60), days: ppc, window: 365, sub: fmtDate(profile.ppcDueDate) });
+    items.push({ drill: 'ppc', edit: 'ppc', label: 'PPC', status: dateStatus(ppc, 60), days: ppc, window: 365, sub: fmtDate(profile.ppcDueDate) });
   } else {
     const recTO = _dashTakeoffsIn6mo();
     const recLdg = _dashLandingsIn6mo();
@@ -924,7 +924,23 @@ function _dashRenderValidities() {
     }
   }
   const med = _dashMedicalDaysRemaining();
-  items.push({ drill: 'medical', label: fr ? 'Médical' : 'Medical', status: dateStatus(med, 90), days: med, window: 365, sub: fmtDate(profile.medical) });
+  items.push({ drill: 'medical', edit: 'medical', label: fr ? 'Médical' : 'Medical', status: dateStatus(med, 90), days: med, window: 365, sub: fmtDate(profile.medical) });
+
+  // Pilot-defined validities (date-based, editable). Stored on the profile so
+  // they persist locally; each is edited in place via editValidity('custom:id').
+  const _customVals = (typeof getCustomValidities === 'function')
+    ? getCustomValidities()
+    : (Array.isArray(profile.customValidities) ? profile.customValidities : []);
+  _customVals.forEach(v => {
+    if (!v || !v.id) return;
+    const cd = v.date ? new Date(v.date + 'T12:00:00') : null;
+    const cDays = (cd && !isNaN(cd.getTime())) ? Math.ceil((cd.getTime() - Date.now()) / 86400000) : null;
+    items.push({
+      edit: 'custom:' + v.id,
+      label: v.name || (fr ? 'Validité' : 'Validity'),
+      status: dateStatus(cDays, 60), days: cDays, window: 365, sub: fmtDate(v.date)
+    });
+  });
 
   const COLOR = { current: '#0EA371', soon: '#E8920F', expired: '#E24B4A', notset: '#CBD0DA' };
   const WORD = {
@@ -951,9 +967,12 @@ function _dashRenderValidities() {
   const fillOf = (it) => (it.fill != null) ? it.fill : ((it.days == null || !it.window) ? 1 : Math.max(0, Math.min(1, it.days / it.window)));
 
   let html = items.map((it) => {
-    const kd = esc(it.drill);
+    const kd = esc(it.drill || '');
+    // Date-based validities (PPC / Medical / custom) open the in-place date
+    // editor; count-based ones (recency / IFR) open the info drill-down.
+    const action = it.edit ? ("editValidity('" + it.edit + "')") : ("openDashDrill('" + kd + "')");
     return '' +
-      '<div class="dash-val dash-clickable" onclick="openDashDrill(\'' + kd + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openDashDrill(\'' + kd + '\');}">' +
+      '<div class="dash-val dash-clickable" onclick="' + action + '" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + action + ';}">' +
         '<div class="dash-val-ring">' + ringSvg(it.status, fillOf(it)) + '</div>' +
         '<div class="dash-val-name">' + esc(it.label) + '</div>' +
         '<div class="dash-val-status dash-val-' + it.status + '"><span class="dash-val-dot"></span>' + esc(WORD[it.status]) + '</div>' +
@@ -991,19 +1010,11 @@ function _dashRenderValidities() {
 // validity date so the pilot arrives exactly where these are set, not at the top
 // of a long profile form. (Bug reported by Martin 2026-06-26 — web + mobile.)
 function dashAddValidity() {
+  // New behaviour (2026-07-01): open the picker of things to track, then let the
+  // pilot set a date — instead of dumping them in the Settings profile form.
+  if (typeof openValidityPicker === 'function') return openValidityPicker();
+  // Fallback if the validities module isn't loaded: old Settings → Profile route.
   if (typeof showPage === 'function') showPage('profile');
-  setTimeout(() => {
-    // Prefer PPC when it's surfaced (705 line pilots); fall back to Medical,
-    // which applies to every pilot type and is always present.
-    const ppcWrap = document.getElementById('p-ppc-wrap');
-    const ppcVisible = ppcWrap && ppcWrap.style.display !== 'none' && ppcWrap.offsetParent !== null;
-    const target = (ppcVisible ? document.getElementById('p-ppc') : null)
-      || document.getElementById('p-medical');
-    if (target) {
-      try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch { target.scrollIntoView(); }
-      try { target.focus({ preventScroll: true }); } catch { try { target.focus(); } catch {} }
-    }
-  }, 140);
 }
 
 function _dashApproachesIn6mo() {
