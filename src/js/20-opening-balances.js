@@ -269,6 +269,13 @@ async function saveOpeningBalances(balances, cutoffDate) {
   log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
+  // Push the attestation to the cloud so the brought-forward hours follow the
+  // pilot to a 2nd device (audit cause #5). Fire-and-forget; queues if offline.
+  if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances &&
+      typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
+    Sync.pushOpeningBalances().catch(e => console.warn('[Sync] pushOpeningBalances error:', e));
+  }
+
   return record;
 }
 
@@ -348,7 +355,14 @@ function totalsWithOpening(flightsTotals) {
     const d = (+balances.ldgDay||0)+(+balances.ldgNight||0);
     if (d) merged.ldg = (+merged.ldg||0) + d;
   }
-  // Mirror total ↔ block when only one is present.
+  // Career flight-time total = the pilot's ATTESTED brought-forward total plus
+  // logged flights. In Canada flight time = block-to-block (CAR/RAC 101.01), so
+  // total and block are the same number — mirror whichever one the pilot entered.
+  // We deliberately do NOT derive the total from the PIC/SIC/Dual category
+  // buckets: those can overlap or be partial, so summing them would GUESS a
+  // total (a pilot's real brought-forward total need not equal PIC+SIC+Dual).
+  // Guessing a certifiable career number is worse than showing logged-only —
+  // the pilot enters their total explicitly. (empty > guessed rule.)
   if (!balances.total && (+balances.block||0) > 0) {
     merged.total = (+merged.total||0) + (+balances.block||0);
   }
@@ -411,7 +425,7 @@ function _dashRenderBfBanner(hasFlights) {
           <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Déclaration scellée et vérifiée' : 'Declaration sealed and verified'}</div>
           <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux sont enregistrés. Si un seul chiffre changeait après la signature, le sceau le détecterait.' : 'Your totals are saved. If a single number changed after signing, the seal would detect it.'}</div>
           ${summary ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">${esc(summary)}</div>` : ''}
-          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Voir l\'empreinte technique' : 'View the technical fingerprint'}</summary><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);word-break:break-all;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">SHA-256 · ${esc(hash)}</div></details>` : ''}
+          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Comment fonctionne le sceau' : 'How the seal works'}</summary><div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">${fr ? 'Une empreinte d\'intégrité unique est calculée à partir de vos totaux et conservée avec votre déclaration. Changer un seul chiffre produirait une empreinte différente — c\'est ainsi que toute altération serait détectée.' : 'A unique integrity fingerprint is computed from your totals and stored with your declaration. Changing a single number would produce a different fingerprint — that\'s how any tampering is detected.'}</div></details>` : ''}
         </div>
         <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
       </div>`;

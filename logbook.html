@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://logbook-api.martindaoust33.workers.dev https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob: https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://logbook-api.martindaoust33.workers.dev https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -34,6 +34,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
 <!-- Supabase JS SDK v2 (pinned + SRI — hash computed from the exact jsdelivr file, audit 2026-06-09) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
+<!-- Cloudflare Turnstile (invisible bot gate for the paid AI import path only).
+     Loads the library; NO widget renders and NO challenge runs until a site key
+     is set in 06-photo-import.js (getTurnstileToken). Fully no-op until then. -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
  // pdf.js worker (required by the library)
  if (typeof pdfjsLib !== 'undefined') {
@@ -7213,7 +7217,13 @@ function renderDashboard() {
 
   // (4a) Hero card: 88px career number + sparkline + delta pill
   const heroNumEl = document.getElementById('dashHeroNum');
-  if (heroNumEl) heroNumEl.textContent = fmt(s.block || s.total);
+  // Prefer flight time (`total`) over `block`; in Canada they are the same
+  // number (CAR/RAC 101.01 flight time = block-to-block), and pilots fill
+  // `total` far more often than the per-flight `block` field. Reading `block`
+  // first made the career number read low / "not move" when only total was
+  // filled (Martin 2026-07-01). Matches the duty tracker + brought-forward
+  // preview, so all surfaces agree.
+  if (heroNumEl) heroNumEl.textContent = fmt(s.total || s.block);
   const delta = document.getElementById('dashHeroDelta');
   const deltaVal = document.getElementById('dashHeroDeltaVal');
   if (delta && deltaVal) {
@@ -7532,7 +7542,7 @@ function _dashRenderValidities() {
   const items = [];
   if (is705) {
     const ppc = _dashPPCDaysRemaining(profile);
-    items.push({ drill: 'ppc', label: 'PPC', status: dateStatus(ppc, 60), days: ppc, window: 365, sub: fmtDate(profile.ppcDueDate) });
+    items.push({ drill: 'ppc', edit: 'ppc', label: 'PPC', status: dateStatus(ppc, 60), days: ppc, window: 365, sub: fmtDate(profile.ppcDueDate) });
   } else {
     const recTO = _dashTakeoffsIn6mo();
     const recLdg = _dashLandingsIn6mo();
@@ -7557,7 +7567,23 @@ function _dashRenderValidities() {
     }
   }
   const med = _dashMedicalDaysRemaining();
-  items.push({ drill: 'medical', label: fr ? 'Médical' : 'Medical', status: dateStatus(med, 90), days: med, window: 365, sub: fmtDate(profile.medical) });
+  items.push({ drill: 'medical', edit: 'medical', label: fr ? 'Médical' : 'Medical', status: dateStatus(med, 90), days: med, window: 365, sub: fmtDate(profile.medical) });
+
+  // Pilot-defined validities (date-based, editable). Stored on the profile so
+  // they persist locally; each is edited in place via editValidity('custom:id').
+  const _customVals = (typeof getCustomValidities === 'function')
+    ? getCustomValidities()
+    : (Array.isArray(profile.customValidities) ? profile.customValidities : []);
+  _customVals.forEach(v => {
+    if (!v || !v.id) return;
+    const cd = v.date ? new Date(v.date + 'T12:00:00') : null;
+    const cDays = (cd && !isNaN(cd.getTime())) ? Math.ceil((cd.getTime() - Date.now()) / 86400000) : null;
+    items.push({
+      edit: 'custom:' + v.id,
+      label: v.name || (fr ? 'Validité' : 'Validity'),
+      status: dateStatus(cDays, 60), days: cDays, window: 365, sub: fmtDate(v.date)
+    });
+  });
 
   const COLOR = { current: '#0EA371', soon: '#E8920F', expired: '#E24B4A', notset: '#CBD0DA' };
   const WORD = {
@@ -7584,9 +7610,12 @@ function _dashRenderValidities() {
   const fillOf = (it) => (it.fill != null) ? it.fill : ((it.days == null || !it.window) ? 1 : Math.max(0, Math.min(1, it.days / it.window)));
 
   let html = items.map((it) => {
-    const kd = esc(it.drill);
+    const kd = esc(it.drill || '');
+    // Date-based validities (PPC / Medical / custom) open the in-place date
+    // editor; count-based ones (recency / IFR) open the info drill-down.
+    const action = it.edit ? ("editValidity('" + it.edit + "')") : ("openDashDrill('" + kd + "')");
     return '' +
-      '<div class="dash-val dash-clickable" onclick="openDashDrill(\'' + kd + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openDashDrill(\'' + kd + '\');}">' +
+      '<div class="dash-val dash-clickable" onclick="' + action + '" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + action + ';}">' +
         '<div class="dash-val-ring">' + ringSvg(it.status, fillOf(it)) + '</div>' +
         '<div class="dash-val-name">' + esc(it.label) + '</div>' +
         '<div class="dash-val-status dash-val-' + it.status + '"><span class="dash-val-dot"></span>' + esc(WORD[it.status]) + '</div>' +
@@ -7624,19 +7653,11 @@ function _dashRenderValidities() {
 // validity date so the pilot arrives exactly where these are set, not at the top
 // of a long profile form. (Bug reported by Martin 2026-06-26 — web + mobile.)
 function dashAddValidity() {
+  // New behaviour (2026-07-01): open the picker of things to track, then let the
+  // pilot set a date — instead of dumping them in the Settings profile form.
+  if (typeof openValidityPicker === 'function') return openValidityPicker();
+  // Fallback if the validities module isn't loaded: old Settings → Profile route.
   if (typeof showPage === 'function') showPage('profile');
-  setTimeout(() => {
-    // Prefer PPC when it's surfaced (705 line pilots); fall back to Medical,
-    // which applies to every pilot type and is always present.
-    const ppcWrap = document.getElementById('p-ppc-wrap');
-    const ppcVisible = ppcWrap && ppcWrap.style.display !== 'none' && ppcWrap.offsetParent !== null;
-    const target = (ppcVisible ? document.getElementById('p-ppc') : null)
-      || document.getElementById('p-medical');
-    if (target) {
-      try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch { target.scrollIntoView(); }
-      try { target.focus({ preventScroll: true }); } catch { try { target.focus(); } catch {} }
-    }
-  }, 140);
 }
 
 function _dashApproachesIn6mo() {
@@ -9265,6 +9286,40 @@ function wireFlightFormValidation() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Cloudflare Turnstile — invisible bot gate for the paid AI import path.
+// getTurnstileToken() renders the (invisible) widget once, then returns a FRESH
+// token per call. Resolves to '' when Turnstile isn't configured (empty site
+// key / library not loaded) — the worker treats a missing token as a no-op
+// until TURNSTILE_SECRET is provisioned, so this is safe to ship inert.
+// Spec: private/SPEC-ANTI-ABUS-2026-06-27.md (layer A).
+// ─────────────────────────────────────────────────────────────────
+const TURNSTILE_SITE_KEY = ''; // ← Martin: paste the Turnstile SITE key here to activate
+let _tsWidgetId = null;
+function getTurnstileToken() {
+  return new Promise((resolve) => {
+    if (!TURNSTILE_SITE_KEY || typeof window === 'undefined' || !window.turnstile) return resolve('');
+    try {
+      if (_tsWidgetId === null) {
+        let host = document.getElementById('cf-turnstile-host');
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'cf-turnstile-host';
+          host.style.display = 'none';
+          document.body.appendChild(host);
+        }
+        _tsWidgetId = window.turnstile.render(host, {
+          sitekey: TURNSTILE_SITE_KEY, size: 'invisible',
+          callback: () => {}, 'error-callback': () => {}
+        });
+      } else {
+        window.turnstile.reset(_tsWidgetId);
+      }
+      window.turnstile.execute(_tsWidgetId).then(resolve).catch(() => resolve(''));
+    } catch (_) { resolve(''); }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
 // IMPORT PAGE — recent-imports strip
 // Renders a small banner at the top of the Import page showing the most
 // recent import activity (Navblue iCal sync OR PDF/CSV import audit log,
@@ -9407,12 +9462,16 @@ async function parseNavbluePDF(input) {
 
   try {
     msg.textContent = t('import.aiBox.extracting');
+    // Layer A (anti-abuse): attach a fresh Turnstile token. '' when Turnstile
+    // isn't configured yet → the worker no-ops, so this changes nothing today.
+    const turnstileToken = await getTurnstileToken();
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
         max_tokens: 8000,
+        turnstileToken,
         // Note: the system prompt is pinned server-side in the worker
         // (data-extraction-API persona) — anything sent here is ignored.
         messages: [{
@@ -11011,33 +11070,22 @@ async function syncNavblueNow(opts) {
       ? !!syncProfile.autoCountIFR
       : isAirline705(syncProfile.airline);
 
-    // Filter eligibility: past-dated flights always pass. Today's flights
-    // pass IFF their scheduled block-on (dtstart_utc + block hrs) is in
-    // the past — meaning the flight is actually complete, not just dated
-    // for today. Without this, an F/O finishing PD447 at 14:00Z would
-    // have to wait until midnight local before auto-sync surfaces it.
-    // Future-dated flights are still excluded (they haven't happened yet —
-    // logging them would violate CAR 401.08 contemporaneous-record).
+    // Filter eligibility: ONLY flights strictly before today are offered.
+    // The roster iCal carries SCHEDULED times only (BLH / STD / STA) — never an
+    // actual block-on — so a flight dated today could be delayed or still
+    // airborne. A previous "scheduled arrival already passed" heuristic leaked
+    // exactly those in-progress flights into the import (reported by Martin
+    // 2026-07-01, mid-flight), which would log SCHEDULE times as if they were
+    // ACTUALS — the one thing a certifiable logbook must never do
+    // (schedule ≠ actual). We cannot prove completion from schedule data alone,
+    // so today's flight is imported on the NEXT sync once it is strictly past,
+    // or added manually with real times. (The PDF roster path already does this.)
     const today = new Date().toISOString().split('T')[0];
-    const nowMs = Date.now();
     const mapped = events
       .map(ev => navblueEventToFlight(ev, isFO, autoCountIFR))
-      .filter(f => {
-        if (!f || !f.date) return false;
-        if (f.date < today) return true;             // past — always eligible
-        if (f.date > today) return false;            // future — never eligible
-        // f.date === today — eligible only if block-on time has passed
-        if (f.dtstart_utc && f.block > 0) {
-          const blockOnMs = new Date(f.dtstart_utc).getTime() + (+f.block * 3600000);
-          // 5 min cushion so we don't import a flight that's juuust landing
-          return blockOnMs + 5 * 60 * 1000 < nowMs;
-        }
-        // Today's flight without dtstart_utc/block — can't verify completion,
-        // be conservative and exclude (next sync will catch it tomorrow).
-        return false;
-      });
+      .filter(f => f && f.date && f.date < today);
 
-    void(`[Navblue Sync] ${mapped.length} flights eligible for import (past-dated + today's completed)`);
+    void(`[Navblue Sync] ${mapped.length} flights eligible for import (strictly past-dated — completed only)`);
 
     // SNAPSHOT before any modification — pilot data is precious
     snapshotBeforeOperation('Navblue iCal sync');
@@ -12693,7 +12741,7 @@ function _generatePDF() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(30);
     doc.setTextColor(...textPrimary);
-    doc.text(`${fmt(totals.block || totals.total)} hrs`, cardX + 6, heroY + 24);
+    doc.text(`${fmt(totals.total || totals.block)} hrs`, cardX + 6, heroY + 24);
 
     // Breakdown line under the hero — shows brought-forward + logged-in-Cumulo
     // composition. Inspector sees instantly where the cumulative comes from.
@@ -12701,7 +12749,7 @@ function _generatePDF() {
     if (hasBF && typeof loadOpeningBalances === 'function') {
       const ob = loadOpeningBalances();
       const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
-      const loggedHere = Math.max(0, (totals.block || totals.total || 0) - bfTotal);
+      const loggedHere = Math.max(0, (totals.total || totals.block || 0) - bfTotal);
       breakdown = `+ ${fmt(bfTotal)} brought-forward (paper)   ·   + ${fmt(loggedHere)} logged in Cumulo`;
     } else {
       breakdown = `${flights.length} flight${flights.length !== 1 ? 's' : ''} logged in Cumulo`;
@@ -15122,7 +15170,7 @@ const STRINGS = {
  'btn.logFlight': 'Log flight',
 
  // ─── Hero card
- 'hero.totalBlock': 'Total Block Hours',
+ 'hero.totalBlock': 'Total Flight Time',
  'hero.last30': 'last 30 days',
  'hero.pic': 'PIC',
  'hero.sic': 'SIC',
@@ -15154,7 +15202,7 @@ const STRINGS = {
 
  // ─── Sync & Import cards
  'sync.navblue.title': 'iCal Roster Auto-Sync',
- 'sync.navblue.desc': 'Fetches your roster automatically — completed flights with real block hours.',
+ 'sync.navblue.desc': 'Fetches your roster automatically — completed flights with real flight time.',
  'sync.navblue.urlLabel': 'iCal URL',
  'sync.navblue.saveBtn': 'Save URL',
  'sync.navblue.syncBtn': 'Sync now',
@@ -15258,7 +15306,7 @@ const STRINGS = {
  'flight.route': 'Route',
  'flight.pic': 'Pilot in Command',
  'flight.copilot': 'Co-Pilot / Passenger',
- 'flight.block': 'Block Time',
+ 'flight.block': 'Flight Time',
  'flight.duty': 'Duty Time',
  'flight.stdUtc': 'Off-block UTC',
  'flight.staUtc': 'On-block UTC',
@@ -15387,7 +15435,7 @@ const STRINGS = {
  'dash.recentFlights': 'Recent flights',
  'dash.viewAll': 'View all →',
  'dash.importRoster': 'Import roster',
- 'dash.heroEyebrow': 'TOTAL BLOCK HOURS · CAREER',
+ 'dash.heroEyebrow': 'TOTAL FLIGHT TIME · CAREER',
  'dash.validitiesEyebrow': 'CURRENT VALIDITIES',
  'dash.ringCap6mo': '6 MOS',
  'dash.ringCapCat1': 'CAT 1',
@@ -15412,7 +15460,7 @@ const STRINGS = {
  'stats.landings': 'Landings',
  'stats.me': 'Multi-Engine',
  'stats.xc': 'Cross Country',
- 'stats.blockTime': 'Block Time',
+ 'stats.blockTime': 'Flight Time',
  'stats.entries': 'Entries',
  'stats.hours': 'hours',
  'stats.totalUnit': 'total',
@@ -15440,7 +15488,7 @@ const STRINGS = {
  'alert.landingCurrencySub': '5 take-offs + 5 landings required within 6 months to carry passengers',
  'alert.ifrCurrency': 'IFR currency: {n}/6 approaches in last 6 months',
  'alert.ifrCurrencySub': '6 approaches required within 6 months',
- 'chart.monthlyTitle': 'Monthly Block Hours',
+ 'chart.monthlyTitle': 'Monthly Flight Time',
  'chart.last12mo': 'LAST 12 MONTHS',
  'lb.addFlight': ' Add Flight',
  'import.photoTitle': 'Photo / Scan',
@@ -15566,7 +15614,7 @@ const STRINGS = {
  'import.preview.selectAll': 'Select all',
  'import.preview.deselectAll': 'Deselect all',
  'import.preview.fieldTotal': 'Total',
- 'import.preview.fieldBlock': 'Block',
+ 'import.preview.fieldBlock': 'Flight time',
  'import.preview.fieldPicDay': 'PIC Day',
  'import.preview.fieldPicNight': 'PIC Night',
  'import.preview.fieldSic': 'SIC',
@@ -15587,7 +15635,7 @@ const STRINGS = {
  'rec.date': 'Date',
  'rec.reg': 'Aircraft',
  'rec.route': 'Route',
- 'rec.block': 'Block',
+ 'rec.block': 'Flight time',
  'rec.total': 'Total',
  'rec.ldg': 'LDG',
 
@@ -15685,7 +15733,7 @@ const STRINGS = {
  'recap.topAirports': 'Most visited airports',
  'recap.noFlights': 'No flights in this year.',
  'recap.totalHoursLbl':'Total Hours',
- 'recap.blockHoursLbl':'Block Hours',
+ 'recap.blockHoursLbl':'Flight Time',
  'recap.nightTimeLbl': 'Night Time',
  'recap.landingsLbl': 'Landings',
  'recap.hoursUnit': 'hours',
@@ -15849,7 +15897,7 @@ const STRINGS = {
  'snap.modal.flights': 'Flights',
  'snap.modal.date': 'Date',
  'btn.restore': 'Restore',
- 'chart.blockHours': 'Block Hours',
+ 'chart.blockHours': 'Flight Time',
  // ─── Flight detail panel (04-logbook.js openFlightDetail)
  'detail.depIcao': 'Departure (ICAO)',
  'detail.arrIcao': 'Arrival (ICAO)',
@@ -16177,7 +16225,7 @@ const STRINGS = {
  'btn.logFlight': 'Inscrire un vol',
 
  // ─── Carte hero
- 'hero.totalBlock': 'Heures bloc totales',
+ 'hero.totalBlock': 'Temps de vol total',
  'hero.last30': '30 derniers jours',
  'hero.pic': 'PIC',
  'hero.sic': 'SIC',
@@ -16209,7 +16257,7 @@ const STRINGS = {
 
  // ─── Cartes Sync & Import
  'sync.navblue.title': 'Synchro auto iCal de l’horaire',
- 'sync.navblue.desc': 'Récupère votre horaire automatiquement — vols terminés avec heures bloc réelles.',
+ 'sync.navblue.desc': 'Récupère votre horaire automatiquement — vols terminés avec temps de vol réel.',
  'sync.navblue.urlLabel': 'URL iCal',
  'sync.navblue.saveBtn': 'Enregistrer URL',
  'sync.navblue.syncBtn': 'Synchroniser',
@@ -16313,7 +16361,7 @@ const STRINGS = {
  'flight.route': 'Route',
  'flight.pic': 'Commandant de bord',
  'flight.copilot': 'Copilote / Passager',
- 'flight.block': 'Temps bloc',
+ 'flight.block': 'Temps de vol',
  'flight.duty': 'Temps de service',
  'flight.stdUtc': 'Bloc départ UTC',
  'flight.staUtc': 'Bloc arrivée UTC',
@@ -16446,7 +16494,7 @@ const STRINGS = {
  'dash.recentFlights': 'Vols récents',
  'dash.viewAll': 'Tout voir →',
  'dash.importRoster': 'Importer un horaire',
- 'dash.heroEyebrow': 'HEURES BLOC TOTALES · CARRIÈRE',
+ 'dash.heroEyebrow': 'TEMPS DE VOL TOTAL · CARRIÈRE',
  'dash.validitiesEyebrow': 'VALIDITÉS · COURANTES',
  'dash.ringCap6mo': '6 MOIS',
  'dash.ringCapCat1': 'CAT 1',
@@ -16471,7 +16519,7 @@ const STRINGS = {
  'stats.landings': 'Atterrissages',
  'stats.me': 'Multimoteur',
  'stats.xc': 'Vol-voyage',
- 'stats.blockTime': 'Temps bloc',
+ 'stats.blockTime': 'Temps de vol',
  'stats.entries': 'Entrées',
  'stats.hours': 'heures',
  'stats.totalUnit': 'total',
@@ -16499,7 +16547,7 @@ const STRINGS = {
  'alert.landingCurrencySub': '5 décollages + 5 atterrissages requis dans les 6 mois pour transporter des passagers',
  'alert.ifrCurrency': 'Validité IFR : {n}/6 approches au cours des 6 derniers mois',
  'alert.ifrCurrencySub': '6 approches requises dans les 6 mois',
- 'chart.monthlyTitle': 'Heures bloc mensuelles',
+ 'chart.monthlyTitle': 'Temps de vol mensuel',
  'chart.last12mo': '12 DERNIERS MOIS',
  'lb.addFlight': ' Ajouter un vol',
  'import.photoTitle': 'Photo / Scan',
@@ -16625,7 +16673,7 @@ const STRINGS = {
  'import.preview.selectAll': 'Tout sélectionner',
  'import.preview.deselectAll': 'Tout désélectionner',
  'import.preview.fieldTotal': 'Total',
- 'import.preview.fieldBlock': 'Bloc',
+ 'import.preview.fieldBlock': 'Temps vol',
  'import.preview.fieldPicDay': 'CDB jour',
  'import.preview.fieldPicNight': 'CDB nuit',
  'import.preview.fieldSic': 'Copilote',
@@ -16646,7 +16694,7 @@ const STRINGS = {
  'rec.date': 'Date',
  'rec.reg': 'Aéronef',
  'rec.route': 'Route',
- 'rec.block': 'Bloc',
+ 'rec.block': 'Temps vol',
  'rec.total': 'Total',
  'rec.ldg': 'ATT',
 
@@ -16744,7 +16792,7 @@ const STRINGS = {
  'recap.topAirports': 'Aéroports les plus visités',
  'recap.noFlights': 'Aucun vol cette année.',
  'recap.totalHoursLbl':'Heures totales',
- 'recap.blockHoursLbl':'Heures bloc',
+ 'recap.blockHoursLbl':'Temps de vol',
  'recap.nightTimeLbl': 'Temps de nuit',
  'recap.landingsLbl': 'Atterrissages',
  'recap.hoursUnit': 'heures',
@@ -16908,7 +16956,7 @@ const STRINGS = {
  'snap.modal.flights': 'Vols',
  'snap.modal.date': 'Date',
  'btn.restore': 'Restaurer',
- 'chart.blockHours': 'Heures bloc',
+ 'chart.blockHours': 'Temps de vol',
  // ─── Panneau de détail du vol (04-logbook.js openFlightDetail)
  'detail.depIcao': 'Départ (OACI)',
  'detail.arrIcao': 'Arrivée (OACI)',
@@ -17802,6 +17850,11 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pullProfile) {
     await Sync.pullProfile();
   }
+  // Pull brought-forward hours (paper-logbook attestation) so the career total
+  // matches across devices. Fill-empty; never clobbers a local attestation.
+  if (typeof Sync !== 'undefined' && Sync.pullOpeningBalances) {
+    await Sync.pullOpeningBalances();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -18006,6 +18059,8 @@ const FLIGHT_FIELD_MAP = {
   meNightDual: 'me_night_dual',
   seDay: 'se_day',
   seNight: 'se_night',
+  seDayDual: 'se_day_dual',
+  seNightDual: 'se_night_dual',
   atd_utc: 'atd_utc',
   ata_utc: 'ata_utc',
   heliDayPic: 'heli_day_pic',
@@ -18061,7 +18116,7 @@ const FLIGHT_FIELD_MAP_INV = (() => {
 const NUMERIC_COLS = new Set([
   'block','duty','total',
   'me_day_pic','me_night_pic','me_day_cop','me_night_cop','me_day_dual','me_night_dual',
-  'se_day','se_night',
+  'se_day','se_night','se_day_dual','se_night_dual',
   'heli_day_pic','heli_night_pic','heli_day_cop','heli_night_cop','heli_day_dual','heli_night_dual','hover_time',
   'xc_day_pic','xc_night_pic','xc_day_cop','xc_night_cop','xc_day_dual','xc_night_dual',
   'inst_actual','inst_hood','inst_sim','approaches','picus',
@@ -18328,6 +18383,15 @@ const Sync = {
       dark_mode: darkMode,
       ac_configs: profile.acConfigs || ['wheels'],
       column_prefs: columnPrefs || {},
+      // Fields synced since the 2026-07-01 Supabase ALTER (audit cause #2).
+      // ppcDueDate / personalGoal* live on the profile object; signature +
+      // onboarded live in localStorage (read via ls()).
+      ppc_due_date: profile.ppcDueDate || null,
+      personal_goal_hrs: (profile.personalGoalHrs != null && profile.personalGoalHrs !== '') ? +profile.personalGoalHrs : null,
+      personal_goal_kind: profile.personalGoalKind || null,
+      personal_goal_context: profile.personalGoalContext || null,
+      signature: ls('logbook_signature') || null,
+      onboarded: !!ls('cumulo_onboarded_v1'),
     };
     const { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
@@ -18342,8 +18406,9 @@ const Sync = {
   // localStorage keys (Navblue URL, language, dark mode, column prefs) so the
   // "connect iCal" card (02-data.js) and monthly-PDF routing (06-photo-import.js),
   // which read localStorage directly, stop firing spuriously on a 2nd device.
-  // Note: ppcDueDate / personalGoal / signature / onboarded are intentionally
-  // NOT pulled here — their columns don't exist yet (pending a Supabase ALTER).
+  // ppcDueDate / personalGoal* / signature / onboarded are also pulled now —
+  // their columns were added by the 2026-07-01 Supabase ALTER. Same fill-empty
+  // rule (a pilot-entered value is never overwritten).
   async pullProfile() {
     if (!Auth.isAuthenticated()) return;
     let data, error;
@@ -18376,6 +18441,14 @@ const Sync = {
     fillStr('fleet', row.fleet);
     fillStr('operatorCodes', row.operator_codes);
     fillStr('pilotType', row.pilot_type);
+    // Certifiable + tracker fields (columns added 2026-07-01). Fill-empty only —
+    // ppcDueDate is certifiable, so a local date is never clobbered.
+    fillStr('ppcDueDate', row.ppc_due_date);
+    fillStr('personalGoalKind', row.personal_goal_kind);
+    fillStr('personalGoalContext', row.personal_goal_context);
+    if (isBlank(local.personalGoalHrs) && !isBlank(row.personal_goal_hrs)) {
+      local.personalGoalHrs = +row.personal_goal_hrs; changed = true;
+    }
 
     // Booleans / arrays: adopt only when the key is genuinely unset locally,
     // so a pilot who explicitly turned something off keeps that choice.
@@ -18410,9 +18483,74 @@ const Sync = {
       if (!localStorage.getItem('cumulo_column_prefs_v1') && row.column_prefs && Object.keys(row.column_prefs).length) {
         localStorage.setItem('cumulo_column_prefs_v1', JSON.stringify(row.column_prefs));
       }
+      // Signature (base64) — restore only if this device has none, so the PDF
+      // signature block works on a 2nd device without re-drawing it.
+      if (!localStorage.getItem('logbook_signature') && row.signature) {
+        localStorage.setItem('logbook_signature', row.signature);
+      }
+      // Onboarding flag — if the cloud says this pilot already onboarded, don't
+      // re-trigger the wizard on a fresh device.
+      if (localStorage.getItem('cumulo_onboarded_v1') === null && row.onboarded === true) {
+        localStorage.setItem('cumulo_onboarded_v1', 'done');
+      }
     } catch (e) { /* storage unavailable — non-fatal */ }
 
     if (typeof renderDashboard === 'function') renderDashboard();
+  },
+
+  // ─── Opening balances (brought-forward hours) cross-device sync ──────
+  // The paper-logbook attestation (hours + cutoff + attest date + SHA-256 hash)
+  // lived only in localStorage (audit cause #5) → a 2nd device showed 0 h and
+  // the career total diverged. Push on save, fill-empty pull on sign-in.
+  async pushOpeningBalances() {
+    if (!Auth.isAuthenticated()) return;
+    if (typeof loadOpeningBalances !== 'function') return;
+    const rec = loadOpeningBalances();
+    // Only push a real attestation. An empty record must never clobber a cloud
+    // attestation made on another device.
+    if (!rec || !rec.balances || !Object.keys(rec.balances).length) return;
+    const row = {
+      user_id: Auth.currentUserId(),
+      balances: rec.balances,
+      attested_at: rec.attestedAt || null,
+      cutoff_date: rec.cutoffDate || null,
+      hash: rec.hash || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await Auth.client.from('opening_balances').upsert(row, { onConflict: 'user_id' });
+    if (error) {
+      console.warn('[Sync] pushOpeningBalances failed, queuing:', error.message);
+      this._enqueue({ type: 'upsert_opening_balances', payload: row });
+    }
+  },
+
+  async pullOpeningBalances() {
+    if (!Auth.isAuthenticated()) return;
+    if (typeof loadOpeningBalances !== 'function') return;
+    // Fill-empty: never clobber a local attestation. Only adopt the cloud
+    // record when this device has declared no opening balances of its own.
+    const localRec = loadOpeningBalances();
+    if (localRec && localRec.balances && Object.keys(localRec.balances).length) return;
+    let data, error;
+    try {
+      const resp = await Auth.client.from('opening_balances')
+        .select('*').eq('user_id', Auth.currentUserId());
+      data = resp.data; error = resp.error;
+    } catch (e) { console.warn('[Sync] pullOpeningBalances threw:', e); return; }
+    if (error) { console.warn('[Sync] pullOpeningBalances failed:', error.message); return; }
+    const row = data && data[0];
+    if (!row || !row.balances || !Object.keys(row.balances).length) return;
+    const record = {
+      balances: row.balances,
+      cutoffDate: row.cutoff_date || null,
+      attestedAt: row.attested_at || null,
+      hash: row.hash || null,
+    };
+    try {
+      localStorage.setItem(OPENING_BALANCES_KEY, JSON.stringify(record));
+    } catch (e) { return; }
+    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
   },
 
   // ─── Migration (one-shot per device) ────────────────────────────
@@ -18628,6 +18766,9 @@ const Sync = {
           if (error) { op.attempts++; remaining.push(op); }
         } else if (op.type === 'upsert_profile') {
           const { error } = await Auth.client.from('profiles').upsert(op.payload, { onConflict: 'id' });
+          if (error) { op.attempts++; remaining.push(op); }
+        } else if (op.type === 'upsert_opening_balances') {
+          const { error } = await Auth.client.from('opening_balances').upsert(op.payload, { onConflict: 'user_id' });
           if (error) { op.attempts++; remaining.push(op); }
         }
       } catch (e) {
@@ -19022,6 +19163,13 @@ async function saveOpeningBalances(balances, cutoffDate) {
   log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
+  // Push the attestation to the cloud so the brought-forward hours follow the
+  // pilot to a 2nd device (audit cause #5). Fire-and-forget; queues if offline.
+  if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances &&
+      typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
+    Sync.pushOpeningBalances().catch(e => console.warn('[Sync] pushOpeningBalances error:', e));
+  }
+
   return record;
 }
 
@@ -19101,7 +19249,14 @@ function totalsWithOpening(flightsTotals) {
     const d = (+balances.ldgDay||0)+(+balances.ldgNight||0);
     if (d) merged.ldg = (+merged.ldg||0) + d;
   }
-  // Mirror total ↔ block when only one is present.
+  // Career flight-time total = the pilot's ATTESTED brought-forward total plus
+  // logged flights. In Canada flight time = block-to-block (CAR/RAC 101.01), so
+  // total and block are the same number — mirror whichever one the pilot entered.
+  // We deliberately do NOT derive the total from the PIC/SIC/Dual category
+  // buckets: those can overlap or be partial, so summing them would GUESS a
+  // total (a pilot's real brought-forward total need not equal PIC+SIC+Dual).
+  // Guessing a certifiable career number is worse than showing logged-only —
+  // the pilot enters their total explicitly. (empty > guessed rule.)
   if (!balances.total && (+balances.block||0) > 0) {
     merged.total = (+merged.total||0) + (+balances.block||0);
   }
@@ -19164,7 +19319,7 @@ function _dashRenderBfBanner(hasFlights) {
           <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Déclaration scellée et vérifiée' : 'Declaration sealed and verified'}</div>
           <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux sont enregistrés. Si un seul chiffre changeait après la signature, le sceau le détecterait.' : 'Your totals are saved. If a single number changed after signing, the seal would detect it.'}</div>
           ${summary ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">${esc(summary)}</div>` : ''}
-          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Voir l\'empreinte technique' : 'View the technical fingerprint'}</summary><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);word-break:break-all;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">SHA-256 · ${esc(hash)}</div></details>` : ''}
+          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Comment fonctionne le sceau' : 'How the seal works'}</summary><div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">${fr ? 'Une empreinte d\'intégrité unique est calculée à partir de vos totaux et conservée avec votre déclaration. Changer un seul chiffre produirait une empreinte différente — c\'est ainsi que toute altération serait détectée.' : 'A unique integrity fingerprint is computed from your totals and stored with your declaration. Changing a single number would produce a different fingerprint — that\'s how any tampering is detected.'}</div></details>` : ''}
         </div>
         <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
       </div>`;
@@ -20823,11 +20978,243 @@ function renderDutyTracker() {
     '<div class="tc-note">' + dayNote + '</div>' +
     '<p class="lic-endnote">' + scope + '</p>';
 }
+// ═══════════════════════════════════════════════════════════════════
+// VALIDITIES — edit an existing validity's date, or add one to track
+// ─────────────────────────────────────────────────────────────────
+// Two behaviours on the Dashboard "Current validities" card:
+//   • Click a DATE-based validity (PPC, Medical, or a custom one) → edit
+//     its date in place (editValidity).
+//   • Click "+ Add a validity" → a PICKER of things a pilot might track
+//     (openValidityPicker), pick one or "Custom", then set a date.
+// Count-based validities (Recent experience, IFR currency) are computed
+// from the logbook, so they stay info-only (openDashDrill) — nothing to edit.
+//
+// Dates are ALWAYS pilot-entered — never computed or inferred (certifiable
+// rule). Custom validities live on the profile object (profile.customValidities)
+// so they persist locally; cross-device cloud sync of custom validities needs a
+// dedicated column (not yet provisioned) — built-in PPC/Medical already sync.
+//
+// The UI reuses the existing dash drill-down modal (dashDrillOverlay) so it
+// inherits the same styling, backdrop, and close handling (closeDashDrill).
+// ═══════════════════════════════════════════════════════════════════
+
+// Suggested trackables for the picker. Just labels — the pilot enters the date,
+// and can rename any of them (or use "Custom"). Not regulatory definitions.
+const VALIDITY_PRESETS = [
+  { key: 'ifr',        en: 'IFR / instrument renewal',    fr: 'IFR / renouvellement instrument' },
+  { key: 'typeRating', en: 'Type rating',                 fr: 'Qualification de type' },
+  { key: 'lineCheck',  en: 'Line check',                  fr: 'Contrôle en ligne' },
+  { key: 'tdg',        en: 'Dangerous goods',             fr: 'Marchandises dangereuses' },
+  { key: 'firstAid',   en: 'First aid',                   fr: 'Secourisme' },
+  { key: 'radio',      en: 'Radio licence (ROC-A)',       fr: 'Licence radio (ROC-A)' },
+  { key: 'lang',       en: 'Language proficiency',        fr: 'Compétence linguistique' },
+  { key: 'passport',   en: 'Passport',                    fr: 'Passeport' },
+  { key: 'raic',       en: 'Security pass (RAIC)',        fr: 'Laissez-passer (ZRD/RAIC)' },
+  { key: 'company',    en: 'Company recurrent',           fr: 'Formation périodique entreprise' },
+];
+
+// Name of the preset chosen in the picker, carried into the "new" editor.
+let _pendingValidityName = '';
+
+function _valFr() { return (typeof getLang === 'function') && getLang() === 'fr'; }
+
+// Read/normalise the pilot's custom validities from the profile object.
+function getCustomValidities() {
+  const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  return Array.isArray(p.customValidities) ? p.customValidities : [];
+}
+
+function _saveCustomValidities(list) {
+  const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  p.customValidities = list;
+  DB.saveProfile(p);
+}
+
+// ─── Picker: "what would you like to track?" ─────────────────────────
+function openValidityPicker() {
+  const overlay = document.getElementById('dashDrillOverlay');
+  if (!overlay) return;
+  const fr = _valFr();
+  const eyebrow = document.getElementById('dashDrillEyebrow');
+  const title = document.getElementById('dashDrillTitle');
+  const body = document.getElementById('dashDrillBody');
+  const foot = document.getElementById('dashDrillFoot');
+
+  if (eyebrow) eyebrow.textContent = fr ? 'AJOUTER' : 'ADD';
+  if (title) title.textContent = fr ? 'Que voulez-vous suivre ?' : 'What would you like to track?';
+
+  const rows = VALIDITY_PRESETS.map(pre => {
+    const label = fr ? pre.fr : pre.en;
+    return '<button type="button" class="btn btn-ghost val-pick-row" ' +
+      'onclick="startAddValidity(\'' + pre.key + '\')" ' +
+      'style="justify-content:flex-start;width:100%;text-align:left;">' + esc(label) + '</button>';
+  }).join('');
+
+  const customRow = '<button type="button" class="btn btn-ghost val-pick-row" ' +
+    'onclick="startAddValidity(\'\')" style="justify-content:flex-start;width:100%;text-align:left;">' +
+    '<span style="font-weight:700;margin-right:8px;">+</span>' +
+    esc(fr ? 'Personnalisé…' : 'Custom…') + '</button>';
+
+  if (body) {
+    body.innerHTML =
+      '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">' +
+        esc(fr
+          ? 'Choisissez un élément à suivre, puis entrez votre date. Vous pourrez la modifier plus tard en cliquant sur la validité.'
+          : 'Pick something to track, then enter your date. You can change it later by clicking the validity.') +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;">' + rows + customRow + '</div>';
+  }
+  if (foot) foot.innerHTML = '';
+
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+// Picker → editor. presetKey '' means a blank custom validity (editable name).
+function startAddValidity(presetKey) {
+  const fr = _valFr();
+  const pre = VALIDITY_PRESETS.find(p => p.key === presetKey);
+  _pendingValidityName = pre ? (fr ? pre.fr : pre.en) : '';
+  editValidity('new');
+}
+
+// ─── Editor: set / change a validity's date ──────────────────────────
+// ref: 'ppc' | 'medical' | 'custom:<id>' | 'new'
+function editValidity(ref) {
+  const overlay = document.getElementById('dashDrillOverlay');
+  if (!overlay) return;
+  const fr = _valFr();
+  const eyebrow = document.getElementById('dashDrillEyebrow');
+  const title = document.getElementById('dashDrillTitle');
+  const body = document.getElementById('dashDrillBody');
+  const foot = document.getElementById('dashDrillFoot');
+  const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+
+  let nameEditable = false;
+  let nameVal = '';
+  let dateVal = '';
+  let existingCustomId = '';
+
+  if (ref === 'ppc') {
+    nameVal = 'PPC';
+    dateVal = p.ppcDueDate || '';
+  } else if (ref === 'medical') {
+    nameVal = fr ? 'Médical' : 'Medical';
+    dateVal = p.medical || '';
+  } else if (ref && ref.indexOf('custom:') === 0) {
+    existingCustomId = ref.slice('custom:'.length);
+    const cv = getCustomValidities().find(v => v.id === existingCustomId);
+    nameEditable = true;
+    nameVal = cv ? (cv.name || '') : '';
+    dateVal = cv ? (cv.date || '') : '';
+  } else { // 'new'
+    nameEditable = true;
+    nameVal = _pendingValidityName || '';
+    dateVal = '';
+  }
+
+  if (eyebrow) eyebrow.textContent = fr ? 'VALIDITÉ' : 'VALIDITY';
+  if (title) title.textContent = (ref === 'new')
+    ? (fr ? 'Nouvelle validité' : 'New validity')
+    : (fr ? 'Modifier la validité' : 'Edit validity');
+
+  const nameField = nameEditable
+    ? '<div><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">' +
+        esc(fr ? 'Nom' : 'Name') + '</div>' +
+        '<input type="text" id="valEditName" value="' + esc(nameVal) + '" ' +
+        'placeholder="' + esc(fr ? 'ex. Qualification de type' : 'e.g. Type rating') + '" ' +
+        'style="width:100%;box-sizing:border-box;" maxlength="40"></div>'
+    : '<div><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">' +
+        esc(fr ? 'Validité' : 'Validity') + '</div>' +
+        '<div style="font-size:16px;font-weight:700;">' + esc(nameVal) + '</div>' +
+        '<input type="hidden" id="valEditName" value="' + esc(nameVal) + '"></div>';
+
+  if (body) {
+    body.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:16px;">' +
+        nameField +
+        '<div><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">' +
+          esc(fr ? 'Expire le' : 'Expires on') + '</div>' +
+          '<input type="date" id="valEditDate" value="' + esc(dateVal) + '" style="width:100%;box-sizing:border-box;"></div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">' +
+          esc(fr
+            ? 'Cumulo ne calcule jamais cette date — entrez celle de votre document. Laissez vide pour ne pas suivre.'
+            : 'Cumulo never computes this date — enter the one from your document. Leave blank to stop tracking.') +
+        '</div>' +
+      '</div>';
+  }
+
+  const saveBtn = '<button class="btn btn-primary" onclick="saveValidityFromModal(\'' + esc(ref) + '\')">' +
+    esc(fr ? 'Enregistrer' : 'Save') + '</button>';
+  const cancelBtn = '<button class="btn btn-ghost" onclick="closeDashDrill()">' +
+    esc(fr ? 'Annuler' : 'Cancel') + '</button>';
+  const deleteBtn = existingCustomId
+    ? '<button class="btn btn-ghost" style="color:var(--danger,#E24B4A);margin-right:auto;" ' +
+      'onclick="deleteCustomValidity(\'' + esc(existingCustomId) + '\')">' + esc(fr ? 'Supprimer' : 'Delete') + '</button>'
+    : '';
+  if (foot) foot.innerHTML = deleteBtn + cancelBtn + saveBtn;
+
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => {
+    const focusEl = nameEditable && !nameVal
+      ? document.getElementById('valEditName')
+      : document.getElementById('valEditDate');
+    if (focusEl) { try { focusEl.focus(); } catch (e) {} }
+  }, 60);
+}
+
+function saveValidityFromModal(ref) {
+  const fr = _valFr();
+  const dateEl = document.getElementById('valEditDate');
+  const nameEl = document.getElementById('valEditName');
+  const date = dateEl ? (dateEl.value || '') : '';
+  const name = nameEl ? (nameEl.value || '').trim() : '';
+  const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+
+  if (ref === 'ppc') {
+    p.ppcDueDate = date;
+    DB.saveProfile(p);
+  } else if (ref === 'medical') {
+    p.medical = date;
+    DB.saveProfile(p);
+  } else {
+    // Custom (existing or new)
+    if (!name) {
+      if (typeof showToast === 'function') showToast(fr ? 'Donnez un nom à la validité.' : 'Give the validity a name.', 'error');
+      return;
+    }
+    const list = getCustomValidities().slice();
+    if (ref && ref.indexOf('custom:') === 0) {
+      const id = ref.slice('custom:'.length);
+      const idx = list.findIndex(v => v.id === id);
+      if (idx >= 0) list[idx] = { ...list[idx], name, date };
+      else list.push({ id, name, date });
+    } else {
+      const id = 'cv_' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+      list.push({ id, name, date });
+    }
+    _saveCustomValidities(list);
+  }
+
+  if (typeof closeDashDrill === 'function') closeDashDrill();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof showToast === 'function') showToast(fr ? 'Validité enregistrée' : 'Validity saved', 'success');
+}
+
+function deleteCustomValidity(id) {
+  const fr = _valFr();
+  const list = getCustomValidities().filter(v => v.id !== id);
+  _saveCustomValidities(list);
+  if (typeof closeDashDrill === 'function') closeDashDrill();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof showToast === 'function') showToast(fr ? 'Validité supprimée' : 'Validity removed', 'success');
+}
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-01-9be5fe9';
+const BUILD_VERSION = '2026-07-01-788ce86';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -20992,6 +21379,7 @@ function injectDemoBanner() {
  // Also pull the profile on a restored session so cross-device profile
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
+ if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
  }
  }
  // Subscribe to auth state changes so the header updates after

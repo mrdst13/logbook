@@ -554,6 +554,11 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pullProfile) {
     await Sync.pullProfile();
   }
+  // Pull brought-forward hours (paper-logbook attestation) so the career total
+  // matches across devices. Fill-empty; never clobbers a local attestation.
+  if (typeof Sync !== 'undefined' && Sync.pullOpeningBalances) {
+    await Sync.pullOpeningBalances();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

@@ -179,7 +179,7 @@ function _generatePDF() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(30);
     doc.setTextColor(...textPrimary);
-    doc.text(`${fmt(totals.block || totals.total)} hrs`, cardX + 6, heroY + 24);
+    doc.text(`${fmt(totals.total || totals.block)} hrs`, cardX + 6, heroY + 24);
 
     // Breakdown line under the hero — shows brought-forward + logged-in-Cumulo
     // composition. Inspector sees instantly where the cumulative comes from.
@@ -187,7 +187,7 @@ function _generatePDF() {
     if (hasBF && typeof loadOpeningBalances === 'function') {
       const ob = loadOpeningBalances();
       const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
-      const loggedHere = Math.max(0, (totals.block || totals.total || 0) - bfTotal);
+      const loggedHere = Math.max(0, (totals.total || totals.block || 0) - bfTotal);
       breakdown = `+ ${fmt(bfTotal)} brought-forward (paper)   ·   + ${fmt(loggedHere)} logged in Cumulo`;
     } else {
       breakdown = `${flights.length} flight${flights.length !== 1 ? 's' : ''} logged in Cumulo`;

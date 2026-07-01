@@ -167,6 +167,7 @@ function injectDemoBanner() {
  // Also pull the profile on a restored session so cross-device profile
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
+ if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
  }
  }
  // Subscribe to auth state changes so the header updates after
