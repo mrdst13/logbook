@@ -896,33 +896,22 @@ async function syncNavblueNow(opts) {
       ? !!syncProfile.autoCountIFR
       : isAirline705(syncProfile.airline);
 
-    // Filter eligibility: past-dated flights always pass. Today's flights
-    // pass IFF their scheduled block-on (dtstart_utc + block hrs) is in
-    // the past — meaning the flight is actually complete, not just dated
-    // for today. Without this, an F/O finishing PD447 at 14:00Z would
-    // have to wait until midnight local before auto-sync surfaces it.
-    // Future-dated flights are still excluded (they haven't happened yet —
-    // logging them would violate CAR 401.08 contemporaneous-record).
+    // Filter eligibility: ONLY flights strictly before today are offered.
+    // The roster iCal carries SCHEDULED times only (BLH / STD / STA) — never an
+    // actual block-on — so a flight dated today could be delayed or still
+    // airborne. A previous "scheduled arrival already passed" heuristic leaked
+    // exactly those in-progress flights into the import (reported by Martin
+    // 2026-07-01, mid-flight), which would log SCHEDULE times as if they were
+    // ACTUALS — the one thing a certifiable logbook must never do
+    // (schedule ≠ actual). We cannot prove completion from schedule data alone,
+    // so today's flight is imported on the NEXT sync once it is strictly past,
+    // or added manually with real times. (The PDF roster path already does this.)
     const today = new Date().toISOString().split('T')[0];
-    const nowMs = Date.now();
     const mapped = events
       .map(ev => navblueEventToFlight(ev, isFO, autoCountIFR))
-      .filter(f => {
-        if (!f || !f.date) return false;
-        if (f.date < today) return true;             // past — always eligible
-        if (f.date > today) return false;            // future — never eligible
-        // f.date === today — eligible only if block-on time has passed
-        if (f.dtstart_utc && f.block > 0) {
-          const blockOnMs = new Date(f.dtstart_utc).getTime() + (+f.block * 3600000);
-          // 5 min cushion so we don't import a flight that's juuust landing
-          return blockOnMs + 5 * 60 * 1000 < nowMs;
-        }
-        // Today's flight without dtstart_utc/block — can't verify completion,
-        // be conservative and exclude (next sync will catch it tomorrow).
-        return false;
-      });
+      .filter(f => f && f.date && f.date < today);
 
-    console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (past-dated + today's completed)`);
+    console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (strictly past-dated — completed only)`);
 
     // SNAPSHOT before any modification — pilot data is precious
     snapshotBeforeOperation('Navblue iCal sync');
