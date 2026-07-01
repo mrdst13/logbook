@@ -32,6 +32,7 @@ function showPage(id) {
     if (toggle) toggle.checked = localStorage.getItem('logbook_dark') === '1';
   }
   if (id === 'recap') { initRecapYears(); renderRecap(); }
+  if (id === 'licence' && typeof renderLicenceTracker === 'function') renderLicenceTracker();
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();
   if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();

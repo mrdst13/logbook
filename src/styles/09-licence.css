@@ -1,0 +1,42 @@
+/* ═══════════════════════════════════════════════════════════════════
+   LICENCE PROGRESSION TRACKER (page-licence)
+   Career progress vs Transport Canada issuance minimums (CAR 421).
+   Uses the shared design tokens (Hanken / blue premium).
+═══════════════════════════════════════════════════════════════════ */
+.lic-lede { font-size: 14px; color: var(--text-secondary); max-width: 62ch; margin: 0 0 4px; line-height: 1.55; }
+
+.lic-targets { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 4px; }
+.lic-pill { border: 1px solid var(--border-strong); background: var(--bg-surface); border-radius: var(--r-pill);
+  padding: 8px 15px; font-size: 13.5px; font-weight: 600; color: var(--text-secondary); cursor: pointer;
+  font-family: var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: color var(--motion-fast), border-color var(--motion-fast), background var(--motion-fast); }
+.lic-pill:hover { border-color: var(--accent); color: var(--text-primary); }
+.lic-pill.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+.lic-pill.done { color: var(--success); border-color: var(--success-soft); }
+.lic-pill.on.done { color: var(--accent-text); }
+
+.lic-hero { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-surface) 60%); padding: 18px 22px; margin-top: 16px; }
+.lic-hero::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-bright); }
+.lic-hero-lbl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+.lic-hero-tt { font-size: 20px; font-weight: 800; letter-spacing: -.01em; margin: 3px 0 3px; color: var(--text-primary); }
+.lic-hero-meta { font-size: 13.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.lic-hero-meta b { color: var(--accent); }
+
+.lic-reqs { margin-top: 16px; display: grid; gap: 12px; }
+.lic-req { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px 16px; }
+.lic-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.lic-name { font-size: 14.5px; font-weight: 600; color: var(--text-primary); }
+.lic-sub { font-weight: 400; font-size: 12px; color: var(--text-muted); margin-left: 6px; }
+.lic-val { font-size: 13.5px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lic-of { color: var(--text-muted); font-weight: 400; }
+.lic-bar { height: 9px; border-radius: var(--r-pill); background: var(--bg-muted); margin-top: 9px; overflow: hidden; }
+.lic-bar > span { display: block; height: 100%; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--accent), var(--accent-bright)); transition: width var(--motion-base) var(--ease-stable); }
+.lic-req.lic-met .lic-bar > span { background: var(--success); }
+.lic-foot { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12px; }
+.lic-togo { color: var(--accent); font-weight: 600; }
+.lic-req.lic-met .lic-togo { color: var(--success); }
+.lic-pct { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lic-req.lic-untracked { background: var(--bg-subtle); border-style: dashed; }
+.lic-note { color: var(--text-muted); font-size: 12px; }
+
+.lic-endnote { font-size: 12.5px; color: var(--text-muted); margin-top: 18px; border-top: 1px dashed var(--border-strong); padding-top: 12px; line-height: 1.55; max-width: 70ch; }
