@@ -1,4 +1,38 @@
 // ─────────────────────────────────────────────────────────────────
+// Cloudflare Turnstile — invisible bot gate for the paid AI import path.
+// getTurnstileToken() renders the (invisible) widget once, then returns a FRESH
+// token per call. Resolves to '' when Turnstile isn't configured (empty site
+// key / library not loaded) — the worker treats a missing token as a no-op
+// until TURNSTILE_SECRET is provisioned, so this is safe to ship inert.
+// Spec: private/SPEC-ANTI-ABUS-2026-06-27.md (layer A).
+// ─────────────────────────────────────────────────────────────────
+const TURNSTILE_SITE_KEY = ''; // ← Martin: paste the Turnstile SITE key here to activate
+let _tsWidgetId = null;
+function getTurnstileToken() {
+  return new Promise((resolve) => {
+    if (!TURNSTILE_SITE_KEY || typeof window === 'undefined' || !window.turnstile) return resolve('');
+    try {
+      if (_tsWidgetId === null) {
+        let host = document.getElementById('cf-turnstile-host');
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'cf-turnstile-host';
+          host.style.display = 'none';
+          document.body.appendChild(host);
+        }
+        _tsWidgetId = window.turnstile.render(host, {
+          sitekey: TURNSTILE_SITE_KEY, size: 'invisible',
+          callback: () => {}, 'error-callback': () => {}
+        });
+      } else {
+        window.turnstile.reset(_tsWidgetId);
+      }
+      window.turnstile.execute(_tsWidgetId).then(resolve).catch(() => resolve(''));
+    } catch (_) { resolve(''); }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
 // IMPORT PAGE — recent-imports strip
 // Renders a small banner at the top of the Import page showing the most
 // recent import activity (Navblue iCal sync OR PDF/CSV import audit log,
@@ -141,12 +175,16 @@ async function parseNavbluePDF(input) {
 
   try {
     msg.textContent = t('import.aiBox.extracting');
+    // Layer A (anti-abuse): attach a fresh Turnstile token. '' when Turnstile
+    // isn't configured yet → the worker no-ops, so this changes nothing today.
+    const turnstileToken = await getTurnstileToken();
     const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
         max_tokens: 8000,
+        turnstileToken,
         // Note: the system prompt is pinned server-side in the worker
         // (data-extraction-API persona) — anything sent here is ignored.
         messages: [{

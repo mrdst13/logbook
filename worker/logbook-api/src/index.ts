@@ -118,10 +118,12 @@ export default {
       return jsonError('Forbidden — origin not allowed', 403, null);
     }
 
+    // Client IP — used by the rate limiter, the daily cap (layer B), and the
+    // Turnstile check (layer A). Declared here so it's available to both.
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     // Rate limit per client IP (binding configured in wrangler.jsonc).
     const limiter = (env as Env & { RATE_LIMITER?: RateLimiter }).RATE_LIMITER;
     if (limiter) {
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       try {
         const { success } = await limiter.limit({ key: ip });
         if (!success) {
@@ -163,7 +165,7 @@ export default {
     if (body.action === 'delete-account') {
       return await handleDeleteAccount(body, env, origin);
     }
-    return await handleAnthropic(body, env, origin);
+    return await handleAnthropic(body, env, origin, ip);
   }
 } satisfies ExportedHandler<Env>;
 
@@ -263,11 +265,82 @@ async function handleDeleteAccount(body: any, env: Env, origin: string): Promise
   });
 }
 
-async function handleAnthropic(body: any, env: Env, origin: string): Promise<Response> {
-  const apiKey = env.ANTHROPIC_API_KEY;
+// ─── Anti-abuse layers for the paid Anthropic path (spec 2026-06-27) ────────
+// Both are OPTIONAL and fail-safe: each no-ops until its Cloudflare resource is
+// provisioned (TURNSTILE_SECRET secret / AI_DAILY KV binding), so the worker
+// deploys and runs unchanged until they're wired up. The iCal proxy and
+// delete-account paths are never gated (they use other `action:` branches).
+
+// Layer A — Cloudflare Turnstile (bot gate). Verifies the client token before
+// any Anthropic call. Returns true (no-op) when TURNSTILE_SECRET is unset.
+async function verifyTurnstile(body: any, env: Env, ip: string): Promise<boolean> {
+  const secret = (env as Env & { TURNSTILE_SECRET?: string }).TURNSTILE_SECRET;
+  if (!secret) return true; // not provisioned yet → don't block
+  const token = typeof body.turnstileToken === 'string' ? body.turnstileToken : '';
+  if (!token) return false;
+  try {
+    const form = new URLSearchParams();
+    form.set('secret', secret);
+    form.set('response', token);
+    if (ip && ip !== 'unknown') form.set('remoteip', ip);
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString()
+    });
+    const out: any = await r.json();
+    return !!(out && out.success === true);
+  } catch (e: any) {
+    console.error('[Worker] turnstile verify error:', e?.message);
+    return false; // fail closed on the paid path
+  }
+}
+
+// Layer B — daily per-IP cap (KV-backed; the native rate-limit binding only
+// does <=60s windows). No-op until the AI_DAILY namespace is bound. Eventual
+// consistency is fine — this is a backstop; the Anthropic spend cap is the
+// hard financial limit.
+const AI_DAILY_LIMIT = 30; // extractions/IP/day (generous: onboarding ~10)
+interface KVNamespace {
+  get(k: string): Promise<string | null>;
+  put(k: string, v: string, o?: { expirationTtl?: number }): Promise<void>;
+}
+async function dailyCapExceeded(env: Env, ip: string): Promise<boolean> {
+  const kv = (env as Env & { AI_DAILY?: KVNamespace }).AI_DAILY;
+  if (!kv || !ip || ip === 'unknown') return false; // not provisioned → no-op
+  const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+  const key = `ai:${ip}:${day}`;
+  try {
+    const cur = parseInt((await kv.get(key)) || '0', 10);
+    if (cur >= AI_DAILY_LIMIT) return true;
+    await kv.put(key, String(cur + 1), { expirationTtl: 172800 }); // 2 days
+    return false;
+  } catch (e: any) {
+    console.error('[Worker] daily cap KV error:', e?.message);
+    return false; // KV outage must not take the API down
+  }
+}
+
+async function handleAnthropic(body: any, env: Env, origin: string, ip: string): Promise<Response> {
+  // ANTHROPIC_API_KEY is a secret (set via `wrangler secret put`), so it isn't
+  // in the wrangler-generated Env type — read it via a cast, same pattern as the
+  // SUPABASE_* secrets in handleDeleteAccount.
+  const apiKey = (env as Env & { ANTHROPIC_API_KEY?: string }).ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error('[Worker] ANTHROPIC_API_KEY missing in env');
     return jsonError('Service misconfigured', 500, origin);
+  }
+
+  // Layer A — Turnstile bot gate. No-op until TURNSTILE_SECRET is set.
+  if (!(await verifyTurnstile(body, env, ip))) {
+    return jsonError('Verification required', 403, origin);
+  }
+  // Layer B — daily per-IP cap. No-op until the AI_DAILY KV namespace is bound.
+  if (await dailyCapExceeded(env, ip)) {
+    return new Response(
+      JSON.stringify({ error: { message: 'Daily limit reached', code: 'daily_cap' } }),
+      { status: 429, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+    );
   }
 
   // Bounded validation — limits cost per request even if origin is spoofed
