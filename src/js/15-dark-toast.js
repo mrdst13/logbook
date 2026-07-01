@@ -1,10 +1,6 @@
 // ═══════════════════════════════════════════
 // FEATURE 6 — DARK MODE
 // ═══════════════════════════════════════════
-function toggleDarkMode(on) {
-  setTheme(on ? 'dark' : 'light');
-}
-
 function setTheme(theme) {
   const on = theme === 'dark';
   document.body.classList.toggle('dark', on);

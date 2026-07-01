@@ -121,11 +121,6 @@ function handleMonthlyRosterPDF(file) {
 // through Brought-forward (Profile). PDF roster (parseNavbluePDF below) and
 // CSV import remain. The shared preview UI (showImportPreview) is untouched.
 
-function toggleNavbluePanel() {
-  const p = document.getElementById('navbluePanel');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-}
-
 async function parseNavbluePDF(input) {
   const file = input.files[0];
   if (!file) return;

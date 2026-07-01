@@ -18,6 +18,10 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 | Hood / view-limiting device | **dispositif limitant la vue** | CI 401-004 ; RAC DORS/96-433 (laws-lois, vérifié 2026-06-25) | ❌ « cagoule » (= masque de voleur), ❌ « capot »/« sous capot » (informel) |
 | Night | nuit (fin du crépuscule civil → début du crépuscule civil) | CAR/RAC 101.01 | — |
 | Cross-country | **vol-voyage** (le temps = « temps de vol en voyage », RAC 101.01) ; abréviation **XC** conservée | RAC 101.01 + guides de test en vol / AIM de TC (terme employé par TC en français) — vérifié 2026-06-26 | ❌ « cross-country » dans le FR (anglicisme), ❌ « voyage » seul |
+| Full Flight Simulator (FFS) | **Simulateur de vol complet** (acronyme FFS conservé) | TC TP 9685 « Aeroplane and Rotorcraft Simulator Manual » / TP 9685F (tc.canada.ca) — vérifié 2026-07-01 | — |
+| Flight Training Device (FTD) | **Dispositif d'entraînement de vol** (acronyme FTD conservé) | TC TP 13799 « Dispositifs d'entraînement de vol » (tc.canada.ca) — vérifié 2026-07-01 | — |
+| Pilot Proficiency Check (PPC) | **Contrôle de compétence pilote** (acronyme PPC conservé) | RAC 705.113 + terme déjà fixé dans l'app (`profile.ppc.hint`) | ⚠️ ne pas introduire de 2e variante : TC emploie aussi « Contrôle de la compétence du pilote (CCP) » (Std 724) et « Vérification de compétence pilote » (TP 14727) — l'app est fixée sur « Contrôle de compétence pilote » |
+| IPC / FNPT / BITD / LOFT | **pas de terme TC officiel FR** → gardés **TELS QUELS** (anglais, non traduits) | décision Martin 2026-07-01 | ❌ ne pas traduire ni fabriquer un terme FR ; TC n'a pas de traduction officielle claire (variance/classes EASA-ICAO) |
 
 | Statut | Sens |
 |---|---|
@@ -118,6 +122,12 @@ Principe appliqué : **retirer tout chiffre/règle non confirmé au registre** (
 - **ECG (Q&R)** : retiré les intervalles non sourcés (« 24 mois 40-65, annuel 65+ ») → renvoi à la norme médicale Cat 1 + au médecin-examinateur (MEAC/CAME). **Aucune entrée registre pour les intervalles ECG** — à vérifier (TP 13312 / Standard 424) avant de réintroduire un chiffre.
 - **Chiffres ATPL/sim (Q&R + brought-forward)** : retiré « 1 500 h / 1 200 h / 25 h / 200 h » et les articles non vérifiés « CAR 401.73 / 421.34 » → renvoi au **Standard 421** + Transports Canada. À vérifier au texte primaire avant de réintroduire des chiffres.
 - Termes FR : « opérateur » → « exploitant », « CAR 101.01 » → « RAC 101.01 » dans les nouvelles chaînes FR touchées.
+
+## 📝 Traduction FR des menus déroulants simulateur — 2026-07-01 (couverture bilingue)
+Les `<select id="f-simType">` / `<select id="f-simSession">` (formulaire d'ajout de vol) étaient en anglais dur. Rendus bilingues via `data-i18n` + clés `sim.type.*` / `sim.session.*` dans `17-i18n.js`. Choix des termes :
+- **Vérifiés à la source TC** (2026-07-01) → traduits : FFS = « Simulateur de vol complet », FTD = « Dispositif d'entraînement de vol » (TP 9685 / TP 13799) ; PPC = « Contrôle de compétence pilote » (RAC 705.113, terme déjà fixé).
+- **Pas de terme TC officiel FR → GARDÉS TELS QUELS (anglais, non traduits)** — **décision Martin 2026-07-01** : IPC, FNPT, BITD, LOFT. Règle générale actée : *si TC n'a pas de traduction officielle, on garde le terme tel quel — on ne traduit pas et on n'invente pas.*
+- **Plain-language non réglementaire** (traduits) : « Renouvellement IFR », « Formation périodique », « Formation initiale », « Cours de qualification de type », « Autre » / « Autre formation ».
 
 > Tenir à jour : toute nouvelle règle réglementaire ajoutée au code DOIT apparaître ici
 > avec sa source vérifiée le jour où elle est écrite.

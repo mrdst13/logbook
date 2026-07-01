@@ -21,7 +21,13 @@ function setProfileType(type) {
 function highlightProfileTypeCard(type) {
   ['airline705', 'private', 'student', 'helicopter', 'instructor'].forEach(t => {
     const card = document.getElementById('pt-' + t);
-    if (card) card.classList.toggle('active', t === type);
+    if (card) {
+      const isActive = (t === type);
+      card.classList.toggle('active', isActive);
+      // Keep the accessible selected-state in sync with the visual .active
+      // class so screen-reader users hear which pilot type is chosen.
+      card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    }
   });
 }
 
