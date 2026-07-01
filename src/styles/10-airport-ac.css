@@ -1,0 +1,18 @@
+/* ═══════════════════════════════════════════════════════════════════
+   AIRPORT TYPEAHEAD — Route field autocomplete dropdown
+═══════════════════════════════════════════════════════════════════ */
+.ac-menu {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 40; margin-top: 4px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md); max-height: 264px; overflow-y: auto; display: none;
+}
+.ac-menu.show { display: block; }
+.ac-item {
+  padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; gap: 8px;
+  align-items: baseline; border-bottom: 1px solid var(--border);
+}
+.ac-item:last-child { border-bottom: 0; }
+.ac-item:hover, .ac-item.on { background: var(--accent-soft); }
+.ac-item b { font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); flex: 0 0 auto; }
+.ac-iata { font-family: var(--font-mono); color: var(--text-muted); font-size: 12px; flex: 0 0 auto; }
+.ac-name { color: var(--text-secondary); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

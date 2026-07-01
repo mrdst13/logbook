@@ -460,9 +460,10 @@
  <input type="text" id="f-copilot" placeholder="Name" list="recentCops" autocomplete="off">
  <datalist id="recentCops"></datalist>
  </div>
- <div class="form-group col-span-2">
+ <div class="form-group col-span-2" style="position:relative">
  <label data-i18n="flight.route">Route</label>
- <input type="text" id="f-route" placeholder="YOW - YYZ - YOW" style="text-transform:uppercase" onblur="this.value=this.value.toUpperCase()" autocapitalize="characters" autocorrect="off" spellcheck="false">
+ <input type="text" id="f-route" placeholder="YOW - YYZ - YOW" style="text-transform:uppercase" oninput="airportAC(this)" onkeydown="airportACKey(event,this)" onblur="this.value=this.value.toUpperCase();setTimeout(airportACHide,150)" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
+ <div id="airportAC" class="ac-menu" role="listbox"></div>
  </div>
  <div class="form-group col-span-2">
  <label data-i18n="flight.remarks">Remarks</label>
