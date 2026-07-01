@@ -355,7 +355,14 @@ function totalsWithOpening(flightsTotals) {
     const d = (+balances.ldgDay||0)+(+balances.ldgNight||0);
     if (d) merged.ldg = (+merged.ldg||0) + d;
   }
-  // Mirror total ↔ block when only one is present.
+  // Career flight-time total = the pilot's ATTESTED brought-forward total plus
+  // logged flights. In Canada flight time = block-to-block (CAR/RAC 101.01), so
+  // total and block are the same number — mirror whichever one the pilot entered.
+  // We deliberately do NOT derive the total from the PIC/SIC/Dual category
+  // buckets: those can overlap or be partial, so summing them would GUESS a
+  // total (a pilot's real brought-forward total need not equal PIC+SIC+Dual).
+  // Guessing a certifiable career number is worse than showing logged-only —
+  // the pilot enters their total explicitly. (empty > guessed rule.)
   if (!balances.total && (+balances.block||0) > 0) {
     merged.total = (+merged.total||0) + (+balances.block||0);
   }
