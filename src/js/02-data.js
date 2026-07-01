@@ -580,7 +580,13 @@ function renderDashboard() {
 
   // (4a) Hero card: 88px career number + sparkline + delta pill
   const heroNumEl = document.getElementById('dashHeroNum');
-  if (heroNumEl) heroNumEl.textContent = fmt(s.block || s.total);
+  // Prefer flight time (`total`) over `block`; in Canada they are the same
+  // number (CAR/RAC 101.01 flight time = block-to-block), and pilots fill
+  // `total` far more often than the per-flight `block` field. Reading `block`
+  // first made the career number read low / "not move" when only total was
+  // filled (Martin 2026-07-01). Matches the duty tracker + brought-forward
+  // preview, so all surfaces agree.
+  if (heroNumEl) heroNumEl.textContent = fmt(s.total || s.block);
   const delta = document.getElementById('dashHeroDelta');
   const deltaVal = document.getElementById('dashHeroDeltaVal');
   if (delta && deltaVal) {
