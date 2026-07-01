@@ -7177,13 +7177,6 @@ function recalculateAllFlightsInternal() {
 
 function fmt(n) { return (+n).toFixed(1); }
 
-function setMini(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = fmt(val);
-  el.classList.toggle('zero', (+val) === 0);
-}
-
 // Hero number count-up animation removed 2026-05-26 — Martin found the
 // numbers-running-up effect distracting. Hero now sets to target instantly.
 // Pattern lesson: motion that re-runs on every Dashboard re-render (after
@@ -7488,121 +7481,6 @@ function _dashRenderSparkline(svgId, data) {
 // For non-705 pilots (private/student/instructor/helicopter): IFR | REC | MED
 //   The generic CAR 401.05(2) rule applies; show the approach count.
 function _dashRenderValidityRings() { return _dashRenderValidities(); }
-// Legacy fixed PPC/REC/MED ring renderer — superseded 2026-06-25 by
-// _dashRenderValidities (adaptive status cards). Left un-called for one
-// release as a safety net; safe to delete next cleanup pass.
-function _dashRenderValidityRings_DEAD() {
-  const lang = (typeof getLang === 'function') ? getLang() : 'en';
-  const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
-  const is705 = (profile.pilotType || 'airline705') === 'airline705';
-
-  // Update the first ring's click handler to point at the correct drill-down
-  // panel ('ppc' for 705 line pilots, 'ifr' for everyone else). The ring's
-  // HTML is rendered once with onclick='openDashDrill("ifr")'; we patch it
-  // here so the route matches what the ring actually displays.
-  const ring1Block = document.getElementById('dashRingIFR')?.parentElement;
-  if (ring1Block) {
-    const targetKey = is705 ? 'ppc' : 'ifr';
-    ring1Block.setAttribute('onclick', `openDashDrill('${targetKey}')`);
-    ring1Block.setAttribute('onkeydown',
-      `if(event.key==='Enter'||event.key===' '){event.preventDefault();openDashDrill('${targetKey}');}`);
-  }
-
-  if (is705) {
-    // ── PPC ring (replaces IFR for 705 line pilots) ──
-    const ppcDays = _dashPPCDaysRemaining(profile);
-    if (ppcDays === null) {
-      _dashRenderRing('dashRingIFR', 0, '#7C8497', 'PPC');
-      const sub = document.getElementById('dashRingIFRSub');
-      if (sub) sub.textContent = lang === 'fr' ? 'non défini' : 'not set';
-    } else {
-      // PPC validity: typically 6 months for multi-pilot 705. Treat 180 days
-      // as full ring; green > 60d, amber > 0, red ≤ 0 / overdue.
-      const ppcPct = Math.max(0, Math.min(100, (ppcDays / 180) * 100));
-      const ppcColor = ppcDays > 60 ? '#10A37F' : (ppcDays > 0 ? '#B87C0C' : '#DC2A2A');
-      _dashRenderRing('dashRingIFR', ppcPct, ppcColor, 'PPC');
-      const sub = document.getElementById('dashRingIFRSub');
-      if (sub) sub.textContent = ppcDays > 0
-        ? `${ppcDays} ${lang === 'fr' ? 'j' : 'd'}`
-        : (lang === 'fr' ? 'Expiré' : 'Expired');
-    }
-    // Update the cap label (was "6 MOS" for IFR, change to "CASS 725")
-    const capEl = document.querySelector('#dashRingIFR ~ .dash-ring-cap, #dashRingIFR + .dash-ring-sub + .dash-ring-cap');
-    // (DOM order is .dash-ring → .dash-ring-sub → .dash-ring-cap — easier
-    // to update via the parent block.)
-    const blockEl = document.getElementById('dashRingIFR')?.parentElement;
-    if (blockEl) {
-      const cap = blockEl.querySelector('.dash-ring-cap');
-      if (cap) cap.textContent = 'CASS 725';
-    }
-  } else {
-    // ── IFR ring (CAR 401.05(3.1) for non-705 pilots) ──
-    // Requires BOTH 6 instrument approaches AND 6 hours instrument time / 6 mo.
-    // The ring shows the binding constraint so the pilot sees what's missing.
-    const ifr = _dashIFRCurrency();
-    const ifrPct = ifr.pct;
-    const ifrColor = ifr.current ? '#10A37F' : (ifrPct >= 66 ? '#B87C0C' : '#DC2A2A');
-    _dashRenderRing('dashRingIFR', ifrPct, ifrColor, 'IFR');
-    const ifrSub = document.getElementById('dashRingIFRSub');
-    if (ifrSub) ifrSub.textContent = ifr.limiting === 'hours'
-      ? `${ifr.hours.toFixed(1)} / 6 h`
-      : `${ifr.approaches} / 6 ${'appr.'}`;
-    const blockEl = document.getElementById('dashRingIFR')?.parentElement;
-    if (blockEl) {
-      const cap = blockEl.querySelector('.dash-ring-cap');
-      if (cap) cap.textContent = '6 MOS';
-    }
-  }
-
-  // Recent experience (CAR 401.05(2)): 5 take-offs AND 5 landings in the last
-  // 6 months to carry passengers. The ring shows the LIMITING factor of the
-  // two. Night-passenger recency (5 night take-offs + 5 night landings) needs
-  // per-flight night take-off data the manual form doesn't capture yet (C4) —
-  // tracked as a separate item, not represented in this single ring.
-  const recTO = _dashTakeoffsIn6mo();
-  const recLdg = _dashLandingsIn6mo();
-  const recCount = Math.min(recTO, recLdg);
-  const recPct = Math.min(100, (recCount / 5) * 100);
-  const recColor = recCount >= 5 ? '#0C6E53' : (recCount >= 3 ? '#B87C0C' : '#DC2A2A');
-  _dashRenderRing('dashRingREC', recPct, recColor, 'REC');
-  const recSub = document.getElementById('dashRingRECSub');
-  if (recSub) recSub.textContent = `${recCount} / 5`;
-
-  // Medical
-  const medDays = _dashMedicalDaysRemaining();
-  const medBlock = document.getElementById('dashRingMedBlock');
-  if (medDays === null) {
-    if (medBlock) medBlock.style.display = 'none';
-  } else {
-    if (medBlock) medBlock.style.display = '';
-    const medPct = Math.max(0, Math.min(100, (medDays / 180) * 100));
-    const medColor = medDays > 60 ? '#10A37F' : (medDays > 0 ? '#B87C0C' : '#DC2A2A');
-    _dashRenderRing('dashRingMED', medPct, medColor, 'MED');
-    const medSub = document.getElementById('dashRingMEDSub');
-    if (medSub) medSub.textContent = medDays > 0
-      ? `${medDays} ${lang === 'fr' ? 'j' : 'd'}`
-      : (lang === 'fr' ? 'Expiré' : 'Expired');
-  }
-}
-
-function _dashRenderRing(containerId, pct, color, label) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  const size = 64, stroke = 5;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const off = c * (1 - pct / 100);
-  // Classed circles (.dash-ring-track / .dash-ring-progress) so the
-  // empty-state CSS variant (body.no-data) can desaturate without
-  // touching the JS color logic.
-  el.innerHTML = `
-    <svg width="${size}" height="${size}">
-      <circle class="dash-ring-track" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#E1E5EC" stroke-width="${stroke}"/>
-      <circle class="dash-ring-progress" cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" stroke-linecap="round"/>
-    </svg>
-    <div class="dash-ring-label">${esc(label)}</div>
-  `;
-}
 
 // Tiny hex→rgba helper for the ghost (track) ring colour.
 function _dashHexA(h, a) {
@@ -9508,11 +9386,6 @@ function handleMonthlyRosterPDF(file) {
 // were removed 2026-06-24 (Martin's call). Paper-logbook hours now go
 // through Brought-forward (Profile). PDF roster (parseNavbluePDF below) and
 // CSV import remain. The shared preview UI (showImportPreview) is untouched.
-
-function toggleNavbluePanel() {
-  const p = document.getElementById('navbluePanel');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-}
 
 async function parseNavbluePDF(input) {
   const file = input.files[0];
@@ -11914,14 +11787,6 @@ function renderOnboardingStep() {
 // logbook entries (matched on date + flight#).
 // Zero data leaves the browser.
 
-function handleRosterDrop(event) {
-  event.preventDefault();
-  const dz = document.getElementById('rosterDropZone');
-  if (dz) dz.classList.remove('dragover');
-  const file = event.dataTransfer && event.dataTransfer.files[0];
-  if (file) handleRosterFile(file);
-}
-
 async function handleRosterFile(file) {
   if (!file) return;
   if (typeof pdfjsLib === 'undefined') {
@@ -13827,10 +13692,6 @@ function renderRecap() {
 // ═══════════════════════════════════════════
 // FEATURE 6 — DARK MODE
 // ═══════════════════════════════════════════
-function toggleDarkMode(on) {
-  setTheme(on ? 'dark' : 'light');
-}
-
 function setTheme(theme) {
   const on = theme === 'dark';
   document.body.classList.toggle('dark', on);
@@ -20964,7 +20825,7 @@ function renderDutyTracker() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-01-f553ba0';
+const BUILD_VERSION = '2026-07-01-ffc471f';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.

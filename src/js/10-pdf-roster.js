@@ -6,14 +6,6 @@
 // logbook entries (matched on date + flight#).
 // Zero data leaves the browser.
 
-function handleRosterDrop(event) {
-  event.preventDefault();
-  const dz = document.getElementById('rosterDropZone');
-  if (dz) dz.classList.remove('dragover');
-  const file = event.dataTransfer && event.dataTransfer.files[0];
-  if (file) handleRosterFile(file);
-}
-
 async function handleRosterFile(file) {
   if (!file) return;
   if (typeof pdfjsLib === 'undefined') {
