@@ -40,3 +40,12 @@
 .lic-note { color: var(--text-muted); font-size: 12px; }
 
 .lic-endnote { font-size: 12.5px; color: var(--text-muted); margin-top: 18px; border-top: 1px dashed var(--border-strong); padding-top: 12px; line-height: 1.55; max-width: 70ch; }
+
+/* Duty / flight-time-limits tracker: approaching a limit is bad, so bars turn
+   amber (>=75%) then red (>=100%) — the inverse semantic of the licence bars. */
+.lic-bar > span.warn { background: var(--warning); }
+.lic-bar > span.danger { background: var(--danger); }
+.lic-req.lic-near .lic-togo { color: var(--warning-text); }
+.lic-req.lic-over .lic-togo { color: var(--danger-text); }
+.tc-note { display: flex; gap: 10px; background: var(--warning-soft); border: 1px solid rgba(217, 119, 6, .25);
+  border-radius: var(--r-md); padding: 12px 15px; margin: 16px 0 4px; font-size: 12.5px; color: var(--warning-text); line-height: 1.55; }

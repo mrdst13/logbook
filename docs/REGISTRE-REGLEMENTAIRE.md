@@ -85,6 +85,13 @@ Provenance : recherche `private/RECHERCHE-TC-2026-06-27.md` (agent source primai
 - **Récence / médical / PPC** (le tracker « temps restant » s'en sert aussi) : déjà au registre — récence passagers **401.05(2)(b)**, récence IFR **401.05(3.1)**, médical **404.04**, PPC **705.113**.
 - ⚠️ Ceci **résout** les notes « à vérifier avant de réintroduire » des chiffres ATPL/sim (corrections 2026-06-26, plus bas) et « CAR 401.34 / Standard 421.34 » ci-dessous.
 
+## ✅ Limites de temps de vol (duty tracker) — CAR 700.27 — vérifié 2026-06-30
+- **Règle (CAR 700.27, SOR/2018-269)** : le temps de vol d'un membre d'équipage de conduite ne doit pas dépasser **112 h en 28 jours consécutifs** · **300 h en 90 jours consécutifs** · **1000 h en 365 jours consécutifs** · **8 h en 24 h consécutives (exploitation MONOPILOTE seulement)**. Le temps de vol inclut celui accumulé dans d'autres exploitations. S'applique aux exploitations commerciales (Subpartie 700 : 705/704/703).
+- ⚠️ **CAR 700.15 est RÉSERVÉ** (ancien article, remplacé par les règles de fatigue 2018) → citer **700.27**, JAMAIS 700.15.
+- **Source primaire** : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-700.27.html (WebFetch, 2026-06-30) + confirmé section 700.15 « [Reserved, SOR/2018-269, s. 13] ».
+- **« Par jour » multi-équipage** : pour un pilote 705 multi-équipage, PAS de limite simple de temps de vol par jour — le plafond quotidien est la **période de service de vol (FDP)** (table selon heure de présentation + nb de vols, 700.28+). ⇒ le tracker affiche les 3 limites cumulatives (28/90/365 j) + note renvoyant au programme de l'exploitant ; le 8 h/24 h ne vaut que monopilote. Ne PAS coder de limite FDP quotidienne de mémoire.
+- **Implémentation** : `25-duty-tracker.js` somme le temps de vol (hors sim) dans les fenêtres glissantes 28/90/365 j vs 112/300/1000 h ; vert / ambre (≥75 %) / rouge (≥100 %).
+
 ## ⏳ À VÉRIFIER (présent dans le code, pas encore confirmé contre la source)
 - **CAR 401.08 / 401.08(2)(h)** — contenu obligatoire du carnet (colonnes). [04-logbook, 12-pdf-export, 13-glossaire]
 - ~~**CASS 725.106** — validité PPC~~ → **CONFIRMÉ 2026-06-27** au texte primaire **CAR 705.113** (voir la section ✅ ci-dessus : 6 mois base / 12 mois avec formation approuvée). Reste cosmétique : régler l'échelle de l'anneau PPC à ~180 j.
