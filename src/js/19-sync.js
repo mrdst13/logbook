@@ -401,6 +401,19 @@ const Sync = {
 
   async pushProfile(profile) {
     if (!Auth.isAuthenticated()) return;
+    // Some settings live in localStorage rather than the profile object
+    // (Navblue iCal URL, language, dark mode, column prefs). Read them here
+    // so cross-device sync actually carries them — otherwise they push blank
+    // and a 2nd device stays empty (audit 2026-06-30 cause #2). These columns
+    // already exist in `profiles`; no schema change.
+    const ls = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+    const navblueUrl = profile.navblueUrl || ls('cumulo_navblue_url') || null;
+    const lang = profile.lang || ls('cumulo_lang') || 'en';
+    const darkMode = (profile.darkMode !== undefined) ? !!profile.darkMode : (ls('logbook_dark') === '1');
+    let columnPrefs = profile.columnPrefs;
+    if (!columnPrefs) {
+      try { columnPrefs = JSON.parse(ls('cumulo_column_prefs_v1') || '{}'); } catch (e) { columnPrefs = {}; }
+    }
     const row = {
       id: Auth.currentUserId(),
       fname: profile.fname || null,
@@ -413,21 +426,102 @@ const Sync = {
       base: profile.base || null,
       fleet: profile.fleet || null,
       operator_codes: profile.operatorCodes || null,
-      navblue_url: profile.navblueUrl || null,
+      navblue_url: navblueUrl,
       pilot_type: profile.pilotType || 'airline705',
-      auto_count_ifr: profile.autoCountIfr !== false,
+      // Stored key is `autoCountIFR` (uppercase); the old `autoCountIfr` read
+      // was always undefined → always pushed true (audit cause #3).
+      auto_count_ifr: profile.autoCountIFR !== false,
       consent_captain_names: !!profile.consentCaptainNames,
       hide_zero_columns: !!profile.hideZeroColumns,
-      lang: profile.lang || 'en',
-      dark_mode: !!profile.darkMode,
+      lang: lang,
+      dark_mode: darkMode,
       ac_configs: profile.acConfigs || ['wheels'],
-      column_prefs: profile.columnPrefs || {},
+      column_prefs: columnPrefs || {},
     };
     const { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
       console.warn('[Sync] pushProfile failed, queuing:', error.message);
       this._enqueue({ type: 'upsert_profile', payload: row });
     }
+  },
+
+  // Pull the cloud profile for cross-device sync. FILL-EMPTY merge: a remote
+  // value is adopted only when the local one is absent/blank — a pilot-entered
+  // value is NEVER overwritten (certifiable rule). Restores the device-scoped
+  // localStorage keys (Navblue URL, language, dark mode, column prefs) so the
+  // "connect iCal" card (02-data.js) and monthly-PDF routing (06-photo-import.js),
+  // which read localStorage directly, stop firing spuriously on a 2nd device.
+  // Note: ppcDueDate / personalGoal / signature / onboarded are intentionally
+  // NOT pulled here — their columns don't exist yet (pending a Supabase ALTER).
+  async pullProfile() {
+    if (!Auth.isAuthenticated()) return;
+    let data, error;
+    try {
+      const resp = await Auth.client.from('profiles')
+        .select('*').eq('id', Auth.currentUserId());
+      data = resp.data; error = resp.error;
+    } catch (e) {
+      console.warn('[Sync] pullProfile threw:', e);
+      return;
+    }
+    if (error) { console.warn('[Sync] pullProfile failed:', error.message); return; }
+    const row = data && data[0];
+    if (!row) return;  // no cloud profile row yet
+
+    const local = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+    let changed = false;
+    const isBlank = (v) => v === undefined || v === null || v === '';
+    const fillStr = (localKey, remoteVal) => {
+      if (!isBlank(remoteVal) && isBlank(local[localKey])) { local[localKey] = remoteVal; changed = true; }
+    };
+    fillStr('fname', row.fname);
+    fillStr('lname', row.lname);
+    fillStr('rank', row.rank);
+    fillStr('airline', row.airline);
+    fillStr('license', row.license);
+    fillStr('medical', row.medical);
+    fillStr('ecg', row.ecg);
+    fillStr('base', row.base);
+    fillStr('fleet', row.fleet);
+    fillStr('operatorCodes', row.operator_codes);
+    fillStr('pilotType', row.pilot_type);
+
+    // Booleans / arrays: adopt only when the key is genuinely unset locally,
+    // so a pilot who explicitly turned something off keeps that choice.
+    if (local.autoCountIFR === undefined && row.auto_count_ifr !== undefined && row.auto_count_ifr !== null) {
+      local.autoCountIFR = !!row.auto_count_ifr; changed = true;
+    }
+    if (local.consentCaptainNames === undefined && row.consent_captain_names !== undefined && row.consent_captain_names !== null) {
+      local.consentCaptainNames = !!row.consent_captain_names; changed = true;
+    }
+    if (local.hideZeroColumns === undefined && row.hide_zero_columns !== undefined && row.hide_zero_columns !== null) {
+      local.hideZeroColumns = !!row.hide_zero_columns; changed = true;
+    }
+    if ((!Array.isArray(local.acConfigs) || !local.acConfigs.length) && Array.isArray(row.ac_configs) && row.ac_configs.length) {
+      local.acConfigs = row.ac_configs.slice(); changed = true;
+    }
+
+    if (changed) DB.saveProfile(local);
+
+    // Device-scoped settings kept in localStorage — restore only when absent
+    // on this device (never overwrite a local choice).
+    try {
+      const nbKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';
+      if (!localStorage.getItem(nbKey) && row.navblue_url) {
+        localStorage.setItem(nbKey, row.navblue_url);
+      }
+      if (!localStorage.getItem('cumulo_lang') && row.lang) {
+        localStorage.setItem('cumulo_lang', row.lang);
+      }
+      if (localStorage.getItem('logbook_dark') === null && (row.dark_mode === true || row.dark_mode === false)) {
+        localStorage.setItem('logbook_dark', row.dark_mode ? '1' : '0');
+      }
+      if (!localStorage.getItem('cumulo_column_prefs_v1') && row.column_prefs && Object.keys(row.column_prefs).length) {
+        localStorage.setItem('cumulo_column_prefs_v1', JSON.stringify(row.column_prefs));
+      }
+    } catch (e) { /* storage unavailable — non-fatal */ }
+
+    if (typeof renderDashboard === 'function') renderDashboard();
   },
 
   // ─── Migration (one-shot per device) ────────────────────────────

@@ -549,6 +549,11 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pullFlights) {
     await Sync.pullFlights();
   }
+  // Pull the cloud profile (medical, iCal URL, prefs, pilot type…) so a 2nd
+  // device isn't left with an empty profile. Fill-empty; never clobbers local.
+  if (typeof Sync !== 'undefined' && Sync.pullProfile) {
+    await Sync.pullProfile();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

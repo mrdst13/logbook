@@ -164,6 +164,9 @@ function injectDemoBanner() {
  if (typeof Sync !== 'undefined') {
  Sync.drainQueue();
  Sync.pullFlights();
+ // Also pull the profile on a restored session so cross-device profile
+ // data (medical, iCal URL, prefs) lands without a fresh sign-in.
+ if (Sync.pullProfile) Sync.pullProfile();
  }
  }
  // Subscribe to auth state changes so the header updates after
