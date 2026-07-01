@@ -1337,22 +1337,24 @@ const STRINGS = {
  'flight.simSession': 'Type de séance',
  'flight.simRegistration': 'Identifiant de l’appareil sim',
  // ─── Menus déroulants du simulateur (type de dispositif + type de séance).
- //     Termes TC vérifiés (FFS/FTD/PPC/IPC) ; FNPT/BITD/LOFT = descriptif du
- //     glossaire de l’app (classes internationales sans terme TC officiel FR).
- //     Voir docs/REGISTRE-REGLEMENTAIRE.md.
+ //     Décision Martin 2026-07-01 : SEULS les termes avec une traduction TC
+ //     officielle vérifiée sont traduits (FFS/FTD = TP 9685/13799, PPC = RAC
+ //     705.113). FNPT/BITD/LOFT/IPC = pas de terme TC officiel FR → gardés TELS
+ //     QUELS (anglais, = valeur EN). Les libellés plain-français non
+ //     réglementaires restent traduits. Voir docs/REGISTRE-REGLEMENTAIRE.md.
  'sim.type.ffsD': 'FFS — Simulateur de vol complet (niveau D)',
  'sim.type.ffsC': 'FFS — Simulateur de vol complet (niveau C)',
  'sim.type.ftd': 'FTD — Dispositif d’entraînement de vol',
- 'sim.type.fnpt': 'FNPT — Entraîneur de vol de base',
- 'sim.type.bitd': 'BITD — Entraîneur de base aux instruments',
+ 'sim.type.fnpt': 'FNPT — Flight & Navigation Procedures Trainer',
+ 'sim.type.bitd': 'BITD — Basic Instrument Trainer',
  'sim.type.other': 'Autre',
  'sim.session.ppc': 'PPC — Contrôle de compétence pilote',
- 'sim.session.ipc': 'IPC — Contrôle de compétence aux instruments',
+ 'sim.session.ipc': 'IPC — Instrument Proficiency Check',
  'sim.session.ifrRenewal': 'Renouvellement IFR',
  'sim.session.recurrent': 'Formation périodique',
  'sim.session.initial': 'Formation initiale',
  'sim.session.typeRating': 'Cours de qualification de type',
- 'sim.session.loft': 'LOFT — Entraînement de scénario en simulateur',
+ 'sim.session.loft': 'LOFT — Line Oriented Flight Training',
  'sim.session.other': 'Autre formation',
  'flight.deleteBtn': ' Supprimer',
  'flight.saveBtn': 'Enregistrer le vol',
