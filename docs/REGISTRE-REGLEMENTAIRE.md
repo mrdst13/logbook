@@ -18,6 +18,11 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 | Hood / view-limiting device | **dispositif limitant la vue** | CI 401-004 ; RAC DORS/96-433 (laws-lois, vérifié 2026-06-25) | ❌ « cagoule » (= masque de voleur), ❌ « capot »/« sous capot » (informel) |
 | Night | nuit (fin du crépuscule civil → début du crépuscule civil) | CAR/RAC 101.01 | — |
 | Cross-country | **vol-voyage** (le temps = « temps de vol en voyage », RAC 101.01) ; abréviation **XC** conservée | RAC 101.01 + guides de test en vol / AIM de TC (terme employé par TC en français) — vérifié 2026-06-26 | ❌ « cross-country » dans le FR (anglicisme), ❌ « voyage » seul |
+| Full Flight Simulator (FFS) | **Simulateur de vol complet** (acronyme FFS conservé) | TC TP 9685 « Aeroplane and Rotorcraft Simulator Manual » / TP 9685F (tc.canada.ca) — vérifié 2026-07-01 | — |
+| Flight Training Device (FTD) | **Dispositif d'entraînement de vol** (acronyme FTD conservé) | TC TP 13799 « Dispositifs d'entraînement de vol » (tc.canada.ca) — vérifié 2026-07-01 | — |
+| Pilot Proficiency Check (PPC) | **Contrôle de compétence pilote** (acronyme PPC conservé) | RAC 705.113 + terme déjà fixé dans l'app (`profile.ppc.hint`) | ⚠️ ne pas introduire de 2e variante : TC emploie aussi « Contrôle de la compétence du pilote (CCP) » (Std 724) et « Vérification de compétence pilote » (TP 14727) — l'app est fixée sur « Contrôle de compétence pilote » |
+| Instrument Proficiency Check (IPC) | **Contrôle de compétence aux instruments** (acronyme IPC conservé) | TC CI 401-004 (contrôle de compétence de vol aux instruments) — vérifié 2026-07-01 | — |
+| FNPT / BITD / LOFT | pas de terme TC officiel FR (classes EASA/ICAO) → **acronyme conservé** + descriptif FR repris **verbatim** du glossaire de l'app (`13-qa-signature-glossary.js`) | glossaire interne app (cohérence) | ❌ ne pas fabriquer un « terme officiel » FR pour ces classes non canadiennes |
 
 | Statut | Sens |
 |---|---|
@@ -118,6 +123,13 @@ Principe appliqué : **retirer tout chiffre/règle non confirmé au registre** (
 - **ECG (Q&R)** : retiré les intervalles non sourcés (« 24 mois 40-65, annuel 65+ ») → renvoi à la norme médicale Cat 1 + au médecin-examinateur (MEAC/CAME). **Aucune entrée registre pour les intervalles ECG** — à vérifier (TP 13312 / Standard 424) avant de réintroduire un chiffre.
 - **Chiffres ATPL/sim (Q&R + brought-forward)** : retiré « 1 500 h / 1 200 h / 25 h / 200 h » et les articles non vérifiés « CAR 401.73 / 421.34 » → renvoi au **Standard 421** + Transports Canada. À vérifier au texte primaire avant de réintroduire des chiffres.
 - Termes FR : « opérateur » → « exploitant », « CAR 101.01 » → « RAC 101.01 » dans les nouvelles chaînes FR touchées.
+
+## 📝 Traduction FR des menus déroulants simulateur — 2026-07-01 (couverture bilingue)
+Les `<select id="f-simType">` / `<select id="f-simSession">` (formulaire d'ajout de vol) étaient en anglais dur. Rendus bilingues via `data-i18n` + clés `sim.type.*` / `sim.session.*` dans `17-i18n.js`. Choix des termes :
+- **Vérifiés à la source TC** (2026-07-01) : FFS = « Simulateur de vol complet », FTD = « Dispositif d'entraînement de vol » (TP 9685 / TP 13799) ; PPC = « Contrôle de compétence pilote » (RAC 705.113, terme déjà fixé) ; IPC = « Contrôle de compétence aux instruments » (CI 401-004).
+- **Descriptif glossaire app (verbatim)** pour les classes internationales sans terme TC FR : FNPT = « Entraîneur de vol de base », BITD = « Entraîneur de base aux instruments », LOFT = « Entraînement de scénario en simulateur ».
+- **Plain-language non réglementaire** : « Renouvellement IFR », « Formation périodique », « Formation initiale », « Cours de qualification de type », « Autre » / « Autre formation ».
+- ⚠️ **À CONFIRMER PAR MARTIN** (sa formation périodique = autorité finale) : les libellés IPC/FNPT/BITD/LOFT ne sont pas des termes TC officiels FR (variance de terminologie chez TC). Aucun chiffre/règle réglementaire n'est affiché par ces menus — ce sont des étiquettes de saisie ; l'acronyme (universel) reste toujours visible.
 
 > Tenir à jour : toute nouvelle règle réglementaire ajoutée au code DOIT apparaître ici
 > avec sa source vérifiée le jour où elle est écrite.

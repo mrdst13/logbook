@@ -83,11 +83,31 @@ function renderLogbook(filter='') {
     }).join('');
 
     const fid = esc(f.id);
+    // Accessible name for keyboard / screen-reader users: date + route so the
+    // row is meaningful when focused (a bare "open details" would read the same
+    // on every row). Falls back to em-dash when a field is empty (e.g. sim).
+    const dateStr = String(computeCellValue(f, 'date') || '').trim() || '—';
+    const routeStr = String(computeCellValue(f, 'route') || '').trim() || '—';
+    const rowLabel = esc(t('logbook.rowAria', { date: dateStr, route: routeStr }));
     return `
-    <tr onclick="openFlightDetail('${fid}')" class="row-clickable">
+    <tr onclick="openFlightDetail('${fid}')" class="row-clickable" tabindex="0" role="button" aria-label="${rowLabel}">
       ${cells}
     </tr>`;
   }).join('');
+
+  // Keyboard activation for the clickable rows: Enter / Space open the detail
+  // panel, matching the mouse click. Bound once per tbody (guarded flag) so
+  // repeated renders don't stack duplicate listeners.
+  if (tbody && !tbody._kbBound) {
+    tbody.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      const row = e.target.closest && e.target.closest('tr.row-clickable');
+      if (!row) return;
+      e.preventDefault(); // stop Space from scrolling the page
+      row.click();
+    });
+    tbody._kbBound = true;
+  }
 
   // ── Render totals footer (sum of all visible flights for each numeric column) ──
   // When NO filter is active, fold brought-forward (opening balances) into the

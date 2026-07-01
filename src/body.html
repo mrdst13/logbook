@@ -7,7 +7,7 @@
 <!-- HEADER -->
 <header>
  <!-- Hamburger: only visible on mobile. Wired in JS at init. -->
- <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+ <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" data-i18n-aria-label="a11y.toggleNav" aria-controls="sidebar" aria-expanded="false">
  <span></span>
  <span></span>
  <span></span>
@@ -34,17 +34,17 @@
  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
  pilots aren't stranded in English on first visit. Wired to setLang()
  which re-renders dashboard/logbook/etc. -->
- <div class="lang-toggle" role="group" aria-label="Language">
+ <div class="lang-toggle" role="group" aria-label="Language" data-i18n-aria-label="a11y.language">
  <button type="button" id="langBtnEn" onclick="setLang('en')" title="English" aria-label="English">EN</button>
  <button type="button" id="langBtnFr" onclick="setLang('fr')" title="Français" aria-label="Français">FR</button>
  </div>
 
  <!-- Theme toggle (v3a) — small sun/moon switch -->
- <div class="theme-toggle" role="group" aria-label="Theme">
- <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
+ <div class="theme-toggle" role="group" aria-label="Theme" data-i18n-aria-label="a11y.theme">
+ <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode" data-i18n-title="a11y.lightMode" data-i18n-aria-label="a11y.lightMode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41"/></svg>
  </button>
- <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode">
+ <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode" data-i18n-title="a11y.darkMode" data-i18n-aria-label="a11y.darkMode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
  </button>
  </div>
@@ -319,25 +319,25 @@
  <div class="form-group">
  <label data-i18n="flight.simType">Sim Type</label>
  <select id="f-simType">
- <option value="FFS">FFS — Full Flight Simulator (Level D)</option>
- <option value="FFS-C">FFS — Level C</option>
- <option value="FTD">FTD — Flight Training Device</option>
- <option value="FNPT">FNPT — Flight & Navigation Procedures Trainer</option>
- <option value="BITD">BITD — Basic Instrument Trainer</option>
- <option value="other">Other</option>
+ <option value="FFS" data-i18n="sim.type.ffsD">FFS — Full Flight Simulator (Level D)</option>
+ <option value="FFS-C" data-i18n="sim.type.ffsC">FFS — Level C</option>
+ <option value="FTD" data-i18n="sim.type.ftd">FTD — Flight Training Device</option>
+ <option value="FNPT" data-i18n="sim.type.fnpt">FNPT — Flight & Navigation Procedures Trainer</option>
+ <option value="BITD" data-i18n="sim.type.bitd">BITD — Basic Instrument Trainer</option>
+ <option value="other" data-i18n="sim.type.other">Other</option>
  </select>
  </div>
  <div class="form-group">
  <label data-i18n="flight.simSession">Session Type</label>
  <select id="f-simSession">
- <option value="PPC">PPC — Pilot Proficiency Check</option>
- <option value="IPC">IPC — Instrument Proficiency Check</option>
- <option value="IFR-Renewal">IFR Renewal</option>
- <option value="Recurrent">Recurrent Training</option>
- <option value="Initial">Initial Training</option>
- <option value="Type-Rating">Type Rating Course</option>
- <option value="LOFT">LOFT — Line Oriented Flight Training</option>
- <option value="Other">Other Training</option>
+ <option value="PPC" data-i18n="sim.session.ppc">PPC — Pilot Proficiency Check</option>
+ <option value="IPC" data-i18n="sim.session.ipc">IPC — Instrument Proficiency Check</option>
+ <option value="IFR-Renewal" data-i18n="sim.session.ifrRenewal">IFR Renewal</option>
+ <option value="Recurrent" data-i18n="sim.session.recurrent">Recurrent Training</option>
+ <option value="Initial" data-i18n="sim.session.initial">Initial Training</option>
+ <option value="Type-Rating" data-i18n="sim.session.typeRating">Type Rating Course</option>
+ <option value="LOFT" data-i18n="sim.session.loft">LOFT — Line Oriented Flight Training</option>
+ <option value="Other" data-i18n="sim.session.other">Other Training</option>
  </select>
  </div>
  <div class="form-group">
@@ -953,23 +953,23 @@
  <div class="form-card" id="profile-type">
  <div class="form-card-title" data-i18n="profile.section.type">Pilot type</div>
  <div class="profile-type-grid">
- <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
+ <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')" role="button" tabindex="0" aria-pressed="true" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('airline705');}">
  <div class="pt-name" data-i18n="profile.type.airline">Airline 705</div>
  <div class="pt-desc" data-i18n="profile.type.airlineDesc">Air carrier ops · All TC columns</div>
  </div>
- <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')">
+ <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('private');}">
  <div class="pt-name" data-i18n="profile.type.private">Private / CPL</div>
  <div class="pt-desc" data-i18n="profile.type.privateDesc">PPL / recreational · Simplified form</div>
  </div>
- <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')">
+ <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('student');}">
  <div class="pt-name" data-i18n="profile.type.student">Student / CPL</div>
  <div class="pt-desc" data-i18n="profile.type.studentDesc">Flight training · Dual &amp; solo focus</div>
  </div>
- <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')">
+ <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('instructor');}">
  <div class="pt-name" data-i18n="profile.type.instructor">Instructor / CFI</div>
  <div class="pt-desc" data-i18n="profile.type.instructorDesc">Dual given · ATPL credit focus</div>
  </div>
- <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
+ <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('helicopter');}">
  <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
  <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · recent experience</div>
  </div>
@@ -1428,7 +1428,7 @@
  <div class="eyebrow" style="margin-bottom:4px;"><span data-i18n="onb.step">Step</span> <span id="onbStepNum">1</span> <span data-i18n="onb.of">of</span> <span id="onbStepTotal">5</span></div>
  <div class="t-title-2" id="onbStepTitle">Welcome to Cumulo</div>
  </div>
- <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip">
+ <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip" data-i18n-aria-label="a11y.skip" data-i18n-title="a11y.skip">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -1451,7 +1451,7 @@
  <div class="eyebrow" id="dashDrillEyebrow" style="margin-bottom:4px;">DETAIL</div>
  <div class="t-title-2" id="dashDrillTitle">—</div>
  </div>
- <button class="icon-btn" onclick="closeDashDrill()" aria-label="Close" title="Close">
+ <button class="icon-btn" onclick="closeDashDrill()" aria-label="Close" title="Close" data-i18n-aria-label="btn.close" data-i18n-title="btn.close">
    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -1470,7 +1470,7 @@
  <div class="eyebrow" style="margin-bottom:4px;" data-i18n="detail.eyebrow">Flight Detail</div>
  <div class="t-title-2" id="flightDetailTitle">Flight</div>
  </div>
- <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close">
+ <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close" data-i18n-aria-label="btn.close" data-i18n-title="btn.close">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -1492,7 +1492,7 @@
  <div class="t-title-2" data-i18n="preview.title">Review extracted flights</div>
  <div class="eyebrow" style="margin-top:4px;" id="importSubtitle" data-i18n="preview.selectInstruction">Select which flights to import</div>
  </div>
- <button class="icon-btn" onclick="cancelImport()" aria-label="Close" title="Close">
+ <button class="icon-btn" onclick="cancelImport()" aria-label="Close" title="Close" data-i18n-aria-label="btn.close" data-i18n-title="btn.close">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -1511,7 +1511,7 @@
 <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
  <div class="auth-modal-backdrop" onclick="AuthUI.close()"></div>
  <div class="auth-modal-card">
- <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close">×</button>
+ <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close" data-i18n-aria-label="btn.close">×</button>
  <div class="auth-modal-body" id="authModalBody"></div>
  </div>
 </div>

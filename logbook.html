@@ -4574,7 +4574,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 <!-- HEADER -->
 <header>
  <!-- Hamburger: only visible on mobile. Wired in JS at init. -->
- <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+ <button type="button" class="hamburger" id="hamburger" aria-label="Toggle navigation" data-i18n-aria-label="a11y.toggleNav" aria-controls="sidebar" aria-expanded="false">
  <span></span>
  <span></span>
  <span></span>
@@ -4601,17 +4601,17 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <!-- Language toggle (EN/FR) — bilingual at the surface so francophone
  pilots aren't stranded in English on first visit. Wired to setLang()
  which re-renders dashboard/logbook/etc. -->
- <div class="lang-toggle" role="group" aria-label="Language">
+ <div class="lang-toggle" role="group" aria-label="Language" data-i18n-aria-label="a11y.language">
  <button type="button" id="langBtnEn" onclick="setLang('en')" title="English" aria-label="English">EN</button>
  <button type="button" id="langBtnFr" onclick="setLang('fr')" title="Français" aria-label="Français">FR</button>
  </div>
 
  <!-- Theme toggle (v3a) — small sun/moon switch -->
- <div class="theme-toggle" role="group" aria-label="Theme">
- <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode">
+ <div class="theme-toggle" role="group" aria-label="Theme" data-i18n-aria-label="a11y.theme">
+ <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode" data-i18n-title="a11y.lightMode" data-i18n-aria-label="a11y.lightMode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41"/></svg>
  </button>
- <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode">
+ <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode" data-i18n-title="a11y.darkMode" data-i18n-aria-label="a11y.darkMode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
  </button>
  </div>
@@ -4886,25 +4886,25 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-group">
  <label data-i18n="flight.simType">Sim Type</label>
  <select id="f-simType">
- <option value="FFS">FFS — Full Flight Simulator (Level D)</option>
- <option value="FFS-C">FFS — Level C</option>
- <option value="FTD">FTD — Flight Training Device</option>
- <option value="FNPT">FNPT — Flight & Navigation Procedures Trainer</option>
- <option value="BITD">BITD — Basic Instrument Trainer</option>
- <option value="other">Other</option>
+ <option value="FFS" data-i18n="sim.type.ffsD">FFS — Full Flight Simulator (Level D)</option>
+ <option value="FFS-C" data-i18n="sim.type.ffsC">FFS — Level C</option>
+ <option value="FTD" data-i18n="sim.type.ftd">FTD — Flight Training Device</option>
+ <option value="FNPT" data-i18n="sim.type.fnpt">FNPT — Flight & Navigation Procedures Trainer</option>
+ <option value="BITD" data-i18n="sim.type.bitd">BITD — Basic Instrument Trainer</option>
+ <option value="other" data-i18n="sim.type.other">Other</option>
  </select>
  </div>
  <div class="form-group">
  <label data-i18n="flight.simSession">Session Type</label>
  <select id="f-simSession">
- <option value="PPC">PPC — Pilot Proficiency Check</option>
- <option value="IPC">IPC — Instrument Proficiency Check</option>
- <option value="IFR-Renewal">IFR Renewal</option>
- <option value="Recurrent">Recurrent Training</option>
- <option value="Initial">Initial Training</option>
- <option value="Type-Rating">Type Rating Course</option>
- <option value="LOFT">LOFT — Line Oriented Flight Training</option>
- <option value="Other">Other Training</option>
+ <option value="PPC" data-i18n="sim.session.ppc">PPC — Pilot Proficiency Check</option>
+ <option value="IPC" data-i18n="sim.session.ipc">IPC — Instrument Proficiency Check</option>
+ <option value="IFR-Renewal" data-i18n="sim.session.ifrRenewal">IFR Renewal</option>
+ <option value="Recurrent" data-i18n="sim.session.recurrent">Recurrent Training</option>
+ <option value="Initial" data-i18n="sim.session.initial">Initial Training</option>
+ <option value="Type-Rating" data-i18n="sim.session.typeRating">Type Rating Course</option>
+ <option value="LOFT" data-i18n="sim.session.loft">LOFT — Line Oriented Flight Training</option>
+ <option value="Other" data-i18n="sim.session.other">Other Training</option>
  </select>
  </div>
  <div class="form-group">
@@ -5520,23 +5520,23 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="form-card" id="profile-type">
  <div class="form-card-title" data-i18n="profile.section.type">Pilot type</div>
  <div class="profile-type-grid">
- <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')">
+ <div class="profile-type-card active" id="pt-airline705" onclick="setProfileType('airline705')" role="button" tabindex="0" aria-pressed="true" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('airline705');}">
  <div class="pt-name" data-i18n="profile.type.airline">Airline 705</div>
  <div class="pt-desc" data-i18n="profile.type.airlineDesc">Air carrier ops · All TC columns</div>
  </div>
- <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')">
+ <div class="profile-type-card" id="pt-private" onclick="setProfileType('private')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('private');}">
  <div class="pt-name" data-i18n="profile.type.private">Private / CPL</div>
  <div class="pt-desc" data-i18n="profile.type.privateDesc">PPL / recreational · Simplified form</div>
  </div>
- <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')">
+ <div class="profile-type-card" id="pt-student" onclick="setProfileType('student')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('student');}">
  <div class="pt-name" data-i18n="profile.type.student">Student / CPL</div>
  <div class="pt-desc" data-i18n="profile.type.studentDesc">Flight training · Dual &amp; solo focus</div>
  </div>
- <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')">
+ <div class="profile-type-card" id="pt-instructor" onclick="setProfileType('instructor')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('instructor');}">
  <div class="pt-name" data-i18n="profile.type.instructor">Instructor / CFI</div>
  <div class="pt-desc" data-i18n="profile.type.instructorDesc">Dual given · ATPL credit focus</div>
  </div>
- <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')">
+ <div class="profile-type-card" id="pt-helicopter" onclick="setProfileType('helicopter')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setProfileType('helicopter');}">
  <div class="pt-name" data-i18n="profile.type.helicopter">Helicopter</div>
  <div class="pt-desc" data-i18n="profile.type.helicopterDesc">Rotorcraft ops · recent experience</div>
  </div>
@@ -5995,7 +5995,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="eyebrow" style="margin-bottom:4px;"><span data-i18n="onb.step">Step</span> <span id="onbStepNum">1</span> <span data-i18n="onb.of">of</span> <span id="onbStepTotal">5</span></div>
  <div class="t-title-2" id="onbStepTitle">Welcome to Cumulo</div>
  </div>
- <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip">
+ <button class="icon-btn" onclick="skipOnboarding()" aria-label="Skip" title="Skip" data-i18n-aria-label="a11y.skip" data-i18n-title="a11y.skip">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -6018,7 +6018,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="eyebrow" id="dashDrillEyebrow" style="margin-bottom:4px;">DETAIL</div>
  <div class="t-title-2" id="dashDrillTitle">—</div>
  </div>
- <button class="icon-btn" onclick="closeDashDrill()" aria-label="Close" title="Close">
+ <button class="icon-btn" onclick="closeDashDrill()" aria-label="Close" title="Close" data-i18n-aria-label="btn.close" data-i18n-title="btn.close">
    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -6037,7 +6037,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="eyebrow" style="margin-bottom:4px;" data-i18n="detail.eyebrow">Flight Detail</div>
  <div class="t-title-2" id="flightDetailTitle">Flight</div>
  </div>
- <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close">
+ <button class="icon-btn" onclick="closeFlightDetail()" aria-label="Close" title="Close" data-i18n-aria-label="btn.close" data-i18n-title="btn.close">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -6059,7 +6059,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="t-title-2" data-i18n="preview.title">Review extracted flights</div>
  <div class="eyebrow" style="margin-top:4px;" id="importSubtitle" data-i18n="preview.selectInstruction">Select which flights to import</div>
  </div>
- <button class="icon-btn" onclick="cancelImport()" aria-label="Close" title="Close">
+ <button class="icon-btn" onclick="cancelImport()" aria-label="Close" title="Close" data-i18n-aria-label="btn.close" data-i18n-title="btn.close">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
  </button>
  </div>
@@ -6078,7 +6078,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
  <div class="auth-modal-backdrop" onclick="AuthUI.close()"></div>
  <div class="auth-modal-card">
- <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close">×</button>
+ <button type="button" class="auth-modal-close" onclick="AuthUI.close()" aria-label="Close" data-i18n-aria-label="btn.close">×</button>
  <div class="auth-modal-body" id="authModalBody"></div>
  </div>
 </div>
@@ -8524,11 +8524,31 @@ function renderLogbook(filter='') {
     }).join('');
 
     const fid = esc(f.id);
+    // Accessible name for keyboard / screen-reader users: date + route so the
+    // row is meaningful when focused (a bare "open details" would read the same
+    // on every row). Falls back to em-dash when a field is empty (e.g. sim).
+    const dateStr = String(computeCellValue(f, 'date') || '').trim() || '—';
+    const routeStr = String(computeCellValue(f, 'route') || '').trim() || '—';
+    const rowLabel = esc(t('logbook.rowAria', { date: dateStr, route: routeStr }));
     return `
-    <tr onclick="openFlightDetail('${fid}')" class="row-clickable">
+    <tr onclick="openFlightDetail('${fid}')" class="row-clickable" tabindex="0" role="button" aria-label="${rowLabel}">
       ${cells}
     </tr>`;
   }).join('');
+
+  // Keyboard activation for the clickable rows: Enter / Space open the detail
+  // panel, matching the mouse click. Bound once per tbody (guarded flag) so
+  // repeated renders don't stack duplicate listeners.
+  if (tbody && !tbody._kbBound) {
+    tbody.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      const row = e.target.closest && e.target.closest('tr.row-clickable');
+      if (!row) return;
+      e.preventDefault(); // stop Space from scrolling the page
+      row.click();
+    });
+    tbody._kbBound = true;
+  }
 
   // ── Render totals footer (sum of all visible flights for each numeric column) ──
   // When NO filter is active, fold brought-forward (opening balances) into the
@@ -9865,7 +9885,13 @@ function setProfileType(type) {
 function highlightProfileTypeCard(type) {
   ['airline705', 'private', 'student', 'helicopter', 'instructor'].forEach(t => {
     const card = document.getElementById('pt-' + t);
-    if (card) card.classList.toggle('active', t === type);
+    if (card) {
+      const isActive = (t === type);
+      card.classList.toggle('active', isActive);
+      // Keep the accessible selected-state in sync with the visual .active
+      // class so screen-reader users hear which pilot type is chosen.
+      card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    }
   });
 }
 
@@ -15222,6 +15248,13 @@ const STRINGS = {
  'flight.editBtn': 'Edit flight',
  'btn.close': 'Close',
  'btn.confirm': 'Confirm',
+ // ─── Accessibility (ARIA / tooltips for icon-only controls)
+ 'a11y.toggleNav': 'Toggle navigation',
+ 'a11y.language': 'Language',
+ 'a11y.theme': 'Theme',
+ 'a11y.lightMode': 'Light mode',
+ 'a11y.darkMode': 'Dark mode',
+ 'a11y.skip': 'Skip',
  'btn.import': 'Import',
  'btn.export': 'Export',
  'btn.add': 'Add',
@@ -15408,6 +15441,22 @@ const STRINGS = {
  'flight.simType': 'Sim Type (FFS / FTD)',
  'flight.simSession': 'Session Type',
  'flight.simRegistration': 'Sim Device ID',
+ // ─── Simulator dropdowns (device type + session type). EN values must match
+ //     the <option> text verbatim so applyTranslations leaves them unchanged.
+ 'sim.type.ffsD': 'FFS — Full Flight Simulator (Level D)',
+ 'sim.type.ffsC': 'FFS — Level C',
+ 'sim.type.ftd': 'FTD — Flight Training Device',
+ 'sim.type.fnpt': 'FNPT — Flight & Navigation Procedures Trainer',
+ 'sim.type.bitd': 'BITD — Basic Instrument Trainer',
+ 'sim.type.other': 'Other',
+ 'sim.session.ppc': 'PPC — Pilot Proficiency Check',
+ 'sim.session.ipc': 'IPC — Instrument Proficiency Check',
+ 'sim.session.ifrRenewal': 'IFR Renewal',
+ 'sim.session.recurrent': 'Recurrent Training',
+ 'sim.session.initial': 'Initial Training',
+ 'sim.session.typeRating': 'Type Rating Course',
+ 'sim.session.loft': 'LOFT — Line Oriented Flight Training',
+ 'sim.session.other': 'Other Training',
  'flight.deleteBtn': ' Delete',
  'flight.saveBtn': 'Save flight',
  'flight.saveAndAddBtn': 'Save & add another',
@@ -16014,6 +16063,7 @@ const STRINGS = {
  'col.remarks': 'Remarks', 'colShort.remarks': 'Remarks',
  'col.total': 'Total', 'colShort.total': 'Total',
  'logbook.noFlights': 'No flights found.',
+ 'logbook.rowAria': 'Flight {date}, {route} — open details',
  'logbook.totalsLabel': 'TOTALS',
  'logbook.inclBf': '(incl. brought-forward)',
  // ─── Column picker persona toolbar (11-columns-backup.js)
@@ -16252,6 +16302,13 @@ const STRINGS = {
  'detail.eyebrow': 'Détail du vol',
  'flight.editBtn': 'Modifier le vol',
  'btn.close': 'Fermer',
+ // ─── Accessibilité (ARIA / infobulles des commandes à icône seule)
+ 'a11y.toggleNav': 'Afficher ou masquer la navigation',
+ 'a11y.language': 'Langue',
+ 'a11y.theme': 'Thème',
+ 'a11y.lightMode': 'Mode clair',
+ 'a11y.darkMode': 'Mode sombre',
+ 'a11y.skip': 'Passer',
  'btn.confirm': 'Confirmer',
  'btn.import': 'Importer',
  'btn.export': 'Exporter',
@@ -16439,6 +16496,24 @@ const STRINGS = {
  'flight.simType': 'Type de sim (FFS / FTD)',
  'flight.simSession': 'Type de séance',
  'flight.simRegistration': 'Identifiant de l’appareil sim',
+ // ─── Menus déroulants du simulateur (type de dispositif + type de séance).
+ //     Termes TC vérifiés (FFS/FTD/PPC/IPC) ; FNPT/BITD/LOFT = descriptif du
+ //     glossaire de l’app (classes internationales sans terme TC officiel FR).
+ //     Voir docs/REGISTRE-REGLEMENTAIRE.md.
+ 'sim.type.ffsD': 'FFS — Simulateur de vol complet (niveau D)',
+ 'sim.type.ffsC': 'FFS — Simulateur de vol complet (niveau C)',
+ 'sim.type.ftd': 'FTD — Dispositif d’entraînement de vol',
+ 'sim.type.fnpt': 'FNPT — Entraîneur de vol de base',
+ 'sim.type.bitd': 'BITD — Entraîneur de base aux instruments',
+ 'sim.type.other': 'Autre',
+ 'sim.session.ppc': 'PPC — Contrôle de compétence pilote',
+ 'sim.session.ipc': 'IPC — Contrôle de compétence aux instruments',
+ 'sim.session.ifrRenewal': 'Renouvellement IFR',
+ 'sim.session.recurrent': 'Formation périodique',
+ 'sim.session.initial': 'Formation initiale',
+ 'sim.session.typeRating': 'Cours de qualification de type',
+ 'sim.session.loft': 'LOFT — Entraînement de scénario en simulateur',
+ 'sim.session.other': 'Autre formation',
  'flight.deleteBtn': ' Supprimer',
  'flight.saveBtn': 'Enregistrer le vol',
  'flight.saveAndAddBtn': 'Enregistrer et ajouter un autre',
@@ -17045,6 +17120,7 @@ const STRINGS = {
  'col.remarks': 'Notes', 'colShort.remarks': 'Notes',
  'col.total': 'Total', 'colShort.total': 'Total',
  'logbook.noFlights': 'Aucun vol trouvé.',
+ 'logbook.rowAria': 'Vol du {date}, {route} — ouvrir le détail',
  'logbook.totalsLabel': 'TOTAUX',
  'logbook.inclBf': '(incl. heures reportées)',
  // ─── Barre de profils du sélecteur de colonnes (11-columns-backup.js)
@@ -20888,7 +20964,7 @@ function renderDutyTracker() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-01-6eb7f32';
+const BUILD_VERSION = '2026-07-01-f553ba0';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
