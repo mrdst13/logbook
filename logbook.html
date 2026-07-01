@@ -17802,6 +17802,11 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pullProfile) {
     await Sync.pullProfile();
   }
+  // Pull brought-forward hours (paper-logbook attestation) so the career total
+  // matches across devices. Fill-empty; never clobbers a local attestation.
+  if (typeof Sync !== 'undefined' && Sync.pullOpeningBalances) {
+    await Sync.pullOpeningBalances();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -18006,6 +18011,8 @@ const FLIGHT_FIELD_MAP = {
   meNightDual: 'me_night_dual',
   seDay: 'se_day',
   seNight: 'se_night',
+  seDayDual: 'se_day_dual',
+  seNightDual: 'se_night_dual',
   atd_utc: 'atd_utc',
   ata_utc: 'ata_utc',
   heliDayPic: 'heli_day_pic',
@@ -18061,7 +18068,7 @@ const FLIGHT_FIELD_MAP_INV = (() => {
 const NUMERIC_COLS = new Set([
   'block','duty','total',
   'me_day_pic','me_night_pic','me_day_cop','me_night_cop','me_day_dual','me_night_dual',
-  'se_day','se_night',
+  'se_day','se_night','se_day_dual','se_night_dual',
   'heli_day_pic','heli_night_pic','heli_day_cop','heli_night_cop','heli_day_dual','heli_night_dual','hover_time',
   'xc_day_pic','xc_night_pic','xc_day_cop','xc_night_cop','xc_day_dual','xc_night_dual',
   'inst_actual','inst_hood','inst_sim','approaches','picus',
@@ -18328,6 +18335,15 @@ const Sync = {
       dark_mode: darkMode,
       ac_configs: profile.acConfigs || ['wheels'],
       column_prefs: columnPrefs || {},
+      // Fields synced since the 2026-07-01 Supabase ALTER (audit cause #2).
+      // ppcDueDate / personalGoal* live on the profile object; signature +
+      // onboarded live in localStorage (read via ls()).
+      ppc_due_date: profile.ppcDueDate || null,
+      personal_goal_hrs: (profile.personalGoalHrs != null && profile.personalGoalHrs !== '') ? +profile.personalGoalHrs : null,
+      personal_goal_kind: profile.personalGoalKind || null,
+      personal_goal_context: profile.personalGoalContext || null,
+      signature: ls('logbook_signature') || null,
+      onboarded: !!ls('cumulo_onboarded_v1'),
     };
     const { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
@@ -18342,8 +18358,9 @@ const Sync = {
   // localStorage keys (Navblue URL, language, dark mode, column prefs) so the
   // "connect iCal" card (02-data.js) and monthly-PDF routing (06-photo-import.js),
   // which read localStorage directly, stop firing spuriously on a 2nd device.
-  // Note: ppcDueDate / personalGoal / signature / onboarded are intentionally
-  // NOT pulled here — their columns don't exist yet (pending a Supabase ALTER).
+  // ppcDueDate / personalGoal* / signature / onboarded are also pulled now —
+  // their columns were added by the 2026-07-01 Supabase ALTER. Same fill-empty
+  // rule (a pilot-entered value is never overwritten).
   async pullProfile() {
     if (!Auth.isAuthenticated()) return;
     let data, error;
@@ -18376,6 +18393,14 @@ const Sync = {
     fillStr('fleet', row.fleet);
     fillStr('operatorCodes', row.operator_codes);
     fillStr('pilotType', row.pilot_type);
+    // Certifiable + tracker fields (columns added 2026-07-01). Fill-empty only —
+    // ppcDueDate is certifiable, so a local date is never clobbered.
+    fillStr('ppcDueDate', row.ppc_due_date);
+    fillStr('personalGoalKind', row.personal_goal_kind);
+    fillStr('personalGoalContext', row.personal_goal_context);
+    if (isBlank(local.personalGoalHrs) && !isBlank(row.personal_goal_hrs)) {
+      local.personalGoalHrs = +row.personal_goal_hrs; changed = true;
+    }
 
     // Booleans / arrays: adopt only when the key is genuinely unset locally,
     // so a pilot who explicitly turned something off keeps that choice.
@@ -18410,9 +18435,74 @@ const Sync = {
       if (!localStorage.getItem('cumulo_column_prefs_v1') && row.column_prefs && Object.keys(row.column_prefs).length) {
         localStorage.setItem('cumulo_column_prefs_v1', JSON.stringify(row.column_prefs));
       }
+      // Signature (base64) — restore only if this device has none, so the PDF
+      // signature block works on a 2nd device without re-drawing it.
+      if (!localStorage.getItem('logbook_signature') && row.signature) {
+        localStorage.setItem('logbook_signature', row.signature);
+      }
+      // Onboarding flag — if the cloud says this pilot already onboarded, don't
+      // re-trigger the wizard on a fresh device.
+      if (localStorage.getItem('cumulo_onboarded_v1') === null && row.onboarded === true) {
+        localStorage.setItem('cumulo_onboarded_v1', 'done');
+      }
     } catch (e) { /* storage unavailable — non-fatal */ }
 
     if (typeof renderDashboard === 'function') renderDashboard();
+  },
+
+  // ─── Opening balances (brought-forward hours) cross-device sync ──────
+  // The paper-logbook attestation (hours + cutoff + attest date + SHA-256 hash)
+  // lived only in localStorage (audit cause #5) → a 2nd device showed 0 h and
+  // the career total diverged. Push on save, fill-empty pull on sign-in.
+  async pushOpeningBalances() {
+    if (!Auth.isAuthenticated()) return;
+    if (typeof loadOpeningBalances !== 'function') return;
+    const rec = loadOpeningBalances();
+    // Only push a real attestation. An empty record must never clobber a cloud
+    // attestation made on another device.
+    if (!rec || !rec.balances || !Object.keys(rec.balances).length) return;
+    const row = {
+      user_id: Auth.currentUserId(),
+      balances: rec.balances,
+      attested_at: rec.attestedAt || null,
+      cutoff_date: rec.cutoffDate || null,
+      hash: rec.hash || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await Auth.client.from('opening_balances').upsert(row, { onConflict: 'user_id' });
+    if (error) {
+      console.warn('[Sync] pushOpeningBalances failed, queuing:', error.message);
+      this._enqueue({ type: 'upsert_opening_balances', payload: row });
+    }
+  },
+
+  async pullOpeningBalances() {
+    if (!Auth.isAuthenticated()) return;
+    if (typeof loadOpeningBalances !== 'function') return;
+    // Fill-empty: never clobber a local attestation. Only adopt the cloud
+    // record when this device has declared no opening balances of its own.
+    const localRec = loadOpeningBalances();
+    if (localRec && localRec.balances && Object.keys(localRec.balances).length) return;
+    let data, error;
+    try {
+      const resp = await Auth.client.from('opening_balances')
+        .select('*').eq('user_id', Auth.currentUserId());
+      data = resp.data; error = resp.error;
+    } catch (e) { console.warn('[Sync] pullOpeningBalances threw:', e); return; }
+    if (error) { console.warn('[Sync] pullOpeningBalances failed:', error.message); return; }
+    const row = data && data[0];
+    if (!row || !row.balances || !Object.keys(row.balances).length) return;
+    const record = {
+      balances: row.balances,
+      cutoffDate: row.cutoff_date || null,
+      attestedAt: row.attested_at || null,
+      hash: row.hash || null,
+    };
+    try {
+      localStorage.setItem(OPENING_BALANCES_KEY, JSON.stringify(record));
+    } catch (e) { return; }
+    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
   },
 
   // ─── Migration (one-shot per device) ────────────────────────────
@@ -18628,6 +18718,9 @@ const Sync = {
           if (error) { op.attempts++; remaining.push(op); }
         } else if (op.type === 'upsert_profile') {
           const { error } = await Auth.client.from('profiles').upsert(op.payload, { onConflict: 'id' });
+          if (error) { op.attempts++; remaining.push(op); }
+        } else if (op.type === 'upsert_opening_balances') {
+          const { error } = await Auth.client.from('opening_balances').upsert(op.payload, { onConflict: 'user_id' });
           if (error) { op.attempts++; remaining.push(op); }
         }
       } catch (e) {
@@ -19021,6 +19114,13 @@ async function saveOpeningBalances(balances, cutoffDate) {
   if (!Array.isArray(log)) log = [];
   log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
+
+  // Push the attestation to the cloud so the brought-forward hours follow the
+  // pilot to a 2nd device (audit cause #5). Fire-and-forget; queues if offline.
+  if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances &&
+      typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
+    Sync.pushOpeningBalances().catch(e => console.warn('[Sync] pushOpeningBalances error:', e));
+  }
 
   return record;
 }
@@ -20827,7 +20927,7 @@ function renderDutyTracker() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-01-9be5fe9';
+const BUILD_VERSION = '2026-07-01-99ed568';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -20992,6 +21092,7 @@ function injectDemoBanner() {
  // Also pull the profile on a restored session so cross-device profile
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
+ if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
  }
  }
  // Subscribe to auth state changes so the header updates after

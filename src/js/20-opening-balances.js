@@ -269,6 +269,13 @@ async function saveOpeningBalances(balances, cutoffDate) {
   log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
+  // Push the attestation to the cloud so the brought-forward hours follow the
+  // pilot to a 2nd device (audit cause #5). Fire-and-forget; queues if offline.
+  if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances &&
+      typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
+    Sync.pushOpeningBalances().catch(e => console.warn('[Sync] pushOpeningBalances error:', e));
+  }
+
   return record;
 }
 
