@@ -83,7 +83,14 @@ const jsContent = jsFiles
 // Inject <script>...</script> into body.html at the marker
 const SCRIPT_MARKER = '<!-- INJECT_JS -->';
 const scriptBlock = '<script>' + EOL + jsContent + EOL + '</script>';
-body = body.replace(SCRIPT_MARKER, scriptBlock);
+if (!body.includes(SCRIPT_MARKER)) {
+  console.error(`build: marker ${SCRIPT_MARKER} not found in body.html — refusing to ship a bundle without its JS.`);
+  process.exit(1);
+}
+// Function replacer only: with a plain string, $&/$`/$'/$$ inside the 700 KB
+// of injected JS are treated as replacement patterns (a `$&` literal in
+// 17-i18n.js already shipped corrupted to production because of this).
+body = body.replace(SCRIPT_MARKER, () => scriptBlock);
 
 // Strip diagnostic console.log / console.info / console.debug from the
 // production build. console.warn and console.error stay — they signal real

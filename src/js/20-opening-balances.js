@@ -588,11 +588,12 @@ function renderBroughtForwardPage() {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
-  // Cut-off date (last date the paper logbook covers). Default to yesterday on
-  // first visit; keep the pilot's saved value on return. Never re-default once set.
+  // Cut-off date (last date the paper logbook covers). NEVER pre-filled on a
+  // first visit: this date is part of the signed attestation, and a guessed
+  // default is a fabricated value in a record with legal weight — empty is
+  // better than guessed. Saved values and drafts do come back.
   const _todayISO = new Date().toISOString().slice(0, 10);
-  const _yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || _yesterdayISO;
+  const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || '';
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
@@ -730,7 +731,7 @@ function renderBroughtForwardPage() {
       <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
         <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Attester' : 'Attest'}</button>
         <button class="btn btn-ghost" onclick="saveOpeningDraft()">${fr ? 'Enregistrer le brouillon' : 'Save draft'}</button>
-        <button class="btn btn-ghost" onclick="showPage('dash')">${fr ? 'Annuler' : 'Cancel'}</button>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
   `;
@@ -954,5 +955,5 @@ async function commitOpeningBalances() {
   // the declared hours — that reveal IS the retention payoff. (Was Settings →
   // Profile, which buried the moment in a settings pane. Panel-flagged as the
   // single highest-impact fix on this page.)
-  if (typeof showPage === 'function') showPage('dash');
+  if (typeof showPage === 'function') showPage('dashboard');
 }

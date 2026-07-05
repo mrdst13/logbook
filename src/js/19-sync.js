@@ -154,7 +154,10 @@ const FLIGHT_FIELD_MAP = {
   remarks: 'remarks',
   source: 'source',
   sources: 'sources',
-  navblue_uid: 'navblue_uid',
+  // Local flights store the iCal UID as camelCase `navblueUid`
+  // (navblueEventToFlight). Mapping the wrong local key here left the cloud
+  // column NULL and the (user_id, navblue_uid) dedup index inert.
+  navblueUid: 'navblue_uid',
   signedBy: 'signed_by',
   signedAt: 'signed_at',
 };
@@ -236,6 +239,10 @@ function localFlightToRow(f, userId, opId) {
       if (typeof row.copilot === 'string') row.copilot = '';
     }
   }
+  // navblue_uid: '' must become null — the dedup index
+  // (user_id, navblue_uid) WHERE navblue_uid IS NOT NULL ignores nulls but
+  // would collide every ''-valued row against the others.
+  if (row.navblue_uid === '') row.navblue_uid = null;
   // Mint id if missing
   if (!row.id || !isUuid(row.id)) row.id = newUUID();
   // Sync metadata
@@ -384,6 +391,10 @@ const Sync = {
         const incoming = { ...remote };
         // Protect local full crew names from anonymized remote values.
         if (!_consentOn) { delete incoming.pic; delete incoming.copilot; }
+        // Never let a NULL cloud navblue_uid erase a locally-known iCal UID:
+        // every cloud row pushed before the field-map fix (2026-07-04) has
+        // navblue_uid NULL, and the next push is what backfills it there.
+        if (incoming.navblueUid == null) delete incoming.navblueUid;
         Object.assign(local, incoming);
         local._updated_at = rU;
         updated++;
@@ -808,28 +819,44 @@ const Sync = {
     const q = this._loadQueue();
     if (!q.length) return;
     const remaining = [];
+    // A poisoned op must never live in the queue forever (silent sync
+    // outage). Flights are re-pushed wholesale by pushAllFlights on every
+    // local save, so dropping a stuck op after enough attempts never
+    // strands data — it just stops the retry noise.
+    const MAX_OP_ATTEMPTS = 10;
+    const requeue = (op) => {
+      op.attempts = (op.attempts || 0) + 1;
+      if (op.attempts < MAX_OP_ATTEMPTS) { remaining.push(op); return; }
+      console.warn('[Sync] dropping queued op after', op.attempts, 'attempts:', op.type, op.payload && op.payload.id);
+    };
     for (const op of q) {
       try {
         if (op.type === 'upsert_flight') {
           coerceRowTypes(op.payload);
-          const { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
-          if (error) { op.attempts++; remaining.push(op); }
+          let { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
+          if (error && error.code === '23505' && op.payload.navblue_uid) {
+            // Dedup-index collision — same fallback as pushAllFlights:
+            // push the row without its navblue_uid rather than fail forever.
+            const retry = { ...op.payload };
+            delete retry.navblue_uid;
+            ({ error } = await Auth.client.from('flights').upsert(retry, { onConflict: 'id' }));
+          }
+          if (error) requeue(op);
         } else if (op.type === 'delete_flight') {
           // Soft delete — mirror Sync.deleteFlight (see comment there).
           const { error } = await Auth.client.from('flights')
             .update({ deleted_at: op.payload.deleted_at || new Date().toISOString() })
             .eq('id', op.payload.id);
-          if (error) { op.attempts++; remaining.push(op); }
+          if (error) requeue(op);
         } else if (op.type === 'upsert_profile') {
           const { error } = await Auth.client.from('profiles').upsert(op.payload, { onConflict: 'id' });
-          if (error) { op.attempts++; remaining.push(op); }
+          if (error) requeue(op);
         } else if (op.type === 'upsert_opening_balances') {
           const { error } = await Auth.client.from('opening_balances').upsert(op.payload, { onConflict: 'user_id' });
-          if (error) { op.attempts++; remaining.push(op); }
+          if (error) requeue(op);
         }
       } catch (e) {
-        op.attempts++;
-        remaining.push(op);
+        requeue(op);
       }
     }
     localStorage.setItem(PENDING_OPS_KEY, JSON.stringify(remaining));
@@ -883,9 +910,32 @@ Sync.pushAllFlights = async function () {
   for (let i = 0; i < flights.length; i += MIGRATION_BATCH_SIZE) {
     const slice = flights.slice(i, i + MIGRATION_BATCH_SIZE);
     const rows = slice.map(f => localFlightToRow(f, userId));
+    const failedIds = new Set();
     try {
       const { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
-      if (error) {
+      if (error && error.code === '23505') {
+        // navblue_uid dedup-index collision: two rows with different ids
+        // claim the same UID (e.g. duplicate segments imported by two
+        // devices before the field-map fix). The batch upsert is atomic,
+        // so retry row-by-row and strip navblue_uid from the offenders —
+        // sync must never silently stop for 200 flights because one row
+        // is a known duplicate. The duplicate itself is surfaced in the
+        // console; resolving it is the Lot 1 sync overhaul's job.
+        console.warn('[Sync] navblue_uid collision — retrying batch row-by-row');
+        for (const row of rows) {
+          let r = await Auth.client.from('flights').upsert(row, { onConflict: 'id' });
+          if (r.error && r.error.code === '23505') {
+            const retry = { ...row };
+            delete retry.navblue_uid;
+            r = await Auth.client.from('flights').upsert(retry, { onConflict: 'id' });
+            if (!r.error) console.warn('[Sync] pushed flight', row.id, 'without navblue_uid (UID already held by another row — duplicate segment?)');
+          }
+          if (r.error) {
+            failedIds.add(row.id);
+            this._enqueue({ type: 'upsert_flight', payload: row });
+          }
+        }
+      } else if (error) {
         console.warn('[Sync] auto-sync batch failed, queuing rows:', error.message);
         rows.forEach(row => this._enqueue({ type: 'upsert_flight', payload: row }));
         return;
@@ -896,10 +946,12 @@ Sync.pushAllFlights = async function () {
       return;
     }
     // Persist any newly-minted ids + stamp the LWW marker so pulls
-    // won't clobber what we just pushed.
+    // won't clobber what we just pushed. Rows that failed even the
+    // row-by-row fallback keep their old marker (they didn't reach
+    // the cloud, so the cloud must still be allowed to win).
     slice.forEach((f, k) => {
       if (!f.id) f.id = rows[k].id;
-      f._updated_at = rows[k].client_updated_at;
+      if (!failedIds.has(rows[k].id)) f._updated_at = rows[k].client_updated_at;
     });
   }
   // Wrap the trailing local save so it doesn't trigger another debounced
