@@ -18319,33 +18319,46 @@ function _cyrb53(str) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
-// Normalize a value for fingerprinting: treat empty/zero/false as "not logged"
-// so a field the LOCAL flight OMITS (an empty slot deleted at save-time) and
-// the SAME field stored as 0 / "0.00" / null in the cloud produce the identical
-// fingerprint. Numeric strings ("1.50") are compared by value (1.5). Without
-// this, push (localFlightToRow omits undefined keys) and pull (a full Postgres
-// row carrying zero-defaults) never agree and every flight looks permanently
-// dirty — which re-pushed the whole table and reinstated the exact cross-device
-// overwrite this fix targets. (Adversarial review 2026-07, audit item 7.)
-function _sigVal(v) {
-  if (v === undefined || v === null || v === '' || v === false) return null;
-  const n = Number(v);
-  if (!Number.isNaN(n)) return n === 0 ? null : n;
-  return v;
+// Canonicalise ONE field for fingerprinting, per its cloud column TYPE. The
+// goal: a field the LOCAL flight OMITS (empty slot deleted at save-time) and
+// the SAME field stored with the column's zero/empty default in the cloud must
+// produce the identical fingerprint — otherwise push (localFlightToRow omits
+// undefined keys) and pull (a full Postgres row) never agree and every flight
+// looks permanently dirty (reinstating the cross-device overwrite this targets).
+//
+// Numeric columns ONLY are compared by numeric value: omitted / '' / null / 0 /
+// "0.00" all mean "not logged" → null; "1.50" ≡ 1.5. TEXT columns (HHMM times
+// like atd_utc, flightNum, reg, ICAO codes, remarks, names) are compared
+// VERBATIM — never Number()-converted — so a real correction like "" → "0000"
+// (midnight UTC) or "007" → "7" is detected and synced, not silently collided
+// into "no change". (Adversarial review 2026-07, audit item 7.)
+function _sigField(remoteKey, v) {
+  if (NUMERIC_COLS.has(remoteKey)) {
+    if (v === undefined || v === null || v === '') return null;
+    const n = Number(v);
+    return (!Number.isNaN(n) && n !== 0) ? n : null;
+  }
+  if (BOOLEAN_COLS.has(remoteKey)) {
+    if (v === undefined || v === null || v === '' || v === false || v === 0 || v === '0' || v === 'false') return null;
+    return true;
+  }
+  // Text / timestamp / jsonb: empty ≡ absent, everything else verbatim.
+  if (v === undefined || v === null || v === '') return null;
+  return String(v);
 }
 
 // Fingerprint of a flight's SYNCABLE CONTENT, computed from a cloud-shaped row.
 // rowToLocalFlight() drops all sync/server metadata (client_updated_at, op_id,
-// device_id, updated_at, deleted_at); _sigVal() then canonicalises so the
-// fingerprint is identical whether it comes from a row we pushed or one we
-// pulled — that's what lets pushAllFlights tell a real content change from an
-// unchanged row. (Audit item 7.)
+// device_id, updated_at, deleted_at); _sigField() then canonicalises per column
+// type so the fingerprint is identical whether it comes from a row we pushed or
+// one we pulled — that's what lets pushAllFlights tell a real content change
+// from an unchanged row. (Audit item 7.)
 function rowSyncSig(row) {
   const f = rowToLocalFlight(row);
   const canon = {};
   for (const k of Object.keys(f).sort()) {
-    const v = _sigVal(f[k]);
-    if (v !== null) canon[k] = v;
+    const out = _sigField(FLIGHT_FIELD_MAP[k], f[k]);
+    if (out !== null) canon[k] = out;
   }
   return _cyrb53(JSON.stringify(canon));
 }
@@ -21529,7 +21542,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-07-5b9d740';
+const BUILD_VERSION = '2026-07-07-a2d18a8';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET

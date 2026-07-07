@@ -103,6 +103,17 @@ reset();
 await w.eval('Sync.pushAllFlights()');
 chk('full cloud rows (zero-columns) do not make omitted-slot flights look dirty', pushedIds().length === 0);
 
+// 6. Fingerprint respects column TYPE (adversarial re-review): numeric columns
+//    compare by value; text columns (HHMM times, flight numbers) verbatim, so a
+//    real correction is never collided into "no change".
+const sig = (row) => w.eval('rowSyncSig(' + JSON.stringify({ id: X, date: '2026-01-01', ...row }) + ')');
+chk('numeric "1.50" == 1.5', sig({ block: '1.50' }) === sig({ block: 1.5 }));
+chk('numeric 0 == omitted (not logged)', sig({ hover_time: 0 }) === sig({}));
+chk('empty time "" != midnight "0000"', sig({ atd_utc: '' }) !== sig({ atd_utc: '0000' }));
+chk('midnight "0000" != omitted', sig({ atd_utc: '0000' }) !== sig({}));
+chk('flightNum "007" != "7" (verbatim text)', sig({ flight_num: '007' }) !== sig({ flight_num: '7' }));
+chk('reg "0001" != "1" (verbatim text)', sig({ reg: '0001' }) !== sig({ reg: '1' }));
+
 if (failures.length) {
   console.error(`\n✗ sync test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);
