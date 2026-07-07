@@ -9,6 +9,10 @@
 # to the committed logbook.html. If it isn't, the check fails and the PR
 # is blocked until the contributor commits the rebuild.
 #
+# It also runs the front-end smoke test (test/smoke.mjs), which loads the
+# built app in a headless DOM and visits every page — this is the net that
+# catches blank-screen bugs like the shipped showPage('dash').
+#
 # Skipped when the only changed files are documentation, the worker
 # project, the LICENSE, or the .github workflow itself — none of which
 # affect the logbook.html build.
@@ -23,6 +27,9 @@ on:
       - 'src/**'
       - 'build.js'
       - 'logbook.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'test/**'
       - '.github/workflows/build-check.yml'
   push:
     branches:
@@ -31,6 +38,9 @@ on:
       - 'src/**'
       - 'build.js'
       - 'logbook.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'test/**'
 
 jobs:
   verify-build:
@@ -44,5 +54,11 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dev dependencies (jsdom for the smoke test)
+        run: npm ci
+
       - name: Verify logbook.html matches src/
         run: node build.js --check
+
+      - name: Smoke test — boot the app and visit every page
+        run: npm test

@@ -255,8 +255,8 @@ const DB = {
     // In demo mode, changes don't persist — silently swallow. The user's
     // in-memory `flights[]` still updates so the UI feels responsive
     // during the demo, but a reload resets to the canned data.
-    if (DEMO_MODE) return;
-    localStorage.setItem(this.key, JSON.stringify(flights));
+    if (DEMO_MODE) return true;
+    return this._persist(this.key, flights, 'vols', 'flights');
   },
   loadProfile() {
     if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO_PROFILE));
@@ -264,8 +264,63 @@ const DB = {
     catch { return {}; }
   },
   saveProfile(p) {
-    if (DEMO_MODE) return;
-    localStorage.setItem(this.profileKey, JSON.stringify(p));
+    if (DEMO_MODE) return true;
+    return this._persist(this.profileKey, p, 'profil', 'profile');
+  },
+
+  // Write to localStorage, but NEVER fail silently. A certifiable logbook
+  // must not lose a saved entry without telling the pilot. If setItem throws
+  // (quota exceeded once the carnet gets large, private-mode storage
+  // disabled, disk full…), the old code let the exception escape and the
+  // just-entered flight vanished on the next reload. Now we catch it, keep
+  // the in-memory data intact, and raise an unmissable persistent banner so
+  // the pilot knows to act (export a backup / free space / sign in to sync).
+  // Returns true on success, false on failure. Audit 2026-07, item 11.
+  _persist(key, value, labelFr, labelEn) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      // Recovered after a prior failure: clear the warning.
+      this._clearPersistError();
+      return true;
+    } catch (e) {
+      console.error('[DB] persistence failed for', key, e);
+      try { this._showPersistError(labelFr, labelEn); } catch (_) { /* last resort */ }
+      return false;
+    }
+  },
+
+  _showPersistError(labelFr, labelEn) {
+    if (typeof document === 'undefined' || !document.body) return;
+    let el = document.getElementById('persistError');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'persistError';
+      el.setAttribute('role', 'alert');
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;' +
+        'background:#b42318;color:#fff;padding:12px 44px 12px 16px;' +
+        'font-size:14px;line-height:1.4;box-shadow:0 2px 12px rgba(0,0,0,0.25);';
+      const close = document.createElement('button');
+      close.textContent = '×';
+      close.setAttribute('aria-label', 'Fermer / Dismiss');
+      close.style.cssText = 'position:absolute;top:8px;right:12px;background:none;' +
+        'border:none;color:#fff;font-size:22px;line-height:1;cursor:pointer;';
+      close.onclick = () => el.remove();
+      el.appendChild(close);
+      const msg = document.createElement('div');
+      msg.id = 'persistErrorMsg';
+      el.appendChild(msg);
+      document.body.appendChild(el);
+    }
+    el.querySelector('#persistErrorMsg').textContent =
+      'Sauvegarde impossible : votre dernière modification (' + labelFr + ') n’est PAS enregistrée. ' +
+      'Exportez une sauvegarde ou libérez de l’espace. — ' +
+      'Save failed: your last change (' + labelEn + ') is NOT stored. Export a backup or free up space.';
+  },
+
+  _clearPersistError() {
+    if (typeof document === 'undefined') return;
+    const el = document.getElementById('persistError');
+    if (el) el.remove();
   }
 };
 

@@ -4,6 +4,43 @@
 // Build version stamp — bump every push so user can verify fresh load
 const BUILD_VERSION = 'v3a-2026-05-26-atmosphere-everywhere';
 
+// ═══════════════════════════════════════════
+// GLOBAL ERROR SAFETY NET
+// ═══════════════════════════════════════════
+// An uncaught exception or rejected promise used to disappear into the
+// console (which the pilot never opens). Now anything that escapes gets a
+// quiet, non-blocking toast so a broken action is at least visible — and it
+// stays logged for debugging. Registered before init() so it also catches
+// failures during startup. Kept deliberately light (personal-use net):
+// debounced, never throws from inside the handler, ignores benign
+// resource-load errors (a failed CDN asset is handled by the app's own
+// typeof guards, not a real fault).
+(function installGlobalErrorNet() {
+  let lastShownAt = -Infinity; // so the very first error always surfaces
+  function surface() {
+    const now = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now() : Date.now();
+    if (now - lastShownAt < 4000) return; // then don't spam on error storms
+    lastShownAt = now;
+    try {
+      if (typeof showToast === 'function') {
+        showToast('Une erreur inattendue s’est produite. / An unexpected error occurred.', 'error');
+      }
+    } catch (_) { /* toast unavailable this early — the console log below stands */ }
+  }
+  window.addEventListener('error', (e) => {
+    // Resource-load errors (img/script 404) have no `.error` and target != window.
+    if (!e || (!e.error && !e.message)) return;
+    if (e.target && e.target !== window) return;
+    console.error('[global] uncaught error:', e.message || e.error, e.error);
+    surface();
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    console.error('[global] unhandled promise rejection:', e && e.reason);
+    surface();
+  });
+})();
+
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
 function injectDemoBanner() {
