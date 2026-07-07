@@ -15,7 +15,14 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const target = document.getElementById('page-' + id);
-  if (target) target.classList.add('active');
+  if (!target) {
+    // Unknown page id: every .page is hidden at this point, so doing nothing
+    // would leave the pilot on a blank screen (shipped bug: showPage('dash')).
+    console.warn('[router] unknown page id "' + id + '" — falling back to dashboard');
+    if (id !== 'dashboard') showPage('dashboard');
+    return;
+  }
+  target.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.dataset.page === id) n.classList.add('active');
   });

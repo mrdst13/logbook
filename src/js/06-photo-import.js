@@ -159,7 +159,6 @@ async function parseNavbluePDF(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
-  document.getElementById('navbluePanel').style.display = 'none';
 
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');

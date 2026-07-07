@@ -6588,7 +6588,14 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const target = document.getElementById('page-' + id);
-  if (target) target.classList.add('active');
+  if (!target) {
+    // Unknown page id: every .page is hidden at this point, so doing nothing
+    // would leave the pilot on a blank screen (shipped bug: showPage('dash')).
+    console.warn('[router] unknown page id "' + id + '" — falling back to dashboard');
+    if (id !== 'dashboard') showPage('dashboard');
+    return;
+  }
+  target.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.dataset.page === id) n.classList.add('active');
   });
@@ -9446,7 +9453,6 @@ async function parseNavbluePDF(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
-  document.getElementById('navbluePanel').style.display = 'none';
 
   const box = document.getElementById('aiBox');
   const msg = document.getElementById('aiMsg');
@@ -17251,7 +17257,7 @@ function t(key, vars) {
  if (s === undefined) s = (STRINGS.en[key] !== undefined ? STRINGS.en[key] : key);
  if (vars && typeof s === 'string') {
  Object.keys(vars).forEach(k => {
- // Use a function replacer to avoid `<!-- INJECT_JS -->`/`$1` expansion bugs when
+ // Use a function replacer to avoid `$&`/`$1` expansion bugs when
  // variable values happen to contain dollar-sign sequences.
  s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), () => String(vars[k]));
  });
@@ -18098,7 +18104,10 @@ const FLIGHT_FIELD_MAP = {
   remarks: 'remarks',
   source: 'source',
   sources: 'sources',
-  navblue_uid: 'navblue_uid',
+  // Local flights store the iCal UID as camelCase `navblueUid`
+  // (navblueEventToFlight). Mapping the wrong local key here left the cloud
+  // column NULL and the (user_id, navblue_uid) dedup index inert.
+  navblueUid: 'navblue_uid',
   signedBy: 'signed_by',
   signedAt: 'signed_at',
 };
@@ -18180,6 +18189,10 @@ function localFlightToRow(f, userId, opId) {
       if (typeof row.copilot === 'string') row.copilot = '';
     }
   }
+  // navblue_uid: '' must become null — the dedup index
+  // (user_id, navblue_uid) WHERE navblue_uid IS NOT NULL ignores nulls but
+  // would collide every ''-valued row against the others.
+  if (row.navblue_uid === '') row.navblue_uid = null;
   // Mint id if missing
   if (!row.id || !isUuid(row.id)) row.id = newUUID();
   // Sync metadata
@@ -18328,6 +18341,10 @@ const Sync = {
         const incoming = { ...remote };
         // Protect local full crew names from anonymized remote values.
         if (!_consentOn) { delete incoming.pic; delete incoming.copilot; }
+        // Never let a NULL cloud navblue_uid erase a locally-known iCal UID:
+        // every cloud row pushed before the field-map fix (2026-07-04) has
+        // navblue_uid NULL, and the next push is what backfills it there.
+        if (incoming.navblueUid == null) delete incoming.navblueUid;
         Object.assign(local, incoming);
         local._updated_at = rU;
         updated++;
@@ -18752,28 +18769,44 @@ const Sync = {
     const q = this._loadQueue();
     if (!q.length) return;
     const remaining = [];
+    // A poisoned op must never live in the queue forever (silent sync
+    // outage). Flights are re-pushed wholesale by pushAllFlights on every
+    // local save, so dropping a stuck op after enough attempts never
+    // strands data — it just stops the retry noise.
+    const MAX_OP_ATTEMPTS = 10;
+    const requeue = (op) => {
+      op.attempts = (op.attempts || 0) + 1;
+      if (op.attempts < MAX_OP_ATTEMPTS) { remaining.push(op); return; }
+      console.warn('[Sync] dropping queued op after', op.attempts, 'attempts:', op.type, op.payload && op.payload.id);
+    };
     for (const op of q) {
       try {
         if (op.type === 'upsert_flight') {
           coerceRowTypes(op.payload);
-          const { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
-          if (error) { op.attempts++; remaining.push(op); }
+          let { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
+          if (error && error.code === '23505' && op.payload.navblue_uid) {
+            // Dedup-index collision — same fallback as pushAllFlights:
+            // push the row without its navblue_uid rather than fail forever.
+            const retry = { ...op.payload };
+            delete retry.navblue_uid;
+            ({ error } = await Auth.client.from('flights').upsert(retry, { onConflict: 'id' }));
+          }
+          if (error) requeue(op);
         } else if (op.type === 'delete_flight') {
           // Soft delete — mirror Sync.deleteFlight (see comment there).
           const { error } = await Auth.client.from('flights')
             .update({ deleted_at: op.payload.deleted_at || new Date().toISOString() })
             .eq('id', op.payload.id);
-          if (error) { op.attempts++; remaining.push(op); }
+          if (error) requeue(op);
         } else if (op.type === 'upsert_profile') {
           const { error } = await Auth.client.from('profiles').upsert(op.payload, { onConflict: 'id' });
-          if (error) { op.attempts++; remaining.push(op); }
+          if (error) requeue(op);
         } else if (op.type === 'upsert_opening_balances') {
           const { error } = await Auth.client.from('opening_balances').upsert(op.payload, { onConflict: 'user_id' });
-          if (error) { op.attempts++; remaining.push(op); }
+          if (error) requeue(op);
         }
       } catch (e) {
-        op.attempts++;
-        remaining.push(op);
+        requeue(op);
       }
     }
     localStorage.setItem(PENDING_OPS_KEY, JSON.stringify(remaining));
@@ -18827,9 +18860,32 @@ Sync.pushAllFlights = async function () {
   for (let i = 0; i < flights.length; i += MIGRATION_BATCH_SIZE) {
     const slice = flights.slice(i, i + MIGRATION_BATCH_SIZE);
     const rows = slice.map(f => localFlightToRow(f, userId));
+    const failedIds = new Set();
     try {
       const { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
-      if (error) {
+      if (error && error.code === '23505') {
+        // navblue_uid dedup-index collision: two rows with different ids
+        // claim the same UID (e.g. duplicate segments imported by two
+        // devices before the field-map fix). The batch upsert is atomic,
+        // so retry row-by-row and strip navblue_uid from the offenders —
+        // sync must never silently stop for 200 flights because one row
+        // is a known duplicate. The duplicate itself is surfaced in the
+        // console; resolving it is the Lot 1 sync overhaul's job.
+        console.warn('[Sync] navblue_uid collision — retrying batch row-by-row');
+        for (const row of rows) {
+          let r = await Auth.client.from('flights').upsert(row, { onConflict: 'id' });
+          if (r.error && r.error.code === '23505') {
+            const retry = { ...row };
+            delete retry.navblue_uid;
+            r = await Auth.client.from('flights').upsert(retry, { onConflict: 'id' });
+            if (!r.error) console.warn('[Sync] pushed flight', row.id, 'without navblue_uid (UID already held by another row — duplicate segment?)');
+          }
+          if (r.error) {
+            failedIds.add(row.id);
+            this._enqueue({ type: 'upsert_flight', payload: row });
+          }
+        }
+      } else if (error) {
         console.warn('[Sync] auto-sync batch failed, queuing rows:', error.message);
         rows.forEach(row => this._enqueue({ type: 'upsert_flight', payload: row }));
         return;
@@ -18840,10 +18896,12 @@ Sync.pushAllFlights = async function () {
       return;
     }
     // Persist any newly-minted ids + stamp the LWW marker so pulls
-    // won't clobber what we just pushed.
+    // won't clobber what we just pushed. Rows that failed even the
+    // row-by-row fallback keep their old marker (they didn't reach
+    // the cloud, so the cloud must still be allowed to win).
     slice.forEach((f, k) => {
       if (!f.id) f.id = rows[k].id;
-      f._updated_at = rows[k].client_updated_at;
+      if (!failedIds.has(rows[k].id)) f._updated_at = rows[k].client_updated_at;
     });
   }
   // Wrap the trailing local save so it doesn't trigger another debounced
@@ -19482,11 +19540,12 @@ function renderBroughtForwardPage() {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const profile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : {};
   const pilotType = profile.pilotType || 'airline705';
-  // Cut-off date (last date the paper logbook covers). Default to yesterday on
-  // first visit; keep the pilot's saved value on return. Never re-default once set.
+  // Cut-off date (last date the paper logbook covers). NEVER pre-filled on a
+  // first visit: this date is part of the signed attestation, and a guessed
+  // default is a fabricated value in a record with legal weight — empty is
+  // better than guessed. Saved values and drafts do come back.
   const _todayISO = new Date().toISOString().slice(0, 10);
-  const _yesterdayISO = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || _yesterdayISO;
+  const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || '';
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
   const heliRelevant = pilotType === 'helicopter'
@@ -19624,7 +19683,7 @@ function renderBroughtForwardPage() {
       <div style="display:flex;gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;align-items:center;">
         <button class="btn btn-primary" onclick="commitOpeningBalances()">${fr ? 'Attester' : 'Attest'}</button>
         <button class="btn btn-ghost" onclick="saveOpeningDraft()">${fr ? 'Enregistrer le brouillon' : 'Save draft'}</button>
-        <button class="btn btn-ghost" onclick="showPage('dash')">${fr ? 'Annuler' : 'Cancel'}</button>
+        <button class="btn btn-ghost" onclick="showPage('dashboard')">${fr ? 'Annuler' : 'Cancel'}</button>
       </div>
     </div>
   `;
@@ -19848,7 +19907,7 @@ async function commitOpeningBalances() {
   // the declared hours — that reveal IS the retention payoff. (Was Settings →
   // Profile, which buried the moment in a settings pane. Panel-flagged as the
   // single highest-impact fix on this page.)
-  if (typeof showPage === 'function') showPage('dash');
+  if (typeof showPage === 'function') showPage('dashboard');
 }
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD DRILL-DOWN PANELS
@@ -21214,7 +21273,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-01-788ce86';
+const BUILD_VERSION = '2026-07-04-72418d9';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
@@ -21284,11 +21343,26 @@ function injectDemoBanner() {
  setInterval(updateNavblueStatus, 60000);
 
  // ── Auto-sync Navblue iCal ──────────────────────────────────────
- // Fire ~1.2s after init (don't block first paint or onboarding modal).
- // The auto wrapper is itself gated by NAVBLUE_AUTO_SYNC_INIT_MS so it
- // only actually hits the worker when the last sync is stale.
- if (typeof syncNavblueAuto === 'function') {
-   setTimeout(() => syncNavblueAuto('init'), 1200);
+ // The auto wrapper is gated by NAVBLUE_AUTO_SYNC_INIT_MS so it only
+ // actually hits the worker when the last sync is stale.
+ //
+ // Sequencing: when a cloud session is restored, the init kick must wait
+ // for Sync.pullFlights to settle — importing iCal segments before the
+ // other device's copies have been pulled mints fresh UUIDs for the same
+ // segments (duplicate flights in a certifiable logbook). The Supabase
+ // bootstrap below calls window._kickNavblueInitSync() once the pull
+ // settles; with no session (or no Auth build at all) we kick after the
+ // usual 1.2 s so first paint and the onboarding modal aren't blocked.
+ window._navblueInitKicked = false;
+ window._kickNavblueInitSync = (delayMs) => {
+   if (window._navblueInitKicked) return;
+   window._navblueInitKicked = true;
+   if (typeof syncNavblueAuto === 'function') {
+     setTimeout(() => syncNavblueAuto('init'), delayMs || 0);
+   }
+ };
+ if (typeof Auth === 'undefined' || !Auth.init) {
+   window._kickNavblueInitSync(1200);
  }
  // Re-sync when the user comes back to the tab after being away. The
  // 'focus' threshold (15 min) is shorter than 'init' (30 min) because
@@ -21375,18 +21449,30 @@ function injectDemoBanner() {
  if (Auth.isAuthenticated()) {
  if (typeof Sync !== 'undefined') {
  Sync.drainQueue();
- Sync.pullFlights();
+ // iCal auto-import waits for this pull (see the sequencing note above);
+ // kick it whether the pull succeeds or fails so it can never be starved.
+ Promise.resolve(Sync.pullFlights())
+   .catch(() => {})
+   .then(() => { if (window._kickNavblueInitSync) window._kickNavblueInitSync(0); });
  // Also pull the profile on a restored session so cross-device profile
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
  if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
+ } else {
+ if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }
+ } else {
+ if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }
  // Subscribe to auth state changes so the header updates after
  // signin/signout from any code path.
  Auth.onAuthChange(() => {
  if (typeof renderAuthStateUI === 'function') renderAuthStateUI();
  });
+ }).catch(() => {
+ // Bootstrap died midway: still kick the iCal auto-import so a broken
+ // cloud layer can never starve local roster syncing.
+ if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  });
  }
 })();

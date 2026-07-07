@@ -72,11 +72,26 @@ function injectDemoBanner() {
  setInterval(updateNavblueStatus, 60000);
 
  // ── Auto-sync Navblue iCal ──────────────────────────────────────
- // Fire ~1.2s after init (don't block first paint or onboarding modal).
- // The auto wrapper is itself gated by NAVBLUE_AUTO_SYNC_INIT_MS so it
- // only actually hits the worker when the last sync is stale.
- if (typeof syncNavblueAuto === 'function') {
-   setTimeout(() => syncNavblueAuto('init'), 1200);
+ // The auto wrapper is gated by NAVBLUE_AUTO_SYNC_INIT_MS so it only
+ // actually hits the worker when the last sync is stale.
+ //
+ // Sequencing: when a cloud session is restored, the init kick must wait
+ // for Sync.pullFlights to settle — importing iCal segments before the
+ // other device's copies have been pulled mints fresh UUIDs for the same
+ // segments (duplicate flights in a certifiable logbook). The Supabase
+ // bootstrap below calls window._kickNavblueInitSync() once the pull
+ // settles; with no session (or no Auth build at all) we kick after the
+ // usual 1.2 s so first paint and the onboarding modal aren't blocked.
+ window._navblueInitKicked = false;
+ window._kickNavblueInitSync = (delayMs) => {
+   if (window._navblueInitKicked) return;
+   window._navblueInitKicked = true;
+   if (typeof syncNavblueAuto === 'function') {
+     setTimeout(() => syncNavblueAuto('init'), delayMs || 0);
+   }
+ };
+ if (typeof Auth === 'undefined' || !Auth.init) {
+   window._kickNavblueInitSync(1200);
  }
  // Re-sync when the user comes back to the tab after being away. The
  // 'focus' threshold (15 min) is shorter than 'init' (30 min) because
@@ -163,18 +178,30 @@ function injectDemoBanner() {
  if (Auth.isAuthenticated()) {
  if (typeof Sync !== 'undefined') {
  Sync.drainQueue();
- Sync.pullFlights();
+ // iCal auto-import waits for this pull (see the sequencing note above);
+ // kick it whether the pull succeeds or fails so it can never be starved.
+ Promise.resolve(Sync.pullFlights())
+   .catch(() => {})
+   .then(() => { if (window._kickNavblueInitSync) window._kickNavblueInitSync(0); });
  // Also pull the profile on a restored session so cross-device profile
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
  if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
+ } else {
+ if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }
+ } else {
+ if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }
  // Subscribe to auth state changes so the header updates after
  // signin/signout from any code path.
  Auth.onAuthChange(() => {
  if (typeof renderAuthStateUI === 'function') renderAuthStateUI();
  });
+ }).catch(() => {
+ // Bootstrap died midway: still kick the iCal auto-import so a broken
+ // cloud layer can never starve local roster syncing.
+ if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  });
  }
 })();
