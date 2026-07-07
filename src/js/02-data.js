@@ -60,6 +60,41 @@ function flightTimeOf(f) {
   return +f.total || +f.block || 0;
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  Import merge — one place, TWO deliberate fill-empty policies.
+//  Every import path (photo OCR, iCal roster, CSV) enriches an existing
+//  matched flight by filling ONLY its blanks, never overwriting a value the
+//  pilot already has. The two policies used to be duplicated across three
+//  files with drifting field lists; they now live here (audit item 12):
+//   • fillEmptyStrict — a slot is empty only when undefined/null/''. An
+//     explicit 0 the pilot recorded is a REAL value and is kept (e.g.
+//     multiCrew=0 must not be clobbered to the iCal default of 1).
+//   • fillEmptyNumeric — for hour buckets, 0 means "not logged", so a
+//     positive incoming value fills a 0-or-empty slot.
+//  Both mutate `existing` in place and return whether anything changed.
+// ─────────────────────────────────────────────────────────────────
+const IMPORT_MERGE_FIELDS = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
+  'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
+  'pic','copilot','crewPosition'];
+
+function fillEmptyStrict(existing, incoming, keys) {
+  let changed = false;
+  keys.forEach(k => {
+    const empty = existing[k] === undefined || existing[k] === null || existing[k] === '';
+    const present = incoming[k] !== undefined && incoming[k] !== null && incoming[k] !== '';
+    if (empty && present) { existing[k] = incoming[k]; changed = true; }
+  });
+  return changed;
+}
+
+function fillEmptyNumeric(existing, incoming, keys) {
+  let changed = false;
+  keys.forEach(k => {
+    if ((+existing[k] || 0) === 0 && (+incoming[k] || 0) > 0) { existing[k] = incoming[k]; changed = true; }
+  });
+  return changed;
+}
+
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
   let heli=0, hover=0, dualGiven=0, picus=0, dualRcvd=0;

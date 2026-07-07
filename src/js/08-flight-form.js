@@ -925,12 +925,8 @@ async function syncNavblueNow(opts) {
     // Goal: NEVER duplicate a flight that already exists, even when imported via PDF.
     const fresh = [];
     let mergedCount = 0;
-    // Added 2026-05-14: pic / copilot / crewPosition are now eligible for merge
-    // because the iCal extractor pulls them. The if-empty guard below still
-    // protects any value the user typed manually — we only fill blanks.
-    const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
-                         'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
-                         'pic','copilot','crewPosition'];
+    // pic / copilot / crewPosition are eligible because the iCal extractor
+    // pulls them; the shared fillEmptyStrict still only fills blanks.
     let resurrectBlocked = 0;
     mapped.forEach(f => {
       const match = findMatchingExistingFlight(f);
@@ -948,21 +944,11 @@ async function syncNavblueNow(opts) {
       // Existing flight matched — enrich missing fields without overwriting user data.
       // Never overwrite: pic (capitaine), total, block (user may have corrected)
       const e = flights[match.idx];
-      let changed = false;
       const merged = { ...e };
-      mergeFields.forEach(k => {
-        // Fill ONLY genuinely-empty existing slots. An explicit 0 the pilot (or
-        // a prior fill) recorded is a REAL value — never treat it as empty and
-        // overwrite it (e.g. multiCrew=0 must not be clobbered to the iCal
-        // default of 1). Mirrors the strict undefined/null/'' rule used by the
-        // recalc. (Opus audit — iCal merge "explicit 0 = real value".)
-        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
-        const incomingPresent = (f[k] !== undefined && f[k] !== null && f[k] !== '');
-        if (existingEmpty && incomingPresent) {
-          merged[k] = f[k];
-          changed = true;
-        }
-      });
+      // Fill ONLY genuinely-empty slots (undefined/null/''): an explicit 0 the
+      // pilot recorded is a REAL value — e.g. multiCrew=0 must not be clobbered
+      // to the iCal default of 1. Shared helper, same rule as the recalc.
+      let changed = fillEmptyStrict(merged, f, IMPORT_MERGE_FIELDS);
       // Mark source so we know this flight has been enriched from iCal
       if (!merged.sources) merged.sources = [];
       if (e.source && !merged.sources.includes(e.source)) merged.sources.push(e.source);

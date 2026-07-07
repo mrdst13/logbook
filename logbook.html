@@ -6759,6 +6759,41 @@ function flightTimeOf(f) {
   return +f.total || +f.block || 0;
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  Import merge — one place, TWO deliberate fill-empty policies.
+//  Every import path (photo OCR, iCal roster, CSV) enriches an existing
+//  matched flight by filling ONLY its blanks, never overwriting a value the
+//  pilot already has. The two policies used to be duplicated across three
+//  files with drifting field lists; they now live here (audit item 12):
+//   • fillEmptyStrict — a slot is empty only when undefined/null/''. An
+//     explicit 0 the pilot recorded is a REAL value and is kept (e.g.
+//     multiCrew=0 must not be clobbered to the iCal default of 1).
+//   • fillEmptyNumeric — for hour buckets, 0 means "not logged", so a
+//     positive incoming value fills a 0-or-empty slot.
+//  Both mutate `existing` in place and return whether anything changed.
+// ─────────────────────────────────────────────────────────────────
+const IMPORT_MERGE_FIELDS = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
+  'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
+  'pic','copilot','crewPosition'];
+
+function fillEmptyStrict(existing, incoming, keys) {
+  let changed = false;
+  keys.forEach(k => {
+    const empty = existing[k] === undefined || existing[k] === null || existing[k] === '';
+    const present = incoming[k] !== undefined && incoming[k] !== null && incoming[k] !== '';
+    if (empty && present) { existing[k] = incoming[k]; changed = true; }
+  });
+  return changed;
+}
+
+function fillEmptyNumeric(existing, incoming, keys) {
+  let changed = false;
+  keys.forEach(k => {
+    if ((+existing[k] || 0) === 0 && (+incoming[k] || 0) > 0) { existing[k] = incoming[k]; changed = true; }
+  });
+  return changed;
+}
+
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
   let heli=0, hover=0, dualGiven=0, picus=0, dualRcvd=0;
@@ -9795,11 +9830,8 @@ function confirmImport() {
   // and clear the redundant self-reference. A real third-party name
   // remains untouched and crewPosition defaults to 'SIC'.
   const importProfile = DB.loadProfile();
-  // Fields safe to enrich onto an existing flight — only ever fills a blank,
-  // never overwrites a value the pilot already has (mirrors the iCal sync gate).
-  const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
-                       'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
-                       'pic','copilot','crewPosition'];
+  // Enrich an existing matched flight by filling only its blanks — shared
+  // fillEmptyStrict + IMPORT_MERGE_FIELDS (mirrors the iCal sync gate).
   // Track the new flight IDs so we can offer quick crew-fill after save
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
@@ -9815,12 +9847,7 @@ function confirmImport() {
     if (match) {
       const e = flights[match.idx];
       const merged = { ...e };
-      let changed = false;
-      mergeFields.forEach(k => {
-        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
-        const incomingPresent = (flightData[k] !== undefined && flightData[k] !== null && flightData[k] !== '');
-        if (existingEmpty && incomingPresent) { merged[k] = flightData[k]; changed = true; }
-      });
+      const changed = fillEmptyStrict(merged, flightData, IMPORT_MERGE_FIELDS);
       if (changed) flights[match.idx] = merged;
       skipped++;
       return;
@@ -11183,12 +11210,8 @@ async function syncNavblueNow(opts) {
     // Goal: NEVER duplicate a flight that already exists, even when imported via PDF.
     const fresh = [];
     let mergedCount = 0;
-    // Added 2026-05-14: pic / copilot / crewPosition are now eligible for merge
-    // because the iCal extractor pulls them. The if-empty guard below still
-    // protects any value the user typed manually — we only fill blanks.
-    const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
-                         'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
-                         'pic','copilot','crewPosition'];
+    // pic / copilot / crewPosition are eligible because the iCal extractor
+    // pulls them; the shared fillEmptyStrict still only fills blanks.
     let resurrectBlocked = 0;
     mapped.forEach(f => {
       const match = findMatchingExistingFlight(f);
@@ -11206,21 +11229,11 @@ async function syncNavblueNow(opts) {
       // Existing flight matched — enrich missing fields without overwriting user data.
       // Never overwrite: pic (capitaine), total, block (user may have corrected)
       const e = flights[match.idx];
-      let changed = false;
       const merged = { ...e };
-      mergeFields.forEach(k => {
-        // Fill ONLY genuinely-empty existing slots. An explicit 0 the pilot (or
-        // a prior fill) recorded is a REAL value — never treat it as empty and
-        // overwrite it (e.g. multiCrew=0 must not be clobbered to the iCal
-        // default of 1). Mirrors the strict undefined/null/'' rule used by the
-        // recalc. (Opus audit — iCal merge "explicit 0 = real value".)
-        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
-        const incomingPresent = (f[k] !== undefined && f[k] !== null && f[k] !== '');
-        if (existingEmpty && incomingPresent) {
-          merged[k] = f[k];
-          changed = true;
-        }
-      });
+      // Fill ONLY genuinely-empty slots (undefined/null/''): an explicit 0 the
+      // pilot recorded is a REAL value — e.g. multiCrew=0 must not be clobbered
+      // to the iCal default of 1. Shared helper, same rule as the recalc.
+      let changed = fillEmptyStrict(merged, f, IMPORT_MERGE_FIELDS);
       // Mark source so we know this flight has been enriched from iCal
       if (!merged.sources) merged.sources = [];
       if (e.source && !merged.sources.includes(e.source)) merged.sources.push(e.source);
@@ -15005,21 +15018,13 @@ function commitCsvImport() {
                            'instActual','instHood','instSim','approaches',
                            'toDay','toNight','ldgDay','ldgNight',
                            'picus','dualGivenDay','dualGivenNight'];
-      numericKeys.forEach(k => {
-        if ((+existing[k] || 0) === 0 && (+incoming[k] || 0) > 0) mergedFlight[k] = incoming[k];
-      });
+      fillEmptyNumeric(mergedFlight, incoming, numericKeys);
       // Back-fill EMPTY text fields too (fill-empty rule) — a richer CSV must
       // not silently drop remarks/route/flightNum/names/etc. onto a sparse row.
       // (Opus audit — CSV merge discards source text.)
       const textKeys = ['remarks','route','flightNum','pic','copilot','acConfig','via',
                         'atd_utc','ata_utc','rating','type','reg','crewPosition','dep_icao','arr_icao'];
-      textKeys.forEach(k => {
-        const ev = existing[k];
-        const iv = incoming[k];
-        if ((ev === undefined || ev === null || ev === '') && (iv !== undefined && iv !== null && iv !== '')) {
-          mergedFlight[k] = iv;
-        }
-      });
+      fillEmptyStrict(mergedFlight, incoming, textKeys);
       // Record the attestation on the merged row ONLY if the existing flight
       // wasn't already attested. Fill-empty: a re-import must NEVER overwrite a
       // prior signature/timestamp on an already-signed flight (audit trail
@@ -21415,7 +21420,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-07-61bcbee';
+const BUILD_VERSION = '2026-07-07-538d9ff';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET

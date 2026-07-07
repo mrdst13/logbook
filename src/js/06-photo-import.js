@@ -423,11 +423,8 @@ function confirmImport() {
   // and clear the redundant self-reference. A real third-party name
   // remains untouched and crewPosition defaults to 'SIC'.
   const importProfile = DB.loadProfile();
-  // Fields safe to enrich onto an existing flight — only ever fills a blank,
-  // never overwrites a value the pilot already has (mirrors the iCal sync gate).
-  const mergeFields = ['dtstart_utc','atd_utc','ata_utc','co_utc','ci_utc',
-                       'dep_icao','arr_icao','reg','type','flightNum','multiCrew',
-                       'pic','copilot','crewPosition'];
+  // Enrich an existing matched flight by filling only its blanks — shared
+  // fillEmptyStrict + IMPORT_MERGE_FIELDS (mirrors the iCal sync gate).
   // Track the new flight IDs so we can offer quick crew-fill after save
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
@@ -443,12 +440,7 @@ function confirmImport() {
     if (match) {
       const e = flights[match.idx];
       const merged = { ...e };
-      let changed = false;
-      mergeFields.forEach(k => {
-        const existingEmpty = (merged[k] === undefined || merged[k] === null || merged[k] === '');
-        const incomingPresent = (flightData[k] !== undefined && flightData[k] !== null && flightData[k] !== '');
-        if (existingEmpty && incomingPresent) { merged[k] = flightData[k]; changed = true; }
-      });
+      const changed = fillEmptyStrict(merged, flightData, IMPORT_MERGE_FIELDS);
       if (changed) flights[match.idx] = merged;
       skipped++;
       return;
