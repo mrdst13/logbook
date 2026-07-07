@@ -1171,7 +1171,7 @@ function commitCsvImport() {
       // already carried (ForeFlight / LogTen Pro export their own night/XC).
       // Same gap that iCal + manual-form had. Audit R2 2026-06-08.
       const enriched = (typeof recalculateFlightDayNightXC === 'function')
-        ? recalculateFlightDayNightXC(incoming)
+        ? recalculateFlightDayNightXC(incoming, { skipLandingFill: true })
         : incoming;
       flights.push(enriched);
       added++;

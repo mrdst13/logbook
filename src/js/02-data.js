@@ -102,7 +102,12 @@ function calcStats() {
 //  Returns either the same `f` (if no change is safe), or a NEW object
 //  with only the empty slots filled in.
 // ─────────────────────────────────────────────────────────────────
-function recalculateFlightDayNightXC(f) {
+function recalculateFlightDayNightXC(f, opts = {}) {
+  // opts.skipLandingFill — set by every IMPORT path (PDF/CSV roster + the
+  // bulk "Recalculate" button). A roster can't know whether a multi-crew F/O
+  // actually performed the landing (PF/PM alternate), so auto-crediting one
+  // landing per flight would fabricate passenger-currency data. Only a
+  // manually-entered single flight keeps the 1-landing convenience.
   // Need ICAO codes + a UTC departure time + block hours
   const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
   const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
@@ -229,11 +234,11 @@ function recalculateFlightDayNightXC(f) {
     if (_isEmpty(f[xcNightK])) { out[xcNightK] = isXC ? split.nightHours : 0; touched = true; }
   }
 
-  // Landing day/night based on arrival — same only-fill-empty rule.
-  // The OLD behavior reset ldgDay/ldgNight to {0,1} or {1,0} regardless of
-  // existing values; that could erase a pilot's manual entry. Now we only
-  // fill if both landing slots are currently empty.
-  if (_isEmpty(f.ldgDay) && _isEmpty(f.ldgNight)) {
+  // Landing day/night based on arrival — only-fill-empty, and NEVER on an
+  // import path (opts.skipLandingFill). Crediting a landing the pilot may not
+  // have performed inflates passenger recency (CAR 401.05(2)); imports leave
+  // landings empty for the pilot to confirm. Empty > guessed.
+  if (!opts.skipLandingFill && _isEmpty(f.ldgDay) && _isEmpty(f.ldgNight)) {
     if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
       out.ldgNight = 1; out.ldgDay = 0;
     } else {
@@ -535,7 +540,9 @@ function recalculateAllFlightsInternal() {
                      || f.dtstart_utc
                      || (f.std_utc && f.std_utc.length === 4); // legacy fallback
     if (!hasUTCAnchor) { skippedNoUTC++; return f; }
-    const recalc = recalculateFlightDayNightXC(f);
+    // Bulk recalc backfills Night/XC on many flights at once — it cannot know
+    // real landing counts, so it never fabricates them (skipLandingFill).
+    const recalc = recalculateFlightDayNightXC(f, { skipLandingFill: true });
     if (recalc !== f) updated++;
     return recalc;
   });
