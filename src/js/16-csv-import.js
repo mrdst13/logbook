@@ -1142,21 +1142,13 @@ function commitCsvImport() {
                            'instActual','instHood','instSim','approaches',
                            'toDay','toNight','ldgDay','ldgNight',
                            'picus','dualGivenDay','dualGivenNight'];
-      numericKeys.forEach(k => {
-        if ((+existing[k] || 0) === 0 && (+incoming[k] || 0) > 0) mergedFlight[k] = incoming[k];
-      });
+      fillEmptyNumeric(mergedFlight, incoming, numericKeys);
       // Back-fill EMPTY text fields too (fill-empty rule) — a richer CSV must
       // not silently drop remarks/route/flightNum/names/etc. onto a sparse row.
       // (Opus audit — CSV merge discards source text.)
       const textKeys = ['remarks','route','flightNum','pic','copilot','acConfig','via',
                         'atd_utc','ata_utc','rating','type','reg','crewPosition','dep_icao','arr_icao'];
-      textKeys.forEach(k => {
-        const ev = existing[k];
-        const iv = incoming[k];
-        if ((ev === undefined || ev === null || ev === '') && (iv !== undefined && iv !== null && iv !== '')) {
-          mergedFlight[k] = iv;
-        }
-      });
+      fillEmptyStrict(mergedFlight, incoming, textKeys);
       // Record the attestation on the merged row ONLY if the existing flight
       // wasn't already attested. Fill-empty: a re-import must NEVER overwrite a
       // prior signature/timestamp on an already-signed flight (audit trail
