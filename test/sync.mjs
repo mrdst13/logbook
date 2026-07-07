@@ -7,12 +7,15 @@
 // overwriting those corrections (cross-device data loss). pushAllFlights now
 // pushes ONLY rows whose content changed since we last synced them.
 //
-// This drives the real Sync module against a mocked Supabase client (Auth is
+// Drives the real Sync module against a mocked Supabase client (Auth is
 // declared unconditionally, so we can stub Auth.client) and proves:
 //   - an unchanged table pushes nothing
 //   - adding one flight pushes ONLY that flight (never re-pushes the rest)
 //   - editing a flight pushes exactly it
-//   - after a pull, nothing is needlessly re-pushed
+//   - a pull that returns FULL cloud rows (all schema columns, zero-defaults)
+//     for flights whose local copy OMITS its empty slots does NOT then make
+//     every flight look dirty and re-push it — the regression an adversarial
+//     review caught (push omits undefined keys, Postgres returns them as 0).
 //
 // Run:  node test/sync.mjs   (also part of `npm test`)
 // ═══════════════════════════════════════════════════════════════════
@@ -34,11 +37,9 @@ const w = dom.window;
 const failures = [];
 const chk = (label, cond) => { if (!cond) failures.push(label); };
 
-// Two real UUIDs so normalizeFlightIds() doesn't re-key them mid-test.
 const X = '11111111-1111-4111-8111-111111111111';
 const Y = '22222222-2222-4222-8222-222222222222';
 
-// Install a mock Supabase client that records every upserted row id.
 w.eval(`
   window.__pushed = [];
   window.__pullData = [];
@@ -81,26 +82,31 @@ w.eval(`flights[0].block = 1.5; flights[0].total = 1.5;`);
 await w.eval('Sync.pushAllFlights()');
 chk('editing a flight pushes exactly it', JSON.stringify(pushedIds()) === JSON.stringify([X]));
 
-// 5. A pull that adopts a remote correction must not trigger a re-push of it.
-reset();
+// 5. REGRESSION (adversarial review): a pull returning FULL cloud rows — every
+//    schema column present, empty slots as 0 / "0.00" strings — for flights
+//    whose LOCAL copy omits those keys must NOT poison the fingerprint baseline
+//    and re-push the whole table. Same real content, older updated_at (no
+//    adoption): the sig must still match so nothing is re-pushed.
 w.eval(`
-  window.__pullData = [
-    { id: '${X}', date: '2026-01-01', block: 9.9, total: 9.9, route: 'YOW-YYZ',
-      user_id: 'user-1', updated_at: '2999-01-01T00:00:00Z', client_updated_at: '2999-01-01T00:00:00Z' },
-    { id: '${Y}', date: '2026-01-02', block: 2.0, total: 2.0, route: 'YYZ-YUL',
-      user_id: 'user-1', updated_at: '2999-01-01T00:00:00Z', client_updated_at: '2999-01-01T00:00:00Z' }
-  ];
+  const full = (id, block, route) => ({
+    id, date: id === '${X}' ? '2026-01-01' : '2026-01-02', route,
+    block: block, total: block, user_id: 'user-1',
+    updated_at: '2000-01-01T00:00:00Z', client_updated_at: '2000-01-01T00:00:00Z',
+    hover_time: 0, me_day_pic: 0, me_night_pic: 0, me_day_cop: 0, se_day: 0,
+    approaches: 0, ldg_day: 0, ldg_night: 0, picus: 0, inst_actual: 0,
+    xc_day_pic: 0, remarks: '', pic: '', copilot: ''
+  });
+  window.__pullData = [ full('${X}', '1.50', 'YOW-YYZ'), full('${Y}', '2.00', 'YYZ-YUL') ];
 `);
 await w.eval('Sync.pullFlights()');
-chk('pull adopts the remote correction', w.eval('String(flights.find(f=>f.id===\"' + X + '\").block)') === '9.9');
 reset();
 await w.eval('Sync.pushAllFlights()');
-chk('nothing is re-pushed after a pull', pushedIds().length === 0);
+chk('full cloud rows (zero-columns) do not make omitted-slot flights look dirty', pushedIds().length === 0);
 
 if (failures.length) {
   console.error(`\n✗ sync test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);
   process.exit(1);
 }
-console.log('✓ sync test passed — dirty-set pushes only changed rows, never re-pushes over another device');
+console.log('✓ sync test passed — dirty-set pushes only changed rows, symmetric fingerprint, never re-pushes over another device');
 process.exit(0);

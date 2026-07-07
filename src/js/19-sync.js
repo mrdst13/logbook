@@ -285,15 +285,35 @@ function _cyrb53(str) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
-// Fingerprint of a flight's SYNCABLE CONTENT, computed from a cloud-shaped
-// row. Reducing through rowToLocalFlight() drops all sync/server metadata
-// (client_updated_at, op_id, device_id, updated_at, deleted_at) so the
-// fingerprint is identical whether it comes from a row we pushed or a row we
+// Normalize a value for fingerprinting: treat empty/zero/false as "not logged"
+// so a field the LOCAL flight OMITS (an empty slot deleted at save-time) and
+// the SAME field stored as 0 / "0.00" / null in the cloud produce the identical
+// fingerprint. Numeric strings ("1.50") are compared by value (1.5). Without
+// this, push (localFlightToRow omits undefined keys) and pull (a full Postgres
+// row carrying zero-defaults) never agree and every flight looks permanently
+// dirty — which re-pushed the whole table and reinstated the exact cross-device
+// overwrite this fix targets. (Adversarial review 2026-07, audit item 7.)
+function _sigVal(v) {
+  if (v === undefined || v === null || v === '' || v === false) return null;
+  const n = Number(v);
+  if (!Number.isNaN(n)) return n === 0 ? null : n;
+  return v;
+}
+
+// Fingerprint of a flight's SYNCABLE CONTENT, computed from a cloud-shaped row.
+// rowToLocalFlight() drops all sync/server metadata (client_updated_at, op_id,
+// device_id, updated_at, deleted_at); _sigVal() then canonicalises so the
+// fingerprint is identical whether it comes from a row we pushed or one we
 // pulled — that's what lets pushAllFlights tell a real content change from an
 // unchanged row. (Audit item 7.)
 function rowSyncSig(row) {
   const f = rowToLocalFlight(row);
-  return _cyrb53(JSON.stringify(f, Object.keys(f).sort()));
+  const canon = {};
+  for (const k of Object.keys(f).sort()) {
+    const v = _sigVal(f[k]);
+    if (v !== null) canon[k] = v;
+  }
+  return _cyrb53(JSON.stringify(canon));
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -975,15 +995,22 @@ Sync.pushAllFlights = async function () {
   normalizeFlightIds();
   const userId = Auth.currentUserId();
   const synced = this._loadSyncedSig();
-  // Build each flight's row once, keep only the ones whose content changed
-  // (or were never synced). { f, row, sig } so we can stamp markers after.
+  // Cold start: no fingerprint map yet (e.g. first run after this update for a
+  // user who migrated under the old build). Seeding from flights that already
+  // carry an _updated_at marker (= previously synced) avoids re-pushing the
+  // whole table, which would re-stamp every row and clobber other devices.
+  // The first pull re-baselines everything anyway; genuinely new/edited
+  // flights (no marker) are still pushed below.
+  const coldStart = Object.keys(synced).length === 0;
   const dirty = [];
   for (const f of flights) {
     const row = localFlightToRow(f, userId);
     const sig = rowSyncSig(row);
-    if (synced[f.id] !== sig) dirty.push({ f, row, sig });
+    if (synced[f.id] === sig) continue;               // already in sync
+    if (coldStart && f._updated_at) { synced[f.id] = sig; continue; }  // presumed already synced
+    dirty.push({ f, row, sig });
   }
-  if (!dirty.length) return;   // nothing changed locally — never re-push
+  if (!dirty.length) { this._saveSyncedSig(synced); return; }   // seed persisted; nothing to push
   for (let i = 0; i < dirty.length; i += MIGRATION_BATCH_SIZE) {
     const slice = dirty.slice(i, i + MIGRATION_BATCH_SIZE);
     const rows = slice.map(p => p.row);
