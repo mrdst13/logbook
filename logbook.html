@@ -6746,7 +6746,12 @@ function calcStats() {
 //  Returns either the same `f` (if no change is safe), or a NEW object
 //  with only the empty slots filled in.
 // ─────────────────────────────────────────────────────────────────
-function recalculateFlightDayNightXC(f) {
+function recalculateFlightDayNightXC(f, opts = {}) {
+  // opts.skipLandingFill — set by every IMPORT path (PDF/CSV roster + the
+  // bulk "Recalculate" button). A roster can't know whether a multi-crew F/O
+  // actually performed the landing (PF/PM alternate), so auto-crediting one
+  // landing per flight would fabricate passenger-currency data. Only a
+  // manually-entered single flight keeps the 1-landing convenience.
   // Need ICAO codes + a UTC departure time + block hours
   const depICAO = f.dep_icao || iataToIcao((f.route||'').split('-')[0]);
   const arrICAO = f.arr_icao || iataToIcao((f.route||'').split('-')[1]);
@@ -6873,11 +6878,11 @@ function recalculateFlightDayNightXC(f) {
     if (_isEmpty(f[xcNightK])) { out[xcNightK] = isXC ? split.nightHours : 0; touched = true; }
   }
 
-  // Landing day/night based on arrival — same only-fill-empty rule.
-  // The OLD behavior reset ldgDay/ldgNight to {0,1} or {1,0} regardless of
-  // existing values; that could erase a pilot's manual entry. Now we only
-  // fill if both landing slots are currently empty.
-  if (_isEmpty(f.ldgDay) && _isEmpty(f.ldgNight)) {
+  // Landing day/night based on arrival — only-fill-empty, and NEVER on an
+  // import path (opts.skipLandingFill). Crediting a landing the pilot may not
+  // have performed inflates passenger recency (CAR 401.05(2)); imports leave
+  // landings empty for the pilot to confirm. Empty > guessed.
+  if (!opts.skipLandingFill && _isEmpty(f.ldgDay) && _isEmpty(f.ldgNight)) {
     if (isNightUTC(blockOn, arrCoords.lat, arrCoords.lon)) {
       out.ldgNight = 1; out.ldgDay = 0;
     } else {
@@ -7179,7 +7184,9 @@ function recalculateAllFlightsInternal() {
                      || f.dtstart_utc
                      || (f.std_utc && f.std_utc.length === 4); // legacy fallback
     if (!hasUTCAnchor) { skippedNoUTC++; return f; }
-    const recalc = recalculateFlightDayNightXC(f);
+    // Bulk recalc backfills Night/XC on many flights at once — it cannot know
+    // real landing counts, so it never fabricates them (skipLandingFill).
+    const recalc = recalculateFlightDayNightXC(f, { skipLandingFill: true });
     if (recalc !== f) updated++;
     return recalc;
   });
@@ -9497,9 +9504,9 @@ One object per leg with EXACTLY these fields:
 RULES:
 - Only completed flights (date <= today).
 - block = BLH column, HH:MM → decimal (e.g. 4:30 → 4.50).
-- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"); if only a scheduled time is shown, use it. sta_utc = arrival UTC "HHMM" if available, else "".
+- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"). If the document shows ONLY a scheduled/planned time (not the actual), leave atd_utc as "" — never put a scheduled time in atd_utc. sta_utc = ACTUAL arrival UTC "HHMM" if shown, else "" (same rule — no scheduled times).
 - route = departure-arrival as 3-letter IATA (e.g. "YOW-YYZ").
-- ldg = number of landings on the leg (normally 1).
+- ldg = number of landings ONLY if the document explicitly states it; otherwise omit the field entirely. Never assume or default to 1 (a multi-crew F/O does not land every leg).
 - type: "E195-E2" for 295, "DH4" for Dash 8 Q400.
 - DO NOT compute day vs night, PIC vs SIC, or cross-country — leave those out entirely. The app computes them from the real UTC times and the pilot's own profile (never assumed).` }
           ]
@@ -9589,7 +9596,7 @@ RULES:
         flight.atd_utc = String(flight.atd_utc).replace(/\D/g, '').padStart(4, '0').slice(0, 4);
       }
       const out = (typeof recalculateFlightDayNightXC === 'function')
-        ? recalculateFlightDayNightXC(flight) : flight;
+        ? recalculateFlightDayNightXC(flight, { skipLandingFill: true }) : flight;
       const attributed = (typeof nightHoursOf === 'function')
         && (nightHoursOf(out) > 0 || dayHoursOf(out) > 0);
       if (!attributed && (+out.block > 0)) out._needsDayNight = true;
@@ -9756,7 +9763,7 @@ function confirmImport() {
     // imported via the preview modal (iCal fresh, PDF roster, photo OCR,
     // CSV) shipped with empty XC fields. Audit 2026-05-29.
     const enriched = (typeof recalculateFlightDayNightXC === 'function')
-      ? recalculateFlightDayNightXC(withId)
+      ? recalculateFlightDayNightXC(withId, { skipLandingFill: true })
       : withId;
     flights.push(enriched);
     newIds.push(newId);
@@ -10871,11 +10878,12 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const isXC = isCrossCountry(depICAO, arrICAO);
   const xcKnown = isXC !== null;
 
-  // ── Landing day/night based on arrival UTC time + arrival airport coords ──
-  let ldgDay = 1, ldgNight = 0;
-  if (arrCoords && blockOnUTC && isNightUTC(blockOnUTC, arrCoords.lat, arrCoords.lon)) {
-    ldgDay = 0; ldgNight = 1;
-  }
+  // ── Landings: NEVER fabricated from a schedule ──
+  // The iCal roster carries no landing data, and a multi-crew F/O does not
+  // land every leg (PF/PM alternate). Auto-crediting a landing would inflate
+  // passenger recency (CAR 401.05(2)), so landings are left empty for the
+  // pilot to confirm — the same rule the import recalc now follows. Empty >
+  // guessed.
 
   // F/O: block goes to SIC columns. Split into day/night, and XC variants.
   const role = isFO ? 'cop' : 'pic';
@@ -10946,7 +10954,7 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
     xcDayPic, xcNightPic,
     xcDayDual: 0, xcNightDual: 0,
     xcDayCop, xcNightCop,
-    ldgDay, ldgNight,
+    // ldgDay / ldgNight intentionally omitted — see "Landings" note above.
     instActual: 0, instHood: 0, instSim: 0,
     // CAR 401.05 currency: at 705, virtually every flight terminates with an IAP.
     // Profile toggle `autoCountIFR` controls this default. User can edit per-flight.
@@ -14955,7 +14963,7 @@ function commitCsvImport() {
       // already carried (ForeFlight / LogTen Pro export their own night/XC).
       // Same gap that iCal + manual-form had. Audit R2 2026-06-08.
       const enriched = (typeof recalculateFlightDayNightXC === 'function')
-        ? recalculateFlightDayNightXC(incoming)
+        ? recalculateFlightDayNightXC(incoming, { skipLandingFill: true })
         : incoming;
       flights.push(enriched);
       added++;
@@ -21273,7 +21281,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-04-72418d9';
+const BUILD_VERSION = '2026-07-07-2f48098';
 
 // Demo mode banner injector — runs early so the visitor immediately
 // sees the "this is a demo" affordance before the rest of the UI loads.
