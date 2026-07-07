@@ -1,0 +1,14 @@
+{
+  "name": "cumulo-logbook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cumulo Flight Deck — personal certifiable pilot logbook (front-end).",
+  "scripts": {
+    "build": "node build.js",
+    "check": "node build.js --check",
+    "test": "node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}
