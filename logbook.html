@@ -7698,10 +7698,21 @@ function _dashRenderValidities() {
     if (!v || !v.id) return;
     const cd = v.date ? new Date(v.date + 'T12:00:00') : null;
     const cDays = (cd && !isNaN(cd.getTime())) ? Math.ceil((cd.getTime() - Date.now()) / 86400000) : null;
+    // If the pilot supplied an issue date, the ring reflects the TRUE period
+    // (issue→expiry) instead of the 365-day default — accurate for long-lived
+    // items like a passport (5–10 yr). Otherwise keep the 1-year assumption.
+    // (Martin 2026-07-07.)
+    let win = 365;
+    if (v.issued && cd && !isNaN(cd.getTime())) {
+      const idt = new Date(v.issued + 'T12:00:00');
+      if (!isNaN(idt.getTime()) && idt.getTime() < cd.getTime()) {
+        win = Math.max(1, Math.round((cd.getTime() - idt.getTime()) / 86400000));
+      }
+    }
     items.push({
       edit: 'custom:' + v.id,
       label: v.name || (fr ? 'Validité' : 'Validity'),
-      status: dateStatus(cDays, 60), days: cDays, window: 365, sub: fmtDate(v.date)
+      status: dateStatus(cDays, 60), days: cDays, window: win, sub: fmtDate(v.date)
     });
   });
 
@@ -21421,6 +21432,7 @@ function editValidity(ref) {
   let nameEditable = false;
   let nameVal = '';
   let dateVal = '';
+  let issuedVal = '';
   let existingCustomId = '';
 
   if (ref === 'ppc') {
@@ -21435,6 +21447,7 @@ function editValidity(ref) {
     nameEditable = true;
     nameVal = cv ? (cv.name || '') : '';
     dateVal = cv ? (cv.date || '') : '';
+    issuedVal = cv ? (cv.issued || '') : '';
   } else { // 'new'
     nameEditable = true;
     nameVal = _pendingValidityName || '';
@@ -21457,6 +21470,20 @@ function editValidity(ref) {
         '<div style="font-size:16px;font-weight:700;">' + esc(nameVal) + '</div>' +
         '<input type="hidden" id="valEditName" value="' + esc(nameVal) + '"></div>';
 
+  // Optional issue date — only for pilot-defined validities. With it, the
+  // dashboard ring reflects the TRUE period (issue→expiry) instead of the
+  // 365-day default, so a long-lived item like a passport reads accurately.
+  const issuedField = nameEditable
+    ? '<div><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">' +
+        esc(fr ? 'Émis le (optionnel)' : 'Issued on (optional)') + '</div>' +
+        '<input type="date" id="valEditIssued" value="' + esc(issuedVal) + '" style="width:100%;box-sizing:border-box;">' +
+        '<div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;line-height:1.4;">' +
+          esc(fr
+            ? "Pour un passeport ou une carte de longue durée, ajoutez la date d'émission — l'anneau montrera alors la vraie proportion de temps restant."
+            : 'For a passport or other long-lived item, add the issue date — the ring then shows the true share of time remaining.') +
+        '</div></div>'
+    : '';
+
   if (body) {
     body.innerHTML =
       '<div style="display:flex;flex-direction:column;gap:16px;">' +
@@ -21464,10 +21491,11 @@ function editValidity(ref) {
         '<div><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">' +
           esc(fr ? 'Expire le' : 'Expires on') + '</div>' +
           '<input type="date" id="valEditDate" value="' + esc(dateVal) + '" style="width:100%;box-sizing:border-box;"></div>' +
+        issuedField +
         '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">' +
           esc(fr
-            ? 'Cumulo ne calcule jamais cette date — entrez celle de votre document. Laissez vide pour ne pas suivre.'
-            : 'Cumulo never computes this date — enter the one from your document. Leave blank to stop tracking.') +
+            ? 'Cumulo ne calcule jamais ces dates — entrez celles de votre document. Laissez vide pour ne pas suivre.'
+            : 'Cumulo never computes these dates — enter the ones from your document. Leave blank to stop tracking.') +
         '</div>' +
       '</div>';
   }
@@ -21496,8 +21524,10 @@ function saveValidityFromModal(ref) {
   const fr = _valFr();
   const dateEl = document.getElementById('valEditDate');
   const nameEl = document.getElementById('valEditName');
+  const issuedEl = document.getElementById('valEditIssued');
   const date = dateEl ? (dateEl.value || '') : '';
   const name = nameEl ? (nameEl.value || '').trim() : '';
+  const issued = issuedEl ? (issuedEl.value || '') : '';
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
 
   if (ref === 'ppc') {
@@ -21516,11 +21546,11 @@ function saveValidityFromModal(ref) {
     if (ref && ref.indexOf('custom:') === 0) {
       const id = ref.slice('custom:'.length);
       const idx = list.findIndex(v => v.id === id);
-      if (idx >= 0) list[idx] = { ...list[idx], name, date };
-      else list.push({ id, name, date });
+      if (idx >= 0) list[idx] = { ...list[idx], name, date, issued };
+      else list.push({ id, name, date, issued });
     } else {
       const id = 'cv_' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
-      list.push({ id, name, date });
+      list.push({ id, name, date, issued });
     }
     _saveCustomValidities(list);
   }
@@ -21542,7 +21572,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-07-a2d18a8';
+const BUILD_VERSION = '2026-07-07-8f16ca4';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET

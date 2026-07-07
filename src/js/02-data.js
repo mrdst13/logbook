@@ -999,10 +999,21 @@ function _dashRenderValidities() {
     if (!v || !v.id) return;
     const cd = v.date ? new Date(v.date + 'T12:00:00') : null;
     const cDays = (cd && !isNaN(cd.getTime())) ? Math.ceil((cd.getTime() - Date.now()) / 86400000) : null;
+    // If the pilot supplied an issue date, the ring reflects the TRUE period
+    // (issue→expiry) instead of the 365-day default — accurate for long-lived
+    // items like a passport (5–10 yr). Otherwise keep the 1-year assumption.
+    // (Martin 2026-07-07.)
+    let win = 365;
+    if (v.issued && cd && !isNaN(cd.getTime())) {
+      const idt = new Date(v.issued + 'T12:00:00');
+      if (!isNaN(idt.getTime()) && idt.getTime() < cd.getTime()) {
+        win = Math.max(1, Math.round((cd.getTime() - idt.getTime()) / 86400000));
+      }
+    }
     items.push({
       edit: 'custom:' + v.id,
       label: v.name || (fr ? 'Validité' : 'Validity'),
-      status: dateStatus(cDays, 60), days: cDays, window: 365, sub: fmtDate(v.date)
+      status: dateStatus(cDays, 60), days: cDays, window: win, sub: fmtDate(v.date)
     });
   });
 
