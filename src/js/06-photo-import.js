@@ -203,9 +203,9 @@ One object per leg with EXACTLY these fields:
 RULES:
 - Only completed flights (date <= today).
 - block = BLH column, HH:MM → decimal (e.g. 4:30 → 4.50).
-- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"); if only a scheduled time is shown, use it. sta_utc = arrival UTC "HHMM" if available, else "".
+- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"). If the document shows ONLY a scheduled/planned time (not the actual), leave atd_utc as "" — never put a scheduled time in atd_utc. sta_utc = ACTUAL arrival UTC "HHMM" if shown, else "" (same rule — no scheduled times).
 - route = departure-arrival as 3-letter IATA (e.g. "YOW-YYZ").
-- ldg = number of landings on the leg (normally 1).
+- ldg = number of landings ONLY if the document explicitly states it; otherwise omit the field entirely. Never assume or default to 1 (a multi-crew F/O does not land every leg).
 - type: "E195-E2" for 295, "DH4" for Dash 8 Q400.
 - DO NOT compute day vs night, PIC vs SIC, or cross-country — leave those out entirely. The app computes them from the real UTC times and the pilot's own profile (never assumed).` }
           ]
@@ -295,7 +295,7 @@ RULES:
         flight.atd_utc = String(flight.atd_utc).replace(/\D/g, '').padStart(4, '0').slice(0, 4);
       }
       const out = (typeof recalculateFlightDayNightXC === 'function')
-        ? recalculateFlightDayNightXC(flight) : flight;
+        ? recalculateFlightDayNightXC(flight, { skipLandingFill: true }) : flight;
       const attributed = (typeof nightHoursOf === 'function')
         && (nightHoursOf(out) > 0 || dayHoursOf(out) > 0);
       if (!attributed && (+out.block > 0)) out._needsDayNight = true;
@@ -462,7 +462,7 @@ function confirmImport() {
     // imported via the preview modal (iCal fresh, PDF roster, photo OCR,
     // CSV) shipped with empty XC fields. Audit 2026-05-29.
     const enriched = (typeof recalculateFlightDayNightXC === 'function')
-      ? recalculateFlightDayNightXC(withId)
+      ? recalculateFlightDayNightXC(withId, { skipLandingFill: true })
       : withId;
     flights.push(enriched);
     newIds.push(newId);

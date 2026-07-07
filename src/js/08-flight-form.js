@@ -691,11 +691,12 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const isXC = isCrossCountry(depICAO, arrICAO);
   const xcKnown = isXC !== null;
 
-  // ── Landing day/night based on arrival UTC time + arrival airport coords ──
-  let ldgDay = 1, ldgNight = 0;
-  if (arrCoords && blockOnUTC && isNightUTC(blockOnUTC, arrCoords.lat, arrCoords.lon)) {
-    ldgDay = 0; ldgNight = 1;
-  }
+  // ── Landings: NEVER fabricated from a schedule ──
+  // The iCal roster carries no landing data, and a multi-crew F/O does not
+  // land every leg (PF/PM alternate). Auto-crediting a landing would inflate
+  // passenger recency (CAR 401.05(2)), so landings are left empty for the
+  // pilot to confirm — the same rule the import recalc now follows. Empty >
+  // guessed.
 
   // F/O: block goes to SIC columns. Split into day/night, and XC variants.
   const role = isFO ? 'cop' : 'pic';
@@ -766,7 +767,7 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
     xcDayPic, xcNightPic,
     xcDayDual: 0, xcNightDual: 0,
     xcDayCop, xcNightCop,
-    ldgDay, ldgNight,
+    // ldgDay / ldgNight intentionally omitted — see "Landings" note above.
     instActual: 0, instHood: 0, instSim: 0,
     // CAR 401.05 currency: at 705, virtually every flight terminates with an IAP.
     // Profile toggle `autoCountIFR` controls this default. User can edit per-flight.
