@@ -44,13 +44,29 @@ function countsTowardRecency(f) {
   return !f.isSim || RECENCY_FFS_TYPES.has(f.simType);
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  flightTimeOf — the ONE definition of a flight's flight time.
+//  Flight time == block-to-block in Canada (CAR/RAC 101.01). `total` is the
+//  editable flight-time field; `block` is the legacy/import field. They are
+//  normally the same number (the form + imports fill total from block), and
+//  differ only if the pilot manually edited total — in which case total (the
+//  pilot's explicit entry) wins, with block as the fallback when total is
+//  empty. Every career/monthly flight-time sum reads through this helper so
+//  the hero, its drill-down, the monthly charts, the logbook footer and the
+//  PDF can never disagree (audit item 11: they used to — total-first here,
+//  block-first there — showing four different career numbers).
+// ─────────────────────────────────────────────────────────────────
+function flightTimeOf(f) {
+  return +f.total || +f.block || 0;
+}
+
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
   let heli=0, hover=0, dualGiven=0, picus=0, dualRcvd=0;
   const now = new Date();
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
-    total += +f.total || 0;
+    total += flightTimeOf(f);
     // PIC includes single-engine time (seDay/seNight): per Transport Canada,
     // PIC is PIC regardless of engine count. The app has a single SE bucket
     // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
@@ -1172,7 +1188,7 @@ function _dashRenderLegs() {
       <span class="dash-leg-date">${esc(dateStr)}</span>
       <span class="dash-leg-route">${esc(f.route || '—')}</span>
       <span class="dash-leg-reg">${esc(f.reg || '—')}</span>
-      <span class="dash-leg-hours">${fmt(f.block || f.total)}</span>
+      <span class="dash-leg-hours">${fmt(flightTimeOf(f))}</span>
     </div>`;
   }).join('');
 }
@@ -1472,7 +1488,7 @@ function _dashHoursThisWeek() {
   monday.setHours(0, 0, 0, 0);
   const cutoff = monday.toISOString().slice(0, 10);
   return flights.filter(f => f.date && f.date >= cutoff)
-    .reduce((s, f) => s + (+f.block || +f.total || 0), 0);
+    .reduce((s, f) => s + flightTimeOf(f), 0);
 }
 
 // ─── Stat strip cell helper ────────────────────────────────────

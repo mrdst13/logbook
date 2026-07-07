@@ -59,7 +59,7 @@ function renderRecap() {
     const d = new Date(+year, i, 1);
     return {
       label: d.toLocaleDateString(locale,{month:'short'}),
-      val: parseFloat(yFlights.filter(f=>f.date&&f.date.startsWith(key)).reduce((s,f)=>s+(+f.block||0),0).toFixed(1))
+      val: parseFloat(yFlights.filter(f=>f.date&&f.date.startsWith(key)).reduce((s,f)=>s+flightTimeOf(f),0).toFixed(1))
     };
   });
 

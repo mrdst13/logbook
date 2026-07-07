@@ -238,7 +238,7 @@ function _renderLogbookSummary(s, sMerged, filter, fr) {
   }
 
   const count = list.length;
-  const totalHrs = list.reduce((sum, f) => sum + (+f.block || +f.total || 0), 0);
+  const totalHrs = list.reduce((sum, f) => sum + flightTimeOf(f), 0);
   // Career hours include brought-forward; filter view stays subset-only.
   const careerHrs = filter ? totalHrs : (sMerged && sMerged.total) || totalHrs;
 
@@ -328,7 +328,7 @@ function _renderLbSparkline(svgId, list) {
   list.forEach(f => {
     if (!f.date) return;
     const ym = f.date.slice(0, 7);
-    buckets[ym] = (buckets[ym] || 0) + (+f.block || +f.total || 0);
+    buckets[ym] = (buckets[ym] || 0) + flightTimeOf(f);
   });
   const data = [];
   const now = new Date();
