@@ -118,11 +118,11 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
     const ob = loadOpeningBalances();
     return (+ob.balances.total || +ob.balances.block || 0);
   })();
-  const loggedHere = Math.max(0, (s.block || s.total || 0) - bfTotal);
+  const loggedHere = Math.max(0, (s.total || s.block || 0) - bfTotal);
   const flightCount = Array.isArray(flights) ? flights.length : 0;
 
   const rows = [
-    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> ${fr ? 'h' : 'hrs'}` },
+    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.total || s.block)}</strong> ${fr ? 'h' : 'hrs'}` },
     { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} ${fr ? 'h' : 'hrs'}` : '—' },
     { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} ${fr ? 'h' : 'hrs'} (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
     { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} ${fr ? 'h' : 'hrs'}` },

@@ -185,7 +185,7 @@ function renderChart() {
     const key = d.toISOString().substring(0, 7);
     labels.push(d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }));
     const hrs = flights.filter(f => f.date && f.date.startsWith(key))
-                       .reduce((sum, f) => sum + (+f.block || 0), 0);
+                       .reduce((sum, f) => sum + flightTimeOf(f), 0);
     data.push(parseFloat(hrs.toFixed(1)));
   }
   if (monthlyChartInst) { monthlyChartInst.destroy(); monthlyChartInst = null; }

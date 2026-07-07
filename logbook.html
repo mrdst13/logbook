@@ -6743,13 +6743,29 @@ function countsTowardRecency(f) {
   return !f.isSim || RECENCY_FFS_TYPES.has(f.simType);
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  flightTimeOf — the ONE definition of a flight's flight time.
+//  Flight time == block-to-block in Canada (CAR/RAC 101.01). `total` is the
+//  editable flight-time field; `block` is the legacy/import field. They are
+//  normally the same number (the form + imports fill total from block), and
+//  differ only if the pilot manually edited total — in which case total (the
+//  pilot's explicit entry) wins, with block as the fallback when total is
+//  empty. Every career/monthly flight-time sum reads through this helper so
+//  the hero, its drill-down, the monthly charts, the logbook footer and the
+//  PDF can never disagree (audit item 11: they used to — total-first here,
+//  block-first there — showing four different career numbers).
+// ─────────────────────────────────────────────────────────────────
+function flightTimeOf(f) {
+  return +f.total || +f.block || 0;
+}
+
 function calcStats() {
   let total=0, pic=0, sic=0, night=0, ldg=0, me=0, xc=0, block=0, block30=0;
   let heli=0, hover=0, dualGiven=0, picus=0, dualRcvd=0;
   const now = new Date();
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
-    total += +f.total || 0;
+    total += flightTimeOf(f);
     // PIC includes single-engine time (seDay/seNight): per Transport Canada,
     // PIC is PIC regardless of engine count. The app has a single SE bucket
     // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
@@ -7871,7 +7887,7 @@ function _dashRenderLegs() {
       <span class="dash-leg-date">${esc(dateStr)}</span>
       <span class="dash-leg-route">${esc(f.route || '—')}</span>
       <span class="dash-leg-reg">${esc(f.reg || '—')}</span>
-      <span class="dash-leg-hours">${fmt(f.block || f.total)}</span>
+      <span class="dash-leg-hours">${fmt(flightTimeOf(f))}</span>
     </div>`;
   }).join('');
 }
@@ -8171,7 +8187,7 @@ function _dashHoursThisWeek() {
   monday.setHours(0, 0, 0, 0);
   const cutoff = monday.toISOString().slice(0, 10);
   return flights.filter(f => f.date && f.date >= cutoff)
-    .reduce((s, f) => s + (+f.block || +f.total || 0), 0);
+    .reduce((s, f) => s + flightTimeOf(f), 0);
 }
 
 // ─── Stat strip cell helper ────────────────────────────────────
@@ -8368,7 +8384,7 @@ function renderChart() {
     const key = d.toISOString().substring(0, 7);
     labels.push(d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }));
     const hrs = flights.filter(f => f.date && f.date.startsWith(key))
-                       .reduce((sum, f) => sum + (+f.block || 0), 0);
+                       .reduce((sum, f) => sum + flightTimeOf(f), 0);
     data.push(parseFloat(hrs.toFixed(1)));
   }
   if (monthlyChartInst) { monthlyChartInst.destroy(); monthlyChartInst = null; }
@@ -8647,7 +8663,7 @@ function _renderLogbookSummary(s, sMerged, filter, fr) {
   }
 
   const count = list.length;
-  const totalHrs = list.reduce((sum, f) => sum + (+f.block || +f.total || 0), 0);
+  const totalHrs = list.reduce((sum, f) => sum + flightTimeOf(f), 0);
   // Career hours include brought-forward; filter view stays subset-only.
   const careerHrs = filter ? totalHrs : (sMerged && sMerged.total) || totalHrs;
 
@@ -8737,7 +8753,7 @@ function _renderLbSparkline(svgId, list) {
   list.forEach(f => {
     if (!f.date) return;
     const ym = f.date.slice(0, 7);
-    buckets[ym] = (buckets[ym] || 0) + (+f.block || +f.total || 0);
+    buckets[ym] = (buckets[ym] || 0) + flightTimeOf(f);
   });
   const data = [];
   const now = new Date();
@@ -13678,7 +13694,7 @@ function renderRecap() {
     const d = new Date(+year, i, 1);
     return {
       label: d.toLocaleDateString(locale,{month:'short'}),
-      val: parseFloat(yFlights.filter(f=>f.date&&f.date.startsWith(key)).reduce((s,f)=>s+(+f.block||0),0).toFixed(1))
+      val: parseFloat(yFlights.filter(f=>f.date&&f.date.startsWith(key)).reduce((s,f)=>s+flightTimeOf(f),0).toFixed(1))
     };
   });
 
@@ -20092,11 +20108,11 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
     const ob = loadOpeningBalances();
     return (+ob.balances.total || +ob.balances.block || 0);
   })();
-  const loggedHere = Math.max(0, (s.block || s.total || 0) - bfTotal);
+  const loggedHere = Math.max(0, (s.total || s.block || 0) - bfTotal);
   const flightCount = Array.isArray(flights) ? flights.length : 0;
 
   const rows = [
-    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.block || s.total)}</strong> ${fr ? 'h' : 'hrs'}` },
+    { k: fr ? 'Total carrière (bloc)'        : 'Career total (block)',         v: `<strong>${F(s.total || s.block)}</strong> ${fr ? 'h' : 'hrs'}` },
     { k: fr ? 'dont reportées (papier)'      : 'of which brought-forward',     v: hasBF ? `${F(bfTotal)} ${fr ? 'h' : 'hrs'}` : '—' },
     { k: fr ? 'dont enregistrées dans Cumulo': 'of which logged in Cumulo',    v: `${F(loggedHere)} ${fr ? 'h' : 'hrs'} (${flightCount} ${fr ? 'vol' : 'flight'}${flightCount !== 1 ? 's' : ''})` },
     { k: fr ? 'Dernier 30 jours'             : 'Last 30 days',                 v: `${F(rawS.block30 || 0)} ${fr ? 'h' : 'hrs'}` },
@@ -21336,7 +21352,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-07-391a088';
+const BUILD_VERSION = '2026-07-07-ebdc133';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET

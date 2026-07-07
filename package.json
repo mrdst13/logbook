@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node build.js",
     "check": "node build.js --check",
-    "test": "node test/smoke.mjs"
+    "test": "node test/smoke.mjs && node test/flight-time.mjs"
   },
   "devDependencies": {
     "jsdom": "^24.1.0"
