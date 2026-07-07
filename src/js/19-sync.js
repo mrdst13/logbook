@@ -25,6 +25,13 @@ const MIGRATION_LOG_KEY   = 'cumulo_migration_log_v1';
 const PENDING_OPS_KEY     = 'cumulo_pending_ops_v1';
 const DEVICE_ID_KEY       = 'cumulo_device_id_v1';
 const PREMIGRATION_BACKUP_KEY = 'cumulo_premigration_backup_v1';
+// Per-flight fingerprint of what we last synced to the cloud (id → hash).
+// Lets auto-sync push ONLY changed rows instead of re-pushing the whole table
+// on every local save. Re-pushing an unchanged row re-stamps its updated_at
+// and can overwrite a newer edit made on another device (audit item 7 —
+// cross-device data loss). Persisted so it survives reloads; refreshed on
+// every push and pull.
+const SYNCED_SIG_KEY = 'cumulo_synced_sig_v1';
 
 const MIGRATION_BATCH_SIZE = 200;
 const PREMIGRATION_RETENTION_DAYS = 90;
@@ -265,6 +272,30 @@ function rowToLocalFlight(row) {
   return f;
 }
 
+// Stable 53-bit hash (cyrb53) for change detection — NOT security.
+function _cyrb53(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+// Fingerprint of a flight's SYNCABLE CONTENT, computed from a cloud-shaped
+// row. Reducing through rowToLocalFlight() drops all sync/server metadata
+// (client_updated_at, op_id, device_id, updated_at, deleted_at) so the
+// fingerprint is identical whether it comes from a row we pushed or a row we
+// pulled — that's what lets pushAllFlights tell a real content change from an
+// unchanged row. (Audit item 7.)
+function rowSyncSig(row) {
+  const f = rowToLocalFlight(row);
+  return _cyrb53(JSON.stringify(f, Object.keys(f).sort()));
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Sync module — public surface used by 02-data.js, 07-profile.js,
 // 08-flight-form.js, 99-init.js.
@@ -291,6 +322,11 @@ const Sync = {
     let dirty = false;
     if (!flight.id) { flight.id = row.id; dirty = true; }
     flight._updated_at = row.client_updated_at;
+    // Record the synced fingerprint so the bulk auto-sync won't re-push this
+    // same row (which would re-stamp it over another device's later edit).
+    const _sm = this._loadSyncedSig();
+    _sm[flight.id] = rowSyncSig(row);
+    this._saveSyncedSig(_sm);
     if (dirty) {
       this._suppressAutoSync = true;
       try { DB.save(flights); } finally { this._suppressAutoSync = false; }
@@ -304,6 +340,9 @@ const Sync = {
   // 05-form-helpers.js after the local removal succeeds.
   async deleteFlight(flightId) {
     if (!Auth.isAuthenticated() || !flightId) return;
+    // Drop the synced fingerprint so the map doesn't leak entries over deletes.
+    const _sm = this._loadSyncedSig();
+    if (flightId in _sm) { delete _sm[flightId]; this._saveSyncedSig(_sm); }
     const stamp = new Date().toISOString();
     try {
       const { error } = await Auth.client.from('flights')
@@ -356,6 +395,10 @@ const Sync = {
     // certifiable logbook ("store full locally, anonymize only at egress").
     const _syncProf = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
     const _consentOn = !!_syncProf.consentCaptainNames;
+    // Baseline the synced fingerprint from the cloud so auto-sync won't
+    // re-push a row we just received (and re-stamp it over another device's
+    // edit). Set for every non-deleted remote row below; dropped for deleted.
+    const synced = this._loadSyncedSig();
     data.forEach(row => {
       const remote = rowToLocalFlight(row);
       if (row.deleted_at) {
@@ -368,6 +411,7 @@ const Sync = {
           byId.delete(remote.id);
           removed++;
         }
+        delete synced[remote.id];
         return;
       }
       const local = byId.get(remote.id);
@@ -376,6 +420,7 @@ const Sync = {
         remote._updated_at = row.updated_at || row.client_updated_at || '';
         flights.push(remote);
         byId.set(remote.id, remote);
+        synced[remote.id] = rowSyncSig(row);
         added++;
         return;
       }
@@ -399,8 +444,14 @@ const Sync = {
         local._updated_at = rU;
         updated++;
       }
+      // Baseline against the cloud content. If remote won, local now matches it
+      // (not dirty). If LOCAL won (newer unpushed edit), synced holds the older
+      // cloud sig so pushAllFlights still pushes the local change. Either way,
+      // an unchanged row is never needlessly re-pushed over another device.
+      synced[remote.id] = rowSyncSig(row);
     });
 
+    this._saveSyncedSig(synced);
     if (added || updated || removed) {
       // Suppress auto-sync: this DB.save is purely a download-side
       // reconciliation, not a user edit. Re-pushing here would create
@@ -695,6 +746,7 @@ const Sync = {
     if (startCursor > 0) {
       console.log(`[Sync] resuming migration at batch cursor ${startCursor}/${flights.length}`);
     }
+    const migSynced = this._loadSyncedSig();
     for (let i = startCursor; i < flights.length; i += MIGRATION_BATCH_SIZE) {
       const slice = flights.slice(i, i + MIGRATION_BATCH_SIZE);
       const rows = slice.map(f => localFlightToRow(f, userId));
@@ -712,13 +764,15 @@ const Sync = {
         return;
       }
       uploaded += slice.length;
-      // Stamp the LWW marker on each successfully-uploaded flight so a
-      // subsequent pull doesn't clobber the just-pushed state.
+      // Stamp the LWW marker + record the synced fingerprint on each uploaded
+      // flight so the first auto-sync after migration doesn't re-push the whole
+      // table (which would re-stamp every row).
       slice.forEach((f, k) => {
-        const ts = rows[k].client_updated_at;
-        f._updated_at = ts;
+        f._updated_at = rows[k].client_updated_at;
+        migSynced[f.id] = rowSyncSig(rows[k]);
       });
     }
+    this._saveSyncedSig(migSynced);
 
     // 5. Signature verify — pull the remote id-set back and diff against
     //    local. The previous version just compared `remoteCount` to
@@ -890,6 +944,18 @@ const Sync = {
 Sync._autoSyncTimer = null;
 Sync._suppressAutoSync = false;
 
+// Persisted map: flight id → fingerprint of its content as last seen on the
+// cloud (pushed or pulled). pushAllFlights pushes only flights whose current
+// fingerprint differs. (Audit item 7.)
+Sync._loadSyncedSig = function () {
+  try { return JSON.parse(localStorage.getItem(SYNCED_SIG_KEY) || '{}') || {}; }
+  catch { return {}; }
+};
+Sync._saveSyncedSig = function (map) {
+  try { localStorage.setItem(SYNCED_SIG_KEY, JSON.stringify(map)); }
+  catch (e) { console.warn('[Sync] synced-sig save failed:', e); }
+};
+
 Sync._scheduleAutoSync = function () {
   if (!Auth.isAuthenticated() || this._suppressAutoSync) return;
   if (this._autoSyncTimer) clearTimeout(this._autoSyncTimer);
@@ -899,17 +965,28 @@ Sync._scheduleAutoSync = function () {
   }, 800);
 };
 
-// Push every local flight via batched upsert. Idempotent (ON CONFLICT id).
-// TODO post-skeleton: diff against last-pushed snapshot and push only
-// changed rows. For skeleton + low-volume users this is acceptably cheap.
+// Push only the flights whose content changed since we last synced them.
+// Re-pushing an unchanged row re-stamps its updated_at and can clobber a
+// newer edit another device made (audit item 7). The per-flight fingerprint
+// map is the diff; it's refreshed here and on every pull.
 Sync.pushAllFlights = async function () {
   if (!Auth.isAuthenticated() || !flights.length) return;
   // Coerce any legacy/non-UUID ids before upload (cloud id column is uuid).
   normalizeFlightIds();
   const userId = Auth.currentUserId();
-  for (let i = 0; i < flights.length; i += MIGRATION_BATCH_SIZE) {
-    const slice = flights.slice(i, i + MIGRATION_BATCH_SIZE);
-    const rows = slice.map(f => localFlightToRow(f, userId));
+  const synced = this._loadSyncedSig();
+  // Build each flight's row once, keep only the ones whose content changed
+  // (or were never synced). { f, row, sig } so we can stamp markers after.
+  const dirty = [];
+  for (const f of flights) {
+    const row = localFlightToRow(f, userId);
+    const sig = rowSyncSig(row);
+    if (synced[f.id] !== sig) dirty.push({ f, row, sig });
+  }
+  if (!dirty.length) return;   // nothing changed locally — never re-push
+  for (let i = 0; i < dirty.length; i += MIGRATION_BATCH_SIZE) {
+    const slice = dirty.slice(i, i + MIGRATION_BATCH_SIZE);
+    const rows = slice.map(p => p.row);
     const failedIds = new Set();
     try {
       const { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
@@ -945,15 +1022,20 @@ Sync.pushAllFlights = async function () {
       rows.forEach(row => this._enqueue({ type: 'upsert_flight', payload: row }));
       return;
     }
-    // Persist any newly-minted ids + stamp the LWW marker so pulls
-    // won't clobber what we just pushed. Rows that failed even the
-    // row-by-row fallback keep their old marker (they didn't reach
+    // Persist any newly-minted ids + stamp the LWW marker so pulls won't
+    // clobber what we just pushed, and record the synced fingerprint so this
+    // row won't be re-pushed until it actually changes again. Rows that failed
+    // even the row-by-row fallback keep their old marker/sig (they didn't reach
     // the cloud, so the cloud must still be allowed to win).
-    slice.forEach((f, k) => {
-      if (!f.id) f.id = rows[k].id;
-      if (!failedIds.has(rows[k].id)) f._updated_at = rows[k].client_updated_at;
+    slice.forEach((p, k) => {
+      if (!p.f.id) p.f.id = rows[k].id;
+      if (!failedIds.has(rows[k].id)) {
+        p.f._updated_at = rows[k].client_updated_at;
+        synced[p.f.id] = p.sig;
+      }
     });
   }
+  this._saveSyncedSig(synced);
   // Wrap the trailing local save so it doesn't trigger another debounced
   // push (would create a phantom feedback loop).
   this._suppressAutoSync = true;
