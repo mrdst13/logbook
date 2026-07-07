@@ -237,10 +237,8 @@ function hasOpeningBalances() {
   return Object.values(balances).some(v => +v > 0);
 }
 
-// SHA-256 hex digest of the canonical JSON form of the balances object.
-async function _hashBalances(balances) {
-  const sortedKeys = Object.keys(balances).sort();
-  const canonical = JSON.stringify(balances, sortedKeys);
+// SHA-256 hex digest of a canonical string.
+async function _sha256Hex(canonical) {
   const buf = new TextEncoder().encode(canonical);
   const digest = await crypto.subtle.digest('SHA-256', buf);
   return Array.from(new Uint8Array(digest))
@@ -248,25 +246,74 @@ async function _hashBalances(balances) {
     .join('');
 }
 
+// LEGACY seal: hour values only. Kept so records sealed before 2026-07 still
+// verify (backward compatibility in verifyOpeningBalances). The array replacer
+// here is a flat allow-list of the balances' own keys, emitted in sorted
+// order — safe because `balances` has no nested objects.
+async function _hashBalances(balances) {
+  return _sha256Hex(JSON.stringify(balances, Object.keys(balances).sort()));
+}
+
+// CURRENT seal: binds the hour values AND the declared cut-off date AND the
+// signer, so changing any of the three is detectable — which is exactly what
+// the "sealed and verified" banner promises. Canonicalised by hand: fixed
+// top-level key order + sorted balance keys. (A JSON.stringify ARRAY replacer
+// can't be used here — it recurses into `balances` and would drop every hour
+// key, hashing an empty object and making the seal inert. Caught by seal.mjs.)
+async function _hashSeal(balances, cutoffDate, attestedBy) {
+  const sortedBalances = {};
+  Object.keys(balances).sort().forEach(k => { sortedBalances[k] = +balances[k]; });
+  const canonical = JSON.stringify({
+    attestedBy: (attestedBy || '').trim() || null,
+    balances: sortedBalances,
+    cutoffDate: cutoffDate || null,
+  });
+  return _sha256Hex(canonical);
+}
+
+// Re-derive the seal from the stored record and compare it to the stored
+// fingerprint. Returns { sealed, ok }. ok=false means a value changed after
+// signing (tampering / corruption) — the banner surfaces it. Backward
+// compatible: a legacy balances-only hash still verifies when nothing changed.
+async function verifyOpeningBalances(rec) {
+  rec = rec || loadOpeningBalances();
+  if (!rec || !rec.hash || !rec.balances || !Object.keys(rec.balances).length) {
+    return { sealed: false, ok: true };
+  }
+  try {
+    const current = await _hashSeal(rec.balances, rec.cutoffDate, rec.attestedBy);
+    if (rec.hash === current) return { sealed: true, ok: true };
+    // Legacy record: hash covered the hour values only.
+    const legacy = await _hashBalances(rec.balances);
+    return { sealed: true, ok: rec.hash === legacy };
+  } catch (e) {
+    // crypto unavailable — can't verify, so don't cry wolf.
+    console.warn('[OpeningBalances] verify skipped:', e);
+    return { sealed: true, ok: true };
+  }
+}
+
 // Persist the balances + attestation metadata + append to audit log.
-async function saveOpeningBalances(balances, cutoffDate) {
+async function saveOpeningBalances(balances, cutoffDate, attestedBy) {
   const clean = {};
   Object.keys(balances).forEach(k => {
     const v = +balances[k];
     if (v > 0) clean[k] = v;
   });
-  const hash = await _hashBalances(clean);
+  const signer = (attestedBy || '').trim() || null;
+  // The integrity hash now binds the hour VALUES, the cut-off date and the
+  // signer — so the "if a single number changed, the seal detects it" promise
+  // (and a changed date or signer) actually holds. verifyOpeningBalances()
+  // re-checks it on every dashboard render.
+  const hash = await _hashSeal(clean, cutoffDate, signer);
   const attestedAt = new Date().toISOString();
-  // cutoffDate = the last date covered by the paper logbook (the period
-  // boundary the attestation declares). Stored as metadata; the integrity
-  // hash stays over the hour VALUES only (unchanged semantics).
-  const record = { balances: clean, cutoffDate: cutoffDate || null, attestedAt, hash };
+  const record = { balances: clean, cutoffDate: cutoffDate || null, attestedBy: signer, attestedAt, hash };
   localStorage.setItem(OPENING_BALANCES_KEY, JSON.stringify(record));
 
   let log = [];
   try { log = JSON.parse(localStorage.getItem(OPENING_ATTEST_LOG_KEY) || '[]'); } catch { log = []; }
   if (!Array.isArray(log)) log = [];
-  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, balances: clean });
+  log.push({ timestamp: attestedAt, hash, action: log.length === 0 ? 'attest' : 're-attest', cutoffDate: cutoffDate || null, attestedBy: signer, balances: clean });
   try { localStorage.setItem(OPENING_ATTEST_LOG_KEY, JSON.stringify(log)); } catch {}
 
   // Push the attestation to the cloud so the brought-forward hours follow the
@@ -429,6 +476,22 @@ function _dashRenderBfBanner(hasFlights) {
         </div>
         <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
       </div>`;
+    // Actually verify the seal (async). If a value changed after signing,
+    // downgrade "sealed and verified" to an integrity warning — so the
+    // promise above is enforced, not decorative. (Audit item 8.)
+    verifyOpeningBalances(rec).then(res => {
+      if (res.ok) return;
+      banner.style.borderColor = 'var(--danger, var(--warning))';
+      banner.innerHTML = `
+        <div style="display:flex;gap:11px;align-items:flex-start;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger, var(--warning))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Vérification du sceau : échec' : 'Seal check failed'}</div>
+            <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux reportés ne correspondent plus à l\'empreinte signée — une valeur a changé depuis la signature. Rouvrez et attestez de nouveau pour resceller.' : 'Your brought-forward totals no longer match the signed fingerprint — a value changed since signing. Reopen and attest again to re-seal.'}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Revoir' : 'Review'}</button>
+        </div>`;
+    }).catch(() => {});
     return;
   }
 
@@ -930,7 +993,7 @@ async function commitOpeningBalances() {
   const balances = _bfCollectCurrentBalances();
 
   try {
-    await saveOpeningBalances(balances, cutoffDate);
+    await saveOpeningBalances(balances, cutoffDate, typedName);
   } catch (e) {
     console.error('[OpeningBalances] save failed:', e);
     if (typeof showToast === 'function') showToast(
