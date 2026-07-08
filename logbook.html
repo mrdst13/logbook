@@ -19582,6 +19582,24 @@ function totalsWithOpening(flightsTotals) {
   // total (a pilot's real brought-forward total need not equal PIC+SIC+Dual).
   // Guessing a certifiable career number is worse than showing logged-only —
   // the pilot enters their total explicitly. (empty > guessed rule.)
+  //
+  // EXCEPTION — the detailed engine-class grid ("Like my paper logbook"):
+  // SE + ME + Heli, each split day/night × role (dual/PIC/co-pilot), PARTITION
+  // every flight hour exactly once (mutually exclusive, unlike PIC/SIC/Dual or
+  // XC/PICUS which overlap). So their sum IS the flight-time total, not a guess.
+  // If the pilot filled that grid but left Total/Block blank, use it — otherwise
+  // their whole career reads as logged-only (Martin 2026-07-08: filled the grid,
+  // hero showed 385 h instead of 2781 + logged).
+  if (!balances.total && !balances.block) {
+    const detailGrid =
+        (+balances.seDay||0)+(+balances.seNight||0)+(+balances.seDayDual||0)+(+balances.seNightDual||0)
+      + (+balances.meDayPic||0)+(+balances.meNightPic||0)+(+balances.meDayCop||0)+(+balances.meNightCop||0)+(+balances.meDayDual||0)+(+balances.meNightDual||0)
+      + (+balances.heliDayPic||0)+(+balances.heliNightPic||0)+(+balances.heliDayCop||0)+(+balances.heliNightCop||0)+(+balances.heliDayDual||0)+(+balances.heliNightDual||0);
+    if (detailGrid > 0) {
+      merged.total = (+merged.total||0) + detailGrid;
+      merged.block = (+merged.block||0) + detailGrid;
+    }
+  }
   if (!balances.total && (+balances.block||0) > 0) {
     merged.total = (+merged.total||0) + (+balances.block||0);
   }
@@ -21592,7 +21610,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-07-7cf8195';
+const BUILD_VERSION = '2026-07-08-b9edaa7';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET
