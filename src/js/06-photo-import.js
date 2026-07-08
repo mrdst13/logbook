@@ -192,9 +192,12 @@ async function parseNavbluePDF(input) {
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
             { type: 'text', text: `This is an airline crew roster (e.g. Navblue HrRosterReport) PDF. Extract ONLY the real flight legs the pilot operated as crew.
 
-SKIP these activity codes (NOT flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, DHD, RDG, PAX, P##### (P followed by 5 digits = deadhead positioning).
+SKIP these — the pilot did NOT operate them:
+- Activity codes (not flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, DHD, RDG, PAX.
+- Positioning: P##### (P followed by 5 digits).
+- ANY leg the pilot DEADHEADS (rides as a passenger, does not operate) — even when it carries a normal revenue flight number (e.g. PD167, PD163). A deadhead is shown by a "D" deadhead designator in the leftmost activity/designator column of that row, AND/OR the pilot's crew function marked "(D)" in the crew list (e.g. "FO(D): Daoust, Martin"). If the pilot's own role on a leg is a deadhead, DO NOT extract it, whatever the flight number.
 
-KEEP only revenue flights (airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) where the pilot operated as crew.
+KEEP only revenue flights (airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) that the pilot OPERATED — i.e. their crew function is FO or CA WITHOUT a "(D)" deadhead marker.
 
 Output a JSON array. If nothing to extract, output [].
 One object per leg with EXACTLY these fields:
