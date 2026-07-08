@@ -532,10 +532,19 @@ function findMatchingExistingFlight(incoming) {
   // Tier 4 — same DATE + block close, no route to compare (legacy rows missing
   // both flight number and route). Requires BOTH blocks to be > 0 so two
   // distinct same-day flights that simply lack block data are never merged.
-  if (incBlock > 0) {
+  //
+  // GUARD (audit item 13 / Martin 2026-07-08): this block-only match must ONLY
+  // fire for LEGACY rows that carry neither a flight number nor a route on
+  // EITHER side. If the incoming flight has a flight number, Tier 2 already
+  // decided — a non-match there means it is a genuinely different leg, and a
+  // same-day block coincidence must NEVER merge it (e.g. PD428 2.67 h and
+  // PD291 2.73 h on the same day are different flights; the old code silently
+  // dropped PD428 as a "duplicate" of PD291).
+  if (incBlock > 0 && !incFn && !incRouteNorm) {
     for (let i = 0; i < flights.length; i++) {
       const f = flights[i];
       if (f.date !== incoming.date) continue;
+      if (normFn(f.flightNum) || normRoute(f.route)) continue; // only legacy ↔ legacy
       const fBlock = +f.block || 0;
       if (fBlock > 0 && Math.abs(fBlock - incBlock) <= 0.15) {
         return { idx: i, matchType: 'date-block' };
