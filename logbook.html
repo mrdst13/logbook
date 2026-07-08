@@ -20506,6 +20506,7 @@ function _drillMilestone(s, profile, fr, F) {
   const currentGoal    = +profile.personalGoalHrs || 0;
   const currentKind    = profile.personalGoalKind || 'total';
   const currentContext = profile.personalGoalContext || '';
+  const currentBf      = +profile.personalGoalBroughtForward || 0;
 
   // Compute "achieved hours" for the chosen kind
   const achieved = _dashGoalAchievedHours(currentKind, currentContext, s);
@@ -20562,6 +20563,10 @@ function _drillMilestone(s, profile, fr, F) {
         <input type="text" id="dashGoalContext" placeholder="${esc(fr ? 'p.ex. E195-E2, B737, DH4' : 'e.g. E195-E2, B737, DH4')}"
                value="${esc(currentContext)}"
                style="width:100%; height:38px; padding:0 12px; font-family:var(--font-mono); font-size:14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);" />
+        <input type="number" id="dashGoalBf" min="0" step="0.1"
+               placeholder="${esc(fr ? 'Heures déjà sur ce type (reportées) · p.ex. 782,7' : 'Hours already on this type (brought-forward) · e.g. 782.7')}"
+               value="${currentBf || ''}"
+               style="width:100%; height:38px; margin-top:var(--s-2); padding:0 12px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:14px; text-align:right; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-surface); color:var(--text);" />
       </div>
       <div style="display:flex; gap:var(--s-2); align-items:center;">
         <input type="number" id="dashGoalInput" min="0" step="50"
@@ -20601,10 +20606,16 @@ function _dashGoalAchievedHours(kind, context, s) {
   if (kind === 'aircraft') {
     if (!context || !Array.isArray(flights)) return 0;
     const needle = context.toUpperCase().trim();
-    return flights.reduce((sum, f) => {
+    const logged = flights.reduce((sum, f) => {
       const type = (f.type || '').toUpperCase();
       return type.includes(needle) ? sum + (+f.block || 0) : sum;
     }, 0);
+    // Hours already flown on this type BEFORE Cumulo (from the paper logbook).
+    // Without it a type goal starts at zero and ignores a career already flown
+    // on type. (Martin: 782.7 h on E195-E2 as of 2025-11-27.)
+    const bf = (typeof DB !== 'undefined' && DB.loadProfile)
+      ? (+DB.loadProfile().personalGoalBroughtForward || 0) : 0;
+    return logged + bf;
   }
   return 0;
 }
@@ -20625,10 +20636,15 @@ function saveMilestoneGoal() {
     }
     return;
   }
+  const bfEl = document.getElementById('dashGoalBf');
+  const bf = (kind === 'aircraft' && bfEl) ? (parseFloat(String(bfEl.value).replace(',', '.')) || 0) : 0;
   const profile = DB.loadProfile();
   profile.personalGoalHrs = v > 0 ? v : 0;
   profile.personalGoalKind = v > 0 ? kind : 'total';
   profile.personalGoalContext = v > 0 ? context : '';
+  // Hours already on this type before Cumulo (paper-logbook brought-forward),
+  // added to the milestone's achieved count. Only meaningful for aircraft goals.
+  profile.personalGoalBroughtForward = (v > 0 && kind === 'aircraft') ? bf : 0;
   DB.saveProfile(profile);
   if (typeof showToast === 'function') {
     const label = kind === 'aircraft' && context ? ` ${fr ? 'sur' : 'on'} ${context}` : '';
@@ -20646,6 +20662,7 @@ function clearMilestoneGoal() {
   profile.personalGoalHrs = 0;
   profile.personalGoalKind = 'total';
   profile.personalGoalContext = '';
+  profile.personalGoalBroughtForward = 0;
   DB.saveProfile(profile);
   if (typeof showToast === 'function') {
     const fr = (typeof getLang === 'function') && getLang() === 'fr';
@@ -21572,7 +21589,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-07-8f16ca4';
+const BUILD_VERSION = '2026-07-07-ba1f152';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET
