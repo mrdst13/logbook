@@ -18603,8 +18603,18 @@ const Sync = {
       personal_goal_context: profile.personalGoalContext || null,
       signature: ls('logbook_signature') || null,
       onboarded: !!ls('cumulo_onboarded_v1'),
+      // Custom validities (Passport, RAIC, Line check…) + per-type goal BF.
+      // Their columns are added by a later ALTER; if they aren't there yet we
+      // retry WITHOUT them so core profile sync never breaks. (Martin
+      // 2026-07-08 — custom validities weren't reaching his iPhone.)
+      custom_validities: Array.isArray(profile.customValidities) ? profile.customValidities : [],
+      personal_goal_bf: (profile.personalGoalBroughtForward != null && profile.personalGoalBroughtForward !== '') ? +profile.personalGoalBroughtForward : null,
     };
-    const { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
+    let { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
+    if (error && /does not exist|42703|schema cache|column/i.test((error.message || '') + (error.code || ''))) {
+      const { custom_validities, personal_goal_bf, ...safe } = row;
+      ({ error } = await Auth.client.from('profiles').upsert(safe, { onConflict: 'id' }));
+    }
     if (error) {
       console.warn('[Sync] pushProfile failed, queuing:', error.message);
       this._enqueue({ type: 'upsert_profile', payload: row });
@@ -18674,6 +18684,22 @@ const Sync = {
     }
     if ((!Array.isArray(local.acConfigs) || !local.acConfigs.length) && Array.isArray(row.ac_configs) && row.ac_configs.length) {
       local.acConfigs = row.ac_configs.slice(); changed = true;
+    }
+    // Custom validities (Passport / RAIC / Line check…): UNION by name so every
+    // device's entries appear on the others. Device-generated ids differ, so we
+    // dedup on name rather than id. (Martin 2026-07-08.)
+    if (Array.isArray(row.custom_validities) && row.custom_validities.length) {
+      const localCV = Array.isArray(local.customValidities) ? local.customValidities : [];
+      const byName = new Map();
+      [...localCV, ...row.custom_validities].forEach(v => {
+        if (v && v.name) { const k = String(v.name).toLowerCase().trim(); if (!byName.has(k)) byName.set(k, v); }
+      });
+      const merged = [...byName.values()];
+      if (merged.length !== localCV.length) { local.customValidities = merged; changed = true; }
+    }
+    // Per-type goal brought-forward (e.g. 782.7 h on E195-E2) — fill-empty.
+    if (isBlank(local.personalGoalBroughtForward) && !isBlank(row.personal_goal_bf)) {
+      local.personalGoalBroughtForward = +row.personal_goal_bf; changed = true;
     }
 
     if (changed) DB.saveProfile(local);
@@ -21622,7 +21648,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-08-a020911';
+const BUILD_VERSION = '2026-07-08-838c6d5';
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET
