@@ -1461,21 +1461,24 @@ function _dashRenderNextColumn() {
     label = `${next.toLocaleString()} hrs`;
   }
   const remain = Math.max(0, next - achievedForBar);
-  // Progress within the current segment (prev → next). Clamps to [0, 100].
-  const segmentPct = next > prev
-    ? Math.max(0, Math.min(100, ((achievedForBar - prev) / (next - prev)) * 100))
+  // Percentage is ABSOLUTE (achieved ÷ goal) so it agrees with "hrs to go".
+  // A windowed segment % (e.g. 34% of the 1000→1500 band) read as contradictory
+  // next to "329.6 hrs to go" — the pilot reasonably expects 34% done to mean
+  // far more than 330 h left. (Martin 2026-07-08.) The bar starts at 0 to match.
+  const pct = next > 0
+    ? Math.max(0, Math.min(100, (achievedForBar / next) * 100))
     : 0;
 
   cards.push({
     tone: 'quiet',
     kicker: fr ? 'JALON' : 'MILESTONE',
     title: label,
-    sub: fr ? `Plus que ${remain.toFixed(1)} hrs · ${segmentPct.toFixed(0)}%` : `${remain.toFixed(1)} hrs to go · ${segmentPct.toFixed(0)}%`,
+    sub: fr ? `Plus que ${remain.toFixed(1)} hrs · ${pct.toFixed(0)}%` : `${remain.toFixed(1)} hrs to go · ${pct.toFixed(0)}%`,
     chip: personalGoal > 0 ? (fr ? 'OBJECTIF' : 'GOAL') : ('' + next),
     onclick: "openDashDrill('milestone')",
     progress: {
-      pct: segmentPct,
-      prev: prev,
+      pct: pct,
+      prev: 0,
       next: next,
       isPersonalGoal: (personalGoal > 0),
     },
