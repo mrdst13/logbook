@@ -21648,7 +21648,41 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-08-838c6d5';
+const BUILD_VERSION = '2026-07-09-86c424e';
+
+// ─── Self-update on launch ──────────────────────────────────────────
+// There is NO service worker, so a device that cached an old logbook.html
+// (especially an iOS home-screen web app, which caches very aggressively)
+// keeps booting stale code even after a fresh deploy — cross-device sync
+// then looks "broken" when it's really just old JS. build.js writes a tiny
+// version.json alongside the bundle on every build. On launch we fetch it
+// with no caching; if the deployed version differs from the one we booted
+// with, we reload ONCE against a cache-busting URL so the device silently
+// pulls fresh code. Guarded against reload loops and disabled in dev.
+// (Martin 2026-07-09 — iPhone kept showing an old bundle after deploys.)
+async function checkForFreshBuild() {
+  try {
+    if (typeof fetch !== 'function') return;
+    const host = location.hostname;
+    if (/^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(host)) return; // never in dev
+    const resp = await fetch('version.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!resp || !resp.ok) return;
+    const data = await resp.json();
+    const latest = data && data.version;
+    if (!latest || latest === BUILD_VERSION) {
+      try { sessionStorage.removeItem('cumulo_fresh_reload'); } catch (e) {}
+      return;                                   // already current
+    }
+    // Stale. Reload at most once per target version, so a deploy caught
+    // mid-flight (version.json ahead of the served HTML for a few seconds)
+    // can never spin us in a reload loop.
+    let tried = null;
+    try { tried = sessionStorage.getItem('cumulo_fresh_reload'); } catch (e) {}
+    if (tried === latest) return;
+    try { sessionStorage.setItem('cumulo_fresh_reload', latest); } catch (e) {}
+    location.replace(location.pathname + '?v=' + encodeURIComponent(latest));
+  } catch (e) { /* offline or blocked — non-fatal, keep running old code */ }
+}
 
 // ═══════════════════════════════════════════
 // GLOBAL ERROR SAFETY NET
@@ -21732,6 +21766,8 @@ function injectDemoBanner() {
    vBadge.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:9999;font-family:var(--font-mono);font-size:9px;color:rgba(120,120,120,0.6);pointer-events:none;letter-spacing:0.04em;';
    document.body.appendChild(vBadge);
  }
+ // Silently pull fresh code if this device booted a stale cached bundle.
+ checkForFreshBuild();
  // Wire hamburger, overlay, and delegated nav-item clicks
  wireNav();
  const p = DB.loadProfile();

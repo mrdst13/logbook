@@ -182,6 +182,15 @@ if (!checkMode && buildVersion) {
   if (!touched) console.log('  no landing files needed cache-bust');
 }
 
+// Emit a tiny version marker the running app fetches on launch (no-store) to
+// detect that it booted a stale cached bundle and silently self-refresh — see
+// checkForFreshBuild() in src/js/99-init.js. Kept out of --check so a bare
+// verification never dirties the tree.
+if (!checkMode && buildVersion) {
+  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ version: buildVersion }) + '\n');
+  console.log(`  wrote version.json: ${buildVersion}`);
+}
+
 if (checkMode) {
   const original = fs.readFileSync(path.join(ROOT, 'logbook.html'), 'utf8');
   // The BUILD_VERSION line is stamped with the current HEAD SHA on every
