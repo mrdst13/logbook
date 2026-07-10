@@ -4833,7 +4833,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
  <div class="card">
  <div class="card-header">
- <input type="text" class="search-input" data-i18n-placeholder="lb.searchPlaceholder" placeholder="Search route, registration, PIC..." oninput="filterTable(this.value)" id="searchInput">
+ <input type="text" class="search-input" data-i18n-placeholder="lb.searchPlaceholder" placeholder="Search flight #, date, route, aircraft, captain…" oninput="filterTable(this.value)" id="searchInput">
  <button class="btn btn-ghost btn-sm" onclick="toggleColumnMenu()" id="columnMenuBtn" type="button">
  Columns
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;"><path d="M6 9l6 6 6-6"/></svg>
@@ -8510,6 +8510,8 @@ function renderLogbook(filter='') {
   if (filter) {
     const q = filter.toLowerCase();
     list = list.filter(f =>
+      (f.flightNum||'').toLowerCase().includes(q) ||   // "PD428" now finds the flight
+      (f.date||'').includes(q) ||                      // "2026-01" or "2026-01-06" narrows by date
       (f.route||'').toLowerCase().includes(q) ||
       (f.reg||'').toLowerCase().includes(q) ||
       (f.pic||'').toLowerCase().includes(q) ||
@@ -13757,6 +13759,21 @@ function initRecapYears() {
   sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 }
 
+// A recap "visit" = a LANDING: count the ARRIVAL airport of each leg (the route
+// destination), never both endpoints — so a round trip (YOW-LIR then LIR-YOW)
+// counts LIR once, not twice. (Martin 2026-07-10 — was double-counting.)
+function _recapAirportVisits(flightsArr) {
+  const airports = {};
+  (flightsArr || []).forEach(f => {
+    const parts = (f.route || '').split(/[\s\-\/]+/)
+      .map(a => a.trim().toUpperCase())
+      .filter(a => a.length === 3 || a.length === 4);
+    const arr = parts[parts.length - 1];   // final airport = where the pilot landed
+    if (arr) airports[arr] = (airports[arr] || 0) + 1;
+  });
+  return airports;
+}
+
 function renderRecap() {
   const sel = document.getElementById('recapYear');
   if (!sel) return;
@@ -13901,14 +13918,9 @@ function renderRecap() {
     }
   }
 
-  // Top airports (from routes)
-  const airports = {};
-  yFlights.forEach(f => {
-    (f.route||'').split(/[\s\-\/]+/).forEach(a => {
-      a = a.trim().toUpperCase();
-      if (a.length===3 || a.length===4) airports[a] = (airports[a]||0) + 1;
-    });
-  });
+  // Top airports — a visit = a landing (arrival), so a round trip counts a
+  // destination once, not twice. See _recapAirportVisits.
+  const airports = _recapAirportVisits(yFlights);
   const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('recapAirports').innerHTML = topAirports.length
     ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
@@ -15834,7 +15846,7 @@ const STRINGS = {
  'lb.totals': 'TOTALS',
  'lb.flightCount': '{n} flight',
  'lb.flightCountPl': '{n} flights',
- 'lb.searchPlaceholder': 'Search route, aircraft, captain…',
+ 'lb.searchPlaceholder': 'Search flight #, date, route, aircraft, captain…',
 
  // ─── Onboarding wizard
  'onb.title': 'Cumulo Setup',
@@ -16893,7 +16905,7 @@ const STRINGS = {
  'lb.totals': 'TOTAUX',
  'lb.flightCount': '{n} vol',
  'lb.flightCountPl': '{n} vols',
- 'lb.searchPlaceholder': 'Chercher route, aéronef, commandant…',
+ 'lb.searchPlaceholder': 'Chercher n° de vol, date, route, aéronef, commandant…',
 
  // ─── Assistant d’accueil
  'onb.title': 'Configuration Cumulo',
@@ -21766,7 +21778,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-10-42e49f5';
+const BUILD_VERSION = '2026-07-10-df024b9';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

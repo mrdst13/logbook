@@ -27,6 +27,8 @@ function renderLogbook(filter='') {
   if (filter) {
     const q = filter.toLowerCase();
     list = list.filter(f =>
+      (f.flightNum||'').toLowerCase().includes(q) ||   // "PD428" now finds the flight
+      (f.date||'').includes(q) ||                      // "2026-01" or "2026-01-06" narrows by date
       (f.route||'').toLowerCase().includes(q) ||
       (f.reg||'').toLowerCase().includes(q) ||
       (f.pic||'').toLowerCase().includes(q) ||

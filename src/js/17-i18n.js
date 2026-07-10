@@ -578,7 +578,7 @@ const STRINGS = {
  'lb.totals': 'TOTALS',
  'lb.flightCount': '{n} flight',
  'lb.flightCountPl': '{n} flights',
- 'lb.searchPlaceholder': 'Search route, aircraft, captain…',
+ 'lb.searchPlaceholder': 'Search flight #, date, route, aircraft, captain…',
 
  // ─── Onboarding wizard
  'onb.title': 'Cumulo Setup',
@@ -1637,7 +1637,7 @@ const STRINGS = {
  'lb.totals': 'TOTAUX',
  'lb.flightCount': '{n} vol',
  'lb.flightCountPl': '{n} vols',
- 'lb.searchPlaceholder': 'Chercher route, aéronef, commandant…',
+ 'lb.searchPlaceholder': 'Chercher n° de vol, date, route, aéronef, commandant…',
 
  // ─── Assistant d’accueil
  'onb.title': 'Configuration Cumulo',
