@@ -543,13 +543,19 @@ const Sync = {
       personal_goal_context: profile.personalGoalContext || null,
       signature: ls('logbook_signature') || null,
       onboarded: !!ls('cumulo_onboarded_v1'),
-      // Custom validities (Passport, RAIC, Line check…) + per-type goal BF.
-      // Their columns are added by a later ALTER; if they aren't there yet we
-      // retry WITHOUT them so core profile sync never breaks. (Martin
-      // 2026-07-08 — custom validities weren't reaching his iPhone.)
-      custom_validities: Array.isArray(profile.customValidities) ? profile.customValidities : [],
-      personal_goal_bf: (profile.personalGoalBroughtForward != null && profile.personalGoalBroughtForward !== '') ? +profile.personalGoalBroughtForward : null,
     };
+    // Custom validities (Passport, RAIC, Line check…) + per-type goal BF: attach
+    // ONLY when THIS device actually has them. A device with none must OMIT these
+    // columns — sending [] / null blanks the copy a device WITH them uploaded
+    // (upsert leaves omitted columns untouched on conflict; union-by-name on pull
+    // reconciles). Sending [] here was wiping Martin's validities cross-device
+    // (2026-07-09). The 42703 fallback below still strips them if the column
+    // isn't provisioned yet.
+    const _cv = Array.isArray(profile.customValidities) ? profile.customValidities : [];
+    if (_cv.length) row.custom_validities = _cv;
+    if (profile.personalGoalBroughtForward != null && profile.personalGoalBroughtForward !== '') {
+      row.personal_goal_bf = +profile.personalGoalBroughtForward;
+    }
     let { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
     if (error && /does not exist|42703|schema cache|column/i.test((error.message || '') + (error.code || ''))) {
       const { custom_validities, personal_goal_bf, ...safe } = row;
@@ -559,6 +565,32 @@ const Sync = {
       console.warn('[Sync] pushProfile failed, queuing:', error.message);
       this._enqueue({ type: 'upsert_profile', payload: row });
     }
+  },
+
+  // Targeted self-heal for custom validities + per-type goal BF. Upserts ONLY
+  // those columns (plus id), so — unlike a full pushProfile — it's safe to run
+  // on every launch: a partial local profile can't blank real cloud fields.
+  // Only a device that HAS them writes; an empty device no-ops, so it never
+  // wipes the cloud. Pairs with the union-by-name merge in pullProfile so the
+  // device holding the validities propagates them without a manual profile edit.
+  // (Martin 2026-07-09 — validities set on his computer never reached his phone
+  // because pushProfile only fires on a profile edit, not on load.)
+  async pushCustomValiditiesIfAny() {
+    if (!Auth.isAuthenticated()) return;
+    if (typeof DB === 'undefined' || !DB.loadProfile) return;
+    const p = DB.loadProfile() || {};
+    const cv = Array.isArray(p.customValidities) ? p.customValidities : [];
+    const bf = (p.personalGoalBroughtForward != null && p.personalGoalBroughtForward !== '') ? +p.personalGoalBroughtForward : null;
+    if (!cv.length && bf == null) return;  // nothing to push — never blank the cloud
+    const row = { id: Auth.currentUserId() };
+    if (cv.length) row.custom_validities = cv;
+    if (bf != null) row.personal_goal_bf = bf;
+    try {
+      const { error } = await Auth.client.from('profiles').upsert(row, { onConflict: 'id' });
+      if (error && !/does not exist|42703|schema cache|column/i.test((error.message || '') + (error.code || ''))) {
+        console.warn('[Sync] pushCustomValiditiesIfAny failed:', error.message);
+      }
+    } catch (e) { /* offline — non-fatal */ }
   },
 
   // Pull the cloud profile for cross-device sync. FILL-EMPTY merge: a remote

@@ -569,6 +569,11 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances) {
     Sync.pushOpeningBalances();
   }
+  // Same targeted self-heal for custom validities + per-type goal BF — the
+  // device that holds them re-uploads on sign-in; an empty device no-ops.
+  if (typeof Sync !== 'undefined' && Sync.pushCustomValiditiesIfAny) {
+    Sync.pushCustomValiditiesIfAny();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
