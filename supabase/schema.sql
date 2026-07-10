@@ -54,6 +54,11 @@ create table if not exists public.profiles (
   ac_configs jsonb default '["wheels"]'::jsonb,
   column_prefs jsonb default '{}'::jsonb,
 
+  -- Custom validities (Passport / RAIC / Line check…) + per-type goal
+  -- brought-forward (e.g. 782.7 h already on E195-E2). Cross-device sync.
+  custom_validities jsonb,
+  personal_goal_bf numeric,
+
   -- Sync
   updated_at timestamptz default now()
 );
@@ -82,6 +87,45 @@ grant select, insert, update on public.profiles to authenticated;
 drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at
   before update on public.profiles
+  for each row execute function public.set_updated_at();
+
+-- ───────────────────────────────────────────────────────────────────
+-- opening_balances  (1:1 with auth.users) — paper-logbook brought-forward
+-- Was missing from every migration until 2026-07-09; without it every
+-- pushOpeningBalances() upsert failed silently and brought-forward hours
+-- never synced. Columns mirror the Sync push/pull payload exactly.
+-- ───────────────────────────────────────────────────────────────────
+create table if not exists public.opening_balances (
+  user_id uuid primary key references auth.users on delete cascade,
+  balances jsonb not null default '{}'::jsonb,
+  attested_at timestamptz,
+  cutoff_date text,
+  hash text,
+  updated_at timestamptz default now()
+);
+
+alter table public.opening_balances enable row level security;
+
+create policy "opening_balances_select_own" on public.opening_balances
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "opening_balances_insert_own" on public.opening_balances
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "opening_balances_update_own" on public.opening_balances
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+-- No delete policy: row deletes only via auth.users cascade.
+
+grant select, insert, update on public.opening_balances to authenticated;
+
+drop trigger if exists opening_balances_updated_at on public.opening_balances;
+create trigger opening_balances_updated_at
+  before update on public.opening_balances
   for each row execute function public.set_updated_at();
 
 -- ───────────────────────────────────────────────────────────────────
