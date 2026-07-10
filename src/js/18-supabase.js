@@ -559,6 +559,16 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pullOpeningBalances) {
     await Sync.pullOpeningBalances();
   }
+  // …then PUSH them back up. pushOpeningBalances only sends a non-empty local
+  // attestation, so the device that actually holds the brought-forward re-uploads
+  // it to the cloud on every sign-in — self-healing when the one-time push at
+  // attestation predated cloud sync or failed. A device with no local balances
+  // (a fresh phone) skips the push, so this never clobbers the cloud with blanks.
+  // (Martin 2026-07-09 — 2781 h were on his computer but never reached the cloud,
+  // so his iPhone showed only logged flights.)
+  if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances) {
+    Sync.pushOpeningBalances();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
