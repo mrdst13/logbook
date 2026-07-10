@@ -260,6 +260,10 @@ function injectDemoBanner() {
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
  if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
+ // …and re-push: the device holding the paper-logbook attestation re-uploads it
+ // every launch, so a one-time push that predated cloud sync (or failed) self-
+ // heals. Empty-balances devices skip the push, so this never blanks the cloud.
+ if (Sync.pushOpeningBalances) Sync.pushOpeningBalances();
  } else {
  if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }

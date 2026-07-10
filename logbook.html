@@ -17971,6 +17971,16 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pullOpeningBalances) {
     await Sync.pullOpeningBalances();
   }
+  // …then PUSH them back up. pushOpeningBalances only sends a non-empty local
+  // attestation, so the device that actually holds the brought-forward re-uploads
+  // it to the cloud on every sign-in — self-healing when the one-time push at
+  // attestation predated cloud sync or failed. A device with no local balances
+  // (a fresh phone) skips the push, so this never clobbers the cloud with blanks.
+  // (Martin 2026-07-09 — 2781 h were on his computer but never reached the cloud,
+  // so his iPhone showed only logged flights.)
+  if (typeof Sync !== 'undefined' && Sync.pushOpeningBalances) {
+    Sync.pushOpeningBalances();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -21648,7 +21658,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-09-86c424e';
+const BUILD_VERSION = '2026-07-09-9f6c74d';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
@@ -21906,6 +21916,10 @@ function injectDemoBanner() {
  // data (medical, iCal URL, prefs) lands without a fresh sign-in.
  if (Sync.pullProfile) Sync.pullProfile();
  if (Sync.pullOpeningBalances) Sync.pullOpeningBalances();
+ // …and re-push: the device holding the paper-logbook attestation re-uploads it
+ // every launch, so a one-time push that predated cloud sync (or failed) self-
+ // heals. Empty-balances devices skip the push, so this never blanks the cloud.
+ if (Sync.pushOpeningBalances) Sync.pushOpeningBalances();
  } else {
  if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }
