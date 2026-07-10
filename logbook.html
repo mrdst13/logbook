@@ -10652,6 +10652,53 @@ const AIRPORT_COORDS = {
   TNCA: { lat: 12.5014, lon: -70.0152, name: 'Aruba' }
 };
 
+// Departure-airport IANA time zone — used to date an iCal flight by its LOCAL
+// day of departure, not the UTC day. A late-evening local departure has a UTC
+// timestamp that has already rolled past midnight, so dating by UTC logs the
+// flight a day late (Martin 2026-07-10 — real bug: icsDate used the UTC date).
+// IANA zone NAMES only: Intl applies the correct standard/daylight offset
+// automatically, so NO offset is ever hand-coded (that is what avoids DST bugs).
+// One entry per airport in AIRPORT_COORDS. Unknown airport → caller falls back
+// to the UTC date (unchanged behaviour, never a regression).
+const AIRPORT_TZ = {
+  // Canada — Eastern
+  CYOW:'America/Toronto', CYYZ:'America/Toronto', CYTZ:'America/Toronto',
+  CYQB:'America/Toronto', CYUL:'America/Toronto', CYHM:'America/Toronto',
+  CYQT:'America/Toronto', CYFB:'America/Toronto',
+  // Canada — Atlantic
+  CYHZ:'America/Halifax', CYQM:'America/Halifax', CYYG:'America/Halifax',
+  CYQY:'America/Halifax', CYSJ:'America/Halifax', CYQI:'America/Halifax',
+  // Canada — Newfoundland (UTC-3:30)
+  CYYT:'America/St_Johns', CYQX:'America/St_Johns', CYDF:'America/St_Johns',
+  // Canada — Central
+  CYWG:'America/Winnipeg',
+  // Canada — Saskatchewan (NO daylight saving)
+  CYQR:'America/Regina', CYXE:'America/Regina',
+  // Canada — Mountain
+  CYYC:'America/Edmonton', CYEG:'America/Edmonton', CYZF:'America/Edmonton',
+  // Canada — Pacific
+  CYVR:'America/Vancouver', CYYJ:'America/Vancouver', CYXX:'America/Vancouver',
+  CYLW:'America/Vancouver', CYKA:'America/Vancouver', CYXS:'America/Vancouver',
+  // Canada — Yukon (permanent UTC-7)
+  CYXY:'America/Whitehorse',
+  // USA — Eastern
+  KBOS:'America/New_York', KJFK:'America/New_York', KLGA:'America/New_York',
+  KEWR:'America/New_York', KPHL:'America/New_York', KDCA:'America/New_York',
+  KIAD:'America/New_York', KMIA:'America/New_York', KMCO:'America/New_York',
+  KFLL:'America/New_York', KTPA:'America/New_York',
+  // USA — Central
+  KORD:'America/Chicago', KMDW:'America/Chicago',
+  // USA — Mountain / Arizona (no DST)
+  KDEN:'America/Denver', KPHX:'America/Phoenix',
+  // USA — Pacific
+  KLAX:'America/Los_Angeles', KSFO:'America/Los_Angeles', KLAS:'America/Los_Angeles',
+  // Mexico
+  MMUN:'America/Cancun', MMPR:'America/Mexico_City', MMSD:'America/Mazatlan',
+  // Caribbean
+  MYNN:'America/Nassau', MDPC:'America/Santo_Domingo', MDPP:'America/Santo_Domingo',
+  MKJS:'America/Jamaica', TBPB:'America/Barbados', TNCA:'America/Aruba'
+};
+
 // ─────────────────────────────────────────────────────────────────
 //  GEO / DISTANCE — Haversine + Cross-Country detection
 //  Cross-country (CAR 101.01 "cross-country flight time"): destination
@@ -10845,6 +10892,29 @@ function icsDate(dtstart) {
   return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
 }
 
+// A flight's logbook DATE = the LOCAL calendar day of departure, not the UTC
+// day. DTSTART is UTC, so a late-evening local departure (whose UTC timestamp
+// has rolled past midnight) must be converted back to the departure airport's
+// local zone before taking the date — otherwise it is logged a day late.
+// Intl applies the correct offset AND daylight saving, so nothing is hand-coded.
+// Falls back to the UTC date when the airport's zone is unknown or Intl is
+// unavailable — never worse than the previous behaviour. (Martin 2026-07-10.)
+function icsLocalDate(dtstart, depICAO) {
+  const utc = icsDateTime(dtstart);
+  const tz = depICAO && (typeof AIRPORT_TZ !== 'undefined') && AIRPORT_TZ[depICAO];
+  if (!utc || !tz) return icsDate(dtstart);
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(utc);
+    const get = t => (parts.find(p => p.type === t) || {}).value;
+    const y = get('year'), mo = get('month'), d = get('day');
+    return (y && mo && d) ? `${y}-${mo}-${d}` : icsDate(dtstart);
+  } catch (e) {
+    return icsDate(dtstart);
+  }
+}
+
 // "YYYYMMDDTHHMMSSZ" → Date object (UTC, never ambiguous)
 // This is the SOURCE OF TRUTH for time calculations — always parse the full DTSTART
 // instead of reconstructing from date + HHMM (which can drift across UTC midnight
@@ -10977,7 +11047,8 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
 
   const depICAO = iataToIcao(depIATA);
   const arrICAO = iataToIcao(arrIATA);
-  const dateStr = icsDate(ev.DTSTART);
+  const dateStrUTC = icsDate(ev.DTSTART);             // UTC date — block-time fallback anchor only
+  const dateStr = icsLocalDate(ev.DTSTART, depICAO);  // LOCAL day of departure = the flight's logbook date
 
   // ── Block-off / Block-on UTC times ──
   // SOURCE OF TRUTH = DTSTART (full ISO UTC, no ambiguity).
@@ -10985,7 +11056,7 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const depCoords = AIRPORT_COORDS[depICAO];
   const arrCoords = AIRPORT_COORDS[arrICAO];
   const blockOffUTC = icsDateTime(ev.DTSTART)
-                  || (stdMatch ? buildUTCDateTime(dateStr, stdMatch[1]) : null);
+                  || (stdMatch ? buildUTCDateTime(dateStrUTC, stdMatch[1]) : null);
   const blockOnUTC = blockOffUTC ? new Date(blockOffUTC.getTime() + block * 3600000) : null;
 
   // ── Day/Night split (RAC 101.01) ──
@@ -21695,7 +21766,7 @@ function deleteCustomValidity(id) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-09-243859c';
+const BUILD_VERSION = '2026-07-10-42e49f5';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
