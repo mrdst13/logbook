@@ -264,6 +264,9 @@ function injectDemoBanner() {
  // every launch, so a one-time push that predated cloud sync (or failed) self-
  // heals. Empty-balances devices skip the push, so this never blanks the cloud.
  if (Sync.pushOpeningBalances) Sync.pushOpeningBalances();
+ // Same self-heal for custom validities + per-type goal BF (only the device
+ // that has them writes; empty devices no-op, so nothing gets wiped).
+ if (Sync.pushCustomValiditiesIfAny) Sync.pushCustomValiditiesIfAny();
  } else {
  if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }
