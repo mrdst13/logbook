@@ -12,6 +12,21 @@ function initRecapYears() {
   sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 }
 
+// A recap "visit" = a LANDING: count the ARRIVAL airport of each leg (the route
+// destination), never both endpoints — so a round trip (YOW-LIR then LIR-YOW)
+// counts LIR once, not twice. (Martin 2026-07-10 — was double-counting.)
+function _recapAirportVisits(flightsArr) {
+  const airports = {};
+  (flightsArr || []).forEach(f => {
+    const parts = (f.route || '').split(/[\s\-\/]+/)
+      .map(a => a.trim().toUpperCase())
+      .filter(a => a.length === 3 || a.length === 4);
+    const arr = parts[parts.length - 1];   // final airport = where the pilot landed
+    if (arr) airports[arr] = (airports[arr] || 0) + 1;
+  });
+  return airports;
+}
+
 function renderRecap() {
   const sel = document.getElementById('recapYear');
   if (!sel) return;
@@ -156,14 +171,9 @@ function renderRecap() {
     }
   }
 
-  // Top airports (from routes)
-  const airports = {};
-  yFlights.forEach(f => {
-    (f.route||'').split(/[\s\-\/]+/).forEach(a => {
-      a = a.trim().toUpperCase();
-      if (a.length===3 || a.length===4) airports[a] = (airports[a]||0) + 1;
-    });
-  });
+  // Top airports — a visit = a landing (arrival), so a round trip counts a
+  // destination once, not twice. See _recapAirportVisits.
+  const airports = _recapAirportVisits(yFlights);
   const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('recapAirports').innerHTML = topAirports.length
     ? topAirports.map(([a,n]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
