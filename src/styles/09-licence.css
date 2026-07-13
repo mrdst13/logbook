@@ -49,3 +49,28 @@
 .lic-req.lic-over .lic-togo { color: var(--danger-text); }
 .tc-note { display: flex; gap: 10px; background: var(--warning-soft); border: 1px solid rgba(217, 119, 6, .25);
   border-radius: var(--r-md); padding: 12px 15px; margin: 16px 0 4px; font-size: 12.5px; color: var(--warning-text); line-height: 1.55; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DAILY MAX FLIGHT DUTY PERIOD CALCULATOR (page-duty, RAC 700.28)
+   Shares the app design tokens → light + dark automatic.
+═══════════════════════════════════════════════════════════════════ */
+.fdp-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 20px 22px 22px; box-shadow: var(--shadow-sm); margin-bottom: var(--s-8); }
+.fdp-h { font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--text-primary); margin: 0 0 4px; }
+.fdp-h-cum { margin-top: var(--s-4); }
+.fdp-lede { font-size: 13px; color: var(--text-secondary); margin: 0 0 16px; line-height: 1.55; max-width: 60ch; }
+.fdp-check { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600;
+  color: var(--text-primary); cursor: pointer; padding: 6px 0; }
+.fdp-check input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.fdp-result { background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 16px 18px; margin-top: 14px; }
+.fdp-cap { font-size: 12px; font-weight: 600; color: var(--accent-hover); }
+.fdp-big { font-size: 36px; font-weight: 800; letter-spacing: -.03em; color: var(--accent-hover);
+  line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.fdp-endline { font-size: 13px; font-weight: 500; color: var(--accent-hover); margin-top: 8px; }
+.fdp-conv { font-size: 12px; color: var(--accent-hover); opacity: .85; margin-top: 10px; line-height: 1.5; }
+.fdp-cell { font-size: 12px; color: var(--accent-hover); opacity: .7; margin-top: 5px; line-height: 1.5; }
+.fdp-warn { font-size: 12px; color: var(--warning-text); background: var(--warning-soft);
+  border-radius: var(--r-sm); padding: 9px 11px; margin-top: 12px; line-height: 1.5; }
+.fdp-foot { font-size: 12px; color: var(--text-muted); margin: 12px 0 0; line-height: 1.5; }
+.fdp-cite b { color: var(--text-secondary); }

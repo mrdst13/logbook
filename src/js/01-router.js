@@ -40,6 +40,7 @@ function showPage(id) {
   }
   if (id === 'recap') { initRecapYears(); renderRecap(); }
   if (id === 'licence' && typeof renderLicenceTracker === 'function') renderLicenceTracker();
+  if (id === 'duty' && typeof initFdpCalc === 'function') initFdpCalc();
   if (id === 'duty' && typeof renderDutyTracker === 'function') renderDutyTracker();
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();

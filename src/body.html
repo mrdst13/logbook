@@ -866,10 +866,76 @@
  <div id="page-duty" class="page">
  <div class="page-header">
  <div>
- <h1 class="page-title" data-i18n="page.duty.title">Flight time limits</h1>
- <div class="page-sub" data-i18n="page.duty.sub">Your flight time against the CAR 700.27 maximums</div>
+ <h1 class="page-title" data-i18n="page.duty.title">Duty</h1>
+ <div class="page-sub" data-i18n="page.duty.sub">Your daily maximum and your cumulative limits</div>
  </div>
  </div>
+
+ <section class="fdp-card">
+ <h2 class="fdp-h" data-i18n="fdp.title">Maximum duty today</h2>
+ <p class="fdp-lede" data-i18n="fdp.lede">How late you can stay on duty, from the CAR 700.28 table. Fill in your day — the maximum flight duty period updates live.</p>
+
+ <div class="form-group">
+ <label for="fdp-report" data-i18n="fdp.report">Report time (where you are)</label>
+ <input type="time" id="fdp-report" value="07:00">
+ </div>
+
+ <div class="form-grid form-grid-2">
+ <div class="form-group">
+ <label for="fdp-station" data-i18n="fdp.where">Where you are</label>
+ <select id="fdp-station"></select>
+ </div>
+ <div class="form-group">
+ <label for="fdp-acclim" data-i18n="fdp.acclim">Acclimatized to</label>
+ <select id="fdp-acclim"></select>
+ </div>
+ </div>
+
+ <div class="form-grid form-grid-2">
+ <div class="form-group">
+ <label for="fdp-dur" data-i18n="fdp.dur">Average flight duration</label>
+ <select id="fdp-dur">
+ <option value="lt30" data-i18n="fdp.dur.lt30">Less than 30 min</option>
+ <option value="30to50" data-i18n="fdp.dur.mid">30 to under 50 min</option>
+ <option value="ge50" selected data-i18n="fdp.dur.ge50">50 min or more</option>
+ <option value="vfr" data-i18n="fdp.dur.vfr">All flights day VFR</option>
+ </select>
+ </div>
+ <div class="form-group">
+ <label for="fdp-legs" data-i18n="fdp.legs">Number of flights</label>
+ <input type="number" id="fdp-legs" value="2" min="1" step="1" inputmode="numeric">
+ </div>
+ </div>
+
+ <label class="fdp-check">
+ <input type="checkbox" id="fdp-split">
+ <span data-i18n="fdp.split">Split duty (an in-duty rest break)?</span>
+ </label>
+ <div id="fdp-split-detail" class="form-grid form-grid-2" style="display:none">
+ <div class="form-group">
+ <label for="fdp-brk" data-i18n="fdp.brk">Break length (min)</label>
+ <input type="number" id="fdp-brk" value="180" min="60" step="5" inputmode="numeric">
+ </div>
+ <label class="fdp-check" style="align-self:end;padding-bottom:11px">
+ <input type="checkbox" id="fdp-night">
+ <span data-i18n="fdp.night">Break at night (00:00–05:59)</span>
+ </label>
+ </div>
+
+ <div class="fdp-result">
+ <div class="fdp-cap" data-i18n="fdp.max">Maximum flight duty period</div>
+ <div class="fdp-big" id="fdp-out">—</div>
+ <div class="fdp-endline"><span data-i18n="fdp.endBy">Latest end of duty</span>: <b id="fdp-end">—</b></div>
+ <div class="fdp-conv" id="fdp-conv"></div>
+ <div class="fdp-cell" id="fdp-cell"></div>
+ </div>
+
+ <div class="fdp-warn" id="fdp-splitInfo" style="display:none"></div>
+ <p class="fdp-foot" data-i18n-html="fdp.pic"><b>Possible extension:</b> the pilot-in-command may extend by <b>+2 h</b> for unforeseen circumstances (CAR 700.63). Not added here — your call on the day.</p>
+ <p class="fdp-foot fdp-cite" data-i18n-html="fdp.cite">Regulatory maximum <b>CAR 700.28</b> (+ 700.50 if split) · absolute ceiling 18 h (700.62). Your operator's approved program may be <b>more restrictive</b> — refer to it.</p>
+ </section>
+
+ <h2 class="fdp-h fdp-h-cum" data-i18n="fdp.cumTitle">Cumulative flight-time limits</h2>
  <div id="dutyTracker"></div>
  </div>
 

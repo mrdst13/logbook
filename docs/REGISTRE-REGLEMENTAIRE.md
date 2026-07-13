@@ -97,6 +97,47 @@ Provenance : recherche `private/RECHERCHE-TC-2026-06-27.md` (agent source primai
 - **« Par jour » multi-équipage** : pour un pilote 705 multi-équipage, PAS de limite simple de temps de vol par jour — le plafond quotidien est la **période de service de vol (FDP)** (table selon heure de présentation + nb de vols, 700.28+). ⇒ le tracker affiche les 3 limites cumulatives (28/90/365 j) + note renvoyant au programme de l'exploitant ; le 8 h/24 h ne vaut que monopilote. Ne PAS coder de limite FDP quotidienne de mémoire.
 - **Implémentation** : `25-duty-tracker.js` somme le temps de vol (hors sim) dans les fenêtres glissantes 28/90/365 j vs 112/300/1000 h ; vert / ambre (≥75 %) / rouge (≥100 %).
 
+## ✅ Période de service de vol maximale — QUOTIDIEN (RAC 700.28) — vérifié 2026-07-13
+- **Portée** : équipage NON augmenté, 705 multi-équipage (F/O Porter normal). Source : laws-lois RAC (DORS/96-433), Partie VII, Sous-partie 700, Division III « Gestion de la fatigue des membres d'équipage de conduite » (DORS/2018-269 art. 13). **À jour 2026-05-26 ; dern. mod. 2026-01-05.** URL : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-700.28.html — **table double-vérifiée cellule par cellule par 2 passes adversariales indépendantes (fetch + re-fetch), concordance totale.**
+- ⚠️ **CORRECTION** : la table quotidienne est **700.28**, PAS 700.62. La note de version de l'app Max Duty citant « 700.62(1) 18 h » vise le **plafond absolu** (ULR), pas la table quotidienne.
+- **700.28(1)** (interdiction) verbatim : « An air operator shall not assign a flight duty period to a flight crew member, and a flight crew member shall not accept such an assignment, if the flight duty period exceeds the maximum flight duty period set out in this section. »
+- **Trois tables selon la durée moyenne de tous les vols prévus** : 700.28(2) < 30 min ; 700.28(3) 30 à < 50 min ; 700.28(4) ≥ 50 min. **Les heures max de FDP sont IDENTIQUES d'une table à l'autre, ligne pour ligne ; seuls les seuils de nombre de vols (en-têtes de colonnes) changent.** Table distincte VFR de jour = 700.28(9) (colonne unique = valeurs de la Col. 2). Maxima en **heures décimales** (12.5 h = 12:30 ; garder « 12.5 hours » comme chaîne source).
+
+**Heures max de FDP par heure de début (identiques aux 3 tables) :**
+| Col. 1 — Heure de début (réf. acclimatée) | Col. 2 | Col. 3 | Col. 4 |
+|---|---|---|---|
+| 24:00–03:59 | 9 | 9 | 9 |
+| 04:00–04:59 | 10 | 9 | 9 |
+| 05:00–05:59 | 11 | 10 | 9 |
+| 06:00–06:59 | 12 | 11 | 10 |
+| 07:00–12:59 | 13 | 12 | 11 |
+| 13:00–16:59 | 12.5 | 11.5 | 10.5 |
+| 17:00–21:59 | 12 | 11 | 10 |
+| 22:00–22:59 | 11 | 10 | 9 |
+| 23:00–23:59 | 10 | 9 | 9 |
+
+Seuils des colonnes (nombre de vols prévus) : **700.28(2)** 1-11 / 12-17 / 18+ · **700.28(3)** 1-7 / 8-11 / 12+ · **700.28(4)** 1-4 / 5-6 / 7+ · VFR jour **700.28(9)** = colonne unique.
+- **700.28(6)** : le positionnement (mise en place) N'EST PAS un vol dans le décompte — verbatim « positioning is not to be considered a flight ». **700.28(7)** : fuseaux canadiens (Pacific, Mountain, Central, Eastern, Atlantic incl. T.-N.-L.).
+- **Acclimatation — 700.28(5) (RÈGLEMENT, PAS Advisory Circular)** : acclimaté si (a) écart de fuseau < 4 h ET repos requis fournis ET **72 h** dans le fuseau ; (b) écart ≥ 4 h ET repos fournis ET **96 h** ; (c) **24 h par heure d'écart**. La réf. de temps qui choisit la LIGNE = **700.19(2)** : acclimaté → heure locale de l'endroit actuel ; non acclimaté → heure locale du dernier endroit où le membre était acclimaté. Déf. « acclimatized » (700.01) = qualitative seulement (« biorhythm aligned with local time »), les chiffres vivent à 700.28(5).
+- **Plafonds absolus — RAC 700.62** : 700.62(1) FDP jamais > **18 h** ; 700.62(2) temps de vol prévu jamais > **16 h**.
+- **Prolongation par le CDB (circonstances imprévues) — RAC 700.63** : déclencheur = circonstance imprévue survenant **dans les 60 min du début du FDP**, après consultation de l'équipage. Au-delà du max de 700.28/700.60(1) : +1 h monopilote · **+2 h non augmenté (cas Porter, 700.63(1)(b)(ii))** · +3 h augmenté 1 vol · +2 h augmenté 2-3 vols. Repos suivant prolongé d'au moins autant (700.63(3)). ⇒ **note informative**, jamais ajoutée automatiquement au maximum.
+- **700.60 (équipage augmenté, FDP max 14–18 h selon crew additionnel + classe d'installation de repos)** = hors portée du calculateur v1 (F/O non augmenté).
+- **⏳ Reste paraphrasé (à re-lire avant toute citation)** : sous-alinéas 700.42(2) (« local night's rest », seuil 60 h) — NB **700.42 régit le REPOS qui SUIT un FDP après franchissement de fuseaux, il ne change PAS le chiffre du FDP quotidien**. Confirmés byte-stable : 700.42(1)(a) = 11 h ; (1)(b) = 14 h.
+- **⏳ AVANT AFFICHAGE dans l'app** : Martin confirme les chiffres avec sa formation récurrente + vérifie si le **programme approuvé de Porter** est plus restrictif (peut réduire, jamais augmenter). Renvoi au programme de l'exploitant partout ; jamais un maximum codé en dur présenté comme vérité opérationnelle finale.
+- **Implémentation** : calculateur quotidien façon Max Duty — PAS encore codé. Voir la fiche mémoire duty tracker.
+
+## ✅ Service fractionné / « split » (RAC 700.50) — vérifié 2026-07-13
+- Source : laws-lois RAC (DORS/96-433) 700.50. À jour 2026-05-26. URL : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-700.50.html — **double-vérifié (extraction + re-fetch adversarial), confiance haute, 0 écart.**
+- **Déclencheur** : le FDP peut dépasser le max de 700.28 SI l'exploitant fournit une pause d'**au moins 60 minutes consécutives**, en **« suitable accommodation »** (⚠️ PAS le standard plus élevé « for sleep »), pendant le FDP.
+- **Calcul de la prolongation** — **700.50(2)** : la durée de la pause est d'abord **RÉDUITE DE 45 MINUTES**, PUIS on applique le pourcentage de 700.50(1) :
+  - **700.50(1)(a)** : pause pendant **24:00–05:59** → **100 %** de la (durée − 45).
+  - **700.50(1)(b)** : pause pendant **06:00–23:59** → **50 %**.
+  - **700.50(1)(c)** : circonstance imprévue (replanification après début du FDP) → 50 %.
+  - ⇒ **Prolongation = (minutes de pause − 45) × %.** Ex. pause 60 min de jour → (60−45)×50 % = **+7,5 min** ; pause 180 min de nuit → (180−45)×100 % = **+135 min**.
+- **700.50(3)** : en service de nuit, prolongation possible seulement **3 nuits consécutives**. **700.50(4)** : l'heure de (1)(a)/(b) se lit à l'**endroit d'acclimatation** (cohérent avec 700.19(2)). **700.50(5)** (réserve) : +2 h, ≤ 2 vols après la pause — hors portée v1.
+- Verbatim clés : chapeau 700.50(1) « ...may exceed the maximum flight duty period set out in section 700.28 by the following amount of time, if the air operator provides the member with a break, in suitable accommodation, of at least 60 consecutive minutes during the flight duty period: » ; 700.50(2) « the duration of the break provided to the flight crew member is reduced by 45 minutes before the calculation is made. »
+- **⏳ Avant affichage** : un œil humain sur la page live recommandé (extraction WebFetch, pas HTML brut) + Martin confirme.
+
 ## ⏳ À VÉRIFIER (présent dans le code, pas encore confirmé contre la source)
 - **CAR 401.08 / 401.08(2)(h)** — contenu obligatoire du carnet (colonnes). [04-logbook, 12-pdf-export, 13-glossaire]
 - ~~**CASS 725.106** — validité PPC~~ → **CONFIRMÉ 2026-06-27** au texte primaire **CAR 705.113** (voir la section ✅ ci-dessus : 6 mois base / 12 mois avec formation approuvée). Reste cosmétique : régler l'échelle de l'anneau PPC à ~180 j.
