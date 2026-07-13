@@ -41,6 +41,12 @@ async function handleRosterFile(file) {
     const timeModeMatch = allText.match(/TimeMode\s+(Local time|UTC|Zulu)/i);
     const pdfTimeMode = timeModeMatch ? timeModeMatch[1].toLowerCase() : 'unknown';
     const isLocalTime = pdfTimeMode.includes('local');
+    // FAIL-SAFE gate: only touch ACTUAL times (enrich atd/ata, add missing legs)
+    // when the PDF is POSITIVELY confirmed UTC/Zulu. An undetected header
+    // (pdfTimeMode === 'unknown', e.g. a layout the regex missed) must NOT be
+    // treated as UTC — station-local clocks stored as UTC would fabricate the
+    // day/night split. "unknown" is treated like "local": we refuse.
+    const isUTCConfirmed = pdfTimeMode.includes('utc') || pdfTimeMode.includes('zulu');
 
     // Parse the text to extract flight legs with their crew AND ATD/ATA actuals
     const extracted = parseNavblueRosterText(allText);
@@ -86,12 +92,12 @@ async function handleRosterFile(file) {
       }
       // ATD/ATA — only if PDF is in UTC mode AND values are non-zero AND
       // the flight doesn't already have manually-entered actuals.
-      if (!isLocalTime && item.atd_utc && item.atd_utc !== '0000' && !existing.atd_utc) {
+      if (isUTCConfirmed && item.atd_utc && item.atd_utc !== '0000' && !existing.atd_utc) {
         merged.atd_utc = item.atd_utc;
         changed = true;
         atdAdded++;
       }
-      if (!isLocalTime && item.ata_utc && item.ata_utc !== '0000' && !existing.ata_utc) {
+      if (isUTCConfirmed && item.ata_utc && item.ata_utc !== '0000' && !existing.ata_utc) {
         merged.ata_utc = item.ata_utc;
         changed = true;
       }
@@ -103,6 +109,27 @@ async function handleRosterFile(file) {
       renderDashboard();
     }
 
+    // ── Add legs the logbook doesn't have yet ────────────────────────────────
+    // The roster PDF is the certifiable source of ACTUAL times, so a leg the
+    // pilot flew but never logged should be ADDED with its real block — not
+    // dropped as "no match". Build full flights from the actuals and route them
+    // through the SHARED import preview (dedup + undo + add), the same gate the
+    // iCal / photo / CSV imports use. STRICT: UTC PDFs only — a Local-time PDF
+    // is never auto-added (that would approximate a timezone).
+    let newLegs = [];
+    if (isUTCConfirmed && stillMissing.length > 0) {
+      const rankLower = (rosterProfile.rank || '').toLowerCase();
+      const isFO = !(rankLower === 'cpt.' || rankLower === 'cpt'
+                  || rankLower === 'captain' || rankLower === 'pic'
+                  || rankLower === 'commander');
+      const autoCountIFR = (rosterProfile.autoCountIFR !== undefined)
+        ? !!rosterProfile.autoCountIFR
+        : (typeof isAirline705 === 'function' && isAirline705(rosterProfile.airline));
+      newLegs = stillMissing
+        .map(leg => navbluePdfLegToFlight(leg, isFO, autoCountIFR))
+        .filter(Boolean);
+    }
+
     const detailLines = [
       t('roster.detail.extracted', { n: `<strong>${extracted.length}</strong>` }),
       t('roster.detail.captains', { n: `<strong style="color:var(--success);">${matched}</strong>` }),
@@ -110,21 +137,34 @@ async function handleRosterFile(file) {
     if (atdAdded > 0) {
       detailLines.push(t('roster.detail.times', { n: `<strong style="color:var(--success);">${atdAdded}</strong>` }));
     }
-    if (isLocalTime) {
-      detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.localTime')}</span>`);
-    } else if (pdfTimeMode === 'unknown') {
-      detailLines.push(`<span style="color:var(--text-muted);">${t('roster.detail.unknownTime')}</span>`);
+    if (newLegs.length > 0) {
+      detailLines.push(t('roster.detail.newAdded', { n: `<strong style="color:var(--success);">${newLegs.length}</strong>` }));
+    }
+    // Local OR unconfirmed TimeMode → actual times and missing legs were NOT
+    // imported. Same actionable warning for both: re-download in UTC / Zulu.
+    if (!isUTCConfirmed) {
+      detailLines.push(`<span style="color:var(--warning);">${t(isLocalTime ? 'roster.detail.localTime' : 'roster.detail.unknownTime')}</span>`);
     }
     if (alreadyHad > 0) detailLines.push(`<span>${t('roster.detail.alreadyHad', { n: alreadyHad })}</span>`);
-    if (noMatch > 0) detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.noMatch', { n: noMatch })}</span>`);
+    // "No match" now only covers legs we could NOT stage as new flights
+    // (Local-time PDF, or a leg still lacking real ATD/ATA — e.g. in progress).
+    const notAdded = noMatch - newLegs.length;
+    if (notAdded > 0) detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.noMatch', { n: notAdded })}</span>`);
     details.innerHTML = detailLines.join('<br>');
 
-    if (matched > 0) {
+    if (newLegs.length > 0) {
+      // The import-preview modal (opened below) is the feedback for added legs.
+    } else if (matched > 0) {
       showToast(t(matched === 1 ? 'toast.captainsAdded' : 'toast.captainsAddedPl', { n: matched }), 'success');
     } else if (alreadyHad === extracted.length) {
       showToast(t('toast.allHadPic'));
     } else {
       showToast(t('toast.noCaptainsAdded'), 'error');
+    }
+
+    // Open the shared preview LAST so the details panel above is already drawn.
+    if (newLegs.length > 0 && typeof showImportPreview === 'function') {
+      showImportPreview(newLegs, t('roster.preview.newFromPdf', { n: newLegs.length }));
     }
   } catch (e) {
     console.error('[Roster] Parse error:', e);
@@ -188,6 +228,16 @@ function parseNavblueRosterText(text) {
     const flightMatches = [...line.matchAll(flightNumRegex)];
     if (flightMatches.length === 0) continue;
 
+    // Deadhead / positioning legs are NOT flown time — never parse them (same
+    // intent as the iCal path, 08-flight-form.js:705). We test a NARROWER marker
+    // set than the iCal DEADHEAD_RE on purpose: this is a FULL roster row, which
+    // also carries a pairing id (e.g. "P30491") and can carry a "PAX" count, so
+    // reusing DEADHEAD_RE's \bP\d{5}\b / \bPAX\b here would silently drop a REAL
+    // flown leg. (D)/DH/DHD/DEADHEAD in the crew-function column are unambiguous
+    // — and \bDH\b does NOT match the "DH4"/"DH8" Dash-8 fleet codes (no word
+    // boundary before the digit).
+    if (/\(D\)|\bDH\b|\bDHD\b|\bDEADHEAD\b/i.test(line)) continue;
+
     flightMatches.forEach(m => {
       const flightNum = m[1];
 
@@ -247,6 +297,105 @@ function parseNavblueRosterText(text) {
     seen.add(key);
     return true;
   });
+}
+
+// Build a COMPLETE certifiable flight from ONE parsed PDF roster leg, using the
+// ACTUAL times (ATD/ATA). Used to ADD legs the logbook doesn't have yet — the
+// roster PDF is Cumulo's source of truth for actuals, so a leg the pilot flew
+// but hasn't logged should appear WITH its real block, not be dropped.
+//
+// STRICT (certifiable):
+//   - Caller passes legs from a UTC-TimeMode PDF only. We NEVER build from a
+//     Local-time PDF — converting a station-local clock to UTC would be an
+//     approximation (cf. feedback_never_approximate_certifiable_data.md).
+//   - Both a real ATD and ATA are required. A leg with "0000" (not flown yet)
+//     was already blanked by the parser, so it fails this guard and is skipped.
+//   - Field-for-field it mirrors navblueEventToFlight() (the iCal builder): the
+//     LOCAL-departure-day date (so both paths dedup), the day/night split with
+//     the same coords-unknown fallback, and the role/XC columns — so the two
+//     import paths can never disagree on the same leg.
+function navbluePdfLegToFlight(leg, isFO, autoCountIFR) {
+  if (!leg) return null;
+  const [depIATA, arrIATA] = (leg.route || '').split('-');
+  if (!depIATA || !arrIATA) return null;
+  if (!leg.atd_utc || leg.atd_utc.length !== 4) return null;
+  if (!leg.ata_utc || leg.ata_utc.length !== 4) return null;
+
+  const depICAO = iataToIcao(depIATA);
+  const arrICAO = iataToIcao(arrIATA);
+  const blockOffUTC = buildUTCDateTime(leg.date, leg.atd_utc);
+  let blockOnUTC = buildUTCDateTime(leg.date, leg.ata_utc);
+  if (!blockOffUTC || !blockOnUTC) return null;
+  // Arrival clock earlier than departure = the leg crossed midnight UTC.
+  if (blockOnUTC.getTime() <= blockOffUTC.getTime()) blockOnUTC = new Date(blockOnUTC.getTime() + 86400000);
+  const block = +((blockOnUTC.getTime() - blockOffUTC.getTime()) / 3600000).toFixed(2);
+  if (!(block > 0) || block > 18) return null;  // sanity: a real airline leg
+
+  // Logbook date = LOCAL departure day (SAME as the iCal path, icsLocalDate),
+  // so a midnight-crossing leg dedups against the flight iCal already logged
+  // instead of creating a duplicate on the UTC day. icsLocalDate takes an
+  // ICS-format "YYYYMMDDTHHMMSSZ" string — build one from the UTC block-off.
+  const p2 = n => String(n).padStart(2, '0');
+  const icsOff = `${blockOffUTC.getUTCFullYear()}${p2(blockOffUTC.getUTCMonth() + 1)}${p2(blockOffUTC.getUTCDate())}T${p2(blockOffUTC.getUTCHours())}${p2(blockOffUTC.getUTCMinutes())}00Z`;
+  const dateStr = (typeof icsLocalDate === 'function') ? icsLocalDate(icsOff, depICAO) : leg.date;
+
+  // Day/Night split from the ACTUAL block times. Fallback = credit the whole
+  // block to DAY when airport coords are unknown, exactly as navblueEventToFlight
+  // does — so the hours land in a role column and never vanish from the SIC/PIC
+  // breakdown (recalculateFlightDayNightXC returns early on unknown coords, so we
+  // compute the split here rather than delegating to it).
+  let dayHours = block, nightHours = 0;
+  const depCoords = AIRPORT_COORDS[depICAO];
+  const arrCoords = AIRPORT_COORDS[arrICAO];
+  if (depCoords && arrCoords) {
+    const split = calculateDayNightSplit(blockOffUTC, blockOnUTC, depCoords, arrCoords);
+    dayHours = split.dayHours;
+    nightHours = split.nightHours;
+  }
+
+  // Cross-country (null = unknown airport → leave XC undefined, never guess).
+  const isXC = isCrossCountry(depICAO, arrICAO);
+  const xcKnown = isXC !== null;
+  const role = isFO ? 'cop' : 'pic';
+  const meDayPic   = role === 'pic' ? dayHours   : 0;
+  const meNightPic = role === 'pic' ? nightHours : 0;
+  const meDayCop   = role === 'cop' ? dayHours   : 0;
+  const meNightCop = role === 'cop' ? nightHours : 0;
+  const xcDayPic   = !xcKnown ? undefined : (isXC && role === 'pic' ? dayHours   : 0);
+  const xcNightPic = !xcKnown ? undefined : (isXC && role === 'pic' ? nightHours : 0);
+  const xcDayCop   = !xcKnown ? undefined : (isXC && role === 'cop' ? dayHours   : 0);
+  const xcNightCop = !xcKnown ? undefined : (isXC && role === 'cop' ? nightHours : 0);
+
+  const prof = DB.loadProfile();
+  const self = `${prof.fname || ''} ${prof.lname || ''}`.trim() || 'self';
+  return {
+    date: dateStr,
+    flightNum: leg.flightNum,
+    type: '',                       // roster PDF text doesn't reliably carry type — empty > guessed
+    reg: '',
+    pic: isFO ? (leg.pic || '') : self,
+    copilot: isFO ? self : '',
+    crewPosition: isFO ? 'SIC' : 'PIC',
+    route: `${depIATA}-${arrIATA}`,
+    dep_icao: depICAO,
+    arr_icao: arrICAO,
+    dtstart_utc: blockOffUTC.toISOString(),
+    // Cumulo's only time concept = ACTUAL. These ARE the actual block times.
+    atd_utc: leg.atd_utc,
+    ata_utc: leg.ata_utc,
+    block: block,
+    duty: 0,
+    total: block,
+    meDayPic, meNightPic, meDayDual: 0, meNightDual: 0, meDayCop, meNightCop,
+    xcDayPic, xcNightPic, xcDayDual: 0, xcNightDual: 0, xcDayCop, xcNightCop,
+    instActual: 0, instHood: 0, instSim: 0,
+    approaches: autoCountIFR ? 1 : 0,
+    picus: 0,
+    multiCrew: 1,
+    remarks: '',
+    source: 'navblue-pdf',
+    navblueUid: ''
+  };
 }
 
 // Extract an ISO date from a line of text. Handles many Navblue date formats.
