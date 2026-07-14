@@ -29,9 +29,10 @@ const chk = (label, cond) => { if (!cond) failures.push(label); };
 // Toronto = city index 4, Vancouver = 12 (per FDP_CITIES order).
 w.eval('initFdpCalc()');
 function calc(o) {
+  const hm = o.report.split(':');
   return JSON.parse(w.eval(`(function(){
     var g=function(id){return document.getElementById(id);};
-    g('fdp-report').value=${JSON.stringify(o.report)};
+    g('fdp-report-h').value='${+hm[0]}'; g('fdp-report-m').value='${+hm[1]}';
     g('fdp-station').value='${o.station}';
     g('fdp-acclim').value='${o.acclim}';
     g('fdp-dur').value='${o.dur}';
@@ -81,9 +82,10 @@ chk('late 23:30 · 6 flights → 9:00', late.out === '9:00');
 const dec = calc({ report: '13:30', station: 4, acclim: 4, dur: 'lt30', legs: 2 });
 chk('13:30 lt30 → 12:30 (decimal 12.5 h)', dec.out === '12:30');
 
-// 8. Blank report time → no number handed out (show '—'), not a 9 h fallback.
-const blank = JSON.parse(w.eval(`(function(){var g=function(id){return document.getElementById(id);};g('fdp-report').value='';fdpCompute();return JSON.stringify({out:g('fdp-out').textContent});})()`));
-chk('blank report time → shows — (no false maximum)', blank.out === '—');
+// 8. Minute-precision entry — 07:23 still reads the 07:00–12:59 row, and the
+// latest end reflects the exact minute (07:23 + 13:00 = 20:23).
+const prec = calc({ report: '07:23', station: 4, acclim: 4, dur: 'ge50', legs: 2 });
+chk('07:23 → 13:00, latest end 20:23 (minute precision)', prec.out === '13:00' && prec.end.indexOf('20:23') === 0);
 
 if (failures.length) { console.error('fdp-calc FAIL:', failures); process.exit(1); }
 console.log('fdp-calc: all checks passed (700.28 table, tz conversion, split 700.50, 18h ceiling)');

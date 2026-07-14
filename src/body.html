@@ -876,8 +876,12 @@
  <p class="fdp-lede" data-i18n="fdp.lede">How late you can stay on duty, from the CAR 700.28 table. Fill in your day — the maximum flight duty period updates live.</p>
 
  <div class="form-group">
- <label for="fdp-report" data-i18n="fdp.report">Report time (where you are)</label>
- <input type="time" id="fdp-report" value="07:00">
+ <label data-i18n="fdp.report">Report time (where you are)</label>
+ <div class="fdp-time">
+ <select id="fdp-report-h" data-i18n-aria-label="fdp.reportH" aria-label="Report hour"></select>
+ <span class="fdp-colon" aria-hidden="true">:</span>
+ <select id="fdp-report-m" data-i18n-aria-label="fdp.reportM" aria-label="Report minute"></select>
+ </div>
  </div>
 
  <div class="form-grid form-grid-2">

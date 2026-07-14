@@ -4575,6 +4575,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   border-radius: var(--r-sm); padding: 9px 11px; margin-top: 12px; line-height: 1.5; }
 .fdp-foot { font-size: 12px; color: var(--text-muted); margin: 12px 0 0; line-height: 1.5; }
 .fdp-cite b { color: var(--text-secondary); }
+.fdp-time { display: flex; align-items: center; gap: 8px; }
+.fdp-time select { flex: 1; min-width: 0; }
+.fdp-colon { font-weight: 700; color: var(--text-muted); }
 /* ═══════════════════════════════════════════════════════════════════
    AIRPORT TYPEAHEAD — Route field autocomplete dropdown
 ═══════════════════════════════════════════════════════════════════ */
@@ -5472,8 +5475,12 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <p class="fdp-lede" data-i18n="fdp.lede">How late you can stay on duty, from the CAR 700.28 table. Fill in your day — the maximum flight duty period updates live.</p>
 
  <div class="form-group">
- <label for="fdp-report" data-i18n="fdp.report">Report time (where you are)</label>
- <input type="time" id="fdp-report" value="07:00">
+ <label data-i18n="fdp.report">Report time (where you are)</label>
+ <div class="fdp-time">
+ <select id="fdp-report-h" data-i18n-aria-label="fdp.reportH" aria-label="Report hour"></select>
+ <span class="fdp-colon" aria-hidden="true">:</span>
+ <select id="fdp-report-m" data-i18n-aria-label="fdp.reportM" aria-label="Report minute"></select>
+ </div>
  </div>
 
  <div class="form-grid form-grid-2">
@@ -15585,6 +15592,8 @@ const STRINGS = {
  'fdp.title': 'Maximum duty today',
  'fdp.lede': 'How late you can stay on duty, from the CAR 700.28 table. Fill in your day — the maximum flight duty period updates live.',
  'fdp.report': 'Report time (where you are)',
+ 'fdp.reportH': 'Report hour',
+ 'fdp.reportM': 'Report minute',
  'fdp.where': 'Where you are',
  'fdp.acclim': 'Acclimatized to',
  'fdp.dur': 'Average flight duration',
@@ -16667,6 +16676,8 @@ const STRINGS = {
  'fdp.title': 'Service maximum aujourd\'hui',
  'fdp.lede': 'Jusqu\'à quelle heure vous pouvez rester en service, selon la table RAC 700.28. Remplissez votre journée — la période de service de vol maximale se met à jour en direct.',
  'fdp.report': 'Heure de présentation (là où vous êtes)',
+ 'fdp.reportH': 'Heure de présentation (heures)',
+ 'fdp.reportM': 'Heure de présentation (minutes)',
  'fdp.where': 'Où vous êtes',
  'fdp.acclim': 'Acclimaté à',
  'fdp.dur': 'Durée moyenne des vols',
@@ -22150,24 +22161,14 @@ function _fdpColLabel(band, col, fr) {
 // entry (router), on any input change, and on language switch (setLang).
 function fdpCompute() {
   const g = id => document.getElementById(id);
-  if (!g('fdp-report')) return;                     // page not present
+  if (!g('fdp-report-h')) return;                    // page not present
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const T = (typeof t === 'function') ? t : ((k, v) => k);
 
-  const repVal = (g('fdp-report').value || '').trim();
-  const rep = repVal.split(':');
-  const reportMin = (+rep[0]) * 60 + (+rep[1]);
-  // Blank / unparseable report time → show nothing, not a number derived from a
-  // missing input. A certifiable tool must never hand out a false maximum.
-  if (!/^\d{1,2}:\d{2}$/.test(repVal) || isNaN(reportMin)) {
-    g('fdp-out').textContent = '—';
-    g('fdp-end').textContent = '—';
-    if (g('fdp-conv')) g('fdp-conv').textContent = '';
-    if (g('fdp-cell')) g('fdp-cell').textContent = '';
-    if (g('fdp-splitInfo')) g('fdp-splitInfo').style.display = 'none';
-    const dt = g('fdp-split-detail'); if (dt) dt.style.display = g('fdp-split').checked ? 'grid' : 'none';
-    return;
-  }
+  // Report time comes from two selects (hour + minute) — reliable on every
+  // browser, unlike the native <input type=time> picker that misbehaved on
+  // desktop. Both always carry a valid value, so there is no blank case.
+  const reportMin = (parseInt(g('fdp-report-h').value, 10) || 0) * 60 + (parseInt(g('fdp-report-m').value, 10) || 0);
   const st = FDP_CITIES[+g('fdp-station').value] || FDP_CITIES[0];
   const ac = FDP_CITIES[+g('fdp-acclim').value] || st;
   const stOff = _fdpOffMin(st.tz), acOff = _fdpOffMin(ac.tz);
@@ -22239,7 +22240,16 @@ function initFdpCalc() {
     });
     stSel.value = 4; acSel.value = 4;   // default: Toronto / Toronto — same zone, no conversion (normal case)
   }
-  ['fdp-report', 'fdp-station', 'fdp-acclim', 'fdp-dur', 'fdp-legs', 'fdp-brk'].forEach(id => {
+  // Hour (00-23) + minute (00-59) selects — reliable on desktop AND mobile,
+  // exact to the minute (the native time picker was unusable on desktop).
+  const hSel = document.getElementById('fdp-report-h');
+  const mSel = document.getElementById('fdp-report-m');
+  if (hSel && mSel && !hSel.options.length) {
+    for (let i = 0; i < 24; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); hSel.appendChild(o); }
+    for (let i = 0; i < 60; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mSel.appendChild(o); }
+    hSel.value = 7; mSel.value = 0;     // default 07:00
+  }
+  ['fdp-report-h', 'fdp-report-m', 'fdp-station', 'fdp-acclim', 'fdp-dur', 'fdp-legs', 'fdp-brk'].forEach(id => {
     const el = document.getElementById(id); if (el) { el.oninput = fdpCompute; el.onchange = fdpCompute; }
   });
   ['fdp-split', 'fdp-night'].forEach(id => { const el = document.getElementById(id); if (el) el.onchange = fdpCompute; });
@@ -22249,7 +22259,7 @@ function initFdpCalc() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-13-b42e711';
+const BUILD_VERSION = '2026-07-14-2ae363c';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

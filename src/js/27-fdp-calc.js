@@ -75,24 +75,14 @@ function _fdpColLabel(band, col, fr) {
 // entry (router), on any input change, and on language switch (setLang).
 function fdpCompute() {
   const g = id => document.getElementById(id);
-  if (!g('fdp-report')) return;                     // page not present
+  if (!g('fdp-report-h')) return;                    // page not present
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const T = (typeof t === 'function') ? t : ((k, v) => k);
 
-  const repVal = (g('fdp-report').value || '').trim();
-  const rep = repVal.split(':');
-  const reportMin = (+rep[0]) * 60 + (+rep[1]);
-  // Blank / unparseable report time → show nothing, not a number derived from a
-  // missing input. A certifiable tool must never hand out a false maximum.
-  if (!/^\d{1,2}:\d{2}$/.test(repVal) || isNaN(reportMin)) {
-    g('fdp-out').textContent = '—';
-    g('fdp-end').textContent = '—';
-    if (g('fdp-conv')) g('fdp-conv').textContent = '';
-    if (g('fdp-cell')) g('fdp-cell').textContent = '';
-    if (g('fdp-splitInfo')) g('fdp-splitInfo').style.display = 'none';
-    const dt = g('fdp-split-detail'); if (dt) dt.style.display = g('fdp-split').checked ? 'grid' : 'none';
-    return;
-  }
+  // Report time comes from two selects (hour + minute) — reliable on every
+  // browser, unlike the native <input type=time> picker that misbehaved on
+  // desktop. Both always carry a valid value, so there is no blank case.
+  const reportMin = (parseInt(g('fdp-report-h').value, 10) || 0) * 60 + (parseInt(g('fdp-report-m').value, 10) || 0);
   const st = FDP_CITIES[+g('fdp-station').value] || FDP_CITIES[0];
   const ac = FDP_CITIES[+g('fdp-acclim').value] || st;
   const stOff = _fdpOffMin(st.tz), acOff = _fdpOffMin(ac.tz);
@@ -164,7 +154,16 @@ function initFdpCalc() {
     });
     stSel.value = 4; acSel.value = 4;   // default: Toronto / Toronto — same zone, no conversion (normal case)
   }
-  ['fdp-report', 'fdp-station', 'fdp-acclim', 'fdp-dur', 'fdp-legs', 'fdp-brk'].forEach(id => {
+  // Hour (00-23) + minute (00-59) selects — reliable on desktop AND mobile,
+  // exact to the minute (the native time picker was unusable on desktop).
+  const hSel = document.getElementById('fdp-report-h');
+  const mSel = document.getElementById('fdp-report-m');
+  if (hSel && mSel && !hSel.options.length) {
+    for (let i = 0; i < 24; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); hSel.appendChild(o); }
+    for (let i = 0; i < 60; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mSel.appendChild(o); }
+    hSel.value = 7; mSel.value = 0;     // default 07:00
+  }
+  ['fdp-report-h', 'fdp-report-m', 'fdp-station', 'fdp-acclim', 'fdp-dur', 'fdp-legs', 'fdp-brk'].forEach(id => {
     const el = document.getElementById(id); if (el) { el.oninput = fdpCompute; el.onchange = fdpCompute; }
   });
   ['fdp-split', 'fdp-night'].forEach(id => { const el = document.getElementById(id); if (el) el.onchange = fdpCompute; });
