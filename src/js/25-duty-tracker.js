@@ -18,6 +18,11 @@ const DUTY_LIMITS = [
   { days: 365, limit: 1000, fr: '365 jours', en: '365 days' }
 ];
 
+// Guard so the self-healing forecast sync fires at most once per page render cycle.
+let _dutyForecastSyncing = false;
+function _navblueConfigured() { try { return !!localStorage.getItem('cumulo_navblue_url'); } catch (e) { return false; } }
+function _forecastCached() { try { return !!localStorage.getItem('cumulo_roster_forecast_v1'); } catch (e) { return false; } }
+
 // Flight time (not sim) in the last N days, from logged flights.
 function _dutyFlightTimeInDays(days) {
   if (!Array.isArray(flights)) return 0;
@@ -35,6 +40,18 @@ function renderDutyTracker() {
   if (!host) return;
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const fh = function (n) { return (Math.round((+n || 0) * 10) / 10).toLocaleString(fr ? 'fr-CA' : 'en-CA'); };
+
+  // Self-heal: the forecast cache is written only by a sync on this (or a newer)
+  // build. If the roster IS configured but the cache was never built — e.g. the
+  // last sync ran on an older build, or the anti-spam gate skipped auto-sync —
+  // force one silent sync so the forecast populates itself instead of telling the
+  // pilot "no roster connected". Guarded to fire once, then re-render. (2026-07-14)
+  if (_navblueConfigured() && !_forecastCached() && !_dutyForecastSyncing && typeof syncNavblueNow === 'function') {
+    _dutyForecastSyncing = true;
+    Promise.resolve(syncNavblueNow({ silent: true }))
+      .catch(function () {})
+      .finally(function () { renderDutyTracker(); });   // _dutyForecastSyncing stays true → no loop; cache now exists (even if empty)
+  }
 
   const bars = DUTY_LIMITS.map(function (lim) {
     const have = _dutyFlightTimeInDays(lim.days);
@@ -275,11 +292,20 @@ function openDutyDrill(days) {
         ? 'Prévision basée sur les blocs <b>planifiés</b> de ton horaire, pas des heures réelles. À titre indicatif — tes heures réelles peuvent différer.'
         : 'Forecast based on the <b>scheduled</b> block times in your roster, not actual hours. Indicative only — your actual hours may differ.') + '</div>';
   } else {
+    // Distinguish "roster not connected" from "connected but nothing upcoming yet",
+    // so a configured pilot is never wrongly told their iCal isn't connected.
+    const configured = _navblueConfigured();
+    const msg = configured
+      ? (fr ? 'Ton horaire est connecté, mais aucun vol à venir n’a encore été détecté. Si ton prochain voyage n’apparaît pas, force une synchro.'
+            : 'Your roster is connected, but no upcoming flights have been detected yet. If your next trip is missing, force a sync.')
+      : (fr ? 'Connecte ton horaire Porter dans Réglages pour activer la prévision.'
+            : 'Connect your Porter roster in Settings to enable the forecast.');
+    const syncBtn = configured
+      ? '<button class="btn btn-ghost" style="margin-top:10px" onclick="(async function(){ if(typeof syncNavblueNow===\'function\'){ try{ await syncNavblueNow(); }catch(e){} } if(typeof renderDutyTracker===\'function\') renderDutyTracker(); if(typeof openDutyDrill===\'function\') openDutyDrill(' + days + '); })()">' + (fr ? 'Synchroniser maintenant' : 'Sync now') + '</button>'
+      : '';
     forecastHtml =
       '<div class="dash-drill-sub" style="margin-top:16px">' + (fr ? 'Prévision selon ton horaire' : 'Forecast from your roster') + '</div>' +
-      '<div class="dash-drill-note">' + (fr
-        ? 'Aucun vol futur détecté dans ton horaire iCal. Synchronise ton horaire dans Réglages pour activer la prévision.'
-        : 'No future flights detected in your iCal roster. Sync your roster in Settings to enable the forecast.') + '</div>';
+      '<div class="dash-drill-note">' + msg + '</div>' + syncBtn;
   }
 
   const eyebrowEl = document.getElementById('dashDrillEyebrow');
