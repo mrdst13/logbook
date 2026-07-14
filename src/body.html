@@ -85,6 +85,9 @@
  <button type="button" class="nav-item" data-page="duty">
  <span data-i18n="nav.duty">Duty limits</span>
  </button>
+ <button type="button" class="nav-item" data-page="pay">
+ <span data-i18n="nav.pay">Pay</span>
+ </button>
  </div>
  <div class="nav-divider"></div>
  <div class="nav-group">
@@ -941,6 +944,46 @@
 
  <h2 class="fdp-h fdp-h-cum" data-i18n="fdp.cumTitle">Cumulative flight-time limits</h2>
  <div id="dutyTracker"></div>
+ </div>
+
+ <div id="page-pay" class="page">
+ <div class="page-header">
+ <div>
+ <h1 class="page-title" data-i18n="page.pay.title">Pay</h1>
+ <div class="page-sub" data-i18n="page.pay.sub">Find errors in your pay — computed from your roster, next to your stub</div>
+ </div>
+ </div>
+
+ <div class="form-group" style="max-width:280px">
+ <label for="pay-period" data-i18n="pay.period">Pay month</label>
+ <select id="pay-period"></select>
+ </div>
+
+ <section class="fdp-card">
+ <h2 class="fdp-h" data-i18n="pay.computed">Computed vs your stub</h2>
+ <div id="pay-computed"></div>
+ </section>
+
+ <section class="fdp-card">
+ <h2 class="fdp-h" data-i18n="pay.settings">Your pay settings</h2>
+ <p class="fdp-lede" data-i18n="pay.settings.sub">Kept on this device only — never synced, never in the app's public code.</p>
+ <div class="form-grid form-grid-2">
+ <div class="form-group"><label for="pay-base" data-i18n="pay.base">Home base (ICAO)</label><input id="pay-base" type="text" placeholder="CYOW"></div>
+ <div class="form-group"><label for="pay-year" data-i18n="pay.year">Seat year (E195 F/O)</label>
+ <select id="pay-year">
+ <option value="" data-i18n="pay.year.none">—</option>
+ <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+ <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+ </select></div>
+ <div class="form-group"><label for="pay-rate" data-i18n="pay.rate">Hourly rate ($)</label><input id="pay-rate" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+ <div class="form-group"><label for="pay-mmg" data-i18n="pay.mmg">Monthly guarantee (h)</label><input id="pay-mmg" type="number" step="0.5" inputmode="decimal"></div>
+ <div class="form-group"><label for="pay-ot" data-i18n="pay.ot">Overtime threshold (h)</label><input id="pay-ot" type="number" step="1" inputmode="decimal"></div>
+ <div class="form-group"><label for="pay-cdn" data-i18n="pay.cdn">Per diem CDN ($/h)</label><input id="pay-cdn" type="number" step="0.01" inputmode="decimal"></div>
+ <div class="form-group"><label for="pay-us" data-i18n="pay.us">Per diem US ($USD/h)</label><input id="pay-us" type="number" step="0.01" inputmode="decimal"></div>
+ </div>
+ </section>
+
+ <p class="fdp-foot" data-i18n-html="pay.disclaimer">Computed from your logged roster (check-in/out times) and the rules you entered — shown next to your stub so differences stand out. It is a check, not official: your pay stub and Porter crew payroll are authoritative.</p>
  </div>
 
  <div id="page-recap" class="page">

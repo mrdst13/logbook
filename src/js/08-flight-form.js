@@ -265,6 +265,9 @@ function computeCellValue(f, key) {
 const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
 const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
 const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
+// Forward-looking roster FORECAST cache (Duty-page cumulative-limit projection).
+// This is PLANNING data, never certifiable logbook data — see rosterForecastFromEvents.
+const CUMULO_FORECAST_KEY = 'cumulo_roster_forecast_v1';
 // Auto-sync gates — keep us from hammering the worker every page load.
 // On init: skip if last sync was less than 30 min ago.
 // On visibilitychange (tab refocus): skip if less than 15 min ago.
@@ -851,6 +854,63 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   };
 }
 
+// STA − STD as decimal hours, wrapping past UTC midnight (arrival next day).
+// Returns 0 for a nonsensical span so a missing/garbled time is never guessed.
+function scheduledBlockHours(stdHHMM, staHHMM) {
+  if (!/^\d{4}$/.test(stdHHMM || '') || !/^\d{4}$/.test(staHHMM || '')) return 0;
+  const toMin = s => parseInt(s.slice(0, 2), 10) * 60 + parseInt(s.slice(2), 10);
+  let d = toMin(staHHMM) - toMin(stdHHMM);
+  if (d < 0) d += 1440;                    // crossed midnight UTC
+  if (d <= 0 || d > 16 * 60) return 0;     // sanity: no zero / absurd block
+  return d / 60;
+}
+
+// ── Roster FORECAST extraction (planning only — NEVER certifiable) ──────────
+// The certifiable import (navblueEventToFlight + the `date < today` filter in
+// syncNavblueNow) deliberately DROPS future events: an iCal carries the
+// SCHEDULE, and schedule ≠ actual, so a future flight must never be logged
+// (feedback_never_approximate_certifiable_data). The Duty page's
+// cumulative-limit FORECAST, however, is explicitly a projection ("if you fly
+// your published roster…"), not a logbook entry — so it is allowed, and needs,
+// to read those future events. It uses the planned block (BLH) when the feed
+// carries it, else estimates the block from the scheduled STD→STA times, else
+// skips the event. Every hour it uses is shown to the pilot in the drill-down,
+// and the result is always labelled a forecast. No number is fabricated: an
+// event with no usable duration is left out, not guessed. (Martin 2026-07-14.)
+function rosterForecastFromEvents(events, todayStr) {
+  if (!Array.isArray(events)) return [];
+  const out = [];
+  for (const ev of events) {
+    const summary = (ev.SUMMARY || '').trim();
+    if (!getOperatorFlightRegex().test(summary)) continue;   // only the pilot's own airline(s)
+    if (DEADHEAD_RE.test(summary)) continue;                 // deadhead legs are not flown time
+    const parts = summary.split(/\s+/);
+    const flightNum = parts[0];
+    const routeRaw = parts[1] || '';
+    const [depIATA, arrIATA] = routeRaw.split('-');
+    if (!depIATA || !arrIATA) continue;
+    const depICAO = iataToIcao(depIATA);
+    const date = (typeof icsLocalDate === 'function')
+      ? icsLocalDate(ev.DTSTART, depICAO)
+      : icsDate(ev.DTSTART);
+    if (!date || date < todayStr) continue;                  // FUTURE (today included) only
+    const desc = (ev.DESCRIPTION || '').trim();
+    const blhMatch = desc.match(/BLH:\s*(\d{1,2}:\d{2})/);
+    let block = blhMatch ? +hhmmToDecimal(blhMatch[1]).toFixed(2) : 0;
+    let estimated = false;
+    if (block <= 0) {                                        // no planned block in the feed
+      const stdMatch = desc.match(/STD\s+(\d{4})Z/);
+      const staMatch = desc.match(/STA\s+(\d{4})Z/);
+      const est = scheduledBlockHours(stdMatch && stdMatch[1], staMatch && staMatch[1]);
+      if (est > 0) { block = +est.toFixed(2); estimated = true; }
+    }
+    if (block <= 0) continue;                                // no usable duration → not counted
+    out.push({ date, flightNum, route: depIATA + '-' + arrIATA, block, estimated });
+  }
+  out.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+  return out;
+}
+
 function saveNavblueUrl() {
   const input = document.getElementById('navblueUrl');
   let url = (input.value || '').trim();
@@ -984,6 +1044,17 @@ async function syncNavblueNow(opts) {
       .filter(f => f && f.date && f.date < today);
 
     console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (strictly past-dated — completed only)`);
+
+    // Cache the forward-looking roster FORECAST for the Duty-page projection.
+    // This is planning data, kept in its OWN key — never merged into `flights`,
+    // never logged as certifiable time. Refreshed on every sync (incl. the
+    // silent auto-sync on app open), so the Duty page always projects against
+    // the latest published roster.
+    try {
+      const forecast = rosterForecastFromEvents(events, today);
+      localStorage.setItem(CUMULO_FORECAST_KEY, JSON.stringify({ ts: Date.now(), today, flights: forecast }));
+      console.log(`[Navblue Sync] Roster forecast cached: ${forecast.length} future flight(s)`);
+    } catch (e) { /* non-fatal — forecast is a convenience layer */ }
 
     // SNAPSHOT before any modification — pilot data is precious
     snapshotBeforeOperation('Navblue iCal sync');

@@ -42,6 +42,7 @@ function showPage(id) {
   if (id === 'licence' && typeof renderLicenceTracker === 'function') renderLicenceTracker();
   if (id === 'duty' && typeof initFdpCalc === 'function') initFdpCalc();
   if (id === 'duty' && typeof renderDutyTracker === 'function') renderDutyTracker();
+  if (id === 'pay' && typeof payInit === 'function') payInit();
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();
   if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();
