@@ -281,6 +281,7 @@ function payInit() {
 function payRender() {
   const host = document.getElementById('pay-computed');
   if (!host) return;
+  if (typeof payStubInitDropzone === 'function') payStubInitDropzone();   // (re)wire the PDF drop zone
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const T = (typeof t === 'function') ? t : (k => k);
   const st = loadPaySettings();
@@ -288,96 +289,92 @@ function payRender() {
   const ym = sel ? sel.value : '';
   const allFls = (typeof flights !== 'undefined' ? flights : []);
   const fls = allFls.filter(f => f.date && f.date.slice(0, 7) === ym);
-  if (!ym || !fls.length) { host.innerHTML = `<p class="fdp-foot">${T('pay.empty')}</p>`; return; }
-
-  // Per diem uses WHOLE pairings assigned to this month (keeps month-straddling
-  // US layovers intact); daily credits stay per calendar day. (review 2026-07-14)
-  const pdLegs = _payMonthPairingLegs(allFls, st.base, ym);
-  const pd = computePerDiem(pdLegs, st.base, { cdn: st.cdn, usUsd: st.usUsd, fx: 1 });   // fx=1: US $ is DERIVED from the stub below
-  const cr = computeCredits(fls);
-  const inLoa = /^2026-(06|07|08)/.test(ym);
-  const bp = computeBasePay(cr.creditHours, { rate: st.rate, mmg: st.mmg, otThreshold: st.otThreshold, otMult: inLoa ? 2.0 : 1.5 });
-  const stub = _payLoadStub(ym);
   // Sign OUTSIDE the $ so a shortfall reads "-$31.00", not "$-31.00".
   const money = n => { const v = Math.round((+n || 0) * 100) / 100; return (v < 0 ? '-' : '') + '$' + Math.abs(v).toLocaleString(fr ? 'fr-CA' : 'en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   const h1 = n => (Math.round((+n || 0) * 10) / 10);
   const fx4 = n => (Math.round((+n || 0) * 10000) / 10000).toLocaleString(fr ? 'fr-CA' : 'en-CA', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
-  const stubIn = key => `<input type="number" step="0.01" inputmode="decimal" class="pay-stub-in" data-k="${key}" value="${stub[key] !== undefined ? stub[key] : ''}" placeholder="—">`;
-  const row = (label, computed, key) => {
-    const paid = stub[key];
-    let diff = '';
-    if (paid !== undefined && paid !== '') {
-      const d = Math.round(((+computed) - (+paid)) * 100) / 100;
-      diff = d === 0 ? '<span style="color:var(--success);font-weight:600">✓</span>'
-        : `<span style="color:var(--danger);font-weight:600">${d > 0 ? '+' : ''}${money(d)}</span>`;
-    }
-    return `<tr><td>${label}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${money(computed)}</td>
-      <td style="text-align:right">${stubIn(key)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">${diff}</td></tr>`;
-  };
+  // Paid side = the parsed pay stub (read from the dropped PDF, never typed).
+  const parsed = (typeof loadParsedStub === 'function') ? loadParsedStub(ym) : null;
+  const bk = (parsed && typeof payStubBuckets === 'function') ? payStubBuckets(parsed) : null;
+  const stub = bk ? {
+    perDiemCdn: bk.perDiemCdn ? bk.perDiemCdn.amount : null,
+    perDiemUs: bk.perDiemUs ? (bk.perDiemUs.amount != null ? bk.perDiemUs.amount : 0) : null,
+    regular: bk.regular ? bk.regular.amount : null,
+    ot: bk.overtime ? bk.overtime.amount : null
+  } : {};
+  const has = k => stub[k] != null && stub[k] !== '';
 
-  // ── US per diem: USD→CAD rate DERIVED from the stub (Martin's choice) ──
-  // The US $ mirrors the stub by construction, so the 4th column shows the
-  // derived exchange rate (the informative bit) rather than a meaningless diff —
-  // and flags the two things that CAN be wrong: no US hours behind a US payment,
-  // or an implausible derived rate (a hint the US hours or the amount are off).
-  const usStubEntered = stub.perDiemUs !== undefined && stub.perDiemUs !== '';
-  const usStubAmt = +stub.perDiemUs;
-  const usFx = deriveUsFx(stub.perDiemUs, pd.usHours, st.usUsd);
-  const usDays = usPerDiemDays(pdLegs, st.base);
-  let usInfo, usComputedCell;
-  if (usStubEntered && usStubAmt > 0 && pd.usHours <= 0) {
-    // Stub pays US per diem but no US layover hours were found → possible overpay
-    // or a mis-scoped trip. Flag it.
-    usInfo = `<span style="color:var(--danger);font-weight:600">${fr ? '0 h US ?' : '0 US h ?'}</span>`;
-    usComputedCell = '—';
-  } else if (usStubEntered && !(usStubAmt > 0) && pd.usHours > 0) {
-    // US layover hours exist but the stub paid $0 US → possible MISSING US per diem
-    // (exactly the error this tool exists to catch). (review 2026-07-14)
-    usInfo = `<span style="color:var(--danger);font-weight:600">${fr ? 'h US, 0 $ ?' : 'US h, $0 ?'}</span>`;
-    usComputedCell = '—';
-  } else if (usFx > 0) {
-    const odd = usFx < 1.15 || usFx > 1.60;
-    usInfo = `<span style="color:var(--${odd ? 'danger' : 'text-muted'})">@ ${fx4(usFx)}${odd ? ' ?' : ''}</span>`;
-    // Derived-to-match by construction — show "= stub", never a computed dollar
-    // figure that merely echoes the stub (would read as an independent match).
-    usComputedCell = `<span style="color:var(--text-muted)">${fr ? '= talon' : '= stub'}</span>`;
-  } else {
-    usInfo = `<span style="color:var(--text-muted)">${fr ? '— entre ton US' : '— enter US'}</span>`;
-    usComputedCell = '—';
+  if (!ym) { host.innerHTML = `<p class="fdp-foot">${fr ? 'Choisis un mois, ou dépose ton talon PDF ci-dessus.' : 'Pick a month, or drop your pay PDF above.'}</p>`; return; }
+
+  // Header for the parsed stub (or a nudge to drop one).
+  const stubHead = parsed
+    ? `<div class="pay-stubhead"><div><b>${fr ? 'Talon' : 'Stub'} ${parsed.period || ''}</b>${parsed.position ? ' · ' + parsed.position : ''}</div>` +
+      `<div style="color:var(--text-muted)">${parsed.deposit ? (fr ? 'Dépôt ' : 'Deposit ') + parsed.deposit : ''}${parsed.totalDeposit != null ? ' · ' + (fr ? 'total ' : 'total ') + money(parsed.totalDeposit) : ''}` +
+      ` · <a href="#" onclick="if(typeof clearParsedStub==='function'){clearParsedStub('${ym}');} payRender(); return false;">${fr ? 'retirer' : 'remove'}</a></div></div>`
+    : `<p class="fdp-cell" style="color:var(--text-muted)">${fr ? 'Dépose ton talon Porter (PDF) ci-dessus — l’app le lit et compare à ton horaire. Rien n’est tapé, rien n’est téléversé.' : 'Drop your Porter pay PDF above — the app reads it and compares to your roster. Nothing typed, nothing uploaded.'}</p>`;
+
+  // Analysis needs logged flights for the computed side.
+  if (!fls.length) {
+    host.innerHTML = stubHead + `<p class="fdp-foot" style="margin-top:10px">${fr ? 'Aucun vol enregistré ce mois pour comparer — synchronise ou importe ton horaire.' : 'No flights logged this month to compare — sync or import your roster.'}</p>` + payStubBreakdown(parsed, fr, money);
+    return;
   }
-  const usRowHtml = `<tr><td>Per diem US · ${h1(pd.usHours)} h</td>
-    <td style="text-align:right;font-variant-numeric:tabular-nums">${usComputedCell}</td>
-    <td style="text-align:right">${stubIn('perDiemUs')}</td>
-    <td style="text-align:right;font-variant-numeric:tabular-nums">${usInfo}</td></tr>`;
+
+  // Per diem uses WHOLE pairings assigned to this month (keeps month-straddling
+  // US layovers intact); daily credits stay per calendar day. (review 2026-07-14)
+  const pdLegs = _payMonthPairingLegs(allFls, st.base, ym);
+  const pd = computePerDiem(pdLegs, st.base, { cdn: st.cdn, usUsd: st.usUsd, fx: 1 });   // fx=1: US $ DERIVED from the stub below
+  const cr = computeCredits(fls);
+  const inLoa = /^2026-(06|07|08)/.test(ym);
+  const bp = computeBasePay(cr.creditHours, { rate: st.rate, mmg: st.mmg, otThreshold: st.otThreshold, otMult: inLoa ? 2.0 : 1.5 });
+
+  const paidCell = k => has(k) ? money(stub[k]) : '<span style="color:var(--text-muted)">—</span>';
+  // v1: the stub is semi-monthly but "Computed" is a full calendar month, so a
+  // dollar diff would be a false alarm. Show the two side by side as reference
+  // (no red diff) until Martin gives his pay-period dates; then we scope the
+  // roster to the exact period and flag real per-diem/hour gaps. (2026-07-15)
+  const usDays = usPerDiemDays(pdLegs, st.base);
+  const row = (label, computed, key) =>
+    `<tr><td>${label}</td><td class="pay-num" style="color:var(--text-muted)">${money(computed)}</td><td class="pay-num">${paidCell(key)}</td></tr>`;
 
   const loaNote = inLoa ? (fr ? ' · LOA été 2,0×' : ' · summer LOA 2.0×') : '';
   const usDaysHtml = usDays.length
-    ? `<p class="fdp-cell" style="color:var(--text-muted);margin-top:2px">${fr ? 'Jours US' : 'US days'}: ${usDays.map(d => `${d.icao} ${d.date} (${h1(d.hours)} h)`).join(' · ')}</p>`
-    : '';
-  const usNote = `<p class="fdp-cell" style="color:var(--text-muted)">${fr
-    ? 'Le per diem US suit ton talon : le taux USD→CAD est déduit du montant que tu entres (÷ heures US ÷ ' + st.usUsd + ' $US). Un « ? » = taux inhabituel ou heures US manquantes à vérifier.'
-    : 'US per diem follows your stub: the USD→CAD rate is derived from the amount you enter (÷ US hours ÷ $' + st.usUsd + ' USD). A “?” = unusual rate or missing US hours to check.'}</p>`;
+    ? `<p class="fdp-cell" style="color:var(--text-muted);margin-top:2px">${fr ? 'Jours US (horaire)' : 'US days (roster)'}: ${usDays.map(d => `${d.icao} ${d.date} (${h1(d.hours)} h)`).join(' · ')}</p>` : '';
+  const periodAsk = `<p class="fdp-cell" style="color:var(--text-muted)">${fr
+    ? '« Calculé » couvre le mois civil complet, mais ton talon Porter est semi-mensuel — donc pas de comparaison $ directe pour l’instant. Donne-moi les dates exactes de tes périodes de paie et je compare à l’heure près (per diems, crédits) pour faire ressortir les vraies erreurs.'
+    : '“Computed” is a full calendar month, but your Porter stub is semi-monthly — so no direct $ comparison yet. Give me your exact pay-period dates and I’ll compare to the hour (per diems, credits) to surface real errors.'}</p>`;
   const rateWarn = !st.rate ? (fr ? ' · ⚠ choisis ton année d’échelon ou entre ton taux' : ' · ⚠ pick your seat year or enter your rate') : '';
+  const rateChk = (rateOk, paid, expected, label) =>
+    `<span>${label}: <b>${money(paid)}</b> · ${fr ? 'attendu' : 'expected'} ${money(expected)} ${rateOk ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--danger)">' + (fr ? '≠ vérifie' : '≠ check') + '</span>'}</span>`;
+  const checks = [];
+  if (parsed && bk.regular && bk.regular.rate != null && st.rate) checks.push(rateChk(Math.abs(bk.regular.rate - st.rate) < 0.005, bk.regular.rate, st.rate, fr ? 'Taux horaire' : 'Hourly rate'));
+  if (parsed && bk.perDiemCdn && bk.perDiemCdn.rate != null) checks.push(rateChk(Math.abs(bk.perDiemCdn.rate - st.cdn) < 0.005, bk.perDiemCdn.rate, st.cdn, fr ? 'Taux per diem CDN' : 'CDN per diem rate'));
+  const rateCheck = checks.length ? `<p class="fdp-cell" style="color:var(--text-muted)">${checks.join(' &nbsp;·&nbsp; ')}</p>` : '';
 
-  host.innerHTML = `
-    <table class="pay-table">
-      <thead><tr><th>${fr ? 'Élément' : 'Item'}</th><th style="text-align:right">${fr ? 'Calculé' : 'Computed'}</th><th style="text-align:right">${fr ? 'Ton talon' : 'Your stub'}</th><th style="text-align:right">${fr ? 'Écart' : 'Diff'}</th></tr></thead>
+  host.innerHTML = stubHead + `
+    <table class="pay-table" style="margin-top:10px">
+      <thead><tr><th>${fr ? 'Élément' : 'Item'}</th><th style="text-align:right">${fr ? 'Calculé (mois)' : 'Computed (month)'}</th><th style="text-align:right">${fr ? 'Payé (talon)' : 'Paid (stub)'}</th></tr></thead>
       <tbody>
         ${row('Per diem CDN · ' + h1(pd.cdnHours) + ' h', pd.cdnAmount, 'perDiemCdn')}
-        ${usRowHtml}
+        <tr><td>Per diem US · ${h1(pd.usHours)} h</td><td class="pay-num" style="color:var(--text-muted)">—</td><td class="pay-num">${paidCell('perDiemUs')}</td></tr>
         ${row((fr ? 'Paie de base · ' : 'Base pay · ') + bp.straightHours + ' h', bp.straightAmount, 'regular')}
         ${row((fr ? 'Temps supp. · ' : 'Overtime · ') + bp.otHours + ' h ×' + bp.otMult + loaNote, bp.otAmount, 'ot')}
       </tbody>
     </table>
-    ${usDaysHtml}
-    ${usNote}
-    <p class="fdp-cell" style="color:var(--text-muted)">${fr ? 'Crédits du mois' : 'Month credits'}: <b>${cr.creditHours} h</b> · ${fr ? 'garantie' : 'guarantee'} ${st.mmg} h${bp.guaranteeApplied ? (fr ? ' (appliquée)' : ' (applied)') : ''} · ${pd.pairings} pairing(s) · ${fr ? 'temps loin base' : 'time away'} ${h1(pd.awayHours)} h${rateWarn}</p>`;
+    ${usDaysHtml}${rateCheck}${periodAsk}
+    <p class="fdp-cell" style="color:var(--text-muted)">${fr ? 'Crédits du mois' : 'Month credits'}: <b>${cr.creditHours} h</b> · ${fr ? 'garantie' : 'guarantee'} ${st.mmg} h${bp.guaranteeApplied ? (fr ? ' (appliquée)' : ' (applied)') : ''} · ${pd.pairings} pairing(s) · ${fr ? 'temps loin base' : 'time away'} ${h1(pd.awayHours)} h${rateWarn}</p>
+    ${payStubBreakdown(parsed, fr, money)}`;
+}
 
-  host.querySelectorAll('.pay-stub-in').forEach(inp => {
-    inp.onchange = () => { const s = _payLoadStub(ym); s[inp.getAttribute('data-k')] = inp.value; _paySaveStub(ym, s); payRender(); };
-  });
+// Collapsible full breakdown of the parsed stub (every earning line, read-only).
+function payStubBreakdown(parsed, fr, money) {
+  if (!parsed || !parsed.earnings || !parsed.earnings.length) return '';
+  const rows = parsed.earnings.map(e => {
+    const val = e.amount != null ? money(e.amount) : (e.ytd != null ? '<span style="color:var(--text-muted)">' + (fr ? 'cumul. ' : 'YTD ') + money(e.ytd) + '</span>' : '');
+    return `<tr><td style="color:var(--text-muted)">${e.code}</td><td>${e.label || ''}</td><td class="pay-num">${val}</td></tr>`;
+  }).join('');
+  return `<details class="pay-details" style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-muted)">${fr ? 'Détail du talon lu' : 'Parsed stub detail'}</summary>` +
+    `<table class="pay-table" style="margin-top:8px"><tbody>${rows}</tbody></table></details>`;
 }
 
 // Node test harness export (ignored in the browser).

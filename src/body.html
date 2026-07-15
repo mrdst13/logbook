@@ -960,7 +960,14 @@
  </div>
 
  <section class="fdp-card">
- <h2 class="fdp-h" data-i18n="pay.computed">Computed vs your stub</h2>
+ <h2 class="fdp-h" data-i18n="pay.computed">Your pay, checked against your roster</h2>
+ <div id="pay-stub-drop" class="pay-drop" tabindex="0" role="button">
+ <div class="pay-drop-icon" aria-hidden="true">＋</div>
+ <div class="pay-drop-main" data-i18n="pay.drop">Drop your Porter pay PDF here, or click to choose</div>
+ <div class="pay-drop-sub" data-i18n="pay.drop.sub">Read on this device only — never uploaded, never typed</div>
+ <input id="pay-stub-file" type="file" accept="application/pdf,.pdf" hidden>
+ </div>
+ <div id="pay-stub-status" class="fdp-cell" style="min-height:18px;margin:8px 0"></div>
  <div id="pay-computed"></div>
  </section>
 
