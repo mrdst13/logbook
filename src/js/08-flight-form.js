@@ -212,6 +212,17 @@ function getVisibleColumns(context = 'table') {
   if (!visible.find(c => c.key === 'total')) {
     visible.push(LOGBOOK_COLUMNS.find(c => c.key === 'total'));
   }
+  // Screen preference: show Flight Time right before Night, so the number a pilot
+  // reads most isn't buried off to the right (Martin's ask 2026-07-15). Screen
+  // only — the TC PDF export (context='pdf') keeps the CAR 401.08 column order.
+  if (context === 'table') {
+    const bi = visible.findIndex(c => c.key === 'block');
+    const ni = visible.findIndex(c => c.key === 'night');
+    if (bi >= 0 && ni >= 0 && bi > ni) {
+      const blockCol = visible.splice(bi, 1)[0];
+      visible.splice(visible.findIndex(c => c.key === 'night'), 0, blockCol);
+    }
+  }
   // Screen-only auto-hide of empty numeric columns (profile.hideZeroColumns).
   // The TC PDF export (context='pdf') always keeps the full 38 columns for
   // ramp-check compliance — this branch never runs there.
