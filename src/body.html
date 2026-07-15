@@ -13,9 +13,11 @@
  <span></span>
  </button>
 
- <!-- Header wordmark — clickable, links back to the marketing home page.
+ <!-- Header wordmark — clicking it refreshes the Dashboard (home) in-app.
+      (Was href="/" → marketing landing; paused 2026-07-15 for personal use.
+      To restore the landing link, set href back to "/" and drop the onclick.)
       Brand mark = official cloud favicon from the designer (Paige, 2026-05-28). -->
- <a href="/" class="logo" title="Cumulo home" style="text-decoration:none;color:inherit;">
+ <a href="logbook.html" class="logo" title="Cumulo home" style="text-decoration:none;color:inherit;" onclick="if(typeof showPage==='function'){showPage('dashboard');return false;}">
  <div class="logo-icon" aria-hidden="true"><img src="/assets/cumulo-favicon.svg" alt="" width="28" height="28"></div>
  <div class="logo-texts">
  <div class="logo-title" data-i18n="logo.title">Cumulo</div>

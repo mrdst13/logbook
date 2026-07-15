@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
  <meta charset="utf-8">
+ <!-- LANDING PAUSED 2026-07-15 (personal use — Martin is the only user for now).
+      The root "/" now skips the marketing landing and goes straight to the app.
+      To RESTORE the landing, delete this single <script> block — nothing else was
+      removed. Query/hash (e.g. ?debug=1) are carried through. -->
+ <script>location.replace('logbook' + '.html' + location.search + location.hash);</script>
  <title>Cumulo Flight Deck — A modern pilot logbook</title>
  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
  <meta name="description" content="A modern pilot logbook, built by a pilot. Transport Canada PDF format, automatic Night and Cross-Country calculation, bilingual EN/FR. Your data lives on your device. Try it now — no signup.">
@@ -412,7 +417,7 @@
  <div class="nav-links">
  <a href="security.html">Security</a>
  <a href="privacy.html">Privacy</a>
- <a href="logbook.html?v=2026-07-15-d4ddaf2">Open app →</a>
+ <a href="logbook.html?v=2026-07-15-e7ef605">Open app →</a>
  </div>
 </nav>
 
@@ -422,7 +427,7 @@
  <p class="sub">Logbook with Transport Canada PDF format, automatic Night calculation, Cross-Country detection, and an inspection-ready PDF export. Bilingual EN/FR. Your data lives on your device.</p>
  <div class="cta-row">
  <a class="btn btn-primary" href="demo.html">Try the demo (no signup)</a>
- <a class="btn btn-outline" href="logbook.html?v=2026-07-15-d4ddaf2">Open my logbook →</a>
+ <a class="btn btn-outline" href="logbook.html?v=2026-07-15-e7ef605">Open my logbook →</a>
  </div>
 </section>
 
@@ -698,7 +703,7 @@
   <p>No signup, no credit card. Try the demo, or open the full logbook in your browser. Installs to home screen as a PWA — works in the cockpit, offline.</p>
   <div class="cta-row">
    <a class="btn btn-primary" href="demo.html">Try the demo</a>
-   <a class="btn btn-outline" href="logbook.html?v=2026-07-15-d4ddaf2">Open the logbook →</a>
+   <a class="btn btn-outline" href="logbook.html?v=2026-07-15-e7ef605">Open the logbook →</a>
   </div>
   <div class="final-cta-note">PWA · iOS · Android · Desktop</div>
  </div>
@@ -714,7 +719,7 @@
  <a href="security.html">Security</a>
  <a href="privacy.html">Privacy</a>
  <a href="mailto:flycumulo@gmail.com">Contact</a>
- <a href="logbook.html?v=2026-07-15-d4ddaf2">Open app</a>
+ <a href="logbook.html?v=2026-07-15-e7ef605">Open app</a>
  </div>
  </div>
 </footer>

@@ -20,6 +20,9 @@ let onbStep = 1;
 let onbData = {};
 
 function shouldShowOnboarding() {
+  // PAUSED 2026-07-15 (personal use — Martin is the only user, already set up).
+  // The wizard is kept intact; to RESTORE it, delete this one early return.
+  return false;
   if (localStorage.getItem(ONBOARDING_KEY)) return false;
   const p = DB.loadProfile();
   // Show if profile name is missing
