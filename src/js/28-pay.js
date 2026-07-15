@@ -387,9 +387,47 @@ function payRender() {
   if (parsed && bk.perDiemCdn && bk.perDiemCdn.rate != null) checks.push(rateChk(Math.abs(bk.perDiemCdn.rate - st.cdn) < 0.005, bk.perDiemCdn.rate, st.cdn, fr ? 'Taux per diem CDN' : 'CDN per diem rate'));
   const rateCheck = checks.length ? `<p class="fdp-cell" style="color:var(--text-muted)">${checks.join(' &nbsp;·&nbsp; ')}</p>` : '';
 
+  // ── Plain-language checklist: green ✓ where it's right, red ✗ where there's a
+  //    problem, each with a simple "why". Martin's ask (2026-07-15). The number
+  //    table moves below into a collapsible for anyone who wants the figures.
+  const chk = [];
+  if (parsed && bk.regular && bk.regular.rate != null && st.rate) {
+    const ok = Math.abs(bk.regular.rate - st.rate) < 0.005;
+    chk.push([ok ? 'ok' : 'bad', fr ? 'Taux horaire' : 'Hourly rate',
+      ok ? money(bk.regular.rate) + (fr ? '/h — comme attendu.' : '/h — as expected.')
+        : (fr ? 'Le talon montre ' + money(bk.regular.rate) + ' mais tu attends ' + money(st.rate) + '. Vérifie ton échelon.' : 'Stub shows ' + money(bk.regular.rate) + ' but you expect ' + money(st.rate) + '. Check your seat year.')]);
+  }
+  if (parsed && bk.perDiemCdn && bk.perDiemCdn.rate != null) {
+    const ok = Math.abs(bk.perDiemCdn.rate - st.cdn) < 0.005;
+    chk.push([ok ? 'ok' : 'bad', fr ? 'Taux de per diem CDN' : 'CDN per-diem rate',
+      ok ? money(bk.perDiemCdn.rate) + (fr ? '/h — comme attendu.' : '/h — as expected.') : money(bk.perDiemCdn.rate) + ' vs ' + money(st.cdn)]);
+  }
+  if (parsed && has('perDiemCdn')) {
+    const hOk = paidCdnH == null || Math.abs(pd.cdnHours - paidCdnH) <= 1.0;
+    const dOk = Math.abs((+pd.cdnAmount) - (+stub.perDiemCdn)) < 0.02;
+    if (hOk && dOk) {
+      chk.push(['ok', fr ? 'Per diem CDN' : 'CDN per diem', (fr ? 'Heures et montant concordent : ' : 'Hours and amount match: ') + h1(pd.cdnHours) + ' h · ' + money(pd.cdnAmount) + '.']);
+    } else {
+      const gap = money(Math.abs((+pd.cdnAmount) - (+stub.perDiemCdn)));
+      chk.push(['bad', fr ? 'Per diem CDN — à vérifier' : 'CDN per diem — needs a look',
+        paidCdnH != null
+          ? (fr ? 'Ton horaire donne ' + h1(pd.cdnHours) + ' h pour la période, mais le talon en paie ' + h1(paidCdnH) + ' h (' + gap + ' d’écart). Trois causes possibles : (1) ta période de paie n’est pas le 16–30, (2) il manque des vols dans ton horaire, (3) Porter s’est trompé.'
+            : 'Your roster shows ' + h1(pd.cdnHours) + ' h for the period, the stub pays ' + h1(paidCdnH) + ' h (' + gap + ' apart). Three possible causes: (1) your pay period isn’t the 16–30, (2) flights are missing from your roster, (3) Porter got it wrong.')
+          : (fr ? 'Calculé ' + money(pd.cdnAmount) + ' vs payé ' + money(stub.perDiemCdn) + '.' : 'Computed ' + money(pd.cdnAmount) + ' vs paid ' + money(stub.perDiemCdn) + '.')]);
+    }
+  }
+  if (parsed && !has('perDiemUs') && pd.usHours <= 0) chk.push(['ok', fr ? 'Per diem US' : 'US per diem', fr ? 'Aucun cette période — rien à comparer.' : 'None this period — nothing to compare.']);
+  if (parsed) chk.push(['info', fr ? 'Paie de base et temps supp.' : 'Base pay & overtime', fr ? 'Montrés dans le détail à titre indicatif — pas encore vérifiés (les règles de paie semi-mensuelle restent à confirmer).' : 'Shown in the detail for reference — not verified yet (semi-monthly pay rules to confirm).']);
+
+  const renderChk = row => {
+    const s = row[0], c = s === 'ok' ? 'var(--success)' : (s === 'bad' ? 'var(--danger)' : 'var(--text-muted)');
+    const icon = s === 'ok' ? '✓' : (s === 'bad' ? '✗' : '○');
+    return `<div class="pay-check"><span class="pay-check-ic" style="color:${c}">${icon}</span><div class="pay-check-body"><div class="pay-check-t">${row[1]}</div><div class="pay-check-d">${row[2]}</div></div></div>`;
+  };
+  const checklist = (parsed && chk.length) ? `<div class="pay-checks" style="margin-top:12px">${chk.map(renderChk).join('')}</div>` : '';
+
   const colHead = range ? (fr ? 'Calculé (période)' : 'Computed (period)') : (fr ? 'Calculé (mois)' : 'Computed (month)');
-  host.innerHTML = stubHead + checksumWarn + `
-    <table class="pay-table" style="margin-top:10px">
+  const detailTable = `<table class="pay-table" style="margin-top:8px">
       <thead><tr><th>${fr ? 'Élément' : 'Item'}</th><th style="text-align:right">${colHead}</th><th style="text-align:right">${fr ? 'Payé (talon)' : 'Paid (stub)'}</th><th style="text-align:right">${fr ? 'Écart' : 'Diff'}</th></tr></thead>
       <tbody>
         ${cmp('Per diem CDN · ' + h1(pd.cdnHours) + ' h', pd.cdnAmount, 'perDiemCdn', range ? 'diff' : 'ref')}
@@ -399,8 +437,11 @@ function payRender() {
       </tbody>
     </table>
     ${hoursMatch}${usDaysHtml}${rateCheck}${periodNote}
-    <p class="fdp-cell" style="color:var(--text-muted)">${fr ? 'Crédits (période)' : 'Period credits'}: <b>${cr.creditHours} h</b> · ${fr ? 'garantie' : 'guarantee'} ${h1(periodMmg)} h${bp.guaranteeApplied ? (fr ? ' (appliquée)' : ' (applied)') : ''} · ${pd.pairings} pairing(s) · ${fr ? 'temps loin base' : 'time away'} ${h1(pd.awayHours)} h${rateWarn}</p>
-    ${payStubBreakdown(parsed, fr, money)}`;
+    <p class="fdp-cell" style="color:var(--text-muted)">${fr ? 'Crédits (période)' : 'Period credits'}: <b>${cr.creditHours} h</b> · ${fr ? 'garantie' : 'guarantee'} ${h1(periodMmg)} h${bp.guaranteeApplied ? (fr ? ' (appliquée)' : ' (applied)') : ''} · ${pd.pairings} pairing(s) · ${fr ? 'temps loin base' : 'time away'} ${h1(pd.awayHours)} h${rateWarn}</p>`;
+
+  host.innerHTML = stubHead + checksumWarn + checklist +
+    `<details class="pay-details" style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-muted)">${fr ? 'Détail (calculé vs payé)' : 'Detail (computed vs paid)'}</summary>${detailTable}</details>` +
+    payStubBreakdown(parsed, fr, money);
 }
 
 // Collapsible full breakdown of the parsed stub (every earning line, read-only).

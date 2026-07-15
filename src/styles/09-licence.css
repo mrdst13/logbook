@@ -111,3 +111,11 @@
 .pay-stubhead a { color: var(--text-muted); text-decoration: underline; }
 .pay-details summary { font-size: 12px; padding: 4px 0; }
 .pay-details summary::-webkit-details-marker { color: var(--text-muted); }
+/* Plain-language verification checklist (green ✓ / red ✗ / grey ○ + why) */
+.pay-checks { display: flex; flex-direction: column; gap: 8px; }
+.pay-check { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px; border-radius: var(--r-md);
+  background: var(--bg-surface); border: .5px solid var(--border); }
+.pay-check-ic { font-size: 15px; font-weight: 700; line-height: 1.4; flex: 0 0 auto; width: 16px; text-align: center; }
+.pay-check-body { min-width: 0; }
+.pay-check-t { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.pay-check-d { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
