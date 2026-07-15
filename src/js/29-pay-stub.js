@@ -109,6 +109,21 @@ function payStubBuckets(parsed) {
   };
 }
 
+// Semi-monthly pay-period date range from the stub's "PERIOD ENDING" date, using
+// the standard airline split: 1st–15th and 16th–end of month. "30-Jun-2026" →
+// { start:'2026-06-16', end:'2026-06-30' }. This is an ASSUMPTION (the common
+// convention) — the per-diem HOURS match confirms or denies it, so it is never
+// presented as certain. Returns null on an unparseable date.
+function payStubPeriodRange(periodEnding) {
+  const m = String(periodEnding || '').match(/(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
+  if (!m) return null;
+  const mo = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 }[m[2].toLowerCase()];
+  if (!mo) return null;
+  const y = m[3], mm = String(mo).padStart(2, '0'), day = +m[1];
+  const startDay = day <= 15 ? 1 : 16;   // standard 1–15 / 16–end split
+  return { start: y + '-' + mm + '-' + String(startDay).padStart(2, '0'), end: y + '-' + mm + '-' + String(day).padStart(2, '0'), half: startDay === 1 ? 'first' : 'second' };
+}
+
 // "30-Jun-2026" → "2026-06" (the pay-period month key the app groups flights by).
 function payStubMonth(period) {
   const m = String(period || '').match(/(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
@@ -173,5 +188,5 @@ function payStubInitDropzone() {
 
 // Node test harness export (ignored in the browser).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parsePayStub, payStubBuckets, payStubMonth, _psLineItem, _psNum };
+  module.exports = { parsePayStub, payStubBuckets, payStubMonth, payStubPeriodRange, _psLineItem, _psNum };
 }

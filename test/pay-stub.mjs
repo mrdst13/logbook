@@ -124,6 +124,12 @@ chk('US YTD-only → bucket amount null', ps.payStubBuckets(ps.parsePayStub('250
 // 15. Anti-hang: a degenerate 3000-char line is skipped, doesn't throw or freeze.
 chk('over-long line skipped (no hang/throw)', ps.parsePayStub('001 ' + '1'.repeat(3000)).earnings.length === 0);
 
+// 16. Semi-monthly period range from the "PERIOD ENDING" date (standard 1–15 / 16–end).
+chk('period ending 30 → 16–30', (() => { const r = ps.payStubPeriodRange('30-Jun-2026'); return !!r && r.start === '2026-06-16' && r.end === '2026-06-30'; })());
+chk('period ending 15 → 1–15', (() => { const r = ps.payStubPeriodRange('15-Jun-2026'); return !!r && r.start === '2026-06-01' && r.end === '2026-06-15'; })());
+chk('period ending 31 → 16–31', (() => { const r = ps.payStubPeriodRange('31-Jul-2026'); return !!r && r.start === '2026-07-16' && r.end === '2026-07-31'; })());
+chk('unparseable period → null', ps.payStubPeriodRange('nope') === null);
+
 if (failures.length) { console.error('pay-stub FAIL:', failures); process.exit(1); }
 console.log('pay-stub: all checks passed (metadata, 2-decimal columns, label digits, YTD-only, negatives, per-diem, earning/deduction split, buckets, robustness, checksum, split-thousands, dedup, US-null, anti-hang)');
 process.exit(0);
