@@ -22888,13 +22888,20 @@ function computeBasePay(creditHours, opts) {
 function isSummerLOA(dateStr) { return dateStr >= '2026-06-01' && dateStr <= '2026-08-31'; }
 
 // ── Hourly rate by seat year (E195 F/O) ─────────────────────────────
-// Values are from the PUBLISHED ALPA E195 F/O scale (not confidential, earned by
-// every pilot at that seat year) — never a guessed number, no pilot's name here.
-// Year 3 = 2025 scale $119.00 × 1.015 (Jan-2026 +1.5%) = $120.79. Other years are
-// intentionally absent until the full published scale is added (an unmapped year
-// fills nothing, so a pilot with no scale set sees an empty rate — defaults empty).
-const E195_FO_RATES = { 3: 120.79 };
-function payRateForYear(year) { const y = +year; return E195_FO_RATES[y] || 0; }
+// PUBLISHED ALPA scale, "Appendix B: Pay Scales" (E195-E2 First Officer column),
+// dated 1 Jan 2025. The scale rises 1.5% each January starting 1 Jan 2026, so the
+// rate for a given calendar year = base × 1.015^(year − 2025). Year 3 in 2026 =
+// 119.00 × 1.015 = 120.79, which matches the real stub. Sourced, not guessed.
+const E195_FO_SCALE_2025 = { 1: 89.23, 2: 101.50, 3: 119.00, 4: 127.00, 5: 138.00, 6: 143.00, 7: 147.00, 8: 149.00, 9: 151.00, 10: 154.00 };
+function payRateForYear(seatYear, calYear) {
+  const base = E195_FO_SCALE_2025[+seatYear];
+  if (!base) return 0;
+  const y = +calYear || (new Date()).getFullYear();
+  const bumps = Math.max(0, y - 2025);            // +1.5% each January since 1 Jan 2026
+  // +1e-9 nudge = FP-safe round-half-up so 119×1.015 = 120.785 lands on 120.79
+  // (the stub value), not 120.78 (floating-point 120.78499999…).
+  return Math.round((base * Math.pow(1.015, bumps) + 1e-9) * 100) / 100;
+}
 
 // ── US per-diem exchange, DERIVED from the pilot's own stub ─────────
 // Martin's choice (2026-07-14): don't make him type a USD→CAD rate. Instead
@@ -23502,7 +23509,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-15-12bb6c1';
+const BUILD_VERSION = '2026-07-15-0a26c3f';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

@@ -77,12 +77,15 @@ chk('LOA window: 2026-07-01 inside', pay.isSummerLOA('2026-07-01') === true);
 chk('LOA window: 2026-05-31 outside', pay.isSummerLOA('2026-05-31') === false);
 chk('LOA window: 2026-09-01 outside', pay.isSummerLOA('2026-09-01') === false);
 
-// 7. Hourly rate by seat year — ONLY verified rates are mapped (Year 3 = 120.79,
-//    matches Martin's stub). An unmapped year returns 0, never a guessed number.
-chk('rate year 3 = 120.79', near(pay.payRateForYear(3), 120.79));
-chk('rate year 3 (string) = 120.79', near(pay.payRateForYear('3'), 120.79));
-chk('rate unmapped year → 0 (never guessed)', pay.payRateForYear(2) === 0);
-chk('rate empty year → 0', pay.payRateForYear('') === 0);
+// 7. Hourly rate — full published E195 F/O scale, +1.5% each January since 2026.
+chk('rate year 3 (2026) = 120.79 (matches stub)', near(pay.payRateForYear(3, 2026), 120.79));
+chk('rate year 3 string = 120.79', near(pay.payRateForYear('3', 2026), 120.79));
+chk('rate year 1 (2026) = 90.57', near(pay.payRateForYear(1, 2026), 90.57));
+chk('rate year 10 (2026) = 156.31', near(pay.payRateForYear(10, 2026), 156.31));
+chk('rate escalation: year 3 base 2025 = 119.00', near(pay.payRateForYear(3, 2025), 119.00));
+chk('rate escalation: year 3 in 2027 = base × 1.015²', near(pay.payRateForYear(3, 2027), Math.round(119 * 1.015 * 1.015 * 100) / 100));
+chk('rate year 11 → 0 (F/O scale stops at 10)', pay.payRateForYear(11, 2026) === 0);
+chk('rate empty year → 0', pay.payRateForYear('', 2026) === 0);
 
 // 8. US per-diem USD→CAD rate derived from the stub (Martin's choice 2026-07-14).
 //    22.5 US h × $4.25 × fx = $131.01 → fx ≈ 1.3700.
