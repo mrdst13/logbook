@@ -136,6 +136,32 @@ chk('straddling US layover hours preserved (>0)', pay.computePerDiem(julLegs, 'C
 // A raw calendar-month leg filter (the old bug) would give July usHours = 0:
 chk('control: month-filtered legs LOSE the US layover', pay.computePerDiem(straddle.filter(f => f.date.slice(0,7) === '2026-07'), 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 }).usHours === 0);
 
+// 14. Local-midnight boundary + next-day helpers (2026-07-15).
+chk('local midnight Jun-16 EDT = 04:00Z', pay._payLocalMidnightMs('2026-06-16', 'America/Toronto') === Date.UTC(2026, 5, 16, 4, 0, 0));
+chk('next day of 30-Jun = 01-Jul', pay._payNextDay('2026-06-30') === '2026-07-01');
+
+// 15. Per diem CLIPPED to a pay period — a trip straddling the boundary contributes
+//     only its in-period hours (this is how Porter splits per diem). Reproduces the
+//     real 2026-06 finding: overnight reporting 15-Jun, releasing 16-Jun → only the
+//     16-Jun portion counts in the 16–30 period.
+const straddlePd = [
+  // Overnight: YOW (report 15-Jun 11:35Z) → YYJ, then YYJ → YOW (release 16-Jun 23:37Z)
+  { date: '2026-06-15', dep_icao: 'CYOW', arr_icao: 'CYYJ', dtstart_utc: '2026-06-15T12:35:00.000Z', block: 1, ci_utc: '1135' },
+  { date: '2026-06-16', dep_icao: 'CYYJ', arr_icao: 'CYOW', dtstart_utc: '2026-06-16T22:00:00.000Z', block: 1.37, ci_utc: '2100', co_utc: '2337' },
+  // Day trip fully inside 16–30: YOW→YLW→YOW on 20-Jun (report 13:00Z, release 23:00Z = 10 h)
+  { date: '2026-06-20', dep_icao: 'CYOW', arr_icao: 'CYLW', dtstart_utc: '2026-06-20T13:00:00.000Z', block: 1, ci_utc: '1300' },
+  { date: '2026-06-20', dep_icao: 'CYLW', arr_icao: 'CYOW', dtstart_utc: '2026-06-20T21:00:00.000Z', block: 1, ci_utc: '2100', co_utc: '2300' }
+];
+const pStart = Date.UTC(2026, 5, 16, 4, 0, 0);   // 16-Jun 00:00 EDT
+const pEnd = Date.UTC(2026, 6, 1, 4, 0, 0);      // 01-Jul 00:00 EDT
+const clip1 = pay.computePerDiemInPeriod(straddlePd, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 }, pStart, pEnd);
+// 16-Jun portion of the overnight = 04:00Z→23:37Z = 19.617 h; day trip = 10 h → 29.617 h
+chk('clipped per diem: straddle 16-Jun part + day trip = 29.6 h', near(clip1.awayHours, 29.62, 0.02));
+chk('clipped per diem: 2 pairings touch the period', clip1.pairings === 2);
+// Control: the SAME overnight, if it fully preceded the period, contributes 0.
+const clip0 = pay.computePerDiemInPeriod(straddlePd.slice(0, 2), 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 }, Date.UTC(2026, 6, 1, 4, 0, 0), Date.UTC(2026, 6, 15, 4, 0, 0));
+chk('clipped per diem: trip outside window → 0 h', near(clip0.awayHours, 0));
+
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
-console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing)');
+console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
 process.exit(0);
