@@ -33,7 +33,9 @@ function _psNum(s) {
 
 // Parse one earning/deduction segment ("<code> <label> <cols...>") into a record.
 function _psLineItem(segment) {
-  const m = String(segment || '').match(/^(\d{3})\s+(.+)$/);
+  const seg = String(segment || '');
+  if (seg.length > 2000) return null;   // anti-hang: the 2-decimal regex is superlinear on a degenerate megabyte "line"
+  const m = seg.match(/^(\d{3})\s+(.+)$/);
   if (!m) return null;
   const code = m[1];
   const body = m[2].replace(/\(/g, ' ').replace(/\s+/g, ' ').trim();   // drop stray "(" annotations
@@ -49,10 +51,15 @@ function _psLineItem(segment) {
 
 // Parse the whole stub text (from pdf.js) into structured data.
 function parsePayStub(text) {
-  const lines = String(text || '').split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-  const out = { period: '', deposit: '', position: '', totalDeposit: null, earningsThisPeriod: null, earnings: [], deductions: [] };
+  const lines = String(text || '').split('\n')
+    .map(l => l.replace(/\s+/g, ' ').trim())
+    // Repair a thousands value pdf.js may split into two text runs: "4, 680.28" → "4,680.28".
+    .map(l => l.replace(/(\d),\s(\d{3})(?=\D|$)/g, '$1,$2'))
+    .filter(Boolean);
+  const out = { period: '', deposit: '', position: '', totalDeposit: null, earningsThisPeriod: null, earnings: [], deductions: [], checksum: null };
   let mm;
   for (const l of lines) {
+    if (l.length > 2000) continue;   // anti-hang: skip a degenerate single-line PDF before the superlinear regex
     if (mm = l.match(/PERIOD ENDING:\s*(\d{1,2}-[A-Za-z]{3}-\d{4})/i)) out.period = mm[1];
     if (mm = l.match(/DEPOSIT DATE:\s*(\d{1,2}-[A-Za-z]{3}-\d{4})/i)) out.deposit = mm[1];
     if (!out.position && (mm = l.match(/\b(First Officer|Captain|F\/O)\s+([A-Z][A-Z0-9]{1,4})\s+([A-Z]{3,4})\b/i))) out.position = (mm[1] + ' ' + mm[2] + ' ' + mm[3]).replace(/\s+/g, ' ').trim();
@@ -71,6 +78,13 @@ function parsePayStub(text) {
     const d = _psLineItem(dedSeg);
     if (d) out.deductions.push(d);
   }
+  // Self-check: the this-period earning amounts must sum to "Earnings This Period".
+  // A mismatch means a figure was mis-read (e.g. a split thousands value slipped
+  // through) — the UI warns instead of presenting a wrong number as authoritative.
+  if (out.earningsThisPeriod != null) {
+    const sum = out.earnings.reduce((s, e) => s + (+e.amount || 0), 0);
+    out.checksum = { expected: out.earningsThisPeriod, got: Math.round(sum * 100) / 100, ok: Math.abs(sum - out.earningsThisPeriod) <= 0.02 };
+  }
   return out;
 }
 
@@ -80,7 +94,9 @@ function parsePayStub(text) {
 function payStubBuckets(parsed) {
   const p = parsed || {};
   const by = {};
-  (p.earnings || []).forEach(e => { by[e.code] = e; });
+  // First-wins: the this-period earnings block precedes any YTD recap section, so
+  // a repeated code on a later page never overwrites the period figure with a recap.
+  (p.earnings || []).forEach(e => { if (!by[e.code]) by[e.code] = e; });
   const amt = c => (by[c] && by[c].amount != null) ? by[c].amount : null;
   const sum = (a, b) => (a == null && b == null) ? null : (+(a || 0) + +(b || 0));
   return {
@@ -122,7 +138,8 @@ async function handlePayStubFile(file) {
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
+    const maxPages = Math.min(pdf.numPages, 25);   // a pay stub is 1–2 pages; cap guards a huge page tree
+    for (let i = 1; i <= maxPages; i++) {
       const page = await pdf.getPage(i);
       const c = await page.getTextContent();
       const lines = (typeof groupTextByLines === 'function') ? groupTextByLines(c.items) : c.items.map(it => it.str);

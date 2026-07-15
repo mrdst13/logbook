@@ -91,6 +91,39 @@ chk('bucket perDiemUs amount null', b.perDiemUs.amount === null);
 chk('empty text → empty result', ps.parsePayStub('').earnings.length === 0);
 chk('garbage text → no throw', ps.parsePayStub('hello world 123').earnings.length === 0);
 
+// 11. Checksum (review 2026-07-15): amounts summing to "Earnings This Period" → ok;
+//     a mis-read → not ok, so the UI can warn instead of asserting a wrong figure.
+const okStub = ps.parsePayStub([
+  'PERIOD ENDING: 30-Jun-2026',
+  '001 Regular Earnings 38.75 100.00 3,000.00 40,000.00',
+  '252 Per Diem CDN ( 80.00 4.25 340.00 3,000.00',
+  'Earnings This Period 3,340.00 Deductions This Period 0.00'
+].join('\n'));
+chk('checksum ok when amounts sum to Earnings This Period', !!okStub.checksum && okStub.checksum.ok === true);
+const badStub = ps.parsePayStub([
+  'PERIOD ENDING: 30-Jun-2026',
+  '001 Regular Earnings 38.75 100.00 3,000.00 40,000.00',
+  'Earnings This Period 7,000.00 Deductions This Period 0.00'
+].join('\n'));
+chk('checksum flags a mis-read (sum != Earnings This Period)', !!badStub.checksum && badStub.checksum.ok === false);
+
+// 12. Split-thousands repair: pdf.js may emit "4,680.28" as "4, 680.28" → read as 4680.28.
+const split = ps.parsePayStub('001 Regular Earnings 38.75 100.00 4, 680.28 47,517.92');
+chk('split thousands repaired to 4680.28', near(split.earnings[0].amount, 4680.28));
+
+// 13. Duplicate code across a YTD recap page → first-wins keeps the PERIOD figure.
+const dup = ps.parsePayStub([
+  '001 Regular Earnings 38.75 100.00 3,000.00 40,000.00',
+  '001 Regular Earnings 0.00 0.00 0.00 40,000.00'
+].join('\n'));
+chk('duplicate code first-wins (period 3000, not recap 0)', near(ps.payStubBuckets(dup).regular.amount, 3000.00));
+
+// 14. YTD-only US per diem → bucket amount stays null (render shows "—", never $0.00).
+chk('US YTD-only → bucket amount null', ps.payStubBuckets(ps.parsePayStub('250 Per Diem US ( 208.85')).perDiemUs.amount === null);
+
+// 15. Anti-hang: a degenerate 3000-char line is skipped, doesn't throw or freeze.
+chk('over-long line skipped (no hang/throw)', ps.parsePayStub('001 ' + '1'.repeat(3000)).earnings.length === 0);
+
 if (failures.length) { console.error('pay-stub FAIL:', failures); process.exit(1); }
-console.log('pay-stub: all checks passed (metadata, 2-decimal columns, label digits, YTD-only, negatives, per-diem, earning/deduction split, buckets, robustness)');
+console.log('pay-stub: all checks passed (metadata, 2-decimal columns, label digits, YTD-only, negatives, per-diem, earning/deduction split, buckets, robustness, checksum, split-thousands, dedup, US-null, anti-hang)');
 process.exit(0);

@@ -149,11 +149,11 @@ function computeBasePay(creditHours, opts) {
 function isSummerLOA(dateStr) { return dateStr >= '2026-06-01' && dateStr <= '2026-08-31'; }
 
 // ── Hourly rate by seat year (E195 F/O) ─────────────────────────────
-// ONLY rates confirmed against a source live here — never a guessed number.
-// Year 3 = 2025 ALPA scale $119.00 × 1.015 (Jan-2026 +1.5%) = $120.79, which
-// matches Martin's actual stub. The other years await his ALPA grid image and
-// are intentionally absent (an unmapped year fills nothing, so a pilot who has
-// not provided a scale sees an empty rate — Cumulo defaults stay empty).
+// Values are from the PUBLISHED ALPA E195 F/O scale (not confidential, earned by
+// every pilot at that seat year) — never a guessed number, no pilot's name here.
+// Year 3 = 2025 scale $119.00 × 1.015 (Jan-2026 +1.5%) = $120.79. Other years are
+// intentionally absent until the full published scale is added (an unmapped year
+// fills nothing, so a pilot with no scale set sees an empty rate — defaults empty).
 const E195_FO_RATES = { 3: 120.79 };
 function payRateForYear(year) { const y = +year; return E195_FO_RATES[y] || 0; }
 
@@ -299,7 +299,7 @@ function payRender() {
   const bk = (parsed && typeof payStubBuckets === 'function') ? payStubBuckets(parsed) : null;
   const stub = bk ? {
     perDiemCdn: bk.perDiemCdn ? bk.perDiemCdn.amount : null,
-    perDiemUs: bk.perDiemUs ? (bk.perDiemUs.amount != null ? bk.perDiemUs.amount : 0) : null,
+    perDiemUs: bk.perDiemUs ? bk.perDiemUs.amount : null,   // null stays null (never assert $0.00) — matches the CDN row
     regular: bk.regular ? bk.regular.amount : null,
     ot: bk.overtime ? bk.overtime.amount : null
   } : {};
@@ -314,9 +314,17 @@ function payRender() {
       ` · <a href="#" onclick="if(typeof clearParsedStub==='function'){clearParsedStub('${ym}');} payRender(); return false;">${fr ? 'retirer' : 'remove'}</a></div></div>`
     : `<p class="fdp-cell" style="color:var(--text-muted)">${fr ? 'Dépose ton talon Porter (PDF) ci-dessus — l’app le lit et compare à ton horaire. Rien n’est tapé, rien n’est téléversé.' : 'Drop your Porter pay PDF above — the app reads it and compares to your roster. Nothing typed, nothing uploaded.'}</p>`;
 
+  // Honest safeguard: if the parsed line amounts don't sum to the stub's own
+  // "Earnings This Period", a figure was mis-read — warn, never present it as sound.
+  const checksumWarn = (parsed && parsed.checksum && !parsed.checksum.ok)
+    ? `<p class="fdp-cell" style="color:var(--danger);font-weight:600;margin-top:8px">${fr
+      ? 'Lecture à vérifier : les montants lus totalisent ' + money(parsed.checksum.got) + ' mais le talon indique ' + money(parsed.checksum.expected) + ' (« Earnings This Period »). Un montant a pu être mal lu — vérifie le détail avant de t’y fier.'
+      : 'Read to verify: parsed amounts total ' + money(parsed.checksum.got) + ' but the stub says ' + money(parsed.checksum.expected) + ' (“Earnings This Period”). A figure may be mis-read — check the detail before relying on it.'}</p>`
+    : '';
+
   // Analysis needs logged flights for the computed side.
   if (!fls.length) {
-    host.innerHTML = stubHead + `<p class="fdp-foot" style="margin-top:10px">${fr ? 'Aucun vol enregistré ce mois pour comparer — synchronise ou importe ton horaire.' : 'No flights logged this month to compare — sync or import your roster.'}</p>` + payStubBreakdown(parsed, fr, money);
+    host.innerHTML = stubHead + checksumWarn + `<p class="fdp-foot" style="margin-top:10px">${fr ? 'Aucun vol enregistré ce mois pour comparer — synchronise ou importe ton horaire.' : 'No flights logged this month to compare — sync or import your roster.'}</p>` + payStubBreakdown(parsed, fr, money);
     return;
   }
 
@@ -351,7 +359,7 @@ function payRender() {
   if (parsed && bk.perDiemCdn && bk.perDiemCdn.rate != null) checks.push(rateChk(Math.abs(bk.perDiemCdn.rate - st.cdn) < 0.005, bk.perDiemCdn.rate, st.cdn, fr ? 'Taux per diem CDN' : 'CDN per diem rate'));
   const rateCheck = checks.length ? `<p class="fdp-cell" style="color:var(--text-muted)">${checks.join(' &nbsp;·&nbsp; ')}</p>` : '';
 
-  host.innerHTML = stubHead + `
+  host.innerHTML = stubHead + checksumWarn + `
     <table class="pay-table" style="margin-top:10px">
       <thead><tr><th>${fr ? 'Élément' : 'Item'}</th><th style="text-align:right">${fr ? 'Calculé (mois)' : 'Computed (month)'}</th><th style="text-align:right">${fr ? 'Payé (talon)' : 'Paid (stub)'}</th></tr></thead>
       <tbody>
