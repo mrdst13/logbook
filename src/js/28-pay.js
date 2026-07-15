@@ -377,7 +377,7 @@ function payRender() {
     : '';
 
   if (!scoped.length) {
-    host.innerHTML = stubHead + checksumWarn + `<p class="fdp-foot" style="margin-top:10px">${fr ? 'Aucun vol enregistré pour cette période — synchronise ou importe ton horaire.' : 'No flights logged for this period — sync or import your roster.'}</p>` + payStubBreakdown(parsed, fr, money);
+    host.innerHTML = stubHead + checksumWarn + `<p class="fdp-foot" style="margin-top:10px">${fr ? 'Aucun vol enregistré pour cette période — synchronise ou importe ton horaire.' : 'No flights logged for this period — sync or import your roster.'}</p>` + payStubBreakdown(parsed, fr, money) + payStubHistory(ym, fr, money);
     return;
   }
 
@@ -463,6 +463,23 @@ function payRender() {
     }
   }
   if (parsed && !has('perDiemUs') && pd.usHours <= 0) chk.push(['ok', fr ? 'Per diem US' : 'US per diem', fr ? 'Aucun cette période — rien à comparer.' : 'None this period — nothing to compare.']);
+
+  // Recurring-item check: an allowance/dues line paid on the PRIOR stub but absent
+  // now (only fires once there are 2+ stubs). Catches a footwear/cleaning/ALPA line
+  // that silently stops. Conservative — only stable, recurring codes.
+  if (parsed && typeof loadAllParsedStubs === 'function') {
+    const all = loadAllParsedStubs();
+    const idx = all.findIndex(x => x.ym === ym);
+    const prior = (idx >= 0 && idx + 1 < all.length) ? all[idx + 1].stub : null;
+    if (prior) {
+      const RECUR = [['253', 'Footwear'], ['255', fr ? 'Nettoyage' : 'Cleaning'], ['256', fr ? 'Examen médical' : 'Annual medical'], ['587', fr ? 'Cotisations ALPA' : 'ALPA dues']];
+      const paidIn = (s, code) => { const arr = (+code < 500 ? s.earnings : s.deductions) || []; const it = arr.find(x => x.code === code); return !!(it && it.amount != null && +it.amount !== 0); };
+      const missing = RECUR.filter(r => paidIn(prior, r[0]) && !paidIn(parsed, r[0]));
+      if (missing.length) chk.push(['bad', fr ? 'Item récurrent manquant' : 'Recurring item missing', (fr ? 'Payé au talon précédent mais absent cette fois : ' : 'Paid on the previous stub but missing this time: ') + missing.map(r => r[1]).join(', ') + '.']);
+      else chk.push(['ok', fr ? 'Items récurrents' : 'Recurring items', fr ? 'Allocations et cotisations habituelles présentes.' : 'Usual allowances and dues present.']);
+    }
+  }
+
   if (parsed) chk.push(['info', fr ? 'Paie de base et temps supp.' : 'Base pay & overtime', fr ? 'Montrés dans le détail à titre indicatif — pas encore vérifiés (les règles de paie semi-mensuelle restent à confirmer).' : 'Shown in the detail for reference — not verified yet (semi-monthly pay rules to confirm).']);
 
   const renderChk = row => {
@@ -487,18 +504,52 @@ function payRender() {
 
   host.innerHTML = stubHead + checksumWarn + checklist +
     `<details class="pay-details" style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-muted)">${fr ? 'Détail (calculé vs payé)' : 'Detail (computed vs paid)'}</summary>${detailTable}</details>` +
-    payStubBreakdown(parsed, fr, money);
+    payStubBreakdown(parsed, fr, money) + payStubHistory(ym, fr, money);
 }
 
-// Collapsible full breakdown of the parsed stub (every earning line, read-only).
+// Year-to-date panel + collapsible full breakdown (earnings AND deductions).
 function payStubBreakdown(parsed, fr, money) {
-  if (!parsed || !parsed.earnings || !parsed.earnings.length) return '';
-  const rows = parsed.earnings.map(e => {
+  if (!parsed) return '';
+  const line = e => {
     const val = e.amount != null ? money(e.amount) : (e.ytd != null ? '<span style="color:var(--text-muted)">' + (fr ? 'cumul. ' : 'YTD ') + money(e.ytd) + '</span>' : '');
     return `<tr><td style="color:var(--text-muted)">${e.code}</td><td>${e.label || ''}</td><td class="pay-num">${val}</td></tr>`;
+  };
+  const earnRows = (parsed.earnings || []).map(line).join('');
+  const dedRows = (parsed.deductions || []).map(line).join('');
+
+  // Year-to-date summary (from the stub's own YTD columns).
+  const ded = c => { const d = (parsed.deductions || []).find(x => x.code === c); return d && d.ytd != null ? d.ytd : null; };
+  const ytdItems = [];
+  if (parsed.taxableYtd != null) ytdItems.push([fr ? 'Gains imposables' : 'Taxable earnings', parsed.taxableYtd]);
+  if (parsed.deductionsYtd != null) ytdItems.push([fr ? 'Déductions totales' : 'Total deductions', parsed.deductionsYtd]);
+  [['521', fr ? 'Impôt' : 'Income tax'], ['501', fr ? 'RPC/RRQ' : 'CPP'], ['511', fr ? 'AE' : 'EI'], ['530', 'RRSP/DPSP'], ['587', fr ? 'Cotisations ALPA' : 'ALPA dues']]
+    .forEach(p => { const v = ded(p[0]); if (v != null) ytdItems.push([p[1], v]); });
+  const ytdPanel = ytdItems.length
+    ? `<div class="pay-ytd"><div class="pay-ytd-h">${fr ? 'Cumul annuel (YTD)' : 'Year to date (YTD)'}</div>${ytdItems.map(it => `<div class="pay-ytd-row"><span>${it[0]}</span><span class="pay-num">${money(it[1])}</span></div>`).join('')}</div>`
+    : '';
+
+  return ytdPanel +
+    `<details class="pay-details" style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-muted)">${fr ? 'Détail du talon (gains + déductions)' : 'Stub detail (earnings + deductions)'}</summary>` +
+    (earnRows ? `<div class="pay-detail-sub">${fr ? 'Gains' : 'Earnings'}</div><table class="pay-table"><tbody>${earnRows}</tbody></table>` : '') +
+    (dedRows ? `<div class="pay-detail-sub" style="margin-top:12px">${fr ? 'Déductions' : 'Deductions'}</div><table class="pay-table"><tbody>${dedRows}</tbody></table>` : '') +
+    `</details>`;
+}
+
+// Pay history across all stored stubs (shows once there are 2+), newest first.
+function payStubHistory(currentYm, fr, money) {
+  const all = (typeof loadAllParsedStubs === 'function') ? loadAllParsedStubs() : [];
+  if (all.length < 2) return '';
+  const rows = all.map(entry => {
+    const bk = payStubBuckets(entry.stub);
+    const cell = v => v != null ? money(v) : '<span style="color:var(--text-muted)">—</span>';
+    return `<tr${entry.ym === currentYm ? ' style="font-weight:600"' : ''}><td>${entry.stub.period || entry.ym}</td>` +
+      `<td class="pay-num">${cell(bk.regular ? bk.regular.amount : null)}</td>` +
+      `<td class="pay-num">${cell(bk.overtime ? bk.overtime.amount : null)}</td>` +
+      `<td class="pay-num">${cell(bk.perDiemCdn ? bk.perDiemCdn.amount : null)}</td>` +
+      `<td class="pay-num">${cell(entry.stub.totalDeposit)}</td></tr>`;
   }).join('');
-  return `<details class="pay-details" style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-muted)">${fr ? 'Détail du talon lu' : 'Parsed stub detail'}</summary>` +
-    `<table class="pay-table" style="margin-top:8px"><tbody>${rows}</tbody></table></details>`;
+  return `<details class="pay-details" style="margin-top:12px"><summary style="cursor:pointer;color:var(--text-muted)">${fr ? 'Historique de paie (' + all.length + ' talons)' : 'Pay history (' + all.length + ' stubs)'}</summary>` +
+    `<table class="pay-table" style="margin-top:8px"><thead><tr><th>${fr ? 'Période' : 'Period'}</th><th style="text-align:right">${fr ? 'Base' : 'Base'}</th><th style="text-align:right">${fr ? 'T.supp.' : 'OT'}</th><th style="text-align:right">Per diem</th><th style="text-align:right">${fr ? 'Dépôt' : 'Deposit'}</th></tr></thead><tbody>${rows}</tbody></table></details>`;
 }
 
 // Node test harness export (ignored in the browser).

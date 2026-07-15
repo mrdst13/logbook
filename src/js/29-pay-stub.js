@@ -56,7 +56,7 @@ function parsePayStub(text) {
     // Repair a thousands value pdf.js may split into two text runs: "4, 680.28" → "4,680.28".
     .map(l => l.replace(/(\d),\s(\d{3})(?=\D|$)/g, '$1,$2'))
     .filter(Boolean);
-  const out = { period: '', deposit: '', position: '', totalDeposit: null, earningsThisPeriod: null, earnings: [], deductions: [], checksum: null };
+  const out = { period: '', deposit: '', position: '', totalDeposit: null, earningsThisPeriod: null, deductionsThisPeriod: null, taxableYtd: null, deductionsYtd: null, earnings: [], deductions: [], checksum: null };
   let mm;
   for (const l of lines) {
     if (l.length > 2000) continue;   // anti-hang: skip a degenerate single-line PDF before the superlinear regex
@@ -65,18 +65,24 @@ function parsePayStub(text) {
     if (!out.position && (mm = l.match(/\b(First Officer|Captain|F\/O)\s+([A-Z][A-Z0-9]{1,4})\s+([A-Z]{3,4})\b/i))) out.position = (mm[1] + ' ' + mm[2] + ' ' + mm[3]).replace(/\s+/g, ' ').trim();
     if (mm = l.match(/TOTAL DEPOSIT\s+(-?\d[\d,]*\.\d{2}-?)/i)) out.totalDeposit = _psNum(mm[1]);
     if (mm = l.match(/Earnings This Period\s+(-?\d[\d,]*\.\d{2}-?)/i)) out.earningsThisPeriod = _psNum(mm[1]);
+    if (mm = l.match(/Deductions This Period\s+(-?\d[\d,]*\.\d{2}-?)/i)) out.deductionsThisPeriod = _psNum(mm[1]);
+    if (mm = l.match(/Taxable Earnings YTD\s+(-?\d[\d,]*\.\d{2}-?)/i)) out.taxableYtd = _psNum(mm[1]);
+    if (mm = l.match(/Deductions Year to Date\s+(-?\d[\d,]*\.\d{2}-?)/i)) out.deductionsYtd = _psNum(mm[1]);
 
-    // An earnings line starts with a 0xx–3xx code. A deduction (5xx–9xx) may
-    // follow on the same row — split it off and parse both halves.
-    const em = l.match(/^([0-3]\d\d)\s+/);
-    if (!em) continue;
-    let earnSeg = l, dedSeg = '';
-    const dc = l.search(/\s([5-9]\d\d)\s/);              // first deduction code, mid-line
-    if (dc >= 0) { earnSeg = l.slice(0, dc).trim(); dedSeg = l.slice(dc).trim(); }
-    const e = _psLineItem(earnSeg);
-    if (e) out.earnings.push(e);
-    const d = _psLineItem(dedSeg);
-    if (d) out.deductions.push(d);
+    // A row may carry an EARNING (0xx–3xx) on the left, a DEDUCTION (5xx–9xx) on
+    // the right, or a deduction ALONE (blank earnings column). Handle all three.
+    const startsEarn = /^[0-3]\d\d\s/.test(l);
+    const startsDed = /^[5-9]\d\d\s/.test(l);
+    if (!startsEarn && !startsDed) continue;
+    if (startsEarn) {
+      let earnSeg = l, dedSeg = '';
+      const dc = l.search(/\s[5-9]\d\d\s/);              // a deduction code later on the row
+      if (dc >= 0) { earnSeg = l.slice(0, dc).trim(); dedSeg = l.slice(dc).trim(); }
+      const e = _psLineItem(earnSeg); if (e) out.earnings.push(e);
+      const d = _psLineItem(dedSeg); if (d) out.deductions.push(d);
+    } else {
+      const d = _psLineItem(l); if (d) out.deductions.push(d);   // deduction-only row (blank earnings column)
+    }
   }
   // Self-check: the this-period earning amounts must sum to "Earnings This Period".
   // A mismatch means a figure was mis-read (e.g. a split thousands value slipped
@@ -139,6 +145,11 @@ const PAY_STUB_PARSED_KEY = 'cumulo_pay_stub_parsed_v1';
 function loadParsedStub(ym) { try { return (JSON.parse(localStorage.getItem(PAY_STUB_PARSED_KEY) || '{}'))[ym] || null; } catch (e) { return null; } }
 function saveParsedStub(ym, parsed) { let a = {}; try { a = JSON.parse(localStorage.getItem(PAY_STUB_PARSED_KEY) || '{}'); } catch (e) {} a[ym] = parsed; try { localStorage.setItem(PAY_STUB_PARSED_KEY, JSON.stringify(a)); } catch (e) {} }
 function clearParsedStub(ym) { let a = {}; try { a = JSON.parse(localStorage.getItem(PAY_STUB_PARSED_KEY) || '{}'); } catch (e) {} delete a[ym]; try { localStorage.setItem(PAY_STUB_PARSED_KEY, JSON.stringify(a)); } catch (e) {} }
+// All stored stubs, newest month first — for the pay history / trend view.
+function loadAllParsedStubs() {
+  let a = {}; try { a = JSON.parse(localStorage.getItem(PAY_STUB_PARSED_KEY) || '{}'); } catch (e) {}
+  return Object.keys(a).sort().reverse().map(ym => ({ ym: ym, stub: a[ym] }));
+}
 
 // Read a dropped/selected Porter pay PDF entirely in the browser (pdf.js), parse
 // it, store it for its period, and re-render the analysis. No upload, no typing.

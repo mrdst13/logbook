@@ -130,6 +130,22 @@ chk('period ending 15 → 1–15', (() => { const r = ps.payStubPeriodRange('15-
 chk('period ending 31 → 16–31', (() => { const r = ps.payStubPeriodRange('31-Jul-2026'); return !!r && r.start === '2026-07-16' && r.end === '2026-07-31'; })());
 chk('unparseable period → null', ps.payStubPeriodRange('nope') === null);
 
+// 17. Stub totals for the pay feature: deductions this period + YTD totals + line YTD.
+const totals = ps.parsePayStub([
+  'PERIOD ENDING: 30-Jun-2026',
+  '001 Regular Earnings 38.75 100.00 3,000.00 40,000.00 501 Canada Pension 300.00 3,282.00',
+  'Earnings This Period 3,000.00 Deductions This Period 1,941.47',
+  'Taxable Earnings YTD 56,560.00 Deductions Year to Date 19,780.70'
+].join('\n'));
+chk('deductions this period parsed', near(totals.deductionsThisPeriod, 1941.47));
+chk('taxable YTD parsed', near(totals.taxableYtd, 56560.00));
+chk('deductions YTD parsed', near(totals.deductionsYtd, 19780.70));
+chk('deduction line YTD parsed (501)', near((totals.deductions.find(d => d.code === '501') || {}).ytd, 3282.00));
+// Deduction-only row (blank earnings column) must be captured, not dropped.
+const dedOnly = ps.parsePayStub('587 ALPA Union Dues 97.91 1,046.38');
+chk('deduction-only row captured', dedOnly.deductions.some(d => d.code === '587' && near(d.amount, 97.91) && near(d.ytd, 1046.38)));
+chk('deduction-only row not counted as an earning', dedOnly.earnings.length === 0);
+
 if (failures.length) { console.error('pay-stub FAIL:', failures); process.exit(1); }
 console.log('pay-stub: all checks passed (metadata, 2-decimal columns, label digits, YTD-only, negatives, per-diem, earning/deduction split, buckets, robustness, checksum, split-thousands, dedup, US-null, anti-hang)');
 process.exit(0);
