@@ -12,9 +12,15 @@
 //        of the rolling window
 //   • computeDutyProjection — actuals + forecast merged, breach detected,
 //        forecast flights already logged are not double-counted
+//   • WINDOW SEMANTICS (2026-07-16, bug caught by Martin in prod): an N-day
+//        window is EXACTLY N local calendar dates — cutoff = today − (N−1),
+//        selection = cutoff <= date <= today. The 29th day back is NOT
+//        counted, a flight dated tomorrow is NOT counted, and "today" is the
+//        LOCAL date (_dutyLocalToday), never the UTC toISOString date.
 //
 // All dates are passed in explicitly (no wall-clock dependency) so the test is
-// stable on any day it runs.
+// stable on any day it runs. The local-today tests stub the window's Date at a
+// fixed local-evening instant instead.
 //
 // Run:  node test/duty-projection.mjs   (also part of `npm test`)
 // ═══════════════════════════════════════════════════════════════════
@@ -105,10 +111,74 @@ w.eval("localStorage.setItem('cumulo_roster_forecast_v1', JSON.stringify({ts:1, 
 const cpDedup = JSON.parse(w.eval(`JSON.stringify(computeDutyProjection(28, 112, '2026-07-14'))`));
 eq('dedup drops already-logged forecast', cpDedup.forecastCount, 0);
 
+// ── Window = EXACTLY N dates (2026-07-16 fix, bug caught by Martin in prod) ──
+// (a) 28-day window ending 2026-07-16 = the 28 dates 2026-06-19 … 2026-07-16.
+eq('cutoff = today − 27', w.eval("_dutyWindowCutoff(28, '2026-07-16')"), '2026-06-19');
+eq('window holds exactly 28 dates',
+  w.eval("_dutyDateSeq(_dutyWindowCutoff(28, '2026-07-16'), '2026-07-16').length"), 28);
+
+// (b)+(c) The 29th day back is NOT counted; a flight dated tomorrow is NOT counted.
+w.eval("flights = [" +
+  "{date:'2026-06-19', flightNum:'PDA', total:10}," +   // 28th date back → counted
+  "{date:'2026-06-18', flightNum:'PDB', total:100}," +  // 29th date back → NOT counted
+  "{date:'2026-07-16', flightNum:'PDC', total:2}," +    // today → counted
+  "{date:'2026-07-17', flightNum:'PDD', total:50}" +    // tomorrow → NOT counted
+"];");
+eq('window total = 28 dates only (no 29th day, no tomorrow)',
+  w.eval("_dutyFlightTimeInDays(28, '2026-07-16')"), 12);
+eq('flights-in-window list matches the same bounds',
+  w.eval("_dutyFlightsInWindow(28, '2026-07-16').map(function(f){return f.num;}).sort().join(',')"), 'PDA,PDC');
+
+// Same boundary inside the projection engine: a flight on the 28th date back
+// counts toward the window at D; one on the 29th does not.
+const pIn = JSON.parse(w.eval(`JSON.stringify(projectRollingWindow(${J({ '2026-06-19': 60, '2026-07-16': 60 })}, 28, 112, '2026-07-01', '2026-07-31'))`));
+eq('engine: 28th date back counted → 120, hit', `${pIn.peak}:${pIn.hitDate}`, '120:2026-07-16');
+const pOut = JSON.parse(w.eval(`JSON.stringify(projectRollingWindow(${J({ '2026-06-18': 60, '2026-07-16': 60 })}, 28, 112, '2026-07-01', '2026-07-31'))`));
+eq('engine: 29th date back NOT counted → peak 60, no hit', `${pOut.peak}:${pOut.hitDate}`, '60:null');
+
+// (d) "Today" is the LOCAL calendar date, and the projection starts there.
+// Stub the window's Date at a fixed instant: 2026-07-16 23:30 LOCAL time. In
+// any timezone west of UTC (e.g. America/Toronto) toISOString() already reads
+// 2026-07-17, so the old UTC-based code would fail these assertions.
+const fixedMs = new Date(2026, 6, 16, 23, 30).getTime();
+w.eval(`
+  window.__RealDate = Date;
+  (function () {
+    const Real = Date;
+    function FakeDate(a, b, c, d2, e, f2, g) {
+      if (arguments.length === 0) return new Real(${fixedMs});
+      switch (arguments.length) {
+        case 1: return new Real(a);
+        case 2: return new Real(a, b);
+        case 3: return new Real(a, b, c);
+        case 4: return new Real(a, b, c, d2);
+        case 5: return new Real(a, b, c, d2, e);
+        case 6: return new Real(a, b, c, d2, e, f2);
+        default: return new Real(a, b, c, d2, e, f2, g);
+      }
+    }
+    FakeDate.prototype = Real.prototype;
+    FakeDate.UTC = Real.UTC;
+    FakeDate.parse = Real.parse;
+    FakeDate.now = function () { return ${fixedMs}; };
+    Date = FakeDate;
+  })();
+`);
+eq('local today at 23:30 local = 2026-07-16', w.eval('_dutyLocalToday()'), '2026-07-16');
+eq('default window total = override(local today) total',
+  w.eval('_dutyFlightTimeInDays(28)'), w.eval("_dutyFlightTimeInDays(28, '2026-07-16')"));
+w.eval("flights = []; localStorage.removeItem('cumulo_roster_forecast_v1');");
+const cpToday = JSON.parse(w.eval('JSON.stringify(computeDutyProjection(28, 112))'));
+eq('projection starts at local today (horizonEnd)', cpToday.horizonEnd, '2026-07-16');
+const ddToday = JSON.parse(w.eval('JSON.stringify(_dutyDrillData(28))'));
+eq('drill-down today = local today', ddToday.today, '2026-07-16');
+eq('drill-down cut = today − 27', ddToday.cut, '2026-06-19');
+w.eval('Date = window.__RealDate;');
+
 if (failures.length) {
   console.error(`\n✗ duty-projection: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);
   process.exit(1);
 }
-console.log('✓ duty-projection passed — block estimation, roster forecast extraction, rolling-window peak/breach, actuals+forecast merge & dedup');
+console.log('✓ duty-projection passed — block estimation, roster forecast extraction, rolling-window peak/breach, actuals+forecast merge & dedup, exact N-date window bounds, local-today (never UTC)');
 process.exit(0);

@@ -22493,9 +22493,17 @@ function airportACHide() {
 //  private/mockups/duty-final.html + duty-final-en.html — amber forecast
 //  notice up top, three flat windows with severity-tinted linear gauges
 //  (70% / 90% visual thresholds), and an INLINE 28-day drill-down (daily
-//  bars + rolling-total curve + counted-flights list). The calculation
-//  engines below (projectRollingWindow, computeDutyProjection,
-//  _dutyFlightTimeInDays) are unchanged.
+//  bars + rolling-total curve + counted-flights list).
+//
+//  WINDOW SEMANTICS (fixed 2026-07-16, bug caught by Martin in prod:
+//  "June 18 to July 17, 30 dates"): a rolling window of N days is EXACTLY
+//  N local calendar dates — today in LOCAL time plus the (N−1) preceding
+//  dates. Cutoff = today − (N−1); selection = cutoff <= date <= today
+//  (upper bound excludes any flight dated in the future). "Today" always
+//  comes from _dutyLocalToday() (getFullYear/getMonth/getDate), never
+//  toISOString(), which is the UTC date and flips to tomorrow in the
+//  evening in Toronto. Decision consigned in
+//  docs/REGISTRE-REGLEMENTAIRE.md §700.27 (2026-07-16).
 // ═══════════════════════════════════════════
 
 const DUTY_LIMITS = [
@@ -22509,14 +22517,25 @@ let _dutyForecastSyncing = false;
 function _navblueConfigured() { try { return !!localStorage.getItem('cumulo_navblue_url'); } catch (e) { return false; } }
 function _forecastCached() { try { return !!localStorage.getItem('cumulo_roster_forecast_v1'); } catch (e) { return false; } }
 
+// "Today" as the LOCAL calendar date (YYYY-MM-DD). Never toISOString(): that
+// is the UTC date, which becomes tomorrow's date in the evening in Toronto
+// and would shift every window by one day (bug caught in prod 2026-07-16).
+function _dutyLocalToday() {
+  const d = new Date();
+  const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
 // Flight time (not sim) in the last N days, from logged flights.
-function _dutyFlightTimeInDays(days) {
+// Window = EXACTLY N local calendar dates: [today − (N−1) … today] inclusive.
+// todayOverride (YYYY-MM-DD) is for tests; default = local today.
+function _dutyFlightTimeInDays(days, todayOverride) {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = new Date(); cutoff.setHours(0, 0, 0, 0); cutoff.setDate(cutoff.getDate() - days);
-  const cutStr = cutoff.toISOString().split('T')[0];
+  const today = todayOverride || _dutyLocalToday();
+  const cutStr = _dutyShiftDate(today, -(days - 1));
   return flights.reduce(function (sum, f) {
     if (f.isSim) return sum;                      // simulator time is not flight time
-    if (!f.date || f.date < cutStr) return sum;
+    if (!f.date || f.date < cutStr || f.date > today) return sum;
     return sum + (+f.total || +f.block || 0);
   }, 0);
 }
@@ -22703,20 +22722,22 @@ function _dutyRenderNotice(hit, hasForecast, fr) {
 
 // ─── Drill-down data (mirrors computeDutyProjection's assembly, read-only) ───
 
-function _dutyWindowCutoff(days) {
-  const cutoff = new Date(); cutoff.setHours(0, 0, 0, 0); cutoff.setDate(cutoff.getDate() - days);
-  return cutoff.toISOString().split('T')[0];
+// First date of the N-day window ending at `today` (local calendar dates):
+// today − (N−1), so [cutoff … today] holds EXACTLY N dates.
+function _dutyWindowCutoff(days, todayOverride) {
+  return _dutyShiftDate(todayOverride || _dutyLocalToday(), -(days - 1));
 }
 
 // Logged flights (actuals, non-sim) counted in the trailing window — the exact
 // set summed by _dutyFlightTimeInDays. Most recent first.
-function _dutyFlightsInWindow(days) {
+function _dutyFlightsInWindow(days, todayOverride) {
   if (!Array.isArray(flights)) return [];
-  const cutStr = _dutyWindowCutoff(days);
+  const today = todayOverride || _dutyLocalToday();
+  const cutStr = _dutyWindowCutoff(days, today);
   const out = [];
   for (const f of flights) {
     if (f.isSim) continue;
-    if (!f.date || f.date < cutStr) continue;
+    if (!f.date || f.date < cutStr || f.date > today) continue;
     const hrs = (+f.total || +f.block || 0);
     if (hrs <= 0) continue;
     out.push({ date: f.date, num: f.flightNum || '', route: f.route || '', type: f.type || '', hrs: hrs });
@@ -22744,14 +22765,15 @@ function _dutyShiftDate(dateStr, deltaDays) {
 // PURE projection core (unit-tested in test/duty-projection.mjs):
 // given a map of date → flight-hours-that-day, roll a `days`-wide window across
 // [fromDate … toDate] and report the peak window total and the first date the
-// window reaches `limit`. Window(D) = sum of hours on dates in [D-days … D],
-// matching the bars' trailing-window semantics.
+// window reaches `limit`. Window(D) = sum of hours on dates in
+// [D − (days−1) … D] — EXACTLY `days` calendar dates, matching the bars'
+// trailing-window semantics.
 function projectRollingWindow(hoursByDate, days, limit, fromDate, toDate) {
   const dates = Object.keys(hoursByDate).sort();
   let peak = 0, peakDate = null, hitDate = null;
   for (const D of dates) {
     if (D < fromDate || D > toDate) continue;
-    const cut = _dutyShiftDate(D, -days);
+    const cut = _dutyShiftDate(D, -(days - 1));
     let sum = 0;
     for (const d of dates) { if (d >= cut && d <= D) sum += hoursByDate[d]; }
     sum = Math.round(sum * 100) / 100;
@@ -22768,7 +22790,7 @@ function projectRollingWindow(hoursByDate, days, limit, fromDate, toDate) {
 function computeDutyProjection(days, limit, todayOverride) {
   const cache = loadRosterForecast();
   const forecast = cache ? cache.flights : [];
-  const today = todayOverride || new Date().toISOString().split('T')[0];
+  const today = todayOverride || _dutyLocalToday();
 
   const hoursByDate = {};
   const loggedKeys = new Set();
@@ -22810,9 +22832,9 @@ function computeDutyProjection(days, limit, todayOverride) {
 // Read-only mirror of computeDutyProjection's data assembly, split so the
 // render layer can draw the flown daily bars, the planned blocks and the
 // rolling totals from the exact same inputs. Never mutates anything.
-function _dutyDrillData(days) {
-  const today = new Date().toISOString().split('T')[0];
-  const cut = _dutyWindowCutoff(days);
+function _dutyDrillData(days, todayOverride) {
+  const today = todayOverride || _dutyLocalToday();
+  const cut = _dutyWindowCutoff(days, today);
   const daily = {};        // logged hours per date, window only (bars + solid line)
   const combined = {};     // all logged + future forecast (rolling totals)
   const loggedKeys = new Set();
@@ -22842,9 +22864,10 @@ function _dutyDrillData(days) {
   return { today: today, cut: cut, daily: daily, combined: combined, planned: planned, horizon: horizon };
 }
 
-// Rolling window total at date D — same [D-days … D] semantics as the engine.
+// Rolling window total at date D — same [D − (days−1) … D] semantics (exactly
+// `days` dates) as the engine.
 function _dutyRollAt(combined, days, D) {
-  const cut = _dutyShiftDate(D, -days);
+  const cut = _dutyShiftDate(D, -(days - 1));
   let s = 0;
   for (const d in combined) { if (d >= cut && d <= D) s += combined[d]; }
   return Math.round(s * 100) / 100;
@@ -22870,15 +22893,11 @@ function _dutyDetailHtml(w, fr) {
     ? 'Détail : fenêtre de ' + days + ' jours · ' + range
     : 'Detail: ' + days + '-day window · ' + range;
 
-  // Honest window bounds: the engine's cutoff (today − days, INCLUSIVE) is
-  // conservative: it covers one calendar date more than "the last `days`
-  // days", so the range above and the tables below list days+1 dates. Say so
-  // plainly instead of pretending the listed dates are exactly `days`.
-  // (Engine semantics unchanged, never understates the CAR 700.27 total.)
-  const nDates = _dutyDateSeq(dd.cut, dd.today).length;
+  // Window bounds: [today − (days−1) … today] inclusive = exactly `days` local
+  // calendar dates (CAR 700.27 "any period of N consecutive days").
   const boundsNote = fr
-    ? 'Fenêtre affichée : du ' + _dutyFmtLong(dd.cut, fr) + ' au ' + _dutyFmtLong(dd.today, fr) + ' inclusivement, soit ' + nDates + ' dates. Par prudence, les bornes sont inclusives : le calcul peut couvrir un peu plus que les ' + days + ' derniers jours et ne sous-estime jamais ton cumul (RAC 700.27).'
-    : 'Window shown: ' + _dutyFmtLong(dd.cut, fr) + ' to ' + _dutyFmtLong(dd.today, fr) + ' inclusive, ' + nDates + ' dates. To stay conservative, the bounds are inclusive: the calculation may cover slightly more than the last ' + days + ' days and never understates your running sum (CAR 700.27).';
+    ? 'Fenêtre&nbsp;: du ' + _dutyFmtLong(dd.cut, fr) + ' au ' + _dutyFmtLong(dd.today, fr) + ' inclusivement = ' + days + ' jours (RAC 700.27).'
+    : 'Window: ' + _dutyFmtLong(dd.cut, fr) + ' to ' + _dutyFmtLong(dd.today, fr) + ' inclusive = ' + days + ' days (CAR 700.27).';
 
   const counted = _dutyFlightsInWindow(days);
   let body;
@@ -23037,7 +23056,7 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
   if (hasFc) {
     let rows = '<tr><th scope="row" class="num">' + esc(_dutyFmtShort(dd.today, fr)) + (fr ? ' (aujourd’hui)' : ' (today)') + '</th><td class="r num">' + (todayPlanned > 0 ? fh(todayPlanned) : '–') + '</td><td class="r num">–</td><td class="r num">' + fh(todayPlanned > 0 ? todayRoll : have) + '</td></tr>';
     future.forEach(function (D, k) {
-      const leaving = dd.combined[_dutyShiftDate(D, -(days + 1))] || 0;
+      const leaving = dd.combined[_dutyShiftDate(D, -days)] || 0;
       rows += '<tr' + (proj.hitDate === D ? ' class="row-total"' : '') + '><th scope="row" class="num">' + esc(_dutyFmtShort(D, fr)) + '</th>' +
         '<td class="r num">' + fh(dd.planned[D] || 0) + '</td>' +
         '<td class="r num">' + fh(leaving) + '</td>' +
@@ -23052,7 +23071,7 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
       '</tr></thead><tbody>' + rows + '</tbody></table>' +
       '<p class="footnote">' + (fr
         ? 'Chaque ligne : total glissant = total de la veille + bloc prévu à l’horaire − heures du jour qui sort de la fenêtre (' + days + ' jours plus tôt). La partie vécue du trait plein se recalcule avec le tableau « Données du graphique : heures par jour » ci-dessous.'
-        : 'Each row: rolling total = previous day’s total + block planned on the schedule − hours from the day leaving the window (' + (days + 1) + ' days earlier). The flown part of the solid line can be recalculated from the “Chart data: hours by day” table below.') +
+        : 'Each row: rolling total = previous day’s total + block planned on the schedule − hours from the day leaving the window (' + days + ' days earlier). The flown part of the solid line can be recalculated from the “Chart data: hours by day” table below.') +
       (todayPlanned > 0 ? (fr
         ? ' La ligne « aujourd’hui » inclut le bloc encore prévu à ton horaire aujourd’hui : ' + fh(have) + ' h enregistrées + ' + fh(todayPlanned) + ' h prévues = ' + fh(todayRoll) + ' h.'
         : ' The “today” row includes the block still planned on your schedule today: ' + fh(have) + ' h recorded + ' + fh(todayPlanned) + ' h planned = ' + fh(todayRoll) + ' h.') : '') + '</p>' +
@@ -25302,7 +25321,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-16-ce578c9';
+const BUILD_VERSION = '2026-07-16-9b5dfd7';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
