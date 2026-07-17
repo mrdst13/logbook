@@ -64,6 +64,14 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 - **Source** : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-401.05-20251217.html
 - **Vérifié** : 2026-06-25 ✓ (donnée décollages jour/nuit ajoutée au formulaire le même jour).
 
+## ✅ Fenêtres 401.05 — décision d'implémentation « date civile LOCALE » (2026-07-17)
+- **Contexte** : même famille de bogue que la page Service (§700.27, décision 2026-07-16) — `toISOString()` donne la date **UTC**, qui bascule au lendemain en soirée à Toronto, décalant chaque coupure d'un jour.
+- **Décision** : toutes les fenêtres de récence 401.05 (6 mois passagers/IFR, 12 mois d'inférence IFR) sont ancrées sur la **date civile locale** (`localTodayStr()`, getFullYear/getMonth/getDate — jamais `toISOString()`), puis l'arithmétique se fait en UTC pur sur la chaîne YYYY-MM-DD (`shiftDateStr` / `shiftMonthsStr`), insensible à l'heure d'été.
+- **Bornes 6/12 mois (inchangées, seulement fiabilisées)** : coupure = même quantième N mois en arrière, **inclus** (`date >= cutoff`) — sémantique `setMonth` conservée telle que vérifiée 2026-06-25 ; un quantième inexistant roule vers l'avant (31 mai − 6 mois → « 31 nov. » → 1er déc.), la fenêtre ne s'élargit jamais. Ce n'est **pas** une interprétation réglementaire nouvelle : le texte dit « within the six months preceding the flight », la coupure exacte au quantième reste la convention d'implémentation existante.
+- **Borne haute = aujourd'hui (local)** : un vol daté dans le futur n'est pas « within the preceding … months » → exclu de tous les compteurs (`date <= today`), comme au §700.27.
+- **Item PDF « 90-day recency » (Operator best practice, PAS un texte réglementaire)** : aligné sur la convention §700.27 — 90 jours = **exactement 90 dates civiles locales** `[aujourd'hui − 89 … aujourd'hui]`.
+- **Implémentation** : `localTodayStr` / `shiftDateStr` / `shiftMonthsStr` + `sixMonthCutoffStr()` (source unique, anneau = alertes = carte = PDF) dans [src/js/02-data.js](../src/js/02-data.js) ; consommateurs [src/js/03-dashboard.js](../src/js/03-dashboard.js) et [src/js/12-pdf-export.js](../src/js/12-pdf-export.js). Pinné par `test/currency-windows.mjs` (soirée locale → coupures du bon jour ; quantième inclus ; vol futur exclu ; 90 dates exactement).
+
 ---
 
 ## ✅ Validité du certificat médical (CAR 404.04) — vérifié 2026-06-25
@@ -148,6 +156,7 @@ Seuils des colonnes (nombre de vols prévus) : **700.28(2)** 1-11 / 12-17 / 18+ 
 - **CAR 401.73** — récence/rafraîchissement (glossaire).
 - **CAR 605.x** (605.97 etc.) — exigences carnet de route / documents (glossaire).
 - **CAR 401.05(1)** — récence 5 ans / programme de formation.
+- **Borne du jour d'expiration médical/ECG/PPC** — le certificat est-il valide LE jour saisi ? Aujourd'hui l'app le montre expiré le jour même (comparaisons `new Date(dateSaisie)` vs minuit local, décalées d'un jour selon le fuseau) ; sémantique laissée telle quelle le 2026-07-17 (correctif fenêtres 401.05) pour ne rien changer sans vérifier 404.04(6)/(7) d'abord.
 
 ---
 

@@ -673,7 +673,9 @@ function renderBroughtForwardPage() {
   // first visit: this date is part of the signed attestation, and a guessed
   // default is a fabricated value in a record with legal weight — empty is
   // better than guessed. Saved values and drafts do come back.
-  const _todayISO = new Date().toISOString().slice(0, 10);
+  // Local civil date: this is the max= of the attestation cutoff picker —
+  // the UTC date would allow dating the cutoff tomorrow on an evening visit.
+  const _todayISO = localTodayStr();
   const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || '';
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.

@@ -26,11 +26,12 @@ function needsIFRTracking(profile) {
   // instrument time logged in the last 12 months = pilot is doing IFR
   // and wants to track currency.
   if (!Array.isArray(flights)) return false;
-  const today = new Date();
-  const cutoff = new Date(today); cutoff.setMonth(cutoff.getMonth() - 12);
-  const cutoffStr = cutoff.toISOString().split('T')[0];
+  // Local civil date, never toISOString (= UTC date, reads tomorrow in the
+  // evening in Toronto). Future-dated flights are not history — excluded.
+  const today = localTodayStr();
+  const cutoffStr = shiftMonthsStr(today, -12);
   return flights.some(f =>
-    f && f.date && f.date >= cutoffStr &&
+    f && f.date && f.date >= cutoffStr && f.date <= today &&
     ((+f.approaches || 0) > 0 ||
      (+f.instActual || 0) > 0 ||
      (+f.instHood   || 0) > 0 ||
@@ -137,10 +138,12 @@ function renderCurrencyCard() {
   const card = document.getElementById('currencyCard');
   if (!card) return;
 
-  const today = new Date(); today.setHours(0,0,0,0);
-  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
-  const cut6mStr = cutoff6m.toISOString().split('T')[0];
-  const recent6m = flights.filter(f => f.date && f.date >= cut6mStr);
+  // Same window as the alert bar and the validity ring: sixMonthCutoffStr()
+  // (local civil date — see registre §401.05), bounded above by local today
+  // so a future-dated flight never counts toward currency.
+  const cut6mStr = sixMonthCutoffStr();
+  const todayStr = localTodayStr();
+  const recent6m = flights.filter(f => f.date && f.date >= cut6mStr && f.date <= todayStr);
 
   // Approaches: filtered to qualifying devices (CAR 401.05(3.1)) via the shared
   // helper, so the card matches the alert bar and the validity ring. Instrument
@@ -182,7 +185,9 @@ function renderChart() {
   const labels = [], data = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = d.toISOString().substring(0, 7);
+    // Month key from LOCAL components — toISOString on a local-midnight Date
+    // reads the previous month east of UTC (same UTC-date bug family).
+    const key = d.getFullYear() + '-' + ((d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1));
     labels.push(d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }));
     const hrs = flights.filter(f => f.date && f.date.startsWith(key))
                        .reduce((sum, f) => sum + flightTimeOf(f), 0);
