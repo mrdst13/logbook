@@ -50,77 +50,8 @@
 .tc-note { display: flex; gap: 10px; background: var(--warning-soft); border: 1px solid rgba(217, 119, 6, .25);
   border-radius: var(--r-md); padding: 12px 15px; margin: 16px 0 4px; font-size: 12.5px; color: var(--warning-text); line-height: 1.55; }
 
-/* Cumulative-limit windows are tappable → drill-down (counted flights + forecast). */
-.lic-req.lic-clickable { cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast), box-shadow var(--motion-fast); }
-.lic-req.lic-clickable:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
-.lic-req.lic-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.duty-forecast-warn { margin: 14px 0 2px; }
-.duty-drill-over { color: var(--danger-text); font-weight: 600; }
-.duty-drill-ok { color: var(--success); font-weight: 600; }
-
-/* ═══════════════════════════════════════════════════════════════════
-   DAILY MAX FLIGHT DUTY PERIOD CALCULATOR (page-duty, RAC 700.28)
-   Shares the app design tokens → light + dark automatic.
-═══════════════════════════════════════════════════════════════════ */
-.fdp-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);
-  padding: 20px 22px 22px; box-shadow: var(--shadow-sm); margin-bottom: var(--s-8); }
-.fdp-h { font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--text-primary); margin: 0 0 4px; }
-.fdp-h-cum { margin-top: var(--s-4); }
-.fdp-lede { font-size: 13px; color: var(--text-secondary); margin: 0 0 16px; line-height: 1.55; max-width: 60ch; }
-.fdp-check { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600;
-  color: var(--text-primary); cursor: pointer; padding: 6px 0; }
-.fdp-check input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
-.fdp-result { background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--r-md);
-  padding: 16px 18px; margin-top: 14px; }
-.fdp-cap { font-size: 12px; font-weight: 600; color: var(--accent-hover); }
-.fdp-big { font-size: 36px; font-weight: 800; letter-spacing: -.03em; color: var(--accent-hover);
-  line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; }
-.fdp-endline { font-size: 13px; font-weight: 500; color: var(--accent-hover); margin-top: 8px; }
-.fdp-conv { font-size: 12px; color: var(--accent-hover); opacity: .85; margin-top: 10px; line-height: 1.5; }
-.fdp-cell { font-size: 12px; color: var(--accent-hover); opacity: .7; margin-top: 5px; line-height: 1.5; }
-.fdp-warn { font-size: 12px; color: var(--warning-text); background: var(--warning-soft);
-  border-radius: var(--r-sm); padding: 9px 11px; margin-top: 12px; line-height: 1.5; }
-.fdp-foot { font-size: 12px; color: var(--text-muted); margin: 12px 0 0; line-height: 1.5; }
-.fdp-cite b { color: var(--text-secondary); }
-.fdp-time { display: flex; align-items: center; gap: 8px; }
-.fdp-time select { flex: 1; min-width: 0; }
-.fdp-colon { font-weight: 700; color: var(--text-muted); }
-
-/* ═══ PAY RECONCILIATION (page-pay) — computed vs stub, find errors ═══ */
-.pay-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.pay-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--text-muted); font-weight: 600; padding: 0 6px 8px; border-bottom: 1px solid var(--border); }
-.pay-table td { padding: 9px 6px; border-bottom: .5px solid var(--border); color: var(--text-primary); }
-.pay-table tr:last-child td { border-bottom: 0; }
-.pay-table input.pay-stub-in { width: 100px; text-align: right; font: inherit; font-size: 13px;
-  padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
-  background: var(--bg-surface); color: var(--text-primary); }
-.pay-table input.pay-stub-in:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
-.pay-table td.pay-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* PDF drop zone — read the stub, never type it */
-.pay-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  padding: 26px 18px; border: 1.5px dashed var(--border); border-radius: var(--r-md);
-  background: var(--bg-surface); cursor: pointer; text-align: center; transition: border-color .15s, background .15s; }
-.pay-drop:hover, .pay-drop:focus-visible { border-color: var(--accent); background: var(--accent-soft); outline: none; }
-.pay-drop.drag { border-color: var(--accent); background: var(--accent-soft); border-style: solid; }
-.pay-drop-icon { font-size: 22px; line-height: 1; color: var(--accent); font-weight: 400; }
-.pay-drop-main { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
-.pay-drop-sub { font-size: 12px; color: var(--text-muted); }
-.pay-stubhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px;
-  font-size: 13px; padding: 10px 12px; border-radius: var(--r-md); background: var(--bg-surface); border: .5px solid var(--border); }
-.pay-stubhead a { color: var(--text-muted); text-decoration: underline; }
-.pay-details summary { font-size: 12px; padding: 4px 0; }
-.pay-details summary::-webkit-details-marker { color: var(--text-muted); }
-/* Plain-language verification checklist (green ✓ / red ✗ / grey ○ + why) */
-.pay-checks { display: flex; flex-direction: column; gap: 8px; }
-.pay-check { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px; border-radius: var(--r-md);
-  background: var(--bg-surface); border: .5px solid var(--border); }
-.pay-check-ic { font-size: 15px; font-weight: 700; line-height: 1.4; flex: 0 0 auto; width: 16px; text-align: center; }
-.pay-check-body { min-width: 0; }
-.pay-check-t { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
-.pay-check-d { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
-/* Year-to-date panel + stub detail sub-headings */
-.pay-ytd { margin-top: 12px; padding: 12px 14px; border-radius: var(--r-md); background: var(--bg-surface); border: .5px solid var(--border); }
-.pay-ytd-h { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
-.pay-ytd-row { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; padding: 3px 0; }
-.pay-detail-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 600; margin: 6px 0 4px; }
+/* The v1 .fdp-* (daily max FDP calculator) and .pay-* (pay reconciliation)
+   rule blocks were removed 2026-07-16: the duty/pay v2 refonte (see
+   11-duty-pay-v2.css) replaced all of that markup, and no .fdp-* / .pay-*
+   CLASS survives in src/body.html or src/js (fdp-conv, fdp-cell, pay-checks
+   remain only as element ids). */

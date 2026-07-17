@@ -174,7 +174,28 @@ async function handlePayStubFile(file) {
     const parsed = parsePayStub(text);
     const ym = payStubMonth(parsed.period);
     if (!ym || !parsed.earnings.length) { setStatus(fr ? 'Impossible de lire ce PDF comme un talon Porter.' : 'Could not read this PDF as a Porter stub.', 'danger'); return; }
+    // The store keeps ONE stub per month (keyed 'YYYY-MM') while Porter pay is
+    // SEMI-monthly: importing the June-30 stub would silently erase the June-15
+    // one. Never lose a stored stub silently: ask before replacing a stub whose
+    // PERIOD ENDING differs. (Root fix = key the store by period-end date; this
+    // guard closes the silent-loss hole until that migration.)
+    const prev = (typeof loadParsedStub === 'function') ? loadParsedStub(ym) : null;
+    if (prev && prev.period && parsed.period && prev.period !== parsed.period && typeof confirmDialog === 'function') {
+      const ok = await confirmDialog({
+        title: fr ? 'Remplacer le talon de ce mois?' : 'Replace this month’s stub?',
+        body: fr
+          ? 'Un talon est déjà stocké pour ce mois (période finissant le ' + prev.period + '). L’app garde un seul talon par mois pour l’instant : importer celui finissant le ' + parsed.period + ' remplacera l’autre.'
+          : 'A stub is already stored for this month (period ending ' + prev.period + '). The app keeps one stub per month for now: importing the one ending ' + parsed.period + ' will replace it.',
+        confirmLabel: fr ? 'Remplacer' : 'Replace',
+        danger: true
+      });
+      if (!ok) { setStatus(fr ? 'Import annulé : le talon existant (' + prev.period + ') est conservé.' : 'Import cancelled: the existing stub (' + prev.period + ') is kept.'); return; }
+    }
     saveParsedStub(ym, parsed);
+    // Rebuild the period list (payInit is idempotent: it re-derives the
+    // flight-months ∪ stub-months union), so a stub for a month with NO logged
+    // flights appears in the dropdown immediately — then select it and render.
+    if (typeof payInit === 'function') payInit();
     const sel = document.getElementById('pay-period');
     if (sel && [].some.call(sel.options, o => o.value === ym)) sel.value = ym;
     setStatus((fr ? 'Talon lu : ' : 'Stub read: ') + parsed.period + (fr ? ' · gardé sur cet appareil seulement.' : ' · kept on this device only.'), 'success');

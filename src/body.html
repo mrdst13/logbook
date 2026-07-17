@@ -872,127 +872,184 @@
  <div class="page-header">
  <div>
  <h1 class="page-title" data-i18n="page.duty.title">Duty</h1>
- <div class="page-sub" data-i18n="page.duty.sub">Your daily maximum and your cumulative limits</div>
+ <div class="page-sub" data-i18n="page.duty.sub">Your duty limits, calculated from your flights.</div>
  </div>
  </div>
 
- <section class="fdp-card">
- <h2 class="fdp-h" data-i18n="fdp.title">Maximum duty today</h2>
- <p class="fdp-lede" data-i18n="fdp.lede">How late you can stay on duty, from the CAR 700.28 table. Fill in your day — the maximum flight duty period updates live.</p>
+ <!-- v2 forecast notice banner (amber heads-up / neutral variant) — filled by
+      the render layer; an empty div renders nothing. Spec: duty-final.html §2. -->
+ <div id="dutyNotice"></div>
 
- <div class="form-group">
- <label data-i18n="fdp.report">Report time (where you are)</label>
- <div class="fdp-time">
+ <!-- ── Maximum flight duty today: the calculator is the ONLY framed surface ── -->
+ <section class="sec" aria-labelledby="dutyCalcTitle">
+ <div class="sec-head">
+ <div class="kicker" data-i18n="duty.calc.kicker">Flight duty period</div>
+ <h2 id="dutyCalcTitle" data-i18n="fdp.title">Maximum flight duty today</h2>
+ </div>
+
+ <div class="calc">
+ <div class="calc-grid">
+ <form class="fields" data-i18n-aria-label="duty.calc.formAria" aria-label="Calculation settings" onsubmit="return false;">
+ <div class="field">
+ <label for="fdp-report-h" data-i18n="fdp.report">Report time</label>
+ <div class="time-pair">
  <select id="fdp-report-h" data-i18n-aria-label="fdp.reportH" aria-label="Report hour"></select>
- <span class="fdp-colon" aria-hidden="true">:</span>
+ <span class="colon" aria-hidden="true">:</span>
  <select id="fdp-report-m" data-i18n-aria-label="fdp.reportM" aria-label="Report minute"></select>
  </div>
  </div>
-
- <div class="form-grid form-grid-2">
- <div class="form-group">
- <label for="fdp-station" data-i18n="fdp.where">Where you are</label>
- <select id="fdp-station"></select>
- </div>
- <div class="form-group">
- <label for="fdp-acclim" data-i18n="fdp.acclim">Acclimatized to</label>
- <select id="fdp-acclim"></select>
- </div>
- </div>
-
- <div class="form-grid form-grid-2">
- <div class="form-group">
- <label for="fdp-dur" data-i18n="fdp.dur">Average flight duration</label>
- <select id="fdp-dur">
- <option value="lt30" data-i18n="fdp.dur.lt30">Less than 30 min</option>
- <option value="30to50" data-i18n="fdp.dur.mid">30 to under 50 min</option>
- <option value="ge50" selected data-i18n="fdp.dur.ge50">50 min or more</option>
- <option value="vfr" data-i18n="fdp.dur.vfr">All flights day VFR</option>
- </select>
- </div>
- <div class="form-group">
+ <div class="field">
  <label for="fdp-legs" data-i18n="fdp.legs">Number of flights</label>
  <input type="number" id="fdp-legs" value="2" min="1" step="1" inputmode="numeric">
  </div>
+ <div class="field">
+ <label for="fdp-station" data-i18n="fdp.where">Where you are</label>
+ <select id="fdp-station"></select>
  </div>
-
- <label class="fdp-check">
+ <div class="field">
+ <label for="fdp-acclim" data-i18n="fdp.acclim">Acclimatized to</label>
+ <select id="fdp-acclim"></select>
+ <span class="hint" data-i18n="duty.calc.tzHint">Same time zone: no conversion. Otherwise, it happens automatically.</span>
+ </div>
+ <div class="field span2">
+ <span class="lbl" id="fdp-dur-lbl" data-i18n="fdp.dur">Average flight length</span>
+ <!-- Hidden input keeps the value contract fdpCompute() reads (engine untouched);
+      the segmented control drives it. Spec: duty-final.html §3a .seg; the 4
+      variants exist in the register: CAR 700.28(2) < 30 min · 700.28(3) 30 to
+      < 50 min · 700.28(4) 50 min and more · 700.28(9) day VFR (2026-07-13). -->
+ <input type="hidden" id="fdp-dur" value="ge50">
+ <div class="seg" id="fdp-dur-seg" role="group" aria-labelledby="fdp-dur-lbl">
+ <button type="button" data-dur="lt30" aria-pressed="false" data-i18n="fdp.dur.lt30">&lt; 30 min</button>
+ <button type="button" data-dur="30to50" aria-pressed="false" data-i18n="fdp.dur.mid">30 to &lt; 50 min</button>
+ <button type="button" data-dur="ge50" aria-pressed="true" data-i18n="fdp.dur.ge50">50 min and more</button>
+ <button type="button" data-dur="vfr" aria-pressed="false" data-i18n="fdp.dur.vfr">Day VFR</button>
+ </div>
+ </div>
+ <div class="field span2 split-row">
+ <label class="checkline">
  <input type="checkbox" id="fdp-split">
- <span data-i18n="fdp.split">Split duty (an in-duty rest break)?</span>
+ <span data-i18n="fdp.split">Split duty</span>
  </label>
- <div id="fdp-split-detail" class="form-grid form-grid-2" style="display:none">
- <div class="form-group">
- <label for="fdp-brk" data-i18n="fdp.brk">Break length (min)</label>
+ <div class="cond" id="fdp-split-detail" style="display:none">
+ <div class="field">
+ <label for="fdp-brk" data-i18n="fdp.brk">Break (minutes)</label>
  <input type="number" id="fdp-brk" value="180" min="60" step="5" inputmode="numeric">
  </div>
- <label class="fdp-check" style="align-self:end;padding-bottom:11px">
+ <label class="checkline">
  <input type="checkbox" id="fdp-night">
- <span data-i18n="fdp.night">Break at night (00:00–05:59)</span>
+ <span data-i18n="fdp.night">Night break</span>
  </label>
  </div>
+ </div>
+ </form>
 
- <div class="fdp-result">
- <div class="fdp-cap" data-i18n="fdp.max">Maximum flight duty period</div>
- <div class="fdp-big" id="fdp-out">—</div>
- <div class="fdp-endline"><span data-i18n="fdp.endBy">Latest end of duty</span>: <b id="fdp-end">—</b></div>
- <div class="fdp-conv" id="fdp-conv"></div>
- <div class="fdp-cell" id="fdp-cell"></div>
+ <aside class="result" data-i18n-aria-label="duty.calc.resultAria" aria-label="Calculation result">
+ <span class="r-label" data-i18n="fdp.max">Maximum flight duty period</span>
+ <div class="r-big num" id="fdp-out">–</div>
+ <p class="r-end num"><span data-i18n="fdp.endBy">Latest end of duty</span><span data-i18n="punct.colon">: </span><strong id="fdp-end">–</strong><span id="fdp-end-tz"></span></p>
+ <p class="r-conv num" id="fdp-conv"></p>
+ <p class="r-cell num" id="fdp-cell"></p>
+ </aside>
+ </div>
  </div>
 
- <div class="fdp-warn" id="fdp-splitInfo" style="display:none"></div>
- <p class="fdp-foot" data-i18n-html="fdp.pic"><b>Possible extension:</b> the pilot-in-command may extend by <b>+2 h</b> for unforeseen circumstances (CAR 700.63). Not added here — your call on the day.</p>
- <p class="fdp-foot fdp-cite" data-i18n-html="fdp.cite">Regulatory maximum <b>CAR 700.28</b> (+ 700.50 if split) · absolute ceiling 18 h (700.62). Your operator's approved program may be <b>more restrictive</b> — refer to it.</p>
+ <div class="calc-note num" id="fdp-splitInfo" style="display:none"></div>
+
+ <!-- 24h duty-window band chart (title + svg) — filled by the render layer.
+      Spec: duty-final.html §3, svg.w-band. Empty until then. -->
+ <div id="dutyDayChart"></div>
  </section>
 
- <h2 class="fdp-h fdp-h-cum" data-i18n="fdp.cumTitle">Cumulative flight-time limits</h2>
+ <!-- ── Cumulative flight-time limits (windows + gauges + detail) ── -->
+ <section class="sec divide" aria-labelledby="dutyCumTitle">
+ <div class="sec-head">
+ <div class="kicker" data-i18n="duty.cum.kicker">Cumulative limits</div>
+ <h2 id="dutyCumTitle" data-i18n="fdp.cumTitle">Your flight hours across the three regulatory windows</h2>
+ <p class="sec-note" id="dutyCumNote"></p>
+ </div>
  <div id="dutyTracker"></div>
+ </section>
+
+ <!-- ── Reference: the CAR 700.28 table behind the calculation ── -->
+ <section class="sec divide" aria-labelledby="dutyRefTitle">
+ <div class="sec-head">
+ <div class="kicker" data-i18n="duty.ref.kicker">Reference</div>
+ <h2 id="dutyRefTitle" data-i18n="duty.ref.title">The table behind the calculation</h2>
+ <p class="sec-note" id="dutyRefNote"></p>
+ </div>
+ <!-- Table built by the render layer from FDP_ROWS/FDP_COLS (single source of
+      truth, register-verified) with the active row/column highlighted. -->
+ <div class="tbl-wrap" id="dutyRefTable"></div>
+ <div class="footnote">
+ <p data-i18n="duty.ref.split">Split duty: a ground break of at least 60 minutes extends the duty by (break − 45 min), at 100% at night and 50% by day (CAR 700.50).</p>
+ <p data-i18n="duty.ref.ceiling">Whatever the table gives, the flight duty period never exceeds 18 h (CAR 700.62).</p>
+ <p data-i18n="duty.ref.ext">Unforeseen circumstances: after consulting the crew, the pilot-in-command may extend the flight duty period by up to 2 h for an unaugmented crew (CAR 700.63). This extension is never added automatically to the maximum shown.</p>
+ <p data-i18n="duty.ref.src">Source: CAR 700.28.</p>
+ </div>
+ </section>
  </div>
 
  <div id="page-pay" class="page">
  <div class="page-header">
  <div>
  <h1 class="page-title" data-i18n="page.pay.title">Pay</h1>
- <div class="page-sub" data-i18n="page.pay.sub">Find errors in your pay — computed from your roster, next to your stub</div>
+ <div class="page-sub" data-i18n="page.pay.sub">Your pay stub, checked against your flight schedule.</div>
  </div>
- </div>
-
- <div class="form-group" style="max-width:280px">
+ <div class="page-actions">
+ <div class="field" style="min-width:200px">
  <label for="pay-period" data-i18n="pay.period">Pay month</label>
  <select id="pay-period"></select>
  </div>
-
- <section class="fdp-card">
- <h2 class="fdp-h" data-i18n="pay.computed">Your pay, checked against your roster</h2>
- <div id="pay-stub-drop" class="pay-drop" tabindex="0" role="button">
- <div class="pay-drop-icon" aria-hidden="true">＋</div>
- <div class="pay-drop-main" data-i18n="pay.drop">Drop your Porter pay PDF here, or click to choose</div>
- <div class="pay-drop-sub" data-i18n="pay.drop.sub">Read on this device only — never uploaded, never typed</div>
- <input id="pay-stub-file" type="file" accept="application/pdf,.pdf" hidden>
  </div>
- <div id="pay-stub-status" class="fdp-cell" style="min-height:18px;margin:8px 0"></div>
- <div id="pay-computed"></div>
- </section>
+ </div>
 
- <section class="fdp-card">
- <h2 class="fdp-h" data-i18n="pay.settings">Your pay settings</h2>
- <p class="fdp-lede" data-i18n="pay.settings.sub">Kept on this device only — never synced, never in the app's public code.</p>
- <div class="form-grid form-grid-2">
- <div class="form-group"><label for="pay-base" data-i18n="pay.base">Home base (ICAO)</label><input id="pay-base" type="text" placeholder="CYOW"></div>
- <div class="form-group"><label for="pay-year" data-i18n="pay.year">Seat year (E195 F/O)</label>
+ <!-- ── Compact drop zone: thin rule, no shadow (pay-final.html §2) ── -->
+ <section id="pay-stub-drop" class="dropzone" tabindex="0" role="button" data-i18n-aria-label="pay.drop" aria-label="Drop your Porter pay stub PDF here, or click to choose">
+ <span class="file-ic" aria-hidden="true">
+ <svg width="20" height="20" viewBox="0 0 20 20"><path d="M6 2h6l4 4v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2v4h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 12h5M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+ </span>
+ <div class="txt">
+ <strong data-i18n="pay.drop">Drop your Porter pay PDF here, or click to choose</strong>
+ <small>
+ <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+ <span data-i18n="pay.drop.sub">Read on this device only, nothing is uploaded.</span>
+ </small>
+ </div>
+ <input id="pay-stub-file" type="file" accept="application/pdf,.pdf" hidden>
+ </section>
+ <div id="pay-stub-status" class="drop-status num"></div>
+
+ <!-- Verdict banner, KPI row, checks, this-period composition, history and
+      year-to-date are all rendered here by the render layer against the real
+      stored stubs (0 stub / 1 stub / n stubs states). Spec: pay-final.html §3-9. -->
+ <div id="pay-computed"></div>
+
+ <!-- ── Settings: your pay profile (pay-final.html §10) ── -->
+ <div class="section-head">
+ <span class="microlabel" data-i18n="pay.settings.kicker">Settings</span>
+ <h2 data-i18n="pay.settings">Your pay profile</h2>
+ </div>
+ <section class="v2-card">
+ <div class="settings-head">
+ <p data-i18n="pay.settings.sub">These values are used for the checks. They stay on this device.</p>
+ </div>
+ <div class="fields settings-fields">
+ <div class="field"><label for="pay-base" data-i18n="pay.base">Home base (ICAO)</label><input id="pay-base" type="text" placeholder="CYOW"></div>
+ <div class="field"><label for="pay-year" data-i18n="pay.year">Seat year (E195 F/O)</label>
  <select id="pay-year">
- <option value="" data-i18n="pay.year.none">—</option>
+ <option value="" data-i18n="pay.year.none">–</option>
  <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
  <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
  </select></div>
- <div class="form-group"><label for="pay-rate" data-i18n="pay.rate">Hourly rate ($)</label><input id="pay-rate" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
- <div class="form-group"><label for="pay-mmg" data-i18n="pay.mmg">Monthly guarantee (h)</label><input id="pay-mmg" type="number" step="0.5" inputmode="decimal"></div>
- <div class="form-group"><label for="pay-ot" data-i18n="pay.ot">Overtime threshold (h)</label><input id="pay-ot" type="number" step="1" inputmode="decimal"></div>
- <div class="form-group"><label for="pay-cdn" data-i18n="pay.cdn">Per diem CDN ($/h)</label><input id="pay-cdn" type="number" step="0.01" inputmode="decimal"></div>
- <div class="form-group"><label for="pay-us" data-i18n="pay.us">Per diem US ($USD/h)</label><input id="pay-us" type="number" step="0.01" inputmode="decimal"></div>
+ <div class="field"><label for="pay-rate" data-i18n="pay.rate">Hourly rate ($)</label><input id="pay-rate" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+ <div class="field"><label for="pay-mmg" data-i18n="pay.mmg">Monthly guarantee (h)</label><input id="pay-mmg" type="number" step="0.5" inputmode="decimal"></div>
+ <div class="field"><label for="pay-ot" data-i18n="pay.ot">Overtime threshold (h)</label><input id="pay-ot" type="number" step="1" inputmode="decimal"></div>
+ <div class="field"><label for="pay-cdn" data-i18n="pay.cdn">Per diem CDN ($/h)</label><input id="pay-cdn" type="number" step="0.01" inputmode="decimal"></div>
+ <div class="field"><label for="pay-us" data-i18n="pay.us">Per diem US ($USD/h)</label><input id="pay-us" type="number" step="0.01" inputmode="decimal"></div>
  </div>
  </section>
 
- <p class="fdp-foot" data-i18n-html="pay.disclaimer">Computed from your logged roster (check-in/out times) and the rules you entered — shown next to your stub so differences stand out. It is a check, not official: your pay stub and Porter crew payroll are authoritative.</p>
+ <p class="page-footnote" data-i18n-html="pay.disclaimer">Computed from your logged roster (check-in/out times) and the rules you entered, shown next to your stub so differences stand out. It is a check, not official: your pay stub and Porter crew payroll are authoritative.</p>
  </div>
 
  <div id="page-recap" class="page">
