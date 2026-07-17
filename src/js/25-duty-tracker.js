@@ -293,9 +293,21 @@ function _dutyShiftDate(dateStr, deltaDays) {
 // trailing-window semantics.
 function projectRollingWindow(hoursByDate, days, limit, fromDate, toDate) {
   const dates = Object.keys(hoursByDate).sort();
+  // Dates to evaluate = fromDate itself, PLUS every date carrying hours inside
+  // [fromDate … toDate]. fromDate must be evaluated even when it carries no
+  // hours: window(D) − window(D−1) = hours(D) − hours(D − days), so on a date
+  // with no hours the window can only stay flat or fall. The running max — and
+  // the FIRST date reaching `limit` — is therefore always attained at fromDate
+  // or on a date that carries hours; those two sets are sufficient.
+  // Iterating the keys of hoursByDate alone (behaviour before 2026-07-17)
+  // silently skipped fromDate on a day off, so a window that peaked TODAY was
+  // reported as the lower FUTURE max — understating the peak and overstating
+  // the room left, i.e. erring in the permissive direction on a hard CAR
+  // 700.27 limit.
+  const cands = dates.filter(function (D) { return D >= fromDate && D <= toDate; });
+  if (fromDate <= toDate && cands[0] !== fromDate) cands.unshift(fromDate);   // sorted: fromDate <= all others
   let peak = 0, peakDate = null, hitDate = null;
-  for (const D of dates) {
-    if (D < fromDate || D > toDate) continue;
+  for (const D of cands) {
     const cut = _dutyShiftDate(D, -(days - 1));
     let sum = 0;
     for (const d of dates) { if (d >= cut && d <= D) sum += hoursByDate[d]; }
@@ -438,10 +450,71 @@ function _dutyDetailHtml(w, fr) {
   return '<details class="detail" open><summary>' + title + DUTY_CHEV + '</summary><div class="fold-body">' + body + '</div></details>';
 }
 
+// ─── Readability helpers for the rolling-total curve ────────────────────────
+
+// Displayed total + displayed margin, BOTH derived from the same rounded
+// number, so the peak label, the hover titles and the transparency table always
+// add up to the limit at the tenth (never "104,3 h · 7,8 h" = 112,1 h). Values
+// are handed IN from the engine (computeDutyProjection / _dutyRollAt); nothing
+// is recomputed here. The property this gives is exactly that consistency —
+// `shown + margin === limit` at the tenth — and nothing more: the rounding is
+// symmetric (Math.round, not a truncation), so the displayed margin can sit up
+// to 0.05 h either side of the true remainder (v=111.94 → shown 111.9, margin
+// 0.1, true remainder 0.06). No displayed figure is wrong at the tenth. Do NOT
+// read a safety guarantee into this helper: if a margin that never overstates
+// the room left is ever wanted, it has to be coded (Math.floor((limit − v) *
+// 10) / 10) and `shown + margin` then stops returning the limit.
+function _dutyMarginOf(v, limit) {
+  const shown = Math.round((+v || 0) * 10) / 10;
+  return { shown: shown, margin: Math.round((limit - shown) * 10) / 10 };
+}
+
+// Hover title for a rolling-total point: same date, same figures, same order as
+// that date's row in the "Chart data: rolling total" table.
+function _dutyPointTitle(D, v, limit, fr, projected) {
+  const m = _dutyMarginOf(v, limit);
+  const tail = m.margin >= 0
+    ? _dutyFh(m.margin, fr) + (fr ? ' h de marge' : ' h left')
+    : (fr ? 'dépasse de ' + _dutyFh(-m.margin, fr) + ' h' : _dutyFh(-m.margin, fr) + ' h over');
+  return _dutyFmtLong(D, fr) + (fr ? ' : ' : ': ') +
+    _dutyFh(m.shown, fr) + ' h ' + (fr ? 'sur ' : 'of ') + _dutyFL(limit, fr) + ' h · ' + tail +
+    (projected ? (fr ? ' (projeté)' : ' (projected)') : '');
+}
+
+// Hover title for a point BEFORE today on the solid segment. That segment is a
+// running total inside the current window (it starts at 0 on the cutoff date),
+// NOT the rolling N-day total — so it is never dressed up as a margin against
+// the limit, which would be a fabricated regulatory figure. Only today's point
+// closes the window and therefore carries a real margin.
+function _dutyPastPointTitle(D, v, fr) {
+  return _dutyFmtLong(D, fr) + (fr ? ' : ' : ': ') + _dutyFh(v, fr) + ' h ' +
+    (fr ? 'cumulées dans la fenêtre courante (vols enregistrés)' : 'accumulated in the current window (recorded flights)');
+}
+
+// Approximate text box, for label collision tests only. Deliberately generous:
+// a false "collides" merely moves a label, it never hides a figure.
+function _dutyTxtBox(x, y, text, size, anchor) {
+  const w = String(text).length * size * 0.55 + 4;
+  const bx = anchor === 'end' ? x - w : (anchor === 'middle' ? x - w / 2 : x);
+  return { x0: bx, x1: bx + w, y0: y - size * 0.82, y1: y + size * 0.28 };
+}
+// Overlap AREA (0 = clear), so that when no placement is clean the least-bad
+// one can be picked instead of an arbitrary (already-rejected) candidate.
+function _dutyBoxOverlap(a, b) {
+  if (!a || !b) return 0;
+  const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+  const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+  return (w > 0 && h > 0) ? w * h : 0;
+}
+
 // Rolling-total curve: solid = recorded flights (running total of the current
 // window); dashed = projection from the planned blocks (projectRollingWindow
-// semantics). The crossing with the limit is labelled with the date from
-// computeDutyProjection. No forecast → no dashed segment + an honest note.
+// semantics). The peak of the projection is marked and labelled with its date,
+// its total and the room left, so the answer to "where will I be on the 21st?"
+// is readable without any interaction; if the projection reaches the limit, the
+// breach date takes that spot instead. Every date carries a full-height hover
+// target with the same figures as the folded table.
+// No forecast → no dashed segment + an honest note.
 function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
   const fh = function (n) { return _dutyFh(n, fr); };
   const fL = function (n) { return _dutyFL(n, fr); };
@@ -495,17 +568,142 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
     return '<text x="' + r1(xOf(i)) + '" y="190">' + esc(_dutyFmtShort(all[i], fr)) + '</text>';
   }).join('');
 
+  // Y of the plotted point at index i. At today the curve carries TWO values
+  // when a block is still planned for today (solid ends at what is recorded,
+  // dashed starts at recorded + planned); the dot and the tooltip follow the
+  // dashed start, which is the figure the transparency table's "today" row
+  // states. That only holds when there IS a dashed line and a table to follow:
+  // when the schedule's last remaining flight is today (hasFc false, horizon ==
+  // today) there is neither, so the dot stays on the end of the solid line and
+  // reports what is RECORDED. Counting a block that has not been flown as fact,
+  // with no "(projected)" marker and no table to cross-check, would contradict
+  // the window card on the same page and dress schedule up as actual.
+  const todayY = yOf((hasFc && todayPlanned > 0) ? todayRoll : (solidVals[jIdx] || 0));
+  const yAtIdx = function (i) {
+    if (i === jIdx) return todayY;
+    return i < jIdx ? yOf(solidVals[i] || 0) : yOf(futVals[i - jIdx - 1] || 0);
+  };
+
+  // Segment captions (approved mockup), measured up front so the peak label can
+  // be placed clear of them.
   const midPast = Math.round(jIdx * 0.45);
+  const segPastY = Math.min(160, yOf(solidVals[midPast] || 0) + 24);
+  const segPastTxt = fr ? 'Vols enregistrés' : 'Recorded flights';
+  const segPastBox = _dutyTxtBox(xOf(midPast), segPastY, segPastTxt, 10.5, 'start');
+  const projStep = Math.max(1, Math.round(future.length * 0.35));
+  const projIdx = hasFc ? (jIdx + projStep) : -1;
+  const projY = hasFc ? Math.max(44, Math.min(160, yOf(futVals[Math.max(0, projStep - 1)] || 0) + 28)) : 0;
+  const projTxt = fr ? 'Projection (horaire prévu)' : 'Projection (planned schedule)';
+  // Same right-edge fallback as the peak label below. On a short roster horizon
+  // (≲ 11 days — which is EVERY over-limit render, since the chart stops at
+  // hitDate) xOf(projIdx) sits far right and a 'start'-anchored caption ran off
+  // the 720-wide viewBox and was clipped. Anchoring it to the right edge keeps
+  // the caption readable AND makes its box a truthful obstacle for the peak
+  // label — half of an off-canvas box was pushing the answer around for nothing.
+  let projAnchor = 'start', projTx = hasFc ? xOf(projIdx) : 0;
+  if (hasFc && _dutyTxtBox(projTx, projY, projTxt, 10.5, 'start').x1 > 694) { projAnchor = 'end'; projTx = 694; }
+  const projBox = hasFc ? _dutyTxtBox(projTx, projY, projTxt, 10.5, projAnchor) : null;
+
+  // ── The answer, on the chart ─────────────────────────────────────────────
+  // "On the 21st, where will I be and how far from the limit?" — marked and
+  // labelled, no interaction required. Figures come straight from
+  // computeDutyProjection (peak / peakDate / hitDate); the render layer never
+  // recomputes duty time. A projection that reaches the limit has no "margin"
+  // to report, so the breach date takes the label instead.
+  const limTxt = fr ? 'Limite ' + fL(limit) + ' h' : fL(limit) + ' h limit';
+  const obstacles = [
+    _dutyTxtBox(46, 21, limTxt, 10.5, 'start'),                    // the "112 h limit" caption
+    { x0: 46, x1: 696, y0: yOf(limit) - 3, y1: yOf(limit) + 3 },   // the limit rule itself
+    segPastBox
+  ];
+  if (projBox) obstacles.push(projBox);
+
+  const peakM = (hasFc && !proj.hitDate && proj.peakDate) ? _dutyMarginOf(proj.peak, limit) : null;
+  const peakIdx = peakM ? all.indexOf(proj.peakDate) : -1;
+  let answerMark = '', dropProjLabel = false;
+
+  if (hasFc && proj.hitDate) {
+    const hx = xOf(n - 1);
+    const txt = fr
+      ? fL(limit) + ' h atteintes le ' + _dutyFmtLong(proj.hitDate, fr)
+      : fL(limit) + ' h reached ' + _dutyFmtLong(proj.hitDate, fr);
+    answerMark = '<circle cx="' + r1(hx) + '" cy="' + r1(yOf(limit)) + '" r="3.5" fill="var(--v2-danger)"/>' +
+      '<text x="' + r1(hx - 6) + '" y="16" font-size="11" font-weight="600" fill="var(--v2-danger-ink)" text-anchor="end">' + esc(txt) + '</text>';
+  } else if (peakM && peakIdx >= 0) {
+    const px = xOf(peakIdx), py = yAtIdx(peakIdx);
+    const txt = (fr ? 'Sommet : ' : 'Peak: ') + _dutyFmtShort(proj.peakDate, fr) + ' · ' +
+      fh(peakM.shown) + ' h (' + fh(peakM.margin) + (fr ? ' h de marge)' : ' h left)');
+    // The peak sits at or after today, i.e. in the right-hand part of the plot:
+    // anchor the text to the right of its own point so it can never run past
+    // the right edge.
+    let anchor = peakIdx > (n - 1) * 0.66 ? 'end' : (peakIdx < (n - 1) * 0.34 ? 'start' : 'middle');
+    let tx = anchor === 'end' ? px - 6 : (anchor === 'start' ? px + 6 : px);
+    if (_dutyTxtBox(tx, 0, txt, 11, anchor).x1 > 694) { anchor = 'end'; tx = px - 6; }
+    if (_dutyTxtBox(tx, 0, txt, 11, anchor).x0 < 48) { anchor = 'start'; tx = px + 6; }
+    // Above the point; if that lands on the limit rule or a caption, try below,
+    // then further out. Deterministic, so the proof script can pin it.
+    // Pass 1 respects every caption. If NOTHING is clear, pass 2 drops the
+    // Projection caption — the ANSWER wins and the caption steps aside (the
+    // dashed line stays explained by the note and the aria-label below). The
+    // escape has to run in the FAILURE path: it used to be a post-hoc test of
+    // the final box against projBox only, so a label rejected by the LIMIT RULE
+    // never triggered it and simply kept the initialiser — i.e. the first
+    // candidate, the one the loop had just rejected — printing the figure
+    // straight across the red 112 h rule at peak ≈ 96–109 h, exactly the band
+    // where it most needs to be readable.
+    const cands = [py - 9, py + 17, py - 22, py + 30];
+    let ty = null, bestTy = null;
+    for (let pass = 0; pass < 2 && ty === null; pass++) {
+      if (pass === 1) { if (!projBox) break; dropProjLabel = true; }
+      let bestOv = Infinity;
+      bestTy = null;
+      for (let ci = 0; ci < cands.length; ci++) {
+        const b = _dutyTxtBox(tx, cands[ci], txt, 11, anchor);
+        if (b.y0 < 4 || b.y1 > 168) continue;
+        let ov = 0;
+        for (let oi = 0; oi < obstacles.length; oi++) {
+          if (dropProjLabel && obstacles[oi] === projBox) continue;
+          ov += _dutyBoxOverlap(b, obstacles[oi]);
+        }
+        if (ov === 0) { ty = cands[ci]; break; }
+        if (ov < bestOv) { bestOv = ov; bestTy = cands[ci]; }
+      }
+    }
+    // Still nowhere clear: least-overlapping in-frame candidate — never blindly
+    // back to cands[0].
+    if (ty === null) ty = (bestTy !== null) ? bestTy : Math.max(12, Math.min(166, py - 9));
+    answerMark = '<circle cx="' + r1(px) + '" cy="' + r1(py) + '" r="3.5" fill="var(--v2-accent-data)"/>' +
+      '<text x="' + r1(tx) + '" y="' + r1(ty) + '" font-size="11" font-weight="600" fill="var(--v2-ink-strong)" text-anchor="' + anchor + '">' + esc(txt) + '</text>';
+  }
+
   const segLabels =
-    '<text x="' + r1(xOf(midPast)) + '" y="' + r1(Math.min(160, yOf(solidVals[midPast] || 0) + 24)) + '" font-size="10.5" font-weight="500" fill="var(--v2-muted)">' + (fr ? 'Vols enregistrés' : 'Recorded flights') + '</text>' +
-    (hasFc
-      ? '<text x="' + r1(xOf(jIdx + Math.max(1, Math.round(future.length * 0.35)))) + '" y="' + r1(Math.max(44, Math.min(160, yOf(futVals[Math.max(0, Math.round(future.length * 0.35) - 1)] || 0) + 28))) + '" font-size="10.5" font-weight="500" fill="var(--v2-muted)">' + (fr ? 'Projection (horaire prévu)' : 'Projection (planned schedule)') + '</text>'
+    '<text x="' + r1(xOf(midPast)) + '" y="' + r1(segPastY) + '" font-size="10.5" font-weight="500" fill="var(--v2-muted)">' + esc(segPastTxt) + '</text>' +
+    ((hasFc && !dropProjLabel)
+      ? '<text x="' + r1(projTx) + '" y="' + r1(projY) + '" font-size="10.5" font-weight="500" fill="var(--v2-muted)" text-anchor="' + projAnchor + '">' + esc(projTxt) + '</text>'
       : '');
 
-  const hitMark = (hasFc && proj.hitDate)
-    ? '<circle cx="' + r1(xOf(n - 1)) + '" cy="' + r1(yOf(limit)) + '" r="3.5" fill="var(--v2-danger)"/>' +
-      '<text x="' + r1(xOf(n - 1) - 6) + '" y="16" font-size="11" font-weight="600" fill="var(--v2-danger-ink)" text-anchor="end">' + esc(_dutyFmtShort(proj.hitDate, fr)) + '</text>'
-    : '';
+  // Today's junction (solid → dashed). No dot on the other dates: 28 of them
+  // would only make noise; their hover targets stay invisible.
+  const todayDot = (peakIdx === jIdx) ? ''
+    : '<circle cx="' + r1(xOf(jIdx)) + '" cy="' + r1(todayY) + '" r="3" fill="var(--v2-accent-data)"/>';
+
+  // One full-height hover target per date, a step wide, carrying the same
+  // figures as the folded table. Drawn last so they sit on top; the SVG is
+  // role="img", so these titles are mouse affordances only — the folded table
+  // remains the keyboard/screen-reader version of the same answer.
+  const stepW = n <= 1 ? (x1 - x0) : (x1 - x0) / (n - 1);
+  const hovers = all.map(function (D, i) {
+    const cx = xOf(i);
+    const hx0 = Math.max(x0, cx - stepW / 2);
+    const hx1 = Math.min(x1, cx + stepW / 2);
+    const t = (i < jIdx)
+      ? _dutyPastPointTitle(D, solidVals[i] || 0, fr)
+      : (i === jIdx
+        ? _dutyPointTitle(D, (hasFc && todayPlanned > 0) ? todayRoll : have, limit, fr, hasFc && todayPlanned > 0)
+        : _dutyPointTitle(D, futVals[i - jIdx - 1], limit, fr, true));
+    return '<rect x="' + r1(hx0) + '" y="30" width="' + r1(Math.max(1, hx1 - hx0)) + '" height="140" fill="transparent" pointer-events="all">' +
+      '<title>' + esc(t) + '</title></rect>';
+  }).join('');
 
   const endV = solidVals[jIdx] || 0;
   let aria = fr
@@ -519,6 +717,10 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
       aria += fr
         ? ' Il atteint la limite de ' + fL(limit) + ' heures le ' + _dutyFmtLong(proj.hitDate, fr) + '.'
         : ' It reaches the ' + fL(limit) + '-hour limit on ' + _dutyFmtLong(proj.hitDate, fr) + '.';
+    } else if (peakM) {
+      aria += fr
+        ? ' Sommet de la projection : ' + fh(peakM.shown) + ' heures le ' + _dutyFmtLong(proj.peakDate, fr) + ', soit ' + fh(peakM.margin) + ' heures sous la limite de ' + fL(limit) + ' heures.'
+        : ' Projection peak: ' + fh(peakM.shown) + ' hours on ' + _dutyFmtLong(proj.peakDate, fr) + ', ' + fh(peakM.margin) + ' hours below the ' + fL(limit) + '-hour limit.';
     }
     aria += fr
       ? ' Les valeurs sont listées dans « Données du graphique : cumul glissant » sous le graphique.'
@@ -538,8 +740,9 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
     '<text x="46" y="21" font-size="10.5" font-weight="600" fill="var(--v2-danger-ink)">' + (fr ? 'Limite ' + fL(limit) + ' h' : fL(limit) + ' h limit') + '</text>' +
     '<polyline fill="none" stroke="var(--v2-accent-data)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="' + solidPts + '"/>' +
     (hasFc ? '<polyline fill="none" stroke="var(--v2-accent-data)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6 5" points="' + dashPts + '"/>' : '') +
-    hitMark + segLabels +
+    answerMark + todayDot + segLabels +
     '<g font-size="9.5" fill="var(--v2-muted)" text-anchor="middle">' + xLabels + '</g>' +
+    hovers +
     '</svg>';
 
   let note = fr
@@ -577,13 +780,19 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
 
   let fold = '';
   if (hasFc) {
-    let rows = '<tr><th scope="row" class="num">' + esc(_dutyFmtShort(dd.today, fr)) + (fr ? ' (aujourd’hui)' : ' (today)') + '</th><td class="r num">' + (todayPlanned > 0 ? fh(todayPlanned) : '–') + '</td><td class="r num">–</td><td class="r num">' + fh(todayPlanned > 0 ? todayRoll : have) + '</td></tr>';
+    const todayV = todayPlanned > 0 ? todayRoll : have;
+    let rows = '<tr><th scope="row" class="num">' + esc(_dutyFmtShort(dd.today, fr)) + (fr ? ' (aujourd’hui)' : ' (today)') + '</th>' +
+      '<td class="r num">' + (todayPlanned > 0 ? fh(todayPlanned) : '–') + '</td>' +
+      '<td class="r num">–</td>' +
+      '<td class="r num">' + fh(todayV) + '</td>' +
+      '<td class="r num">' + fh(_dutyMarginOf(todayV, limit).margin) + '</td></tr>';
     future.forEach(function (D, k) {
       const leaving = dd.combined[_dutyShiftDate(D, -days)] || 0;
       rows += '<tr' + (proj.hitDate === D ? ' class="row-total"' : '') + '><th scope="row" class="num">' + esc(_dutyFmtShort(D, fr)) + '</th>' +
         '<td class="r num">' + fh(dd.planned[D] || 0) + '</td>' +
         '<td class="r num">' + fh(leaving) + '</td>' +
-        '<td class="r num">' + fh(futVals[k]) + '</td></tr>';
+        '<td class="r num">' + fh(futVals[k]) + '</td>' +
+        '<td class="r num">' + fh(_dutyMarginOf(futVals[k], limit).margin) + '</td></tr>';
     });
     fold = '<details class="fold"><summary>' + DUTY_CHEV + (fr ? 'Données du graphique : cumul glissant' : 'Chart data: rolling total') + '</summary>' +
       '<div class="fold-body tbl-wrap"><table><thead><tr>' +
@@ -591,10 +800,11 @@ function _dutyCumeBlock(dd, days, limit, have, proj, range, fr) {
       '<th class="r" scope="col">' + (fr ? 'Bloc prévu (h)' : 'Planned block (h)') + '</th>' +
       '<th class="r" scope="col">' + (fr ? 'Heures qui sortent de la fenêtre (h)' : 'Hours leaving the window (h)') + '</th>' +
       '<th class="r" scope="col">' + (fr ? 'Total glissant (h)' : 'Rolling total (h)') + '</th>' +
+      '<th class="r" scope="col">' + (fr ? 'Marge (h)' : 'Left (h)') + '</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>' +
       '<p class="footnote">' + (fr
-        ? 'Chaque ligne : total glissant = total de la veille + bloc prévu à l’horaire − heures du jour qui sort de la fenêtre (' + days + ' jours plus tôt). La partie vécue du trait plein se recalcule avec le tableau « Données du graphique : heures par jour » ci-dessous.'
-        : 'Each row: rolling total = previous day’s total + block planned on the schedule − hours from the day leaving the window (' + days + ' days earlier). The flown part of the solid line can be recalculated from the “Chart data: hours by day” table below.') +
+        ? 'Chaque ligne : total glissant = total de la veille + bloc prévu à l’horaire − heures du jour qui sort de la fenêtre (' + days + ' jours plus tôt). La marge est la limite de ' + fL(limit) + ' h moins le total glissant. Une marge négative signifie un dépassement. La partie vécue du trait plein se recalcule avec le tableau « Données du graphique : heures par jour » ci-dessous.'
+        : 'Each row: rolling total = previous day’s total + block planned on the schedule − hours from the day leaving the window (' + days + ' days earlier). The margin is the ' + fL(limit) + ' h limit minus the rolling total. A negative margin means over the limit. The flown part of the solid line can be recalculated from the “Chart data: hours by day” table below.') +
       (todayPlanned > 0 ? (fr
         ? ' La ligne « aujourd’hui » inclut le bloc encore prévu à ton horaire aujourd’hui : ' + fh(have) + ' h enregistrées + ' + fh(todayPlanned) + ' h prévues = ' + fh(todayRoll) + ' h.'
         : ' The “today” row includes the block still planned on your schedule today: ' + fh(have) + ' h recorded + ' + fh(todayPlanned) + ' h planned = ' + fh(todayRoll) + ' h.') : '') + '</p>' +
