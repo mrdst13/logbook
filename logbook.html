@@ -7340,7 +7340,9 @@ function showPage(id) {
   if (id === 'add' && !editingId) {
     document.getElementById('formTitle').textContent = t('form.title.logFlight');
     clearForm();
-    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    // Local civil date — toISOString is the UTC date and would pre-fill
+    // TOMORROW on an evening entry in Toronto (certifiable data hazard).
+    document.getElementById('f-date').value = localTodayStr();
     setEntryType('flight');   // default to flight when entering a new entry
   }
   if (id === 'add') {
@@ -7387,14 +7389,48 @@ function dayHoursOf(f) {
        + (+f.seDay||0) + (+f.seDayDual||0);
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  LOCAL calendar-date helpers — the ONE way to ask "what date is today?".
+//  new Date().toISOString() is the UTC date: in the evening in Toronto it
+//  already reads tomorrow, shifting every cutoff, default and window by one
+//  day (same family as the duty-tracker bug Martin caught in prod
+//  2026-07-16 — see docs/REGISTRE-REGLEMENTAIRE.md §700.27 and §401.05).
+//  "Today" = the LOCAL civil date; all date arithmetic is then pure UTC
+//  math on the YYYY-MM-DD string, so neither timezone nor DST can move a
+//  boundary.
+// ─────────────────────────────────────────────────────────────────
+function localTodayStr() {
+  const d = new Date();
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
+// dateStr ± n calendar dates (pure UTC string math — DST-proof).
+function shiftDateStr(dateStr, deltaDays) {
+  const p = String(dateStr).split('-').map(Number);
+  const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  dt.setUTCDate(dt.getUTCDate() + deltaDays);
+  return dt.toISOString().slice(0, 10);
+}
+
+// dateStr ± n calendar months. A day-of-month that doesn't exist in the
+// target month rolls FORWARD (May 31 − 6 months → "Nov 31" → Dec 1), exactly
+// as setMonth() always did here — kept so a cutoff can only move later,
+// never silently widening a currency window.
+function shiftMonthsStr(dateStr, deltaMonths) {
+  const p = String(dateStr).split('-').map(Number);
+  const dt = new Date(Date.UTC(p[0], p[1] - 1 + deltaMonths, p[2]));
+  return dt.toISOString().slice(0, 10);
+}
+
 // SINGLE definition of the recency window. The regulation (CAR 401.05(2)) is
 // 6 CALENDAR months, not a fixed 180 days. Some screens used 180*86400000 and
 // others setMonth(-6), so the dashboard, drill-down and PDF could disagree on
 // the same day about whether a pilot was current. (Audit panel 2026-06-25.)
+// Anchored on the LOCAL date since 2026-07-17 — the old toISOString() version
+// shifted the cutoff one day late every evening. See registre §401.05.
 function sixMonthCutoffStr() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 6);
-  return d.toISOString().slice(0, 10);
+  return shiftMonthsStr(localTodayStr(), -6);
 }
 
 // CAR 401.05(2)(b): the take-offs and landings for passenger recency may be
@@ -8467,13 +8503,15 @@ function dashAddValidity() {
 
 function _dashApproachesIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   // CAR 401.05(3.1): the six approaches must be flown in an aircraft (actual or
   // simulated IMC) or a Level B, C or D full-flight simulator — a basic training
   // device (FTD/FNPT/BITD) does NOT qualify, exactly like landings/take-offs.
   // Filter by countsTowardRecency so a basic-sim approach never inflates IFR
   // currency. Verified laws-lois SOR-96-433 s.401.05(3.1); see registre.
-  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+  // "Preceding six months" ends today: a flight dated in the future never
+  // counts toward currency (registre §401.05, décision 2026-07-17).
+  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.approaches || 0), 0);
 }
 
@@ -8484,8 +8522,8 @@ function _dashApproachesIn6mo() {
 // Verified laws-lois SOR-96-433 s.101.01, 2026-06-25. See registre.
 function _dashInstrumentTimeIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
-  return flights.filter(f => f.date >= cutoff)
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
+  return flights.filter(f => f.date >= cutoff && f.date <= today)
     .reduce((sum, f) => sum + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 }
 
@@ -8508,10 +8546,10 @@ function _dashIFRCurrency() {
 
 function _dashLandingsIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   // Aircraft landings + qualifying full-flight-sim landings count (CAR
   // 401.05(2)(b)); a basic training device does not. See countsTowardRecency.
-  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.ldgDay || 0) + (+f.ldgNight || 0), 0);
 }
 
@@ -8526,8 +8564,8 @@ function _dashLandingsIn6mo() {
 // see countsTowardRecency. (Audit panel 2026-06-25 must-fix #2.)
 function _dashTakeoffsIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
-  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
+  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
     .reduce((sum, f) => {
       const to  = (+f.toDay || 0) + (+f.toNight || 0);
       // Sim (a qualifying FFS, already filtered): count ONLY the take-offs the
@@ -8889,12 +8927,8 @@ function _dashDaysSinceLastFlight() {
 
 function _dashFlightsThisWeek() {
   if (!Array.isArray(flights)) return 0;
-  const now = new Date();
-  const monday = new Date(now);
-  const day = monday.getDay() || 7;
-  monday.setDate(monday.getDate() - (day - 1));
-  monday.setHours(0, 0, 0, 0);
-  const cutoff = monday.toISOString().slice(0, 10);
+  const day = new Date().getDay() || 7;
+  const cutoff = shiftDateStr(localTodayStr(), -(day - 1));   // this week's Monday, local
   return flights.filter(f => f.date && f.date >= cutoff).length;
 }
 
@@ -8903,12 +8937,8 @@ function _dashFlightsThisWeek() {
 // recent-legs list shows — so the "This week" card states a real figure, never a slogan.
 function _dashHoursThisWeek() {
   if (!Array.isArray(flights)) return 0;
-  const now = new Date();
-  const monday = new Date(now);
-  const day = monday.getDay() || 7;
-  monday.setDate(monday.getDate() - (day - 1));
-  monday.setHours(0, 0, 0, 0);
-  const cutoff = monday.toISOString().slice(0, 10);
+  const day = new Date().getDay() || 7;
+  const cutoff = shiftDateStr(localTodayStr(), -(day - 1));   // this week's Monday, local
   return flights.filter(f => f.date && f.date >= cutoff)
     .reduce((s, f) => s + flightTimeOf(f), 0);
 }
@@ -8948,11 +8978,12 @@ function needsIFRTracking(profile) {
   // instrument time logged in the last 12 months = pilot is doing IFR
   // and wants to track currency.
   if (!Array.isArray(flights)) return false;
-  const today = new Date();
-  const cutoff = new Date(today); cutoff.setMonth(cutoff.getMonth() - 12);
-  const cutoffStr = cutoff.toISOString().split('T')[0];
+  // Local civil date, never toISOString (= UTC date, reads tomorrow in the
+  // evening in Toronto). Future-dated flights are not history — excluded.
+  const today = localTodayStr();
+  const cutoffStr = shiftMonthsStr(today, -12);
   return flights.some(f =>
-    f && f.date && f.date >= cutoffStr &&
+    f && f.date && f.date >= cutoffStr && f.date <= today &&
     ((+f.approaches || 0) > 0 ||
      (+f.instActual || 0) > 0 ||
      (+f.instHood   || 0) > 0 ||
@@ -9059,10 +9090,12 @@ function renderCurrencyCard() {
   const card = document.getElementById('currencyCard');
   if (!card) return;
 
-  const today = new Date(); today.setHours(0,0,0,0);
-  const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
-  const cut6mStr = cutoff6m.toISOString().split('T')[0];
-  const recent6m = flights.filter(f => f.date && f.date >= cut6mStr);
+  // Same window as the alert bar and the validity ring: sixMonthCutoffStr()
+  // (local civil date — see registre §401.05), bounded above by local today
+  // so a future-dated flight never counts toward currency.
+  const cut6mStr = sixMonthCutoffStr();
+  const todayStr = localTodayStr();
+  const recent6m = flights.filter(f => f.date && f.date >= cut6mStr && f.date <= todayStr);
 
   // Approaches: filtered to qualifying devices (CAR 401.05(3.1)) via the shared
   // helper, so the card matches the alert bar and the validity ring. Instrument
@@ -9104,7 +9137,9 @@ function renderChart() {
   const labels = [], data = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = d.toISOString().substring(0, 7);
+    // Month key from LOCAL components — toISOString on a local-midnight Date
+    // reads the previous month east of UTC (same UTC-date bug family).
+    const key = d.getFullYear() + '-' + ((d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1));
     labels.push(d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { month: 'short', year: '2-digit' }));
     const hrs = flights.filter(f => f.date && f.date.startsWith(key))
                        .reduce((sum, f) => sum + flightTimeOf(f), 0);
@@ -10372,7 +10407,9 @@ RULES:
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Local civil date — the UTC date (toISOString) reads tomorrow in the
+    // evening, which would let today's in-progress flight slip through.
+    const today = localTodayStr();
     // Strict: only flights from BEFORE today (today's flight may still be in progress)
     const filtered = extracted.filter(f => f.date && f.date < today && f.block > 0);
     void(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
@@ -10999,7 +11036,7 @@ function toggleAdvancedFormFields() {
 // ~20 names month after month. Cuts ~5 seconds of typing per entry.
 function populateRecentNames() {
   if (!Array.isArray(flights)) return;
-  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const cutoff = shiftDateStr(localTodayStr(), -89);   // last 90 local dates
   const recent = flights.filter(f => f.date && f.date >= cutoff);
   const fillDatalist = (id, values) => {
     const dl = document.getElementById(id);
@@ -12027,7 +12064,9 @@ async function syncNavblueNow(opts) {
     // (schedule ≠ actual). We cannot prove completion from schedule data alone,
     // so today's flight is imported on the NEXT sync once it is strictly past,
     // or added manually with real times. (The PDF roster path already does this.)
-    const today = new Date().toISOString().split('T')[0];
+    // Local civil date — with the UTC date (toISOString) an evening sync
+    // would treat today's not-yet-flown flight as "past" and import it.
+    const today = localTodayStr();
     const mapped = events
       .map(ev => navblueEventToFlight(ev, isFO, autoCountIFR))
       .filter(f => f && f.date && f.date < today);
@@ -13434,7 +13473,7 @@ function backupData() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'logbook_backup_' + new Date().toISOString().split('T')[0] + '.json';
+  a.download = 'logbook_backup_' + localTodayStr() + '.json';
   a.click();
   showToast(t('toast.backupDownloaded'), 'success');
 }
@@ -13901,7 +13940,9 @@ function _generatePDF() {
       if (!importedSet.has(key)) importedSet.set(key, { source: f.importedFrom, signedBy: f.signedBy || '', count: 0, firstAt: f.importedAt || '' });
       importedSet.get(key).count++;
     });
-    const baseFooter = 'Generated by Cumulo · ' + new Date().toISOString().slice(0, 10);
+    // Local civil date — toISOString would stamp tomorrow's date on an
+    // attestation generated in the evening in Toronto.
+    const baseFooter = 'Generated by Cumulo · ' + localTodayStr();
 
     // Q6 — attestation lives in the footer (demoted from the body so the
     // hero hierarchy stays clean). CAR 401.08(2)(h) is still satisfied —
@@ -13944,7 +13985,7 @@ function _generatePDF() {
   if (sorted.length === 0) {
     doc.setFontSize(14); doc.setTextColor(...textPrimary);
     doc.text('No flights logged yet.', W/2, H/2, { align: 'center' });
-    doc.save(`logbook_${name.replace(/\s+/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`logbook_${name.replace(/\s+/g,'_')}_${localTodayStr()}.pdf`);
     showToast(t('toast.pdfExported'), 'success');
     return;
   }
@@ -14120,17 +14161,22 @@ function _generatePDF() {
     doc.text('Per Canadian Aviation Regulations (CAR 401.05). Status as of generation date.', tableMargin, y + 6);
     y += 18;
 
-    // Compute currency stats
-    const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
-    const cutoff90Str = cutoff90.toISOString().split('T')[0];
-    const cutoff6m = new Date(today); cutoff6m.setMonth(cutoff6m.getMonth() - 6);
-    const cutoff6mStr = cutoff6m.toISOString().split('T')[0];
-    const cutoff12m = new Date(today); cutoff12m.setMonth(cutoff12m.getMonth() - 12);
-    const cutoff12mStr = cutoff12m.toISOString().split('T')[0];
+    // Compute currency stats. All windows are anchored on the LOCAL civil
+    // date and bounded above by today — toISOString() is the UTC date (reads
+    // tomorrow in the evening in Toronto) and a future-dated flight is not
+    // "within the preceding" window. 6-month cutoff = sixMonthCutoffStr(),
+    // the same single source the dashboard ring/alerts use, so the PDF and
+    // the screen can never disagree on the WINDOW. (The PDF's sums are not
+    // yet countsTowardRecency-filtered like the dashboard's — pre-existing,
+    // tracked separately.) 90 days = exactly 90 local dates
+    // [today − 89 … today], the §700.27 window convention. Registre §401.05,
+    // décision 2026-07-17.
+    const todayStr = localTodayStr();
+    const cutoff90Str = shiftDateStr(todayStr, -89);
+    const cutoff6mStr = sixMonthCutoffStr();
 
-    const recent90 = flights.filter(f => f.date && f.date >= cutoff90Str);
-    const recent6m = flights.filter(f => f.date && f.date >= cutoff6mStr);
-    const recent12m = flights.filter(f => f.date && f.date >= cutoff12mStr);
+    const recent90 = flights.filter(f => f.date && f.date >= cutoff90Str && f.date <= todayStr);
+    const recent6m = flights.filter(f => f.date && f.date >= cutoff6mStr && f.date <= todayStr);
 
     const ldg90Day = recent90.reduce((s, f) => s + (+f.ldgDay || 0), 0);
     const ldg90Night = recent90.reduce((s, f) => s + (+f.ldgNight || 0), 0);
@@ -14257,7 +14303,7 @@ function _generatePDF() {
     doc.text('Date', tableMargin + 90, y + 3);
   }
 
-  doc.save(`logbook_${name.replace(/\s+/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+  doc.save(`logbook_${name.replace(/\s+/g,'_')}_${localTodayStr()}.pdf`);
   showToast(t('toast.pdfExportedPages', { pages: totalPages + 2 }), 'success');
 }
 
@@ -21036,7 +21082,9 @@ function renderBroughtForwardPage() {
   // first visit: this date is part of the signed attestation, and a guessed
   // default is a fabricated value in a record with legal weight — empty is
   // better than guessed. Saved values and drafts do come back.
-  const _todayISO = new Date().toISOString().slice(0, 10);
+  // Local civil date: this is the max= of the attestation cutoff picker —
+  // the UTC date would allow dating the cutoff tomorrow on an evening visit.
+  const _todayISO = localTodayStr();
   const cutoffDefault = (_useDraft && _draft.cutoffDate) || _rec.cutoffDate || '';
 
   // Auto-open helicopter group when pilot type is heli or has heli hours.
@@ -21474,7 +21522,7 @@ function _dashDrillBuild(key, fr) {
 // ─── PPC drill-down (705 line ops — CASS 725.106) ──────────────────
 function _drillPPC(profile, fr, settingsBtn) {
   const ppcDate = profile.ppcDueDate || '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayStr();   // local civil date, never the UTC date
 
   let ppcDays = null;
   if (ppcDate) {
@@ -21560,10 +21608,12 @@ function _drillIFR(fr, addBtn, logbookBtn) {
     : (count >= 4 && ifr.hours >= 4) ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
   // Last 6 months of approaches, grouped by date — gives the pilot a visual
-  // confirmation of which flights count toward the 6-in-6 minimum.
-  const cutoff = sixMonthCutoffStr();
+  // confirmation of which flights count toward the 6-in-6 minimum. Same
+  // bounds + device filter as _dashApproachesIn6mo, so this list can never
+  // show a flight the counter above it doesn't count.
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   const contributing = (Array.isArray(flights) ? flights : [])
-    .filter(f => f.date >= cutoff && (+f.approaches || 0) > 0)
+    .filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f) && (+f.approaches || 0) > 0)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .slice(0, 10);
 
@@ -21606,9 +21656,12 @@ function _drillRecency(fr, addBtn, logbookBtn) {
                 : count >= 3 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
                 : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
-  const cutoff = sixMonthCutoffStr();
+  // Same bounds as _dashTakeoffsIn6mo/_dashLandingsIn6mo (upper bound: a
+  // future-dated flight never counts — registre §401.05) so the night
+  // counters can never disagree with the day counters on the same panel.
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   const eligible = (Array.isArray(flights) ? flights : [])
-    .filter(f => f.date >= cutoff && (typeof countsTowardRecency !== 'function' || countsTowardRecency(f)));
+    .filter(f => f.date >= cutoff && f.date <= today && (typeof countsTowardRecency !== 'function' || countsTowardRecency(f)));
 
   // Night passenger recency (CAR 401.05(2)(b)(i)(B)): 5 night take-offs + 5
   // night landings in 6 months if the flight is wholly or partly by night.
@@ -21659,7 +21712,7 @@ function _drillRecency(fr, addBtn, logbookBtn) {
 function _drillMedical(profile, fr, settingsBtn) {
   const med = profile.medical || '';
   const ecg = profile.ecg || '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayStr();   // local civil date, never the UTC date
 
   let medDays = null;
   if (med) {
@@ -25321,7 +25374,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-16-9b5dfd7';
+const BUILD_VERSION = '2026-07-17-2b9729d';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

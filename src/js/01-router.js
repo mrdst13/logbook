@@ -49,7 +49,9 @@ function showPage(id) {
   if (id === 'add' && !editingId) {
     document.getElementById('formTitle').textContent = t('form.title.logFlight');
     clearForm();
-    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    // Local civil date — toISOString is the UTC date and would pre-fill
+    // TOMORROW on an evening entry in Toronto (certifiable data hazard).
+    document.getElementById('f-date').value = localTodayStr();
     setEntryType('flight');   // default to flight when entering a new entry
   }
   if (id === 'add') {

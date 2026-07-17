@@ -71,7 +71,7 @@ function _dashDrillBuild(key, fr) {
 // ─── PPC drill-down (705 line ops — CASS 725.106) ──────────────────
 function _drillPPC(profile, fr, settingsBtn) {
   const ppcDate = profile.ppcDueDate || '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayStr();   // local civil date, never the UTC date
 
   let ppcDays = null;
   if (ppcDate) {
@@ -157,10 +157,12 @@ function _drillIFR(fr, addBtn, logbookBtn) {
     : (count >= 4 && ifr.hours >= 4) ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
   // Last 6 months of approaches, grouped by date — gives the pilot a visual
-  // confirmation of which flights count toward the 6-in-6 minimum.
-  const cutoff = sixMonthCutoffStr();
+  // confirmation of which flights count toward the 6-in-6 minimum. Same
+  // bounds + device filter as _dashApproachesIn6mo, so this list can never
+  // show a flight the counter above it doesn't count.
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   const contributing = (Array.isArray(flights) ? flights : [])
-    .filter(f => f.date >= cutoff && (+f.approaches || 0) > 0)
+    .filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f) && (+f.approaches || 0) > 0)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     .slice(0, 10);
 
@@ -203,9 +205,12 @@ function _drillRecency(fr, addBtn, logbookBtn) {
                 : count >= 3 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON')
                 : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
-  const cutoff = sixMonthCutoffStr();
+  // Same bounds as _dashTakeoffsIn6mo/_dashLandingsIn6mo (upper bound: a
+  // future-dated flight never counts — registre §401.05) so the night
+  // counters can never disagree with the day counters on the same panel.
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   const eligible = (Array.isArray(flights) ? flights : [])
-    .filter(f => f.date >= cutoff && (typeof countsTowardRecency !== 'function' || countsTowardRecency(f)));
+    .filter(f => f.date >= cutoff && f.date <= today && (typeof countsTowardRecency !== 'function' || countsTowardRecency(f)));
 
   // Night passenger recency (CAR 401.05(2)(b)(i)(B)): 5 night take-offs + 5
   // night landings in 6 months if the flight is wholly or partly by night.
@@ -256,7 +261,7 @@ function _drillRecency(fr, addBtn, logbookBtn) {
 function _drillMedical(profile, fr, settingsBtn) {
   const med = profile.medical || '';
   const ecg = profile.ecg || '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayStr();   // local civil date, never the UTC date
 
   let medDays = null;
   if (med) {

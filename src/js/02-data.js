@@ -23,14 +23,48 @@ function dayHoursOf(f) {
        + (+f.seDay||0) + (+f.seDayDual||0);
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  LOCAL calendar-date helpers — the ONE way to ask "what date is today?".
+//  new Date().toISOString() is the UTC date: in the evening in Toronto it
+//  already reads tomorrow, shifting every cutoff, default and window by one
+//  day (same family as the duty-tracker bug Martin caught in prod
+//  2026-07-16 — see docs/REGISTRE-REGLEMENTAIRE.md §700.27 and §401.05).
+//  "Today" = the LOCAL civil date; all date arithmetic is then pure UTC
+//  math on the YYYY-MM-DD string, so neither timezone nor DST can move a
+//  boundary.
+// ─────────────────────────────────────────────────────────────────
+function localTodayStr() {
+  const d = new Date();
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
+// dateStr ± n calendar dates (pure UTC string math — DST-proof).
+function shiftDateStr(dateStr, deltaDays) {
+  const p = String(dateStr).split('-').map(Number);
+  const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  dt.setUTCDate(dt.getUTCDate() + deltaDays);
+  return dt.toISOString().slice(0, 10);
+}
+
+// dateStr ± n calendar months. A day-of-month that doesn't exist in the
+// target month rolls FORWARD (May 31 − 6 months → "Nov 31" → Dec 1), exactly
+// as setMonth() always did here — kept so a cutoff can only move later,
+// never silently widening a currency window.
+function shiftMonthsStr(dateStr, deltaMonths) {
+  const p = String(dateStr).split('-').map(Number);
+  const dt = new Date(Date.UTC(p[0], p[1] - 1 + deltaMonths, p[2]));
+  return dt.toISOString().slice(0, 10);
+}
+
 // SINGLE definition of the recency window. The regulation (CAR 401.05(2)) is
 // 6 CALENDAR months, not a fixed 180 days. Some screens used 180*86400000 and
 // others setMonth(-6), so the dashboard, drill-down and PDF could disagree on
 // the same day about whether a pilot was current. (Audit panel 2026-06-25.)
+// Anchored on the LOCAL date since 2026-07-17 — the old toISOString() version
+// shifted the cutoff one day late every evening. See registre §401.05.
 function sixMonthCutoffStr() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 6);
-  return d.toISOString().slice(0, 10);
+  return shiftMonthsStr(localTodayStr(), -6);
 }
 
 // CAR 401.05(2)(b): the take-offs and landings for passenger recency may be
@@ -1103,13 +1137,15 @@ function dashAddValidity() {
 
 function _dashApproachesIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   // CAR 401.05(3.1): the six approaches must be flown in an aircraft (actual or
   // simulated IMC) or a Level B, C or D full-flight simulator — a basic training
   // device (FTD/FNPT/BITD) does NOT qualify, exactly like landings/take-offs.
   // Filter by countsTowardRecency so a basic-sim approach never inflates IFR
   // currency. Verified laws-lois SOR-96-433 s.401.05(3.1); see registre.
-  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+  // "Preceding six months" ends today: a flight dated in the future never
+  // counts toward currency (registre §401.05, décision 2026-07-17).
+  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.approaches || 0), 0);
 }
 
@@ -1120,8 +1156,8 @@ function _dashApproachesIn6mo() {
 // Verified laws-lois SOR-96-433 s.101.01, 2026-06-25. See registre.
 function _dashInstrumentTimeIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
-  return flights.filter(f => f.date >= cutoff)
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
+  return flights.filter(f => f.date >= cutoff && f.date <= today)
     .reduce((sum, f) => sum + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 }
 
@@ -1144,10 +1180,10 @@ function _dashIFRCurrency() {
 
 function _dashLandingsIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
   // Aircraft landings + qualifying full-flight-sim landings count (CAR
   // 401.05(2)(b)); a basic training device does not. See countsTowardRecency.
-  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
     .reduce((sum, f) => sum + (+f.ldgDay || 0) + (+f.ldgNight || 0), 0);
 }
 
@@ -1162,8 +1198,8 @@ function _dashLandingsIn6mo() {
 // see countsTowardRecency. (Audit panel 2026-06-25 must-fix #2.)
 function _dashTakeoffsIn6mo() {
   if (!Array.isArray(flights)) return 0;
-  const cutoff = sixMonthCutoffStr();
-  return flights.filter(f => f.date >= cutoff && countsTowardRecency(f))
+  const cutoff = sixMonthCutoffStr(), today = localTodayStr();
+  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
     .reduce((sum, f) => {
       const to  = (+f.toDay || 0) + (+f.toNight || 0);
       // Sim (a qualifying FFS, already filtered): count ONLY the take-offs the
@@ -1525,12 +1561,8 @@ function _dashDaysSinceLastFlight() {
 
 function _dashFlightsThisWeek() {
   if (!Array.isArray(flights)) return 0;
-  const now = new Date();
-  const monday = new Date(now);
-  const day = monday.getDay() || 7;
-  monday.setDate(monday.getDate() - (day - 1));
-  monday.setHours(0, 0, 0, 0);
-  const cutoff = monday.toISOString().slice(0, 10);
+  const day = new Date().getDay() || 7;
+  const cutoff = shiftDateStr(localTodayStr(), -(day - 1));   // this week's Monday, local
   return flights.filter(f => f.date && f.date >= cutoff).length;
 }
 
@@ -1539,12 +1571,8 @@ function _dashFlightsThisWeek() {
 // recent-legs list shows — so the "This week" card states a real figure, never a slogan.
 function _dashHoursThisWeek() {
   if (!Array.isArray(flights)) return 0;
-  const now = new Date();
-  const monday = new Date(now);
-  const day = monday.getDay() || 7;
-  monday.setDate(monday.getDate() - (day - 1));
-  monday.setHours(0, 0, 0, 0);
-  const cutoff = monday.toISOString().slice(0, 10);
+  const day = new Date().getDay() || 7;
+  const cutoff = shiftDateStr(localTodayStr(), -(day - 1));   // this week's Monday, local
   return flights.filter(f => f.date && f.date >= cutoff)
     .reduce((s, f) => s + flightTimeOf(f), 0);
 }

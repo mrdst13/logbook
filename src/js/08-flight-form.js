@@ -21,7 +21,7 @@ function toggleAdvancedFormFields() {
 // ~20 names month after month. Cuts ~5 seconds of typing per entry.
 function populateRecentNames() {
   if (!Array.isArray(flights)) return;
-  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const cutoff = shiftDateStr(localTodayStr(), -89);   // last 90 local dates
   const recent = flights.filter(f => f.date && f.date >= cutoff);
   const fillDatalist = (id, values) => {
     const dl = document.getElementById(id);
@@ -1049,7 +1049,9 @@ async function syncNavblueNow(opts) {
     // (schedule ≠ actual). We cannot prove completion from schedule data alone,
     // so today's flight is imported on the NEXT sync once it is strictly past,
     // or added manually with real times. (The PDF roster path already does this.)
-    const today = new Date().toISOString().split('T')[0];
+    // Local civil date — with the UTC date (toISOString) an evening sync
+    // would treat today's not-yet-flown flight as "past" and import it.
+    const today = localTodayStr();
     const mapped = events
       .map(ev => navblueEventToFlight(ev, isFO, autoCountIFR))
       .filter(f => f && f.date && f.date < today);

@@ -275,7 +275,9 @@ RULES:
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Local civil date — the UTC date (toISOString) reads tomorrow in the
+    // evening, which would let today's in-progress flight slip through.
+    const today = localTodayStr();
     // Strict: only flights from BEFORE today (today's flight may still be in progress)
     const filtered = extracted.filter(f => f.date && f.date < today && f.block > 0);
     console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);

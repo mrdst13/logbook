@@ -230,7 +230,7 @@ function backupData() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'logbook_backup_' + new Date().toISOString().split('T')[0] + '.json';
+  a.download = 'logbook_backup_' + localTodayStr() + '.json';
   a.click();
   showToast(t('toast.backupDownloaded'), 'success');
 }
