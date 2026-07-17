@@ -122,6 +122,11 @@ function renderDutyTracker() {
       .finally(function () { renderDutyTracker(); });   // _dutyForecastSyncing stays true → no loop; cache now exists (even if empty)
   }
 
+  // Swap simulator — its own container, just above this section. Rendered from
+  // here so it follows the page render AND the language toggle without a second
+  // hook in the router / i18n. See renderDutySwap at the bottom of this file.
+  if (typeof renderDutySwap === 'function') renderDutySwap();
+
   const wins = DUTY_LIMITS.map(function (lim, i) {
     const have = _dutyFlightTimeInDays(lim.days);
     const proj = (typeof computeDutyProjection === 'function') ? computeDutyProjection(lim.days, lim.limit) : null;
@@ -978,4 +983,316 @@ function _dutyRegFootnote(fr, boundsNote) {
     '</p><p>' + (fr
     ? 'S’applique aux opérations commerciales (Sous-partie 700). Source : RAC 700.27.'
     : 'Applies to commercial operations (Subpart 700). Source: CAR 700.27.') + '</p></div>';
+}
+
+// ═══════════════════════════════════════════
+//  FLIGHT SWAP SIMULATOR (page-duty, #dutySwap)
+//  Martin, 2026-07-17: « si scheduling m'appelle et dise on t'enleve de tel vol
+//  et te met sur celui ci j'aimerais pouvoir entré les heures de vol pour voir
+//  la difference et si je suis legal de le faire » — then, verbatim: « ok pas
+//  besoin de se compliquer la vie ce n'est pas un document legal je veux juste
+//  un estimé ». He is ON THE PHONE with scheduling: this panel gives THE
+//  NUMBER, fast. One discreet "estimated" line, no wall of caveats. What is NOT
+//  relaxed is the arithmetic: every figure shown is exact, never approximated.
+//
+//  Two gestures (design settled with Martin, his "oui bonne idee"): the flight
+//  taken OFF is PICKED FROM A LIST pre-filled from his own published schedule;
+//  only the new flight is typed. Live recompute on every keystroke — no
+//  "calculate" button.
+//
+//  Everything reuses the engines already in this file, UNMODIFIED:
+//  _dutyDrillData (logged + forecast per date), projectRollingWindow (peak +
+//  first breach date), _dutyMarginOf (displayed total and margin that add up to
+//  the limit at the tenth). The simulation ALWAYS runs on a COPY: nothing is
+//  ever written to the logbook or to storage.
+// ═══════════════════════════════════════════
+
+// Hours typed by the pilot → a usable number, or 0. Garbage, negatives and zero
+// all mean "no flight added" (never a guessed value).
+function _dutySwapHours(raw) {
+  if (raw === null || raw === undefined) return 0;
+  const s = String(raw).trim().replace(',', '.');
+  if (!s) return 0;
+  const v = Number(s);
+  if (!isFinite(v) || v <= 0) return 0;
+  return Math.round(v * 100) / 100;
+}
+
+// Upcoming flights on the published schedule that can be swapped OUT. Same
+// source, same future-only rule and same "already flown & logged" de-dup as
+// computeDutyProjection / _dutyDrillData, so the hours this list offers to
+// remove are exactly the hours those engines counted IN.
+function _dutySwapCandidates(todayOverride) {
+  const today = todayOverride || _dutyLocalToday();
+  const cache = loadRosterForecast();
+  const forecast = (cache && Array.isArray(cache.flights)) ? cache.flights : [];
+  const loggedKeys = new Set();
+  if (Array.isArray(flights)) {
+    for (const f of flights) {
+      if (f.isSim || !f.date) continue;
+      if ((+f.total || +f.block || 0) <= 0) continue;
+      loggedKeys.add(f.date + '|' + (f.flightNum || ''));
+    }
+  }
+  const out = [];
+  for (const g of forecast) {
+    if (!g || !g.date || g.date < today) continue;
+    if (loggedKeys.has(g.date + '|' + (g.flightNum || ''))) continue;
+    const h = +g.block || 0;
+    if (!(h > 0)) continue;
+    out.push({
+      key: g.date + '|' + (g.flightNum || ''),
+      date: g.date, flightNum: g.flightNum || '', route: g.route || '', block: h
+    });
+  }
+  out.sort(function (a, b) { return a.key < b.key ? -1 : (a.key > b.key ? 1 : 0); });
+  return out;
+}
+
+// THE model behind the panel. Read-only: it copies the combined day-hours map,
+// applies the swap to the COPY, and re-projects each of the three CAR 700.27
+// windows on it.
+//   sel = { outKey, addDate, addHours }   (all optional / free-form)
+// For every window:
+//   before = peak of the rolling window over [today … horizon] as the schedule
+//   stands; after = the same peak on the simulated copy. The PEAK, not today's
+//   total: "does it fit" is a question about the whole horizon, and a swap can
+//   push a window over on a date days away. Both sides use the SAME horizon so
+//   the delta compares like with like.
+function _dutySwapModel(sel, todayOverride) {
+  sel = sel || {};
+  const today = todayOverride || _dutyLocalToday();
+  // `combined` (logged + future forecast, per date) does not depend on the
+  // window width, so one call serves all three windows.
+  const dd = _dutyDrillData(DUTY_LIMITS[0].days, today);
+  const cands = _dutySwapCandidates(today);
+  const removed = sel.outKey ? (cands.find(function (c) { return c.key === sel.outKey; }) || null) : null;
+  const addHours = _dutySwapHours(sel.addHours);
+  const addDate = (addHours > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(sel.addDate || '')))
+    ? String(sel.addDate) : null;
+
+  // ── The COPY. dd.combined itself is never touched. ──
+  const sim = {};
+  for (const d in dd.combined) sim[d] = dd.combined[d];
+  if (removed) {
+    const left = Math.round(((sim[removed.date] || 0) - removed.block) * 100) / 100;
+    if (left > 0) sim[removed.date] = left; else delete sim[removed.date];
+  }
+  if (addDate) sim[addDate] = Math.round(((sim[addDate] || 0) + addHours) * 100) / 100;
+
+  // A flight added past the end of the roster extends the horizon; a date
+  // before today never moves it backwards (the projection starts at today).
+  let horizon = dd.horizon;
+  if (addDate && addDate > horizon) horizon = addDate;
+
+  const rows = DUTY_LIMITS.map(function (lim) {
+    const before = projectRollingWindow(dd.combined, lim.days, lim.limit, today, horizon);
+    const after = projectRollingWindow(sim, lim.days, lim.limit, today, horizon);
+    // Displayed total + displayed margin from the same rounded figure, so each
+    // line always adds up to the limit at the tenth (see _dutyMarginOf).
+    const bM = _dutyMarginOf(before.peak, lim.limit);
+    const aM = _dutyMarginOf(after.peak, lim.limit);
+    const ratio = lim.limit > 0 ? (after.peak / lim.limit) : 0;
+    return {
+      lim: lim,
+      before: bM.shown, after: aM.shown,
+      margin: aM.margin,
+      delta: Math.round((aM.shown - bM.shown) * 10) / 10,   // shown before + delta = shown after
+      ratio: ratio,
+      sev: ratio >= 0.9 ? 'over' : (ratio >= 0.7 ? 'watch' : 'ok'),
+      hitBefore: before.hitDate, hitAfter: after.hitDate
+    };
+  });
+
+  // The BINDING window = the one using the greatest share of its limit. A window
+  // over its limit has ratio >= 1, so it always wins: the verdict names the
+  // window that actually blocks the swap.
+  let bind = rows[0];
+  for (const r of rows) { if (r.ratio > bind.ratio) bind = r; }
+
+  // Breach date MOVED BY THE SWAP: first window that would reach its limit on a
+  // date it would not have reached without the swap.
+  let hit = null;
+  for (const r of rows) { if (r.hitAfter && r.hitAfter !== r.hitBefore) { hit = r; break; } }
+
+  return {
+    today: today, horizon: horizon, rows: rows, bind: bind, hit: hit,
+    removed: removed, addDate: addDate, addHours: addHours,
+    hasChange: !!removed || !!addDate,
+    hasForecastCache: !!loadRosterForecast(),
+    candidates: cands
+  };
+}
+
+// The answer. Three compact lines (one per window) + one plain verdict + one
+// discreet footer. Nothing else — he is on the phone.
+function _dutySwapResultHtml(m, fr) {
+  const fh = function (n) { return _dutyFh(n, fr); };
+  const fL = function (n) { return _dutyFL(n, fr); };
+  const C = fr ? '&nbsp;: ' : ': ';
+
+  const lines = m.rows.map(function (r) {
+    // No arrow when nothing moves: the baseline reads as one clean number.
+    const val = (r.after !== r.before)
+      ? fh(r.before) + ' h → <strong class="' + r.sev + '">' + fh(r.after) + ' h</strong>'
+      : '<strong class="' + r.sev + '">' + fh(r.after) + ' h</strong>';
+    const marg = r.margin >= 0
+      ? (fr ? fh(r.margin) + ' h de marge' : fh(r.margin) + ' h left')
+      : (fr ? fh(-r.margin) + ' h de trop' : fh(-r.margin) + ' h over');
+    // Delta chip only when the figure actually moved: a "0,0 h" chip on every
+    // line at rest is noise, and the line already reads as one clean number.
+    // U+2212 minus (not a hyphen), same as the calculator's offsets.
+    const dTxt = r.delta > 0 ? ('+' + fh(r.delta) + ' h')
+      : (r.delta < 0 ? ('−' + fh(-r.delta) + ' h') : '');
+    return '<li class="sw-line">' +
+      '<span class="sw-dot ' + r.sev + '" aria-hidden="true"></span>' +
+      '<span class="sw-txt num">' + (fr ? r.lim.fr : r.lim.en) + C + val +
+      ' ' + (fr ? 'sur ' : 'of ') + fL(r.lim.limit) + ' h (' + marg + ')</span>' +
+      (dTxt ? '<span class="sw-delta num">' + dTxt + '</span>' : '') + '</li>';
+  }).join('');
+
+  // Verdict only once there IS a swap to judge: at rest the panel just states
+  // where he stands, and "il te resterait" would be a conditional about nothing.
+  let verdict = '';
+  if (m.hasChange) {
+    const b = m.bind;
+    // Decide fits/over on the UNROUNDED peak (ratio > 1 ⇔ after.peak > limit),
+    // not on the tenth-rounded margin: a real 112,04 h exceeds 112 h (RAC
+    // 700.27) even though it displays as "112,0 h · 0,0 h". Being exactly at the
+    // limit (ratio === 1) stays "fits" — not exceeding is legal. The displayed
+    // margin keeps its tenth rounding.
+    verdict = (b.ratio > 1)
+      ? '<p class="sw-verdict over num">' + (fr
+          ? 'Ça dépasse' + C + fh(-b.margin) + ' h de trop sur ' + b.lim.fr + ' (RAC 700.27).'
+          : 'Over: ' + fh(-b.margin) + ' h too many in ' + b.lim.en + ' (CAR 700.27).') + '</p>'
+      : '<p class="sw-verdict num">' + (fr
+          ? 'Ça passe' + C + 'il te resterait ' + fh(b.margin) + ' h sur ' + b.lim.fr + '.'
+          : 'Fits: you would have ' + fh(b.margin) + ' h left over ' + b.lim.en + '.') + '</p>';
+  }
+
+  let hitLine = '';
+  if (m.hasChange && m.hit) {
+    const h = m.hit;
+    const when = _dutyFmtLong(h.hitAfter, fr);
+    const instead = h.hitBefore
+      ? (fr ? ' (au lieu du ' + _dutyFmtLong(h.hitBefore, fr) + ')' : ' (instead of ' + _dutyFmtLong(h.hitBefore, fr) + ')')
+      : '';
+    hitLine = '<p class="sw-hit num">' + (fr
+      ? 'Avec cet échange, tu atteindrais ' + fL(h.lim.limit) + ' h le ' + when + instead + '.'
+      : 'With this swap, you would reach ' + fL(h.lim.limit) + ' h on ' + when + instead + '.') + '</p>';
+  }
+
+  return '<ul class="sw-lines">' + lines + '</ul>' + verdict + hitLine +
+    '<p class="sw-foot">' + (fr
+      ? 'Estimé selon ton horaire et tes vols enregistrés.'
+      : 'Estimated from your schedule and logged flights.') + '</p>';
+}
+
+// The "nothing to pick" line, honest about WHY there is nothing: a pilot whose
+// schedule IS connected but carries no upcoming flight must never be told he
+// never imported one (same guarantee as the forecast notice above).
+function _dutySwapNoneTxt(fr, cached) {
+  if (cached) {
+    return fr
+      ? 'Aucun vol à venir à ton horaire&nbsp;: entre seulement le vol ajouté.'
+      : 'No upcoming flight on your schedule: just enter the added flight.';
+  }
+  return fr
+    ? 'Aucun horaire importé&nbsp;: entre seulement le vol ajouté.'
+    : 'No schedule imported: just enter the added flight.';
+}
+
+// Current panel inputs (nulls when the panel has not been rendered yet).
+function _dutySwapInputs() {
+  const v = function (id) { const el = document.getElementById(id); return el ? el.value : null; };
+  const panel = document.getElementById('dutySwapPanel');
+  return { open: !!(panel && panel.open), outKey: v('swap-out'), addDate: v('swap-date'), addHours: v('swap-hrs') };
+}
+
+// Recompute + repaint ONLY the answer. Never re-renders the panel, so the
+// inputs keep their focus and caret while he types (oninput).
+function dutySwapCompute() {
+  const box = document.getElementById('swapOut');
+  if (!box) return;
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const i = _dutySwapInputs();
+  box.innerHTML = _dutySwapResultHtml(
+    _dutySwapModel({ outKey: i.outKey, addDate: i.addDate, addHours: i.addHours }), fr);
+}
+
+// Build the panel (COLLAPSED by default — it must not clutter the page) into
+// #dutySwap and wire it live. Called by renderDutyTracker, so it follows the
+// page render and the language toggle; whatever he already typed survives a
+// re-render.
+function renderDutySwap() {
+  const host = document.getElementById('dutySwap');
+  if (!host) return;
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const prev = _dutySwapInputs();
+  const today = _dutyLocalToday();
+  const cands = _dutySwapCandidates(today);
+
+  // "Flight removed": picked from his own schedule. Two taps, no typing, no
+  // transcription error. Absent when there is nothing to pick.
+  let outField;
+  if (cands.length) {
+    const opts = '<option value="">' + (fr ? 'Aucun (ajout seulement)' : 'None (adding only)') + '</option>' +
+      cands.map(function (c) {
+        const bits = [_dutyFmtShort(c.date, fr)];
+        if (c.flightNum) bits.push(c.flightNum);
+        if (c.route) bits.push(c.route);
+        bits.push(_dutyFh(c.block, fr) + ' h');
+        return '<option value="' + esc(c.key) + '">' + esc(bits.join(' · ')) + '</option>';
+      }).join('');
+    outField = '<div class="field span2"><label for="swap-out">' +
+      (fr ? 'Vol retiré' : 'Flight removed') + '</label>' +
+      '<select id="swap-out">' + opts + '</select></div>';
+  } else {
+    outField = '<p class="sw-none span2">' + _dutySwapNoneTxt(fr, !!loadRosterForecast()) + '</p>';
+  }
+
+  host.innerHTML =
+    '<details class="detail" id="dutySwapPanel"' + (prev.open ? ' open' : '') + '>' +
+    '<summary><span class="sw-head">' +
+    '<span class="sw-title">' + (fr ? 'Simuler un échange de vol' : 'Simulate a flight swap') + '</span>' +
+    '<span class="sw-sub">' + (fr
+      ? 'Scheduling t’appelle&nbsp;? Vois l’effet sur tes cumuls en dix secondes.'
+      : 'Scheduling on the phone? See the effect on your totals in ten seconds.') +
+    '</span></span>' + DUTY_CHEV + '</summary>' +
+    '<div class="fold-body"><div class="calc"><div class="calc-grid">' +
+    '<form class="fields" onsubmit="return false;" aria-label="' +
+      (fr ? 'Vols de l’échange' : 'Flights in the swap') + '">' + outField +
+    '<div class="field"><label for="swap-date">' + (fr ? 'Date du vol ajouté' : 'Added flight date') + '</label>' +
+    '<input type="date" id="swap-date"></div>' +
+    '<div class="field"><label for="swap-hrs">' + (fr ? 'Heures du vol ajouté' : 'Added flight hours') + '</label>' +
+    '<input type="number" id="swap-hrs" step="0.1" min="0" inputmode="decimal"></div>' +
+    '</form>' +
+    '<aside class="result"><span class="r-label">' + (fr ? 'Effet sur tes cumuls' : 'Effect on your totals') + '</span>' +
+    '<div id="swapOut" role="status" aria-live="polite"></div></aside>' +
+    '</div></div></div></details>';
+
+  // Restore what he had entered (a re-render must never wipe a call in
+  // progress). An outKey that no longer exists in the schedule silently falls
+  // back to "None": the select refuses an unknown value.
+  const sel = document.getElementById('swap-out');
+  if (sel && prev.outKey) sel.value = prev.outKey;
+  const dEl = document.getElementById('swap-date');
+  if (dEl) dEl.value = prev.addDate || today;
+  const hEl = document.getElementById('swap-hrs');
+  if (hEl && prev.addHours) hEl.value = prev.addHours;
+
+  // A swap is normally same-day: picking the removed flight pre-fills the date.
+  if (sel) {
+    sel.onchange = function () {
+      const c = cands.find(function (x) { return x.key === sel.value; });
+      const d = document.getElementById('swap-date');
+      if (c && d) d.value = c.date;
+      dutySwapCompute();
+    };
+  }
+  ['swap-date', 'swap-hrs'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) { el.oninput = dutySwapCompute; el.onchange = dutySwapCompute; }
+  });
+  dutySwapCompute();
 }
