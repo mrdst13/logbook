@@ -94,19 +94,30 @@ eq('6-month cutoff anchored on LOCAL today', w.eval('sixMonthCutoffStr()'), '202
 
 // ── Window bounds on the 401.05 counters ─────────────────────────────
 // Cutoff day included · day before cutoff excluded · today included ·
-// tomorrow (future-dated flight) excluded · basic training device (FTD)
-// still excluded from approaches/landings/take-offs by countsTowardRecency.
+// tomorrow (future-dated flight) excluded.
+// The FTD row is the interesting one: CAR 401.05 states TWO different device
+// rules, and conflating them under-counted IFR recency until 2026-07-17.
+//   401.05(2)(b)   landings/take-offs: "Level B, C or D full-flight simulator"
+//                  → an FTD does NOT count.
+//   401.05(3.1)(b) approaches: "a Level B, C or D simulator OR AN APPROVED
+//                  FLIGHT TRAINING DEVICE configured for the same category"
+//                  → an FTD DOES count.
+// So the same FTD row must be counted for approaches and dropped for landings.
 w.eval("flights = [" +
   "{date:'2026-01-16', approaches:9, instActual:9,   ldgDay:9, toDay:9}," +                     // day before cutoff → OUT
   "{date:'2026-01-17', approaches:1, instActual:1.5, ldgDay:2, toDay:2}," +                     // cutoff day → IN
   "{date:'2026-07-17', approaches:2, instHood:2,     ldgDay:3, toDay:3}," +                     // today → IN
   "{date:'2026-07-18', approaches:9, instSim:9,      ldgDay:9, toDay:9}," +                     // tomorrow → OUT
-  "{date:'2026-07-01', isSim:true, simType:'FTD', approaches:9, ldgDay:9, toDay:9}" +           // basic device → OUT (device filter)
+  "{date:'2026-07-01', isSim:true, simType:'FTD', approaches:9, ldgDay:9, toDay:9}," +          // FTD → IN for approaches, OUT for landings
+  "{date:'2026-07-02', isSim:true, simType:'BITD', approaches:4, ldgDay:4, toDay:4}" +          // basic trainer → OUT everywhere
 "];");
-eq('approaches: cutoff day + today only', w.eval('_dashApproachesIn6mo()'), 3);
+// 1 (cutoff day) + 2 (today) + 9 (approved FTD) = 12. Would be 3 before the fix.
+eq('approaches: window bounds, and an approved FTD counts (401.05(3.1)(b))', w.eval('_dashApproachesIn6mo()'), 12);
 eq('instrument time: cutoff day + today only', w.eval('_dashInstrumentTimeIn6mo()'), 3.5);
-eq('landings: cutoff day + today only', w.eval('_dashLandingsIn6mo()'), 5);
-eq('take-offs: cutoff day + today only', w.eval('_dashTakeoffsIn6mo()'), 5);
+// Same FTD row, dropped here: the landing rule is narrower. Guards the conflation.
+eq('landings: FTD does NOT count (401.05(2)(b) is narrower)', w.eval('_dashLandingsIn6mo()'), 5);
+eq('take-offs: FTD does NOT count (401.05(2)(b) is narrower)', w.eval('_dashTakeoffsIn6mo()'), 5);
+eq('a BITD counts for nothing', w.eval("approachCountsTowardIFR({isSim:true, simType:'BITD'})"), false);
 
 // ── Currency card reads the same single source ───────────────────────
 // #currencyCard is not in the current dashboard DOM (legacy card, kept
@@ -119,7 +130,7 @@ w.eval(`document.body.insertAdjacentHTML('beforeend',
   '</div>');`);
 w.eval('renderCurrencyCard()');
 eq('card approach count matches the shared counter',
-  w.eval("document.getElementById('cur-app-count').textContent"), '3');
+  w.eval("document.getElementById('cur-app-count').textContent"), '12');
 eq('card instrument hours from the same bounded window',
   w.eval("document.getElementById('cur-hrs-count').textContent"), '3.5');
 

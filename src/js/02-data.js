@@ -78,6 +78,21 @@ function countsTowardRecency(f) {
   return !f.isSim || RECENCY_FFS_TYPES.has(f.simType);
 }
 
+// Approaches follow a WIDER rule than take-offs/landings, so they need their own
+// predicate. CAR 401.05(3.1)(b): six approaches "in an aircraft in actual or
+// simulated instrument meteorological conditions, or in a Level B, C or D
+// simulator or an approved flight training device configured for the same
+// category as the aircraft". So an approved FTD DOES count here, unlike above.
+// Using countsTowardRecency for approaches (as this file did until 2026-07-17)
+// silently dropped FTD approaches and under-counted IFR recency.
+// The text also requires the device be "approved" and "configured for the same
+// category" — the form cannot know either, so that call stays with the pilot;
+// we count it rather than silently discard a legitimate approach.
+const APPROACH_DEVICE_TYPES = new Set(['FFS', 'FFS-C', 'FTD']);
+function approachCountsTowardIFR(f) {
+  return !f.isSim || APPROACH_DEVICE_TYPES.has(f.simType);
+}
+
 // ─────────────────────────────────────────────────────────────────
 //  flightTimeOf — the ONE definition of a flight's flight time.
 //  Flight time == block-to-block in Canada (CAR/RAC 101.01). `total` is the
@@ -1138,14 +1153,13 @@ function dashAddValidity() {
 function _dashApproachesIn6mo() {
   if (!Array.isArray(flights)) return 0;
   const cutoff = sixMonthCutoffStr(), today = localTodayStr();
-  // CAR 401.05(3.1): the six approaches must be flown in an aircraft (actual or
-  // simulated IMC) or a Level B, C or D full-flight simulator — a basic training
-  // device (FTD/FNPT/BITD) does NOT qualify, exactly like landings/take-offs.
-  // Filter by countsTowardRecency so a basic-sim approach never inflates IFR
-  // currency. Verified laws-lois SOR-96-433 s.401.05(3.1); see registre.
+  // CAR 401.05(3.1)(b) is WIDER than the landing rule: an approved flight
+  // training device counts too, so this uses approachCountsTowardIFR, not
+  // countsTowardRecency. Using the landing filter here (until 2026-07-17) threw
+  // away FTD approaches and under-counted IFR recency. See the predicate above.
   // "Preceding six months" ends today: a flight dated in the future never
   // counts toward currency (registre §401.05, décision 2026-07-17).
-  return flights.filter(f => f.date >= cutoff && f.date <= today && countsTowardRecency(f))
+  return flights.filter(f => f.date >= cutoff && f.date <= today && approachCountsTowardIFR(f))
     .reduce((sum, f) => sum + (+f.approaches || 0), 0);
 }
 
