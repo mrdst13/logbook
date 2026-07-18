@@ -369,6 +369,17 @@ function totalsWithOpening(flightsTotals) {
     const d = nightHoursOf(balances);
     if (d) merged.night = (+merged.night||0) + d;
   }
+  if (!balances.day) {
+    // Day = all day flying — symmetric to 'night' above (shared dayHoursOf), so
+    // a pilot who filled only the detailed engine-class grid still gets a Day
+    // brought-forward balance. Without this the TC PDF's (default-hidden) Day
+    // column would seed to 0 while Night seeded to the grid total, so Day+Night
+    // would not reconcile to Total on the cumulative row. calcStats() has no
+    // 'day' aggregate, so this key is consumed only by the PDF Day column's
+    // seed — no other surface reads merged.day, so nothing double-counts.
+    const d = dayHoursOf(balances);
+    if (d) merged.day = (+merged.day||0) + d;
+  }
   if (!balances.me) {
     const d = (+balances.meDayPic||0)+(+balances.meDayCop||0)+(+balances.meDayDual||0)
             + (+balances.meNightPic||0)+(+balances.meNightCop||0)+(+balances.meNightDual||0);

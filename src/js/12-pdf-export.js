@@ -11,6 +11,48 @@
 //  - Uses user's column visibility prefs (configurable per export)
 // ─────────────────────────────────────────────────────────────────
 
+// A cumulative log-page column: hour columns (decimal) plus the three integer
+// tally columns (landings day/night, approaches) whose page + running totals
+// the PDF sums. Single source of truth for both the running-total init and the
+// brought-forward seed, so the two can never drift apart.
+function _isCumulativePdfCol(c) {
+  return !!(c && (c.decimal || c.key === 'ldgDay' || c.key === 'ldgNight' || c.key === 'approaches'));
+}
+
+// Seed the running cumulative totals from brought-forward opening balances.
+// Pure + testable (no DOM, no jsPDF, no localStorage): given the PDF column set
+// and an opening-balances object ALREADY mapped into calcStats key space
+// (i.e. totalsWithOpening({})), returns { colKey: broughtForwardValue } for
+// every cumulative column, 0 when that column has no brought-forward balance.
+// Callers merge this over a zero-initialised runTotals so the certifiable
+// "CUMULATIVE TOTALS" row reflects the pilot's whole career (paper hours +
+// Cumulo flights), not the logged-only subtotal.
+function openingSeedForCumulative(cols, openingSeed) {
+  const seed = {};
+  const ob = openingSeed || {};
+  (cols || []).forEach(c => {
+    if (_isCumulativePdfCol(c)) seed[c.key] = +ob[c.key] || 0;
+  });
+  return seed;
+}
+
+// The value a flight contributes to a PDF cell (display AND accumulation).
+// The two flight-time columns — 'block' (labelled "Flight Time") and 'total'
+// (labelled "Total") — both denote block-to-block flight time (CAR 101.01), so
+// BOTH read through flightTimeOf (= total || block). That keeps the "Flt Time"
+// column, the "Total" column, the PAGE / CUMULATIVE total rows and the
+// cover-page hero identical in EVERY case — including a row that carries only
+// one of block/total (e.g. the generic CSV wizard maps a single "Total" column
+// and leaves block empty, so an unguarded "Flt Time" column would undercount
+// the career total sitting right under a hero that already reads flightTimeOf).
+// Every other column keeps computeCellValue's own derivation.
+function pdfCellValue(f, key) {
+  if (key === 'total' || key === 'block') {
+    return (typeof flightTimeOf === 'function') ? flightTimeOf(f) : (+f.total || +f.block || 0);
+  }
+  return computeCellValue(f, key);
+}
+
 // Entry point : shows a modal to confirm which columns to include,
 // then calls _generatePDF() with the chosen visible columns.
 function exportPDF() {
@@ -302,7 +344,21 @@ function _generatePDF() {
 
   // Running cumulative totals across pages
   const runTotals = {};
-  cols.forEach(c => { if (c.decimal || c.key === 'ldgDay' || c.key === 'ldgNight' || c.key === 'approaches') runTotals[c.key] = 0; });
+  cols.forEach(c => { if (_isCumulativePdfCol(c)) runTotals[c.key] = 0; });
+
+  // Seed the running cumulative totals from the pilot's brought-forward
+  // (paper-logbook) hours. Without this, the "CUMULATIVE TOTALS — CARRIED
+  // FORWARD" row summed Cumulo flights ONLY: a pilot with ~2781 h brought
+  // forward + ~400 h logged read ~430 h at the bottom of the log pages — the
+  // "missing reported hours" bug (Martin 2026-07-18). The cover-page hero
+  // already folds brought-forward in via totalsWithOpening(); this makes the
+  // log-page running totals agree with it. PAGE TOTALS stay flights-only by
+  // design (they are per-page, not career cumulative).
+  const _pdfHasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+  const _openingSeed = (_pdfHasBF && typeof totalsWithOpening === 'function') ? totalsWithOpening({}) : {};
+  if (_pdfHasBF) {
+    Object.assign(runTotals, openingSeedForCumulative(cols, _openingSeed));
+  }
 
   const ROWS_PER_PAGE = 24;
   const totalPages = Math.ceil(sorted.length / ROWS_PER_PAGE);
@@ -345,6 +401,17 @@ function _generatePDF() {
     });
     y += 7;
 
+    // First page only — a "TOTALS BROUGHT FORWARD" carry-in row, exactly like
+    // the opening line of a paper logbook page, so the inspector reads:
+    // brought forward + this page's flights = cumulative. Pages 2+ don't repeat
+    // it (the running cumulative already carries it forward). Only shown when
+    // the pilot has declared brought-forward hours. English literal to match
+    // the other TC-PDF total rows (the export stays English by regulation).
+    if (pageNum === 1 && _pdfHasBF) {
+      drawTotalsRow('TOTALS BROUGHT FORWARD', openingSeedForCumulative(cols, _openingSeed), muted, white, y);
+      y += 6.5;
+    }
+
     // Page totals (per page)
     const pageTotals = {};
     cols.forEach(c => { if (runTotals.hasOwnProperty(c.key)) pageTotals[c.key] = 0; });
@@ -357,7 +424,7 @@ function _generatePDF() {
       doc.setTextColor(...textPrimary);
       x = tableMargin;
       cols.forEach((c, ci) => {
-        let v = computeCellValue(f, c.key);
+        let v = pdfCellValue(f, c.key);
         // Translate UI Unicode glyphs to ASCII for jsPDF Helvetica compatibility
         if (v === '✓') v = 'Yes';
         if (v === '—') v = '-';
@@ -417,10 +484,15 @@ function _generatePDF() {
     doc.setTextColor(...txtColor);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6);
+    // Same ASCII rule the data cells use: jsPDF's Helvetica renders an em-dash
+    // as a garbage glyph, so the "CUMULATIVE TOTALS — CARRIED FORWARD" label
+    // would print a stray character. Normalise em-/en-dashes to a hyphen here so
+    // any label passed to this row is safe.
+    const safeLabel = String(label).replace(/[–—]/g, '-');
     let x = tableMargin;
     cols.forEach((c, i) => {
       if (i === 0) {
-        doc.text(label, x + 1, y + 4);
+        doc.text(safeLabel, x + 1, y + 4);
       } else if (totals.hasOwnProperty(c.key)) {
         const display = c.decimal ? fmt(totals[c.key]) : String(Math.round(totals[c.key] * 100) / 100);
         const tx = c.align === 'right' ? x + colWidths[i] - 1
