@@ -6352,6 +6352,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <input type="date" id="p-ecg">
  </div>
  <div class="form-group">
+ <label data-i18n="profile.bookletExpiry">Aviation document booklet expiry</label>
+ <input type="date" id="p-bookletExpiry">
+ </div>
+ <div class="form-group">
  <label data-i18n="profile.base">Base</label>
  <input type="text" id="p-base" placeholder="e.g. CYOW, CYUL, KJFK">
  </div>
@@ -10895,6 +10899,7 @@ function loadProfile() {
   sv('p-license', p.license);
   sv('p-medical', p.medical);
   sv('p-ecg', p.ecg);
+  sv('p-bookletExpiry', p.bookletExpiry);
   // Profile fields default to EMPTY — never inject Porter / YOW / E195-E2 / PD
   // defaults. Cumulo serves pilots at all Canadian operators (and private/VFR
   // pilots with no operator at all), so pre-filling with one airline's
@@ -11018,6 +11023,7 @@ function saveProfile() {
     license: gv('p-license'),
     medical: gv('p-medical'),
     ecg: gv('p-ecg'),
+    bookletExpiry: gv('p-bookletExpiry'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || '').toUpperCase().replace(/\s/g, ''),
@@ -13882,7 +13888,10 @@ function _generatePDF() {
   const airline = p.airline || '—';
   const base = p.base || '—';
   const medical = p.medical || '—';
-  const ecg = p.ecg || '—';
+  // Aviation Document Booklet expiry (Martin 2026-07-19: swap the cover's ECG
+  // row for this). ASCII '-' when empty: jsPDF Helvetica has no em-dash glyph
+  // and would render a garbage box on a brand-new (unfilled) field.
+  const bookletExp = p.bookletExpiry || '-';
   const fleet = p.fleet || '—';
 
   const cols = getVisibleColumns('pdf');
@@ -13927,7 +13936,7 @@ function _generatePDF() {
     const fields = [
       ['License Number', license],
       ['Medical Expiry', medical],
-      ['ECG Due',        ecg],
+      ['Booklet Expiry', bookletExp],
       ['Type Rating(s)', fleet],
       ['Total Entries',  String(flights.length)],
     ];
@@ -17459,6 +17468,7 @@ const STRINGS = {
  'profile.type.instructor': 'Instructor / CFI',
  'profile.type.instructorDesc': 'Dual given · ATPL credit focus',
  'profile.ecg': 'ECG Due Date',
+ 'profile.bookletExpiry': 'Aviation document booklet expiry',
  'onb.step4.ecg': 'ECG Due Date (optional)',
  'alert.ecgExpired': 'ECG OVERDUE',
  'alert.ecgExpiredSub': 'Overdue by {n} day',
@@ -18576,6 +18586,7 @@ const STRINGS = {
  'profile.type.instructor': 'Instructeur / CFI',
  'profile.type.instructorDesc': 'Instruction donnée · crédit ATPL prioritaire',
  'profile.ecg': 'Date prochain ECG',
+ 'profile.bookletExpiry': 'Expiration du carnet de documents d’aviation',
  'onb.step4.ecg': 'Date prochain ECG (optionnel)',
  'alert.ecgExpired': 'ECG EN RETARD',
  'alert.ecgExpiredSub': 'En retard de {n} jour',
@@ -20011,6 +20022,7 @@ const Sync = {
       license: profile.license || null,
       medical: profile.medical || null,
       ecg: profile.ecg || null,
+      booklet_expiry: profile.bookletExpiry || null,
       base: profile.base || null,
       fleet: profile.fleet || null,
       operator_codes: profile.operatorCodes || null,
@@ -20121,6 +20133,7 @@ const Sync = {
     fillStr('license', row.license);
     fillStr('medical', row.medical);
     fillStr('ecg', row.ecg);
+    fillStr('bookletExpiry', row.booklet_expiry);
     fillStr('base', row.base);
     fillStr('fleet', row.fleet);
     fillStr('operatorCodes', row.operator_codes);
@@ -26176,7 +26189,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-20-df9dd59';
+const BUILD_VERSION = '2026-07-20-9b53bff';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

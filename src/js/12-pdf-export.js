@@ -132,7 +132,10 @@ function _generatePDF() {
   const airline = p.airline || '—';
   const base = p.base || '—';
   const medical = p.medical || '—';
-  const ecg = p.ecg || '—';
+  // Aviation Document Booklet expiry (Martin 2026-07-19: swap the cover's ECG
+  // row for this). ASCII '-' when empty: jsPDF Helvetica has no em-dash glyph
+  // and would render a garbage box on a brand-new (unfilled) field.
+  const bookletExp = p.bookletExpiry || '-';
   const fleet = p.fleet || '—';
 
   const cols = getVisibleColumns('pdf');
@@ -177,7 +180,7 @@ function _generatePDF() {
     const fields = [
       ['License Number', license],
       ['Medical Expiry', medical],
-      ['ECG Due',        ecg],
+      ['Booklet Expiry', bookletExp],
       ['Type Rating(s)', fleet],
       ['Total Entries',  String(flights.length)],
     ];

@@ -659,6 +659,7 @@ const Sync = {
       license: profile.license || null,
       medical: profile.medical || null,
       ecg: profile.ecg || null,
+      booklet_expiry: profile.bookletExpiry || null,
       base: profile.base || null,
       fleet: profile.fleet || null,
       operator_codes: profile.operatorCodes || null,
@@ -769,6 +770,7 @@ const Sync = {
     fillStr('license', row.license);
     fillStr('medical', row.medical);
     fillStr('ecg', row.ecg);
+    fillStr('bookletExpiry', row.booklet_expiry);
     fillStr('base', row.base);
     fillStr('fleet', row.fleet);
     fillStr('operatorCodes', row.operator_codes);

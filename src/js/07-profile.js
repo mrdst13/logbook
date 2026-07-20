@@ -205,6 +205,7 @@ function loadProfile() {
   sv('p-license', p.license);
   sv('p-medical', p.medical);
   sv('p-ecg', p.ecg);
+  sv('p-bookletExpiry', p.bookletExpiry);
   // Profile fields default to EMPTY — never inject Porter / YOW / E195-E2 / PD
   // defaults. Cumulo serves pilots at all Canadian operators (and private/VFR
   // pilots with no operator at all), so pre-filling with one airline's
@@ -328,6 +329,7 @@ function saveProfile() {
     license: gv('p-license'),
     medical: gv('p-medical'),
     ecg: gv('p-ecg'),
+    bookletExpiry: gv('p-bookletExpiry'),
     base: gv('p-base'),
     fleet: gv('p-fleet'),
     operatorCodes: (gv('p-operatorCodes') || '').toUpperCase().replace(/\s/g, ''),
