@@ -114,6 +114,20 @@ chk('midnight "0000" != omitted', sig({ atd_utc: '0000' }) !== sig({}));
 chk('flightNum "007" != "7" (verbatim text)', sig({ flight_num: '007' }) !== sig({ flight_num: '7' }));
 chk('reg "0001" != "1" (verbatim text)', sig({ reg: '0001' }) !== sig({ reg: '1' }));
 
+// 7. Timestamptz columns compare by INSTANT, not string (clobber review
+//    2026-07-20). A pushed row carries a JS toISOString ("…07:00:00.000Z");
+//    the same row pulled from Supabase's timestamptz comes back in offset form
+//    ("…07:00:00+00:00"). Verbatim hashing made an unchanged flight look
+//    locally-edited after every pull, so pullFlights' dirty guard refused the
+//    other device's legitimate edit and silently lost it. Same instant must
+//    hash identically; a real time change must still differ.
+chk('dtstart_utc "…000Z" == "…+00:00" (same instant, different string form)',
+  sig({ dtstart_utc: '2026-07-15T07:00:00.000Z' }) === sig({ dtstart_utc: '2026-07-15T07:00:00+00:00' }));
+chk('dtstart_utc real time change 07:00 != 07:05 (still detected)',
+  sig({ dtstart_utc: '2026-07-15T07:00:00.000Z' }) !== sig({ dtstart_utc: '2026-07-15T07:05:00.000Z' }));
+chk('signed_at "…000Z" == "…+00:00" (same instant)',
+  sig({ signed_at: '2026-07-15T12:30:00.000Z' }) === sig({ signed_at: '2026-07-15T12:30:00+00:00' }));
+
 if (failures.length) {
   console.error(`\n✗ sync test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);

@@ -166,17 +166,47 @@ function injectDemoBanner() {
  if (typeof Auth === 'undefined' || !Auth.init) {
    window._kickNavblueInitSync(1200);
  }
- // Re-sync when the user comes back to the tab after being away. The
- // 'focus' threshold (15 min) is shorter than 'init' (30 min) because
- // pilots often switch between tabs/apps and the friction of opening
- // Settings to click Sync is exactly what we're removing here.
- if (typeof syncNavblueAuto === 'function') {
-   document.addEventListener('visibilitychange', () => {
-     if (document.visibilityState === 'visible') {
-       syncNavblueAuto('focus');
+ // ── Foreground return: pull the cloud, THEN re-import the Navblue iCal ──
+ // Two jobs when the tab/app returns to the front, and they MUST run in that
+ // order, never in parallel:
+ //   1. Pull cloud flights so a device left OPEN in the background (an iOS
+ //      Safari tab) sees the OTHER device's new or edited flights without a
+ //      reload. That's the "open my laptop first before my phone shows the
+ //      change" bug (Sync.pullOnForeground).
+ //   2. Re-import the roster iCal, whose 'focus' threshold (15 min) is shorter
+ //      than 'init' (30 min) because pilots switch tabs/apps often and the
+ //      friction of opening Settings to click Sync is what we're removing
+ //      (syncNavblueAuto).
+ // The order is load-bearing: syncNavblueNow matches each iCal segment against
+ // the live flights array BY CONTENT (date + flight + route). If it runs before
+ // the pull has brought down the other device's copy of a segment it finds no
+ // match, mints a FRESH uuid, and the confirmed import adds a duplicate the
+ // per-id LWW can never reconcile (the cloud (user_id, navblue_uid) index then
+ // pins that duplicate permanently). The cold-load path already avoids this on
+ // purpose (_kickNavblueInitSync waits for pullFlights to settle before
+ // importing); this mirrors it on every foreground return.
+ //
+ // Both visibilitychange and 'focus' fire on one foregrounding, so all
+ // foreground work is chained through _fgSeq: each event's pull fully settles
+ // before the next handler runs, so by the time the import runs the pull is done
+ // (its own 10 s throttle then makes the follow-up pull a no-op). pullOnForeground
+ // self-gates on auth + online, so when it no-ops (unauth / offline / throttled)
+ // the awaited promise resolves at once and the import still runs (Navblue keeps
+ // its own 15 min gate). Import stays visibilitychange-only, as it was before the
+ // cloud-pull wiring existed; 'focus' pulls but does not import.
+ let _fgSeq = Promise.resolve();
+ const onForegroundReturn = (reason, alsoImport) => {
+   _fgSeq = _fgSeq.then(async () => {
+     if (typeof Sync !== 'undefined' && Sync.pullOnForeground) {
+       try { await Sync.pullOnForeground(reason); } catch (e) {}
      }
+     if (alsoImport && typeof syncNavblueAuto === 'function') syncNavblueAuto('focus');
    });
- }
+ };
+ document.addEventListener('visibilitychange', () => {
+   if (document.visibilityState === 'visible') onForegroundReturn('visibility', true);
+ });
+ window.addEventListener('focus', () => onForegroundReturn('focus', false));
  // Defensive flush on tab hide.
  //
  // Some sync paths mutate the in-memory `flights` array in place — for

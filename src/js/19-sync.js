@@ -36,6 +36,15 @@ const SYNCED_SIG_KEY = 'cumulo_synced_sig_v1';
 const MIGRATION_BATCH_SIZE = 200;
 const PREMIGRATION_RETENTION_DAYS = 90;
 
+// Foreground-return pull throttle. When the tab/app comes back to the front we
+// drain + pull so an already-open device sees the other device's new flights
+// without a reload (see Sync.pullOnForeground + the wiring in 99-init.js). A
+// re-focus within this window is ignored so rapid tab toggling can't hammer
+// Supabase. Deliberately short (10 s, vs the 15-min Navblue focus threshold in
+// 08-flight-form.js) because a flights pull is light and the whole point is that
+// the pilot wants to SEE the change quickly.
+const FOREGROUND_PULL_THROTTLE_MS = 10 * 1000;
+
 // ─────────────────────────────────────────────────────────────────
 // Device id — stable random per browser. Used for LWW tie-break and
 // future trust-device flow.
@@ -308,7 +317,21 @@ function _sigField(remoteKey, v) {
     if (v === undefined || v === null || v === '' || v === false || v === 0 || v === '0' || v === 'false') return null;
     return true;
   }
-  // Text / timestamp / jsonb: empty ≡ absent, everything else verbatim.
+  // Timestamptz columns (dtstart_utc, signed_at, deleted_at): compare by INSTANT,
+  // not by string. A row we PUSHED holds a JS toISOString() ("…07:00:00.000Z");
+  // the SAME row PULLED back from Supabase's timestamptz comes as "…07:00:00+00:00"
+  // (offset form, no ".000", no "Z"). Hashing them verbatim made an unchanged
+  // flight look locally-edited after every pull — which the pullFlights dirty
+  // guard then read as a real local edit and refused a legitimate remote change,
+  // silently losing the other device's edit. Canonicalise to epoch so both forms
+  // hash identically while a genuine time correction (07:00 → 07:05) still differs.
+  // (Adversarial clobber review 2026-07-20.)
+  if (TIMESTAMP_COLS.has(remoteKey)) {
+    if (v === undefined || v === null || v === '') return null;
+    const t = Date.parse(v);
+    return Number.isNaN(t) ? String(v) : t;
+  }
+  // Text / jsonb: empty ≡ absent, everything else verbatim.
   if (v === undefined || v === null || v === '') return null;
   return String(v);
 }
@@ -396,7 +419,7 @@ const Sync = {
   // removed locally (+ tombstoned); never re-adopted. Rows matching a local
   // tombstone are skipped — covers the window where this device deleted a
   // flight but the cloud soft-delete is still queued offline.
-  async pullFlights() {
+  async pullFlights(opts) {
     if (!Auth.isAuthenticated()) return;
     let data, error;
     try {
@@ -410,6 +433,7 @@ const Sync = {
     if (!data || !data.length) return;
 
     const byId = new Map(flights.map(f => [f.id, f]));
+    const userId = Auth.currentUserId();
     let added = 0, updated = 0, removed = 0;
 
     // Ids with unpushed local changes — remote LWW must NEVER clobber a local
@@ -463,9 +487,38 @@ const Sync = {
       // intentional: we trust the cloud after migration completion.
       const lU = local._updated_at || '';
       const rU = row.updated_at || row.client_updated_at || '';
+      // Dirty-by-fingerprint: positive proof of an un-pushed local edit, used to
+      // refuse a strictly-newer-STAMPED-but-STALER-CONTENT remote row (which would
+      // otherwise win LWW below and silently overwrite the edit on screen AND,
+      // since the edit then never climbs to the cloud, permanently). The edit
+      // path never rebumps _updated_at (05-form-helpers.js merges onto the
+      // existing row), so an edited flight keeps its last-push marker, older than
+      // the cloud's server updated_at even though the cloud still holds the
+      // PRE-edit content. Two independent signals prove "local edited, cloud
+      // stale", each robust where the other is blind:
+      //   1. synced baseline: local content ≠ the sig we last recorded as synced
+      //      for this id. Covers the in-flight window (a push already fired but
+      //      hasn't landed, so synced still holds the OLD cloud sig).
+      //   2. device_id provenance: the cloud row was last written by THIS device
+      //      yet local content now differs from it, i.e. "I pushed, then I edited
+      //      locally". Covers the cold-start window where the synced map is EMPTY
+      //      (first launch of this build for a migrated user, or an offline load
+      //      whose init pull failed); there pushAllFlights' cold-start skip has
+      //      already seeded synced[id] with the EDITED sig, blinding signal 1, but
+      //      the cloud copy is still our own stale push so provenance still holds.
+      // Both are asymmetric on purpose: an ABSENT baseline with a FOREIGN device_id
+      // (another device's newer edit) is NOT treated as dirty, so a stale local
+      // copy never wins over another device's edit (cross-device clobber). Mirrors
+      // pendingIds, which protects edits already in the offline queue.
+      const _localSig = rowSyncSig(localFlightToRow(local, userId));
+      const localDirtyByFp =
+        ((remote.id in synced) && synced[remote.id] !== _localSig)
+        || (row.device_id && typeof getDeviceId === 'function'
+            && row.device_id === getDeviceId() && rowSyncSig(row) !== _localSig);
       // Remote wins only if strictly newer AND there is no unpushed local edit
-      // for this id (otherwise the local change would be silently lost).
-      if (rU > lU && !pendingIds.has(remote.id)) {
+      // for this id (queued OR dirty-by-fingerprint); otherwise the local
+      // change would be silently lost.
+      if (rU > lU && !pendingIds.has(remote.id) && !localDirtyByFp) {
         const incoming = { ...remote };
         // Protect local full crew names from anonymized remote values.
         if (!_consentOn) { delete incoming.pic; delete incoming.copilot; }
@@ -492,7 +545,93 @@ const Sync = {
       this._suppressAutoSync = true;
       try { DB.save(flights); } finally { this._suppressAutoSync = false; }
       if (typeof renderDashboard === 'function') renderDashboard();
-      showToast(t('sync.pulled', { added, updated }), 'success');
+      // opts.silent: the foreground-return pull repaints quietly (the visible
+      // dashboard/logbook update IS the feedback); a "Synced" toast on every
+      // refocus that carried a change would be noise. Cold load / sign-in pass
+      // no opts and still toast as before.
+      if (!(opts && opts.silent)) showToast(t('sync.pulled', { added, updated }), 'success');
+    }
+    // Report what landed so the foreground pull repaints (logbook / duty) only
+    // when something actually changed.
+    return { added, updated, removed };
+  },
+
+  // ── Foreground-return pull (drain-then-pull) ─────────────────────
+  // Wired from 99-init.js on visibilitychange→visible and window 'focus'.
+  //
+  // Why this exists: PUSH already self-schedules on every local save
+  // (installAutoSyncPatch → _scheduleAutoSync debounce), so a local edit climbs
+  // to the cloud on its own. PULL, though, only ran at cold load and on sign-in.
+  // A device left OPEN in the background (an iOS Safari tab) therefore never
+  // saw another device's new flights until a full reload. That's the "I have to
+  // open my laptop first before my phone shows the change" bug.
+  //
+  // ORDER MATTERS: drainQueue BEFORE pullFlights. A queued (offline) local edit
+  // must reach the cloud before we pull, so the pull can never tug a staler
+  // remote copy down over it. pullFlights itself is left UNTOUCHED: it already
+  // (a) skips any remote row whose id has a pending queued op (pendingIds) and
+  // (b) applies LWW so a strictly-older remote row never wins. Draining first is
+  // the belt to that suspenders; it closes the one gap where a local edit sits
+  // un-pushed while a newer-stamped-but-stale remote row exists.
+  //
+  // Guards:
+  //   - no-op unless signed in AND actually online (offline = zero network);
+  //   - single-flight: a 2nd foreground event while a pull is running is dropped
+  //     (visibilitychange + focus often fire together on one foregrounding);
+  //   - throttled to FOREGROUND_PULL_THROTTLE_MS so rapid toggling pulls once.
+  _lastForegroundPullAt: 0,
+  _foregroundPullInFlight: false,
+  async pullOnForeground(reason) {
+    if (typeof Auth === 'undefined' || !Auth.isAuthenticated || !Auth.isAuthenticated()) return;
+    // navigator.onLine === false is a definite "offline"; anything else (true or
+    // an environment without the property) is treated as online, same as the
+    // rest of the app which never blocks on a missing navigator.
+    if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) return;
+    if (this._foregroundPullInFlight) return;                     // idempotent: one pull at a time
+    const now = Date.now();
+    if (this._lastForegroundPullAt && (now - this._lastForegroundPullAt) < FOREGROUND_PULL_THROTTLE_MS) return;
+    this._lastForegroundPullAt = now;                             // stamp at START so a slow pull can't be followed by a burst
+    this._foregroundPullInFlight = true;
+    let _adopted = false;
+    try {
+      // Push ALL un-pushed local writes up BEFORE pulling; never pull over a
+      // local edit that hasn't reached the cloud. Two sources of "un-pushed":
+      //   1. the offline queue (failed pushes), drained here;
+      //   2. a fresh edit still sitting on the 800ms auto-sync debounce timer,
+      //      which is NOT in the queue. If a re-focus lands inside that window,
+      //      flush the pending push now (fire the debounce early) so the edit
+      //      climbs to the cloud first; otherwise a newer remote row could win
+      //      LWW over an edit that never got its chance to push (data loss in a
+      //      certifiable logbook). pushAllFlights is itself a no-op when nothing
+      //      is dirty, so this stays cheap on an ordinary focus.
+      try { await this.drainQueue(); } catch (e) { /* offline/transient - pull is still guarded by LWW + pendingIds */ }
+      if (this._autoSyncTimer) {
+        clearTimeout(this._autoSyncTimer);
+        this._autoSyncTimer = null;
+        try { await this.pushAllFlights(); } catch (e) { /* transient - pull still LWW/pendingIds-guarded */ }
+      }
+      const _pulled = await this.pullFlights({ silent: true });
+      _adopted = !!(_pulled && (_pulled.added || _pulled.updated || _pulled.removed));
+    } catch (e) {
+      console.warn('[Sync] pullOnForeground error:', e);
+    } finally {
+      this._foregroundPullInFlight = false;
+    }
+    // Repaint freshly-pulled rows, but ONLY when the pull actually adopted
+    // something: no change means nothing to repaint, and an idle device that
+    // just refocused shouldn't re-run the renderers for nothing. pullFlights
+    // already re-rendered the dashboard when it changed rows, so we do NOT
+    // repeat it here; we refresh the logbook, and the duty tracker only when its
+    // page is the one on screen. renderDutyTracker is gated exactly like its
+    // other callers (router, i18n): off-page it self-heals its forecast with a
+    // Navblue worker fetch + iCal import for a view nobody is looking at. Each
+    // guarded: a missing renderer (page not built in this context) is a no-op.
+    if (_adopted) {
+      try { if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : ''); } catch (e) {}
+      try {
+        const dutyPage = document.getElementById('page-duty');
+        if (dutyPage && dutyPage.classList.contains('active') && typeof renderDutyTracker === 'function') renderDutyTracker();
+      } catch (e) {}
     }
   },
 
