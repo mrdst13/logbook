@@ -148,3 +148,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log('pdf-carryover: all assertions passed');
+process.exit(0);   // jsdom leaves a setInterval alive; exit like the sibling tests so `npm test` never hangs
