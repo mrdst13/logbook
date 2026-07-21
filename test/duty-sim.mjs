@@ -166,11 +166,17 @@ has('(d) EN verdict', overEn, 'Over: 3.2 h too many in 28 days (CAR 700.27).');
 has('(d) EN line', overEn, '28 days: 78.0 h → <strong class="over">115.2 h</strong> of 112 h (3.2 h over)');
 has('(d) EN footer', overEn, 'Estimated from your schedule and logged flights.');
 
-// The swap moves the breach date: it did not exist before, it does now.
+// The change moves the breach date: it did not exist before, it does now.
 eq('(d) breach date after = Jul 18', w28(over).hitAfter, '2026-07-18');
 eq('(d) no breach date before', w28(over).hitBefore, null);
-has('(d) FR breach line', overFr, 'Avec cet échange, tu atteindrais 112 h le 18 juillet.');
-has('(d) EN breach line', overEn, 'With this swap, you would reach 112 h on July 18.');
+// Add-only (nothing removed) is NOT a swap: the hit line says "change", not "swap".
+has('(d) FR breach line (add-only → change)', overFr, 'Avec ce changement, tu atteindrais 112 h le 18 juillet.');
+has('(d) EN breach line (add-only → change)', overEn, 'With this change, you would reach 112 h on July 18.');
+// The SAME breach WITH a real removal keeps "échange"/"swap" — that word is
+// reserved for an actual removal. Off PD3 (10 h), on 47.2 h the same day gives the
+// identical 115.2 h peak on Jul 18, but now a flight was genuinely swapped out.
+const swapOver = html({ outKey: '2026-07-16|PD3', addDate: '2026-07-16', addHours: '47.2' }, true);
+has('(d) a real removal keeps "échange"', swapOver, 'Avec cet échange, tu atteindrais 112 h le 18 juillet.');
 
 // A swap that moves an EXISTING breach date earlier says so ("instead of").
 // 42 h on Jul 16 → the window hits 112 on Jul 16 itself (30+30+42 = 102 → no);
@@ -181,7 +187,7 @@ w.eval("localStorage.setItem('cumulo_roster_forecast_v1', JSON.stringify({ts:1, 
 "]}));");
 eq('breach exists before the swap (Jul 18)', model({}).rows[0].hitBefore, '2026-07-18');
 const earlier = html({ addDate: '2026-07-16', addHours: '42' }, true);   // 30+30+10+42 = 112 on Jul 16
-has('FR breach line names the date it moves FROM', earlier, 'Avec cet échange, tu atteindrais 112 h le 16 juillet (au lieu du 18 juillet).');
+has('FR breach line names the date it moves FROM', earlier, 'Avec ce changement, tu atteindrais 112 h le 16 juillet (au lieu du 18 juillet).');
 fixture();
 
 // ── (e) No schedule loaded at all: no crash, no fabricated flight ─────
@@ -221,6 +227,97 @@ eq('(f) engine source map untouched', w.eval(
 // And the projection the rest of the page shows is unaffected.
 eq('(f) page projection still 78.0 after simulating', w.eval("computeDutyProjection(28,112,'2026-07-14').peak"), 78);
 
+// ═══════════════════════════════════════════════════════════════════
+// PAIRING (multi-day) — Martin 2026-07-20: "j'aimerais aussi pouvoir simuler si
+// j'ajoute un pairing disons de 2 jours en overtime entre tel date et tel date".
+// A total of block hours spread evenly across [start … end], stacking onto the
+// same non-destructive copy as the single-flight swap. "Overtime" is a PAY word;
+// RAC 700.27 counts the hours regardless, so a pairing moves the flight-time
+// windows exactly like any other hours (the pay side stays on the Pay page).
+// ═══════════════════════════════════════════════════════════════════
+
+// (a) A 2-day, 10 h pairing spreads 5 h onto EACH day; with both days inside the
+//     28-day window it lifts every window by the full 10 h. Jul 20–21 sit past
+//     the roster (horizon extends) and collide with nothing, so the delta is clean.
+const pairA = model({ pairStart: '2026-07-20', pairEnd: '2026-07-21', pairHours: '10' });
+eq('(a) pairing spans 2 days', pairA.pairing.count, 2);
+eq('(a) 5.0 h on day 1', pairA.pairing.perByDate['2026-07-20'], 5);
+eq('(a) 5.0 h on day 2', pairA.pairing.perByDate['2026-07-21'], 5);
+eq('(a) the parts sum to the entered total', pairA.pairing.perByDate['2026-07-20'] + pairA.pairing.perByDate['2026-07-21'], 10);
+eq('(a) horizon extended to the pairing end', pairA.horizon, '2026-07-21');
+eq('(a) 28-day before 78.0', w28(pairA).before, 78);
+eq('(a) 28-day after 88.0 (+10 h, both days in the window)', w28(pairA).after, 88);
+eq('(a) 28-day delta +10.0', w28(pairA).delta, 10);
+eq('(a) 90-day gains the full 10 h too', pairA.rows.find(r => r.lim.days === 90).delta, 10);
+eq('(a) 365-day gains the full 10 h too', pairA.rows.find(r => r.lim.days === 365).delta, 10);
+
+// (b) A pairing longer than the 28-day window: only the hours that fit inside a
+//     28-day span reach the 28-day total, while the 90- and 365-day windows (wide
+//     enough to hold the whole pairing) gain ALL of it. Empty logbook + no
+//     schedule isolates the pairing. Jul 14 → Aug 14 = 32 days, 32 h → 1 h/day.
+w.eval("flights = []; localStorage.removeItem('cumulo_roster_forecast_v1');");
+const pairB = model({ pairStart: '2026-07-14', pairEnd: '2026-08-14', pairHours: '32' });
+eq('(b) pairing spans 32 days', pairB.pairing.count, 32);
+eq('(b) 1.0 h on the first day', pairB.pairing.perByDate['2026-07-14'], 1);
+eq('(b) 1.0 h on the last day', pairB.pairing.perByDate['2026-08-14'], 1);
+eq('(b) 28-day window catches only the inside 28 h', w28(pairB).after, 28);
+eq('(b) 28-day delta +28.0 (not the full 32)', w28(pairB).delta, 28);
+eq('(b) 90-day window holds the whole pairing: 32 h', pairB.rows.find(r => r.lim.days === 90).after, 32);
+eq('(b) 90-day delta +32.0', pairB.rows.find(r => r.lim.days === 90).delta, 32);
+eq('(b) 365-day delta +32.0', pairB.rows.find(r => r.lim.days === 365).delta, 32);
+fixture();
+
+// (c) End before start is not rejected — a date range is the same set of days
+//     either way — it is normalised (start ≤ end) and spread as usual.
+const pairC = model({ pairStart: '2026-07-18', pairEnd: '2026-07-16', pairHours: '6' });
+eq('(c) start normalised to the earlier date', pairC.pairing.start, '2026-07-16');
+eq('(c) end normalised to the later date', pairC.pairing.end, '2026-07-18');
+eq('(c) spans 3 days', pairC.pairing.count, 3);
+eq('(c) same result as the correctly-ordered range',
+  w28(pairC).delta, w28(model({ pairStart: '2026-07-16', pairEnd: '2026-07-18', pairHours: '6' })).delta);
+
+// (c2) Nonsense pairings are ignored (never a fabricated flight), same honesty as
+//      the single-flight hours parser: garbage / zero hours, a missing date, or a
+//      span far too long to be a pairing (a two-day trip typed as two years).
+eq('(c2) garbage hours → no pairing', model({ pairStart: '2026-07-16', pairEnd: '2026-07-18', pairHours: 'nope' }).pairing, null);
+eq('(c2) zero hours → no pairing', model({ pairStart: '2026-07-16', pairEnd: '2026-07-18', pairHours: '0' }).pairing, null);
+eq('(c2) missing end date → no pairing', model({ pairStart: '2026-07-16', pairEnd: '', pairHours: '6' }).pairing, null);
+eq('(c2) absurdly long span → no pairing', model({ pairStart: '2026-07-16', pairEnd: '2028-07-18', pairHours: '6' }).pairing, null);
+
+// (d) A swap AND a pairing combine into ONE net delta on the copy. Off PD3
+//     (10 h), on a Jul 20–21 pairing of 12 h → net −10 + 12 = +2 h.
+const pairD = model({ outKey: '2026-07-16|PD3', pairStart: '2026-07-20', pairEnd: '2026-07-21', pairHours: '12' });
+eq('(d) the removed flight is still identified', pairD.removed.flightNum, 'PD3');
+eq('(d) the pairing rides along', pairD.pairing.count, 2);
+eq('(d) 28-day before 78.0', w28(pairD).before, 78);
+eq('(d) 28-day after 80.0 (−10 removed + 12 pairing)', w28(pairD).after, 80);
+eq('(d) 28-day net delta +2.0', w28(pairD).delta, 2);
+
+// (e) The pairing simulation writes NOTHING — not the logbook, not the day-hours
+//     map the engine hands out.
+const flightsBeforeP = w.eval("JSON.stringify(flights)");
+const combinedBeforeP = w.eval("JSON.stringify(_dutyDrillData(28,'2026-07-14').combined)");
+w.eval("_dutySwapModel({pairStart:'2026-07-20', pairEnd:'2026-07-25', pairHours:'99'}, '2026-07-14');");
+eq('(e) flights untouched by the pairing sim', w.eval("JSON.stringify(flights)"), flightsBeforeP);
+eq('(e) engine day-hours map untouched by the pairing sim', w.eval("JSON.stringify(_dutyDrillData(28,'2026-07-14').combined)"), combinedBeforeP);
+
+// The estimate + pay-page notes show only when a pairing is entered, and only
+// the spread note for a real (≥2-day) range. FR keeps the &nbsp; before colons.
+const pairFr = html({ pairStart: '2026-07-20', pairEnd: '2026-07-21', pairHours: '12' }, true);
+has('(e) FR spread note names the day count', pairFr, 'Réparti également sur 2 jours (estimé).');
+has('(e) FR pay pointer', pairFr, 'Effet sur la paie&nbsp;: voir la page Paie.');
+const pairEn = html({ pairStart: '2026-07-20', pairEnd: '2026-07-21', pairHours: '12' }, false);
+has('(e) EN spread note', pairEn, 'Spread evenly across 2 days (estimate).');
+has('(e) EN pay pointer', pairEn, 'Pay impact: see the Pay page.');
+// A single-day pairing has nothing to spread: pay pointer stays, spread note goes.
+const pair1 = html({ pairStart: '2026-07-20', pairEnd: '2026-07-20', pairHours: '5' }, true);
+not('(e) 1-day pairing drops the spread note', pair1, 'Réparti également');
+has('(e) 1-day pairing keeps the pay pointer', pair1, 'voir la page Paie');
+// No pairing at all → neither note (single-flight mode unchanged).
+not('(e) no pairing → no pay pointer', html({ addDate: '2026-07-20', addHours: '5' }, true), 'voir la page Paie');
+not('(e) no pairing → no spread note', html({ addDate: '2026-07-20', addHours: '5' }, true), 'Réparti également');
+fixture();
+
 // ── Render: the panel is collapsed, the select is pre-filled from the roster ──
 // Far-future roster dates keep this independent of the day the test runs.
 w.eval("localStorage.setItem('cumulo_roster_forecast_v1', JSON.stringify({ts:1, today:'2099-01-01', flights:[" +
@@ -239,6 +336,14 @@ eq('option reads date · flight · route · block', sel.options[1].textContent, 
 eq('option value = the stable key', sel.options[1].value, '2099-03-01|PD447');
 eq('hours field is decimal, step 0.1', w.document.getElementById('swap-hrs').getAttribute('step'), '0.1');
 eq('hours field carries the decimal keypad', w.document.getElementById('swap-hrs').getAttribute('inputmode'), 'decimal');
+// The optional pairing group: two dates + a total, decimal keypad, blank by
+// default (a pre-filled date would read as a pairing that isn't there).
+has('pairing group is labelled FR', w.document.querySelector('#dutySwap .sw-group').textContent, 'Ajouter un pairing');
+eq('pairing start field present', !!w.document.getElementById('pair-start'), true);
+eq('pairing end field present', !!w.document.getElementById('pair-end'), true);
+eq('pairing hours field is decimal, step 0.1', w.document.getElementById('pair-hrs').getAttribute('step'), '0.1');
+eq('pairing hours field carries the decimal keypad', w.document.getElementById('pair-hrs').getAttribute('inputmode'), 'decimal');
+eq('pairing dates blank by default (optional group)', w.document.getElementById('pair-start').value, '');
 eq('answer repainted on render', w.document.getElementById('swapOut').innerHTML.indexOf('sw-lines') !== -1, true);
 
 // Picking the removed flight pre-fills the added flight's date (same-day swap).
@@ -248,13 +353,20 @@ eq('picking a removed flight pre-fills the date', w.document.getElementById('swa
 
 // A re-render (page revisit, language toggle) must not wipe a call in progress.
 w.document.getElementById('swap-hrs').value = '3.4';
+w.document.getElementById('pair-start').value = '2099-03-05';
+w.document.getElementById('pair-end').value = '2099-03-06';
+w.document.getElementById('pair-hrs').value = '11.5';
 panel.open = true;
 w.eval("localStorage.setItem('cumulo_lang','en'); renderDutySwap();");
 eq('open state survives a re-render', w.document.getElementById('dutySwapPanel').open, true);
 eq('typed hours survive a re-render', w.document.getElementById('swap-hrs').value, '3.4');
 eq('picked flight survives a re-render', w.document.getElementById('swap-out').value, '2099-03-01|PD447');
 eq('date survives a re-render', w.document.getElementById('swap-date').value, '2099-03-01');
+eq('pairing start survives a re-render', w.document.getElementById('pair-start').value, '2099-03-05');
+eq('pairing end survives a re-render', w.document.getElementById('pair-end').value, '2099-03-06');
+eq('pairing hours survive a re-render', w.document.getElementById('pair-hrs').value, '11.5');
 has('re-render switched language', w.document.querySelector('.sw-title').textContent, 'Simulate a flight swap');
+has('pairing group re-rendered in EN', w.document.querySelector('#dutySwap .sw-group').textContent, 'Add a pairing');
 
 // No schedule → no select at all, and the honest line instead.
 w.eval("localStorage.removeItem('cumulo_roster_forecast_v1'); localStorage.setItem('cumulo_lang','fr'); renderDutySwap();");
@@ -266,6 +378,8 @@ eq('no schedule → the added-flight fields stay', !!w.document.getElementById('
 fixture();
 const allCopy = html({ outKey: '2026-07-16|PD3', addDate: '2026-07-16', addHours: '37.2' }, true) +
   html({ outKey: '2026-07-16|PD3', addDate: '2026-07-16', addHours: '37.2' }, false) +
+  html({ pairStart: '2026-07-16', pairEnd: '2026-07-19', pairHours: '20' }, true) +
+  html({ pairStart: '2026-07-16', pairEnd: '2026-07-19', pairHours: '20' }, false) +
   w.document.getElementById('dutySwap').innerHTML;
 if (/—/.test(allCopy)) failures.push('rendered copy contains an em dash (—)');
 if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(allCopy)) failures.push('rendered copy contains an emoji');

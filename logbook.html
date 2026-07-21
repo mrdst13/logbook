@@ -5058,6 +5058,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 #page-duty .sw-verdict.over { font-weight: 600; color: var(--v2-danger-ink); }
 #page-duty .sw-hit { font-size: 13px; color: var(--v2-muted); margin-top: 6px; }
 #page-duty .sw-foot { font-size: 12px; color: var(--v2-muted); margin-top: 14px; }
+#page-duty .sw-pair { margin-top: 12px; }
+/* Optional-pairing sub-heading inside the fields grid: a quiet section label
+   with a hairline above it, separating the single added flight from the range. */
+#page-duty .sw-group { grid-column: 1 / -1; margin: 4px 0 0; padding-top: 18px; border-top: 1px solid var(--v2-hair); font-size: 13px; font-weight: 600; color: var(--v2-muted); letter-spacing: .01em; }
 
 /* ── Responsive (from the mockups, scoped) ──────────────────────── */
 @media (max-width: 900px) {
@@ -23836,6 +23840,48 @@ function _dutySwapHours(raw) {
   return Math.round(v * 100) / 100;
 }
 
+// A multi-day PAIRING: one total of block hours spread across a date range.
+// Martin (2026-07-20): "j'aimerais aussi pouvoir simuler si j'ajoute un pairing
+// disons de 2 jours en overtime entre tel date et tel date". "Overtime" is a PAY
+// word, not a duty word: RAC 700.27 counts flight hours whether or not they are
+// paid at an overtime rate, so here a pairing's hours count like any others. The
+// pay side lives on the Pay page; this panel only moves the flight-time windows.
+//
+// The total is spread EVENLY over every calendar date in [start … end] inclusive
+// — least surprising, least typing on a phone, and footed as an estimate.
+// (Considered an optional "hours each day" list for exactness; kept the single
+//  total + even spread because Martin asked for "juste un estimé".) The split is
+// done in whole cents of an hour with the remainder handed to the earliest days,
+// so the per-day figures sum to EXACTLY the entered total — no tenths lost
+// against a hard 700.27 limit.
+//
+// Returns null when there is nothing usable: hours ≤ 0 / garbage (same rule as
+// _dutySwapHours), a missing or malformed date, or a span longer than
+// _DUTY_PAIRING_MAX_DAYS — a two-day pairing typed as two years is a data-entry
+// slip, not a pairing, so refuse it cleanly rather than smear hours over months.
+const _DUTY_PAIRING_MAX_DAYS = 92;   // a quarter: comfortably past any real pairing
+function _dutySwapPairing(sel) {
+  sel = sel || {};
+  const hours = _dutySwapHours(sel.pairHours);
+  if (!(hours > 0)) return null;
+  const rx = /^\d{4}-\d{2}-\d{2}$/;
+  let a = String(sel.pairStart || '');
+  let b = String(sel.pairEnd || '');
+  if (!rx.test(a) || !rx.test(b)) return null;
+  if (b < a) { const t = a; a = b; b = t; }   // [start … end] is the same set of dates either way
+  const days = _dutyDateSeq(a, b);             // inclusive; the seq helper hard-caps its own loop
+  if (!days.length || days.length > _DUTY_PAIRING_MAX_DAYS) return null;
+  // Even spread in whole cents of an hour; the first `rem` days carry one extra
+  // cent so the parts add up to exactly `hours`.
+  const totalC = Math.round(hours * 100);
+  const n = days.length;
+  const baseC = Math.floor(totalC / n);
+  const rem = totalC - baseC * n;
+  const perByDate = {};
+  days.forEach(function (d, i) { perByDate[d] = (baseC + (i < rem ? 1 : 0)) / 100; });
+  return { start: a, end: b, hours: hours, days: days, count: n, perByDate: perByDate };
+}
+
 // Upcoming flights on the published schedule that can be swapped OUT. Same
 // source, same future-only rule and same "already flown & logged" de-dup as
 // computeDutyProjection / _dutyDrillData, so the hours this list offers to
@@ -23888,8 +23934,12 @@ function _dutySwapModel(sel, todayOverride) {
   const addHours = _dutySwapHours(sel.addHours);
   const addDate = (addHours > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(sel.addDate || '')))
     ? String(sel.addDate) : null;
+  const pairing = _dutySwapPairing(sel);   // multi-day pairing (date range + total), or null
 
   // ── The COPY. dd.combined itself is never touched. ──
+  // Remove, single add and pairing all stack onto the same copy, so a swap AND a
+  // pairing (e.g. dropping a short flight to pick up a longer trip) combine into
+  // one net delta on every window.
   const sim = {};
   for (const d in dd.combined) sim[d] = dd.combined[d];
   if (removed) {
@@ -23897,11 +23947,17 @@ function _dutySwapModel(sel, todayOverride) {
     if (left > 0) sim[removed.date] = left; else delete sim[removed.date];
   }
   if (addDate) sim[addDate] = Math.round(((sim[addDate] || 0) + addHours) * 100) / 100;
+  if (pairing) {
+    for (const d of pairing.days) {
+      sim[d] = Math.round(((sim[d] || 0) + pairing.perByDate[d]) * 100) / 100;
+    }
+  }
 
-  // A flight added past the end of the roster extends the horizon; a date
+  // A flight or pairing past the end of the roster extends the horizon; a date
   // before today never moves it backwards (the projection starts at today).
   let horizon = dd.horizon;
   if (addDate && addDate > horizon) horizon = addDate;
+  if (pairing && pairing.end > horizon) horizon = pairing.end;
 
   const rows = DUTY_LIMITS.map(function (lim) {
     const before = projectRollingWindow(dd.combined, lim.days, lim.limit, today, horizon);
@@ -23935,8 +23991,8 @@ function _dutySwapModel(sel, todayOverride) {
 
   return {
     today: today, horizon: horizon, rows: rows, bind: bind, hit: hit,
-    removed: removed, addDate: addDate, addHours: addHours,
-    hasChange: !!removed || !!addDate,
+    removed: removed, addDate: addDate, addHours: addHours, pairing: pairing,
+    hasChange: !!removed || !!addDate || !!pairing,
     hasForecastCache: !!loadRosterForecast(),
     candidates: cands
   };
@@ -23995,12 +24051,31 @@ function _dutySwapResultHtml(m, fr) {
     const instead = h.hitBefore
       ? (fr ? ' (au lieu du ' + _dutyFmtLong(h.hitBefore, fr) + ')' : ' (instead of ' + _dutyFmtLong(h.hitBefore, fr) + ')')
       : '';
-    hitLine = '<p class="sw-hit num">' + (fr
-      ? 'Avec cet échange, tu atteindrais ' + fL(h.lim.limit) + ' h le ' + when + instead + '.'
-      : 'With this swap, you would reach ' + fL(h.lim.limit) + ' h on ' + when + instead + '.') + '</p>';
+    // "échange"/"swap" only when a flight is actually removed. A pure addition or
+    // a pairing pickup (Martin's "si j'ajoute un pairing") swaps nothing, so it
+    // reads as a "change" — the panel name stays "swap", but this line is honest.
+    const lead = m.removed
+      ? (fr ? 'Avec cet échange, tu atteindrais ' : 'With this swap, you would reach ')
+      : (fr ? 'Avec ce changement, tu atteindrais ' : 'With this change, you would reach ');
+    hitLine = '<p class="sw-hit num">' + lead + fL(h.lim.limit) +
+      (fr ? ' h le ' + when : ' h on ' + when) + instead + '.</p>';
   }
 
-  return '<ul class="sw-lines">' + lines + '</ul>' + verdict + hitLine +
+  // Pairing footnote: how the hours were spread (only worth saying for a real
+  // range) + a one-line pointer to the Pay page, since "overtime" is a pay
+  // question this panel does NOT answer. Nothing more — he is on the phone.
+  let pairNote = '';
+  if (m.pairing) {
+    const spread = (m.pairing.count >= 2)
+      ? (fr ? 'Réparti également sur ' + m.pairing.count + ' jours (estimé). '
+            : 'Spread evenly across ' + m.pairing.count + ' days (estimate). ')
+      : '';
+    const pay = fr ? 'Effet sur la paie&nbsp;: voir la page Paie.'
+                   : 'Pay impact: see the Pay page.';
+    pairNote = '<p class="sw-foot sw-pair">' + spread + pay + '</p>';
+  }
+
+  return '<ul class="sw-lines">' + lines + '</ul>' + verdict + hitLine + pairNote +
     '<p class="sw-foot">' + (fr
       ? 'Estimé selon ton horaire et tes vols enregistrés.'
       : 'Estimated from your schedule and logged flights.') + '</p>';
@@ -24024,7 +24099,11 @@ function _dutySwapNoneTxt(fr, cached) {
 function _dutySwapInputs() {
   const v = function (id) { const el = document.getElementById(id); return el ? el.value : null; };
   const panel = document.getElementById('dutySwapPanel');
-  return { open: !!(panel && panel.open), outKey: v('swap-out'), addDate: v('swap-date'), addHours: v('swap-hrs') };
+  return {
+    open: !!(panel && panel.open),
+    outKey: v('swap-out'), addDate: v('swap-date'), addHours: v('swap-hrs'),
+    pairStart: v('pair-start'), pairEnd: v('pair-end'), pairHours: v('pair-hrs')
+  };
 }
 
 // Recompute + repaint ONLY the answer. Never re-renders the panel, so the
@@ -24035,7 +24114,10 @@ function dutySwapCompute() {
   const fr = (typeof getLang === 'function') && getLang() === 'fr';
   const i = _dutySwapInputs();
   box.innerHTML = _dutySwapResultHtml(
-    _dutySwapModel({ outKey: i.outKey, addDate: i.addDate, addHours: i.addHours }), fr);
+    _dutySwapModel({
+      outKey: i.outKey, addDate: i.addDate, addHours: i.addHours,
+      pairStart: i.pairStart, pairEnd: i.pairEnd, pairHours: i.pairHours
+    }), fr);
 }
 
 // Build the panel (COLLAPSED by default — it must not clutter the page) into
@@ -24084,6 +24166,14 @@ function renderDutySwap() {
     '<input type="date" id="swap-date"></div>' +
     '<div class="field"><label for="swap-hrs">' + (fr ? 'Heures du vol ajouté' : 'Added flight hours') + '</label>' +
     '<input type="number" id="swap-hrs" step="0.1" min="0" inputmode="decimal"></div>' +
+    // ── Optional multi-day pairing (date range + total hours, spread evenly) ──
+    '<p class="sw-group span2">' + (fr ? 'Ajouter un pairing (optionnel)' : 'Add a pairing (optional)') + '</p>' +
+    '<div class="field"><label for="pair-start">' + (fr ? 'Début du pairing' : 'Pairing start') + '</label>' +
+    '<input type="date" id="pair-start"></div>' +
+    '<div class="field"><label for="pair-end">' + (fr ? 'Fin du pairing' : 'Pairing end') + '</label>' +
+    '<input type="date" id="pair-end"></div>' +
+    '<div class="field span2"><label for="pair-hrs">' + (fr ? 'Total des heures de vol du pairing' : 'Pairing total flight hours') + '</label>' +
+    '<input type="number" id="pair-hrs" step="0.1" min="0" inputmode="decimal"></div>' +
     '</form>' +
     '<aside class="result"><span class="r-label">' + (fr ? 'Effet sur tes cumuls' : 'Effect on your totals') + '</span>' +
     '<div id="swapOut" role="status" aria-live="polite"></div></aside>' +
@@ -24098,6 +24188,14 @@ function renderDutySwap() {
   if (dEl) dEl.value = prev.addDate || today;
   const hEl = document.getElementById('swap-hrs');
   if (hEl && prev.addHours) hEl.value = prev.addHours;
+  // Pairing fields stay BLANK by default (the group is optional — a pre-filled
+  // date would read as a pairing that isn't there); only restore what he typed.
+  const psEl = document.getElementById('pair-start');
+  if (psEl && prev.pairStart) psEl.value = prev.pairStart;
+  const peEl = document.getElementById('pair-end');
+  if (peEl && prev.pairEnd) peEl.value = prev.pairEnd;
+  const phEl = document.getElementById('pair-hrs');
+  if (phEl && prev.pairHours) phEl.value = prev.pairHours;
 
   // A swap is normally same-day: picking the removed flight pre-fills the date.
   if (sel) {
@@ -24108,7 +24206,7 @@ function renderDutySwap() {
       dutySwapCompute();
     };
   }
-  ['swap-date', 'swap-hrs'].forEach(function (id) {
+  ['swap-date', 'swap-hrs', 'pair-start', 'pair-end', 'pair-hrs'].forEach(function (id) {
     const el = document.getElementById(id);
     if (el) { el.oninput = dutySwapCompute; el.onchange = dutySwapCompute; }
   });
@@ -26189,7 +26287,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-20-9b53bff';
+const BUILD_VERSION = '2026-07-20-19fcd78';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

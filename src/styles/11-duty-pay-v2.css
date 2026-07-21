@@ -475,6 +475,10 @@
 #page-duty .sw-verdict.over { font-weight: 600; color: var(--v2-danger-ink); }
 #page-duty .sw-hit { font-size: 13px; color: var(--v2-muted); margin-top: 6px; }
 #page-duty .sw-foot { font-size: 12px; color: var(--v2-muted); margin-top: 14px; }
+#page-duty .sw-pair { margin-top: 12px; }
+/* Optional-pairing sub-heading inside the fields grid: a quiet section label
+   with a hairline above it, separating the single added flight from the range. */
+#page-duty .sw-group { grid-column: 1 / -1; margin: 4px 0 0; padding-top: 18px; border-top: 1px solid var(--v2-hair); font-size: 13px; font-weight: 600; color: var(--v2-muted); letter-spacing: .01em; }
 
 /* ── Responsive (from the mockups, scoped) ──────────────────────── */
 @media (max-width: 900px) {
