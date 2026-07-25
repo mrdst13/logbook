@@ -1368,12 +1368,34 @@ async function syncNavblueNow(opts) {
       // sits near today. Fall back to the head of the feed so the button
       // always shows some raw event: an empty diagnostic is useless
       // precisely when someone is trying to diagnose something.
-      const near = (windowed.length ? windowed : events).slice(0, DIAG_MAX_EVENTS);
+      const pool = windowed.length ? windowed : events;
+      // Flights first. The first run of this panel came back showing three
+      // days off, which answers nothing when the question is "where is the
+      // flight I just finished". Whatever matches the pilot's operator code
+      // is what he needs to see, and the rest only fills the remaining room.
+      const isFlightEv = e => {
+        const s = (e.SUMMARY || '').trim();
+        return getOperatorFlightRegex().test(s) && !DEADHEAD_RE.test(s);
+      };
+      const near = pool.filter(isFlightEv).concat(pool.filter(e => !isFlightEv(e))).slice(0, DIAG_MAX_EVENTS);
+      // A dated index of EVERY event near today, flight or not. Three lines
+      // of this would have said immediately whether the feed even carries
+      // today's legs, instead of leaving it to be inferred from a sample.
+      const index = events.map(e => ({
+        date: icsDate(e.DTSTART),
+        dtstart: String(e.DTSTART || '').substring(0, 40),
+        summary: (e.SUMMARY || '').trim().substring(0, 80),
+        flight: isFlightEv(e)
+      })).filter(x => x.date && x.date >= diagFrom && x.date <= diagTo)
+        .sort((a, b) => (a.dtstart < b.dtstart ? -1 : (a.dtstart > b.dtstart ? 1 : 0)));
       const dump = {
         ts: nowMs,
         today,
         window: { from: diagFrom, to: diagTo },
         totalEvents: events.length,
+        eventsNearToday: index.length,
+        flightEventsNearToday: index.filter(x => x.flight).length,
+        index,
         calibration,
         decisions: decisions.filter(x => x.date >= diagFrom && x.date <= diagTo),
         samples: near.map(e => {
@@ -1608,6 +1630,16 @@ function showNavblueDiagnostic() {
       signal: signalText
     }))}</div>`;
   };
+  // Dated index of everything near today. This is the first thing to read
+  // when a flight is missing: it shows whether the feed carries the leg at
+  // all, before anyone starts theorising about the parsing.
+  const idx = Array.isArray(dump.index) ? dump.index : null;
+  const indexHtml = idx ? `
+    <div style="margin-bottom:var(--s-4);">
+      <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${esc(t('sync.diag.indexTitle', { n: idx.length, from: (dump.window || {}).from || '', to: (dump.window || {}).to || '' }))}</div>
+      <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; max-height:220px; overflow:auto;">${esc(idx.map(x => `${x.date}  ${x.flight ? '[vol/flight] ' : ''}${x.summary}`).join('\n') || t('sync.diag.empty'))}</pre>
+      ${dump.flightEventsNearToday === 0 ? `<div style="font-size:12px; color:var(--warning); margin-top:6px;">${esc(t('sync.diag.noFlightsNear'))}</div>` : ''}
+    </div>` : '';
   const samplesHtml = (dump.samples || []).map((s, i) => `
     <div style="margin-bottom:var(--s-4);">
       <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">${esc(t('sync.diag.sample', { n: i + 1 }))}</div>
@@ -1632,6 +1664,7 @@ function showNavblueDiagnostic() {
     <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
       ${esc(t('sync.diag.intro', { n: dump.samples ? dump.samples.length : 0 }))}
     </p>
+    ${indexHtml}
     ${calHtml}
     ${samplesHtml}
     <details style="margin-top:var(--s-3);">
