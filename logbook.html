@@ -12812,6 +12812,18 @@ function showNavblueDiagnostic() {
       signal: signalText
     }))}</div>`;
   };
+  // The dump is only written DURING a sync, so after an app update the
+  // panel can be a new reader looking at an old capture. That happened on
+  // 2026-07-25: the old capture held the first three events of the whole
+  // feed (three days off at the start of the published period) and, read
+  // through the new wording, looked like a statement about today. Say it
+  // outright instead of quietly rendering a half empty panel.
+  const staleShape = !Array.isArray(dump.index);
+  const staleHtml = staleShape ? `
+    <div style="font-size:13px; color:var(--warning); line-height:1.55; margin-bottom:var(--s-3); padding:var(--s-3); background:var(--warning-soft,rgba(200,140,0,.12)); border-radius:var(--r-sm);">
+      ${esc(t('sync.diag.staleShape'))}
+    </div>` : '';
+
   // Dated index of everything near today. This is the first thing to read
   // when a flight is missing: it shows whether the feed carries the leg at
   // all, before anyone starts theorising about the parsing.
@@ -12846,6 +12858,7 @@ function showNavblueDiagnostic() {
     <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
       ${esc(t('sync.diag.intro', { n: dump.samples ? dump.samples.length : 0 }))}
     </p>
+    ${staleHtml}
     ${indexHtml}
     ${calHtml}
     ${samplesHtml}
@@ -17424,6 +17437,7 @@ const STRINGS = {
  'sync.diag.read': 'Read here. Block: {blh} h. Schedule: {sched} h. Actual times: {actual}. Proof of arrival: {proof}. Block change: {signal}.',
  'sync.diag.none': 'none',
  'sync.diag.noneM': 'none',
+ 'sync.diag.staleShape': 'This capture was taken by an earlier version of the app, so it shows the first few entries of your whole feed rather than the days around today. Run Sync now, then open this panel again.',
  'sync.diag.indexTitle': 'Everything your feed carries from {from} to {to}, in order ({n} entries)',
  'sync.diag.noFlightsNear': 'No flight of your own operator appears in these days. Nothing could be offered for import because the feed is not carrying the leg yet.',
  'sync.diag.proofArrival': 'arrival time published',
@@ -18561,6 +18575,7 @@ const STRINGS = {
  'sync.diag.read': 'Lu ici. Bloc : {blh} h. Horaire : {sched} h. Heures réelles : {actual}. Preuve d’arrivée : {proof}. Changement de bloc : {signal}.',
  'sync.diag.none': 'aucune',
  'sync.diag.noneM': 'aucun',
+ 'sync.diag.staleShape': 'Cette capture a été prise par une version antérieure de l’application : elle montre les premières entrées de tout votre flux, et non les journées entourant aujourd’hui. Lancez Synchroniser maintenant, puis rouvrez ce panneau.',
  'sync.diag.indexTitle': 'Tout ce que votre flux contient du {from} au {to}, en ordre ({n} entrées)',
  'sync.diag.noFlightsNear': 'Aucun vol de votre exploitant n’apparaît dans ces journées. Rien ne pouvait être proposé à l’import parce que le flux ne contient pas encore le segment.',
  'sync.diag.proofArrival': 'heure d’arrivée publiée',
@@ -26838,7 +26853,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-25-536f741';
+const BUILD_VERSION = '2026-07-25-7f7ce0f';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

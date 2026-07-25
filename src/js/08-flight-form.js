@@ -1630,6 +1630,18 @@ function showNavblueDiagnostic() {
       signal: signalText
     }))}</div>`;
   };
+  // The dump is only written DURING a sync, so after an app update the
+  // panel can be a new reader looking at an old capture. That happened on
+  // 2026-07-25: the old capture held the first three events of the whole
+  // feed (three days off at the start of the published period) and, read
+  // through the new wording, looked like a statement about today. Say it
+  // outright instead of quietly rendering a half empty panel.
+  const staleShape = !Array.isArray(dump.index);
+  const staleHtml = staleShape ? `
+    <div style="font-size:13px; color:var(--warning); line-height:1.55; margin-bottom:var(--s-3); padding:var(--s-3); background:var(--warning-soft,rgba(200,140,0,.12)); border-radius:var(--r-sm);">
+      ${esc(t('sync.diag.staleShape'))}
+    </div>` : '';
+
   // Dated index of everything near today. This is the first thing to read
   // when a flight is missing: it shows whether the feed carries the leg at
   // all, before anyone starts theorising about the parsing.
@@ -1664,6 +1676,7 @@ function showNavblueDiagnostic() {
     <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
       ${esc(t('sync.diag.intro', { n: dump.samples ? dump.samples.length : 0 }))}
     </p>
+    ${staleHtml}
     ${indexHtml}
     ${calHtml}
     ${samplesHtml}
