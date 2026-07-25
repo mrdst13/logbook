@@ -1304,12 +1304,95 @@ function _dashRenderLegs() {
 //   1. NEXT — Navblue CTA if not connected, else activity / next-flight stub
 //   2. STATUS — most concerning currency (IFR / REC / MED) or all-current pill
 //   3. MILESTONE — next career-hour threshold (always)
+// Legs the roster says were flown TODAY but that the feed cannot yet
+// prove complete, so the import held them back (see
+// rosterFlightCompletionProof). Without this the app simply showed
+// nothing, which is what Martin ran into on 2026-07-25: two flights
+// finished hours earlier and no trace of them anywhere. Re-filtered at
+// render time against the live logbook, so a leg he adds by hand or that
+// arrives on a later sync disappears from the notice immediately.
+function _dashPendingTodayLegs() {
+  const key = (typeof CUMULO_PENDING_TODAY_KEY !== 'undefined') ? CUMULO_PENDING_TODAY_KEY : 'cumulo_roster_pending_today_v1';
+  let cache;
+  try { cache = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return []; }
+  if (!cache || !Array.isArray(cache.flights)) return [];
+  if (cache.today !== localTodayStr()) return [];   // stale: yesterday's notice never carries over
+
+  const norm = s => String(s || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+  // Pass 1: the strict matcher, remembering WHICH logbook row each hit
+  // claimed. Legs he deliberately deleted drop out here too.
+  const claimed = new Set();
+  const unmatched = cache.flights.filter(g => {
+    if (!g || !g.date) return false;
+    if (typeof isTombstoned === 'function' && isTombstoned(g)) return false;
+    const m = (typeof findMatchingExistingFlight === 'function') ? findMatchingExistingFlight(g) : null;
+    if (m) { claimed.add(m.idx); return false; }
+    return true;
+  });
+  if (!unmatched.length) return [];
+
+  // Pass 2: route on the same day, over the rows pass 1 did NOT claim. The
+  // strict matcher cannot see a leg he typed in himself with no flight
+  // number and his REAL block, which by definition differs from the roster
+  // figure that put the leg on this list. Excluding the already-claimed
+  // rows is what keeps a four-leg turn day honest: logging two YOW-YYZ legs
+  // must clear two entries, not four.
+  const pool = {};
+  if (Array.isArray(flights)) {
+    flights.forEach((f, i) => {
+      if (!f || claimed.has(i) || f.date !== cache.today) return;
+      const r = norm(f.route);
+      if (!r) return;
+      pool[r] = (pool[r] || 0) + 1;
+    });
+  }
+  return unmatched.filter(g => {
+    const r = norm(g.route);
+    if (r && pool[r] > 0) { pool[r]--; return false; }
+    return true;
+  });
+}
+
+// Hand the unproven legs to the shared review modal, every row UNCHECKED.
+// They are offered, never asserted: the app has no proof these are on the
+// ground, so the pilot ticks the ones he actually flew and confirms the
+// block matches. Called from the dashboard card.
+function openPendingTodayReview() {
+  const legs = _dashPendingTodayLegs();
+  if (!legs.length) {
+    if (typeof showToast === 'function') showToast(t('pendingToday.none'));
+    return;
+  }
+  showImportPreview(legs, t('pendingToday.subtitle', { n: legs.length }), { selectNone: true });
+}
+
 function _dashRenderNextColumn() {
   const el = document.getElementById('dashNextColumn');
   if (!el) return;
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
   const fr = lang === 'fr';
   const cards = [];
+
+  // ─── Card 0: FLOWN TODAY, NOT LOGGED YET ───────────────────
+  const pendingToday = _dashPendingTodayLegs();
+  if (pendingToday.length > 0) {
+    const n = pendingToday.length;
+    cards.push({
+      tone: 'warning',
+      kicker: fr ? "AUJOURD'HUI" : 'TODAY',
+      title: fr
+        ? (n === 1 ? 'Un vol pas encore inscrit' : `${n} vols pas encore inscrits`)
+        : (n === 1 ? 'One flight not logged yet' : `${n} flights not logged yet`),
+      sub: fr
+        ? (n === 1 ? 'Votre horaire a publié ce vol. Le vérifier et l’inscrire →'
+                   : 'Votre horaire a publié ces vols. Les vérifier et les inscrire →')
+        : (n === 1 ? 'Your roster has published it. Check it and log it →'
+                   : 'Your roster has published them. Check them and log them →'),
+      chip: 'LOG',
+      onclick: "openPendingTodayReview();"
+    });
+  }
 
   // ─── Card 1: NEXT FLIGHT / ACTIVITY ────────────────────────
   const navblueKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';

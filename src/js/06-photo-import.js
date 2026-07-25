@@ -316,15 +316,19 @@ RULES:
   }
 }
 
-function showImportPreview(list, subtitle) {
+function showImportPreview(list, subtitle, opts) {
   // Flag every entry that already exists in the logbook so we never silently
   // create a duplicate. Duplicates start UNSELECTED; genuinely new flights start
   // selected. This is the dedup gate for the PDF roster / photo / CSV imports
   // (the iCal sync path has its own gate). See findMatchingExistingFlight() and
   // feedback_never_duplicate_flights.
+  // opts.selectNone: nothing is preselected. Used for legs the app has NOT
+  // proven complete (today's roster legs with no actual arrival time), so
+  // no entry can reach the logbook without a deliberate tick.
+  const selectNone = !!(opts && opts.selectNone);
   pendingImport = list.map(f => {
     const dup = (typeof findMatchingExistingFlight === 'function') && !!findMatchingExistingFlight(f);
-    return { ...f, selected: !dup, _dup: dup };
+    return { ...f, selected: !dup && !selectNone, _dup: dup };
   });
   const dupN = pendingImport.filter(f => f._dup).length;
   const newN = pendingImport.length - dupN;
@@ -336,6 +340,12 @@ function showImportPreview(list, subtitle) {
   }
   renderImportPreview();
   const overlay = document.getElementById('importPreview');
+  // Restore the Import action. showNavblueDiagnostic() borrows this same
+  // modal and reassigns the button's onclick to its "Copy all" handler,
+  // which otherwise sticks: the next import preview would copy JSON
+  // instead of importing. Reassigning here makes the modal safe to share.
+  const confirmBtn = document.getElementById('importConfirmBtn');
+  if (confirmBtn) confirmBtn.onclick = () => confirmImport();
   overlay.classList.add('show');
   // Lock body scroll while modal is open
   document.body.style.overflow = 'hidden';
@@ -362,7 +372,7 @@ function renderImportPreview() {
                ${f.selected ? 'checked' : ''}
                onchange="toggleImportItem(${i}, this.checked)">
         <div class="review-body">
-          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}${f._dup ? ` <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.03em;background:var(--warning-soft,rgba(200,140,0,.12));color:var(--warning-text,#8a6d00);vertical-align:middle;">${esc(t('import.preview.dupBadge'))}</span>` : ''}</div>
+          <div class="review-item-header">#${i+1} · ${esc(f.date)} · ${esc(f.flightNum || f.reg || '?')} · ${esc(f.route || '?')}${f._dup ? ` <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.03em;background:var(--warning-soft,rgba(200,140,0,.12));color:var(--warning-text,#8a6d00);vertical-align:middle;">${esc(t('import.preview.dupBadge'))}</span>` : ''}${f._flownToday ? ` <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.03em;background:${f._unproven ? 'var(--warning-soft,rgba(200,140,0,.12))' : 'var(--success-soft,rgba(0,140,90,.12))'};color:${f._unproven ? 'var(--warning-text,#8a6d00)' : 'var(--success-text,#0a6b47)'};vertical-align:middle;">${esc(t(f._unproven ? 'import.preview.todayCheckBadge' : 'import.preview.todayBadge'))}</span>` : ''}</div>
           <div class="review-fields">
             <div class="review-field"><span>${t('import.preview.fieldTotal')}</span> ${+f.total||0}h</div>
             <div class="review-field"><span>${t('import.preview.fieldBlock')}</span> ${+f.block || 0}h</div>
@@ -372,6 +382,8 @@ function renderImportPreview() {
             <div class="review-field"><span>${t('import.preview.fieldLdg')}</span> ${(+f.ldgDay || 0) + (+f.ldgNight || 0)}</div>
             ${f.pic ? `<div class="review-field"><span>${t('import.preview.fieldPic')}</span> ${esc(f.pic)}</div>` : ''}
             ${f._needsDayNight ? `<div class="review-field" style="color:var(--warning)"><span>⚠︎</span> ${esc(t('import.preview.nightToConfirm'))}</div>` : ''}
+            ${f._proof === 'actual-arrival' ? `<div class="review-field"><span>${t('import.preview.fieldProof')}</span> ${esc(t('import.preview.proofArrival'))}</div>` : ''}
+            ${f._unproven ? `<div class="review-field" style="color:var(--warning)"><span>⚠︎</span> ${esc(t((f._signal === 'block-revised' || f._signal === 'block-changed') ? 'import.preview.unprovenChanged' : 'import.preview.unproven'))}</div>` : ''}
           </div>
         </div>
       </label>`).join('')}
@@ -435,7 +447,16 @@ function confirmImport() {
   const newIds = [];
   let imported = 0, skipped = 0;
   toImport.forEach(f => {
-    const { selected, _dup, ...flightData } = f;  // strip UI-only flags
+    // Strip UI-only flags. Every one of them is underscore-prefixed by
+    // convention (_dup, _needsDayNight, _flownToday, _proof), and no real
+    // logbook field starts with an underscore, so strip the whole family
+    // rather than naming them one by one: _needsDayNight used to survive
+    // this line and get written into the saved flight.
+    const flightData = {};
+    for (const k of Object.keys(f)) {
+      if (k === 'selected' || k.charAt(0) === '_') continue;
+      flightData[k] = f[k];
+    }
     // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
     // that already exists, NEVER create a duplicate (a single duplicate makes a
     // certifiable logbook invalid). Enrich the existing row's empty fields and

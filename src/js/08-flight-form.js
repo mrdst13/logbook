@@ -876,6 +876,274 @@ function scheduledBlockHours(stdHHMM, staHHMM) {
   return d / 60;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  SAME-DAY IMPORT — proving from the feed that a leg has been FLOWN
+// ═══════════════════════════════════════════════════════════════════
+// Martin 2026-07-25: "jai fait 2 vols, jai terminé il y a quelques heures
+// et je les vois pas". Until now the import gate was `date < today`, so
+// nothing dated today was ever offered. That blanket rule replaced a
+// broken heuristic: on 2026-07-01 an event whose SCHEDULED arrival had
+// passed was imported while he was still airborne, which would have
+// written schedule times into a certifiable logbook.
+//
+// Exactly ONE thing in a roster feed can prove a leg is on the ground: an
+// explicitly labelled ACTUAL ARRIVAL time. Everything else the feed
+// publishes can change before the aircraft ever moves, so any rule built
+// on it collapses straight back into the July heuristic. Hence two tiers,
+// deliberately unequal:
+//
+//   PROOF  (rosterFlightCompletionProof) offered for import, preselected
+//     An ATA / ALDT / AIBT stamp carrying a Zulu time. Note the
+//     asymmetry: ATD, ATOT and AOBT are stamped at push-back or take-off,
+//     so they prove the aircraft MOVED, never that it is down. They are
+//     read for their clock value and are never accepted as proof.
+//
+//   SIGNAL (rosterFlightUpdateSignal) surfaced, never logged for him
+//     The block figure moved: either it no longer matches the leg's own
+//     STD to STA span on a feed calibrated to normally match
+//     (rosterFeedCalibration), or it differs from the value baselined for
+//     that UID while the leg was still pending. Usually that means the
+//     operator closed the leg out. Sometimes it only means the leg was
+//     re-planned this morning and is sitting at the gate, delayed. The
+//     app cannot tell those two apart, so it reports what it sees and
+//     leaves the row UNCHECKED for the pilot to decide.
+//
+// Basis: proven 2026-07-12 against Martin's own feed, PD447 YOW-YYJ
+// published BLH 5.8 while its own schedule said 5.4, so this feed does
+// republish the real block after a flight. That is what makes the SIGNAL
+// tier worth surfacing. It is not what would make it a proof.
+
+// Two block figures count as equal within 2 minutes. Navblue publishes
+// HH:MM, so a minute of rounding is normal noise, not a signal.
+const ICAL_BLOCK_EPSILON_H = 2 / 60;
+
+// Explicitly labelled ACTUAL times. Each token must be followed by a
+// 4-digit Zulu time, the same shape the STD/STA parser already relies on,
+// so a stray word in a remark can never match. Ambiguous bare words like
+// "IN" and "OUT" are deliberately excluded: "CHECK IN 1200Z" is a duty
+// time, not an arrival.
+const ICAL_ACTUAL_OFF_RE = /\b(?:ATD|ATOT|AOBT)\s+(\d{4})Z/;
+const ICAL_ACTUAL_ON_RE  = /\b(?:ATA|ALDT|AIBT)\s+(\d{4})Z/;
+
+// BLOCK boundaries specifically. Cumulo's atd_utc / ata_utc mean off-blocks
+// and on-blocks: the PDF roster path derives block time from exactly that
+// pair. ATOT is wheels-up and ALDT is touchdown, both real actuals but both
+// the WRONG quantity, and in a chronological OOOI list ALDT always appears
+// before AIBT, so a combined pattern silently picks touchdown every time.
+// They still prove the leg is down; they are simply never written.
+const ICAL_BLOCK_OFF_RE = /\b(?:AOBT|ATD)\s+(\d{4})Z/;
+const ICAL_BLOCK_ON_RE  = /\b(?:AIBT|ATA)\s+(\d{4})Z/;
+
+// Clock values only, and only the two that mean what Cumulo's fields mean.
+// Returns null when the feed publishes no block actual, which is the normal
+// case for a schedule-only iCal, and also when it published runway times
+// alone: empty beats an on-blocks time we do not actually have. Reading
+// this is NOT the same as being proven complete: see icalHasActualArrival.
+function icalActualTimes(desc) {
+  const d = String(desc || '');
+  const off = d.match(ICAL_BLOCK_OFF_RE);
+  const on  = d.match(ICAL_BLOCK_ON_RE);
+  if (!off && !on) return null;
+  return { atd: off ? off[1] : '', ata: on ? on[1] : '' };
+}
+
+// The one sound proof that a leg is over. An arrival stamp cannot exist
+// before the aircraft is on the ground, whereas a departure stamp
+// (ATD/ATOT/AOBT) appears at push-back, while the leg still has its whole
+// flight ahead of it. Accepting a departure stamp as completion was the
+// July heuristic wearing a different hat.
+function icalHasActualArrival(desc) {
+  return ICAL_ACTUAL_ON_RE.test(String(desc || ''));
+}
+
+// The block the feed publishes for this leg (BLH), decimal hours.
+function icalPublishedBlockHours(desc) {
+  const m = String(desc || '').match(/BLH:\s*(\d{1,2}:\d{2})/);
+  return m ? +hhmmToDecimal(m[1]).toFixed(2) : 0;
+}
+
+// The leg's own SCHEDULED span, straight from its own DESCRIPTION.
+function icalScheduledSpanHours(desc) {
+  const d = String(desc || '');
+  const std = d.match(/STD\s+(\d{4})Z/);
+  const sta = d.match(/STA\s+(\d{4})Z/);
+  if (!std || !sta) return 0;
+  return scheduledBlockHours(std[1], sta[1]);
+}
+
+// When the leg is due on the ground, from the feed's own numbers. Used as
+// the floor described above, and to decide which legs are still pending.
+function icalScheduledArrivalUTC(ev) {
+  const off = icsDateTime(ev && ev.DTSTART);
+  if (!off) return null;
+  const desc = (ev.DESCRIPTION || '').trim();
+  const span = Math.max(icalPublishedBlockHours(desc), icalScheduledSpanHours(desc));
+  if (span <= 0) return null;
+  return new Date(off.getTime() + span * 3600000);
+}
+
+// A single future leg is not a baseline. Require a few before trusting P2.
+const ICAL_CALIBRATION_MIN_SAMPLES = 3;
+
+// Is P2 usable on THIS feed? Sampled only from legs still in the future,
+// which by definition carry planned numbers. If the operator's planned
+// BLH already differs from its own STD to STA span, then a divergence
+// says nothing about whether a leg flew, and P2 is switched off. Computed
+// fresh on every sync, so the app never assumes a feed format it has not
+// just measured.
+function rosterFeedCalibration(events, todayStr) {
+  const res = { usable: false, samples: 0, diverged: 0, maxDeltaMin: 0 };
+  if (!Array.isArray(events)) return res;
+  for (const ev of events) {
+    const summary = (ev.SUMMARY || '').trim();
+    if (!getOperatorFlightRegex().test(summary)) continue;
+    if (DEADHEAD_RE.test(summary)) continue;
+    const routeRaw = (summary.split(/\s+/)[1] || '');
+    const depIATA = routeRaw.split('-')[0];
+    if (!depIATA) continue;
+    const date = icsLocalDate(ev.DTSTART, iataToIcao(depIATA));
+    if (!date || date <= todayStr) continue;   // strictly future = planned only
+    const desc = (ev.DESCRIPTION || '').trim();
+    const blh = icalPublishedBlockHours(desc);
+    const sched = icalScheduledSpanHours(desc);
+    if (blh <= 0 || sched <= 0) continue;
+    res.samples++;
+    const deltaMin = Math.abs(blh - sched) * 60;
+    if (deltaMin > res.maxDeltaMin) res.maxDeltaMin = +deltaMin.toFixed(1);
+    if (deltaMin > ICAL_BLOCK_EPSILON_H * 60) res.diverged++;
+  }
+  res.usable = res.samples >= ICAL_CALIBRATION_MIN_SAMPLES && res.diverged === 0;
+  return res;
+}
+
+// P3 store: the block this feed published for a leg while it was still
+// pending, keyed by event UID so a schedule change can never be confused
+// with a different leg.
+const NAVBLUE_BLOCK_SEEN_KEY = 'cumulo_roster_block_seen_v1';
+const BLOCK_SEEN_MAX = 400;
+const BLOCK_SEEN_TTL_MS = 45 * 24 * 60 * 60 * 1000;
+
+function loadRosterBlockSeen() {
+  try {
+    const o = JSON.parse(localStorage.getItem(NAVBLUE_BLOCK_SEEN_KEY) || '{}');
+    return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+  } catch (e) { return {}; }
+}
+
+// Baseline every leg that has NOT yet reached its scheduled arrival, and
+// only those. A leg already over may be publishing its actual block, and
+// baselining that would destroy the very comparison P3 depends on. The
+// baseline is refreshed while the leg stays pending, so a genuine
+// pre-flight schedule change moves the baseline instead of masquerading
+// as a post-flight update.
+function recordPendingRosterBlocks(events, nowMs) {
+  if (!Array.isArray(events)) return;
+  let seen = loadRosterBlockSeen();
+  for (const ev of events) {
+    const uid = (ev && ev.UID) || '';
+    if (!uid) continue;
+    const summary = (ev.SUMMARY || '').trim();
+    if (!getOperatorFlightRegex().test(summary)) continue;
+    if (DEADHEAD_RE.test(summary)) continue;
+    const arrival = icalScheduledArrivalUTC(ev);
+    if (!arrival || arrival.getTime() <= nowMs) continue;   // already due: never baseline
+    const block = icalPublishedBlockHours((ev.DESCRIPTION || '').trim());
+    if (block <= 0) continue;
+    seen[uid] = { block, ts: nowMs };
+  }
+  // Prune: drop expired entries, then the oldest ones if still oversized.
+  const keys = Object.keys(seen).filter(k => {
+    const e = seen[k];
+    return e && typeof e === 'object' && (nowMs - (+e.ts || 0)) < BLOCK_SEEN_TTL_MS;
+  });
+  if (keys.length > BLOCK_SEEN_MAX) {
+    keys.sort((a, b) => (+seen[b].ts || 0) - (+seen[a].ts || 0));
+    keys.length = BLOCK_SEEN_MAX;
+  }
+  const pruned = {};
+  for (const k of keys) pruned[k] = seen[k];
+  try { localStorage.setItem(NAVBLUE_BLOCK_SEEN_KEY, JSON.stringify(pruned)); }
+  catch (e) { /* non-fatal: P3 simply will not fire */ }
+}
+
+// Does the feed PROVE this leg is on the ground? Only an actual ARRIVAL
+// stamp qualifies. `nowMs` is injected so one sync judges every leg
+// against a single instant, and so the rule is testable without clocks.
+// The due-down check is a cheap sanity floor on top of the proof, never a
+// substitute for it.
+function rosterFlightCompletionProof(ev, ctx) {
+  const o = ctx || {};
+  const nowMs = +o.nowMs || 0;
+  const arrival = icalScheduledArrivalUTC(ev);
+  if (!arrival || arrival.getTime() > nowMs) return '';
+  return icalHasActualArrival((ev.DESCRIPTION || '').trim()) ? 'actual-arrival' : '';
+}
+
+// Has the operator moved this leg's block figure? Suggestive, never
+// conclusive: the same edit is made both when a leg is closed out after
+// landing and when it is re-planned in the morning. Callers must treat
+// the result as something to SHOW the pilot, never as grounds to log a
+// flight for him.
+function rosterFlightUpdateSignal(ev, ctx) {
+  const o = ctx || {};
+  const desc = (ev.DESCRIPTION || '').trim();
+  const blh = icalPublishedBlockHours(desc);
+  if (blh <= 0) return '';
+  const sched = icalScheduledSpanHours(desc);
+  if (o.calibrated && sched > 0 && Math.abs(blh - sched) > ICAL_BLOCK_EPSILON_H) {
+    return 'block-revised';
+  }
+  const uid = (ev && ev.UID) || '';
+  const prev = (uid && o.blockSeen) ? o.blockSeen[uid] : null;
+  const prevBlock = prev ? +prev.block : 0;
+  if (prevBlock > 0 && Math.abs(blh - prevBlock) > ICAL_BLOCK_EPSILON_H) {
+    return 'block-changed';
+  }
+  return '';
+}
+
+// The import gate, extracted so it can be tested directly.
+//
+//   future            never eligible: a schedule is not a logbook entry.
+//   today             eligible only on a proof. Otherwise `pending` once
+//                     the leg is at least due down, carrying whatever
+//                     signal we have, for the pilot to confirm himself.
+//   before today      eligible on its date alone, EXCEPT while the feed
+//                     still shows it airborne. A leg that departs 21:00
+//                     local is dated yesterday the moment the device
+//                     rolls past midnight, and without this it would be
+//                     offered mid-flight on nothing but the calendar.
+//                     A leg whose arrival cannot be computed keeps the
+//                     old date-only behaviour rather than being lost.
+function rosterImportDecision(ev, flight, todayStr, ctx) {
+  const o = ctx || {};
+  const nowMs = +o.nowMs || 0;
+  const none = { eligible: false, proof: '', pending: false, signal: '' };
+  if (!flight || !flight.date) return none;
+  if (flight.date > todayStr) return none;
+  const arrival = icalScheduledArrivalUTC(ev);
+  const dueDown = !arrival || arrival.getTime() <= nowMs;
+  if (flight.date < todayStr) {
+    return dueDown
+      ? { eligible: true, proof: 'past-date', pending: false, signal: '' }
+      : none;
+  }
+  const proof = rosterFlightCompletionProof(ev, o);
+  if (proof) return { eligible: true, proof, pending: false, signal: '' };
+  if (!dueDown) return none;
+  return { eligible: false, proof: '', pending: true, signal: rosterFlightUpdateSignal(ev, o) };
+}
+
+// Legs flown today that the feed cannot yet prove, cached so the
+// dashboard can say so out loud instead of showing nothing.
+const CUMULO_PENDING_TODAY_KEY = 'cumulo_roster_pending_today_v1';
+
+// Roster diagnostic capture window, centred on today rather than on the
+// head of the feed. Bounded so the dump can never fill localStorage.
+const DIAG_WINDOW_DAYS = 3;
+const DIAG_MAX_EVENTS = 40;
+const DIAG_FIELD_MAX = 4000;
+
 // ── Roster FORECAST extraction (planning only — NEVER certifiable) ──────────
 // The certifiable import (navblueEventToFlight + the `date < today` filter in
 // syncNavblueNow) deliberately DROPS future events: an iCal carries the
@@ -1008,22 +1276,6 @@ async function syncNavblueNow(opts) {
     const events = parseICS(icsText);
     console.log(`[Navblue Sync] Parsed ${events.length} VEVENTs from iCal`);
 
-    // Diagnostic dump: stash the first three DESCRIPTION strings + a SUMMARY
-    // sample so Martin can inspect via the "Navblue iCal diagnostic" button
-    // in Settings — no dev-console required. Useful when the regex doesn't
-    // pick up crew names from a new airline's tenant.
-    try {
-      const dump = {
-        ts: Date.now(),
-        totalEvents: events.length,
-        samples: events.slice(0, 3).map(e => ({
-          summary: (e.SUMMARY || '').substring(0, 200),
-          description: (e.DESCRIPTION || '').substring(0, 1200)
-        }))
-      };
-      localStorage.setItem('cumulo_navblue_debug_v1', JSON.stringify(dump));
-    } catch (e) { /* non-fatal */ }
-
     const syncProfile = DB.loadProfile();
     // Detect seat from profile.rank. F/O = SIC seat (block credits to
     // meDayCop / meNightCop). Captain / PIC = PIC seat (credits to PIC
@@ -1039,24 +1291,113 @@ async function syncNavblueNow(opts) {
       ? !!syncProfile.autoCountIFR
       : isAirline705(syncProfile.airline);
 
-    // Filter eligibility: ONLY flights strictly before today are offered.
-    // The roster iCal carries SCHEDULED times only (BLH / STD / STA) — never an
-    // actual block-on — so a flight dated today could be delayed or still
-    // airborne. A previous "scheduled arrival already passed" heuristic leaked
-    // exactly those in-progress flights into the import (reported by Martin
-    // 2026-07-01, mid-flight), which would log SCHEDULE times as if they were
-    // ACTUALS — the one thing a certifiable logbook must never do
-    // (schedule ≠ actual). We cannot prove completion from schedule data alone,
-    // so today's flight is imported on the NEXT sync once it is strictly past,
-    // or added manually with real times. (The PDF roster path already does this.)
-    // Local civil date — with the UTC date (toISOString) an evening sync
+    // Eligibility. Anything strictly before today is offered on its date
+    // alone. Anything dated TODAY is offered only when the feed PROVES the
+    // leg has been flown (see rosterFlightCompletionProof); with no proof
+    // it is held back, exactly as before, because a schedule is not an
+    // actual. Future legs are never offered.
+    // Local civil date: with the UTC date (toISOString) an evening sync
     // would treat today's not-yet-flown flight as "past" and import it.
     const today = localTodayStr();
-    const mapped = events
-      .map(ev => navblueEventToFlight(ev, isFO, autoCountIFR))
-      .filter(f => f && f.date && f.date < today);
+    const nowMs = Date.now();
+    const calibration = rosterFeedCalibration(events, today);
+    const proofCtx = {
+      nowMs,
+      calibrated: calibration.usable,
+      blockSeen: loadRosterBlockSeen()
+    };
 
-    console.log(`[Navblue Sync] ${mapped.length} flights eligible for import (strictly past-dated — completed only)`);
+    const mapped = [];
+    const pendingToday = [];   // flown today, unproven: shown, never logged
+    const decisions = [];      // kept for the diagnostic dump
+    for (const ev of events) {
+      const f = navblueEventToFlight(ev, isFO, autoCountIFR);
+      if (!f || !f.date) continue;
+      const d = rosterImportDecision(ev, f, today, proofCtx);
+      decisions.push({ date: f.date, flightNum: f.flightNum, route: f.route, block: f.block, uid: f.navblueUid, eligible: d.eligible, proof: d.proof, pending: d.pending, signal: d.signal });
+      if (!d.eligible) {
+        if (d.pending) {
+          // Keep the whole mapped flight: the pilot reviews and confirms
+          // these himself, in the same preview the proven ones use, and
+          // the day/night and SIC split are already computed here.
+          f._flownToday = true;
+          f._unproven = true;
+          f._signal = d.signal;
+          pendingToday.push(f);
+        }
+        continue;
+      }
+      if (f.date === today) {
+        f._flownToday = true;
+        f._proof = d.proof;
+        // The proof is an ACTUAL ARRIVAL stamp, so the operator has closed
+        // this leg out. That is the only circumstance in which this path
+        // may fill atd_utc / ata_utc: both are labelled ACTUAL at source.
+        const act = icalActualTimes(ev.DESCRIPTION || '');
+        if (act && act.atd) f.atd_utc = act.atd;
+        if (act && act.ata) f.ata_utc = act.ata;
+      }
+      mapped.push(f);
+    }
+
+    // Baseline the still-pending legs for the next sync's block comparison.
+    recordPendingRosterBlocks(events, nowMs);
+
+    // Publish the unproven same-day legs for the dashboard notice.
+    try {
+      localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify({ ts: nowMs, today, flights: pendingToday }));
+    } catch (e) { /* non-fatal */ }
+
+    console.log(`[Navblue Sync] ${mapped.length} eligible, ${pendingToday.length} flown-today awaiting proof; feed calibration: usable=${calibration.usable} samples=${calibration.samples} diverged=${calibration.diverged}`);
+
+    // Diagnostic dump for the "Roster diagnostic" button in Settings, so
+    // the raw feed can be inspected with no dev console (Martin never uses
+    // F12). Sampled AROUND TODAY rather than from the head of the feed:
+    // the question that actually matters is what the operator publishes
+    // for a leg once it has flown, and the head of a roster feed is
+    // usually last month. Every property is kept, because DTSTART and UID
+    // drive the logbook date and the dedup key yet were invisible before.
+    try {
+      const diagFrom = shiftDateStr(today, -DIAG_WINDOW_DAYS);
+      const diagTo   = shiftDateStr(today,  DIAG_WINDOW_DAYS);
+      const windowed = events.filter(e => {
+        const d = icsDate(e.DTSTART);
+        return d && d >= diagFrom && d <= diagTo;
+      });
+      // On days off, or right after next month's bid is published, nothing
+      // sits near today. Fall back to the head of the feed so the button
+      // always shows some raw event: an empty diagnostic is useless
+      // precisely when someone is trying to diagnose something.
+      const near = (windowed.length ? windowed : events).slice(0, DIAG_MAX_EVENTS);
+      const dump = {
+        ts: nowMs,
+        today,
+        window: { from: diagFrom, to: diagTo },
+        totalEvents: events.length,
+        calibration,
+        decisions: decisions.filter(x => x.date >= diagFrom && x.date <= diagTo),
+        samples: near.map(e => {
+          const props = {};
+          for (const k of Object.keys(e)) {
+            props[k] = String(e[k] === undefined ? '' : e[k]).substring(0, DIAG_FIELD_MAX);
+          }
+          const desc = (e.DESCRIPTION || '').trim();
+          return {
+            summary: (e.SUMMARY || '').substring(0, 300),
+            description: desc.substring(0, DIAG_FIELD_MAX),
+            props,
+            read: {
+              blh: icalPublishedBlockHours(desc),
+              scheduledSpan: +icalScheduledSpanHours(desc).toFixed(2),
+              actualTimes: icalActualTimes(desc),
+              proof: rosterFlightCompletionProof(e, proofCtx),
+              signal: rosterFlightUpdateSignal(e, proofCtx)
+            }
+          };
+        })
+      };
+      localStorage.setItem('cumulo_navblue_debug_v1', JSON.stringify(dump));
+    } catch (e) { /* non-fatal */ }
 
     // Cache the forward-looking roster FORECAST for the Duty-page projection.
     // This is planning data, kept in its OWN key — never merged into `flights`,
@@ -1237,12 +1578,43 @@ function showNavblueDiagnostic() {
   catch { showToast(t('sync.diag.corrupted'), 'error'); return; }
 
   const ageMin = Math.round((Date.now() - dump.ts) / 60000);
+  // Feed-calibration line: says out loud whether same-day detection by
+  // block comparison is switched on for this roster, and on what evidence.
+  const cal = dump.calibration;
+  const calHtml = cal ? `
+    <div style="font-size:12px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3); padding:var(--s-3); background:var(--bg-subtle); border-radius:var(--r-sm);">
+      ${esc(t('sync.diag.calibration', {
+        samples: cal.samples || 0,
+        diverged: cal.diverged || 0,
+        state: cal.usable ? t('sync.diag.on') : t('sync.diag.off')
+      }))}
+    </div>` : '';
+  const readLine = (r) => {
+    if (!r) return '';
+    const act = r.actualTimes
+      ? [r.actualTimes.atd ? 'ATD ' + r.actualTimes.atd + 'Z' : '', r.actualTimes.ata ? 'ATA ' + r.actualTimes.ata + 'Z' : ''].filter(Boolean).join(' / ')
+      : t('sync.diag.none');
+    // Internal identifiers stay internal: the panel reads as a sentence in
+    // the reader's own language, not as English tokens dropped into it.
+    // noneM, not none: this slot follows a masculine noun in French.
+    const signalText = r.signal === 'block-revised' ? t('sync.diag.signalRevised')
+                     : r.signal === 'block-changed' ? t('sync.diag.signalChanged')
+                     : t('sync.diag.noneM');
+    return `<div style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); margin-top:6px;">${esc(t('sync.diag.read', {
+      blh: r.blh || 0,
+      sched: r.scheduledSpan || 0,
+      actual: act,
+      proof: r.proof === 'actual-arrival' ? t('sync.diag.proofArrival') : t('sync.diag.none'),
+      signal: signalText
+    }))}</div>`;
+  };
   const samplesHtml = (dump.samples || []).map((s, i) => `
     <div style="margin-bottom:var(--s-4);">
       <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:6px;">${esc(t('sync.diag.sample', { n: i + 1 }))}</div>
       <div style="font-family:var(--font-mono); font-size:11px;"><strong>SUMMARY:</strong> ${esc(s.summary || t('sync.diag.empty'))}</div>
       <div style="margin-top:6px;"><strong style="font-family:var(--font-mono); font-size:11px;">DESCRIPTION:</strong></div>
       <pre style="background:var(--bg-subtle); padding:var(--s-3); border-radius:var(--r-sm); font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; word-break:break-word; margin-top:4px; max-height:240px; overflow:auto;">${esc(s.description || t('sync.diag.empty'))}</pre>
+      ${readLine(s.read)}
     </div>
   `).join('');
 
@@ -1260,6 +1632,7 @@ function showNavblueDiagnostic() {
     <p style="font-size:13px; color:var(--text-secondary); line-height:1.55; margin-bottom:var(--s-3);">
       ${esc(t('sync.diag.intro', { n: dump.samples ? dump.samples.length : 0 }))}
     </p>
+    ${calHtml}
     ${samplesHtml}
     <details style="margin-top:var(--s-3);">
       <summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">${esc(t('sync.diag.fullJson'))}</summary>

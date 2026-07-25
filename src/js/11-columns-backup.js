@@ -437,6 +437,9 @@ async function deleteAccountPurge() {
     'cumulo_import_log_v1', 'cumulo_column_prefs_v1',
     'cumulo_lang', 'cumulo_signature',
     'cumulo_navblue_url', 'cumulo_navblue_last_sync', 'cumulo_navblue_debug_v1',
+    // Roster-derived caches: planning forecast, the pending-block baseline
+    // used to prove a same-day flight is over, and today's unproven legs.
+    'cumulo_roster_forecast_v1', 'cumulo_roster_block_seen_v1', 'cumulo_roster_pending_today_v1',
     'cumulo_onboarded_v1', 'cumulo_migration_state_v1', 'cumulo_pending_ops_v1',
     'cumulo_migration_log_v1'
   ];
