@@ -183,6 +183,26 @@ chk('dated yesterday but still airborne: NOT eligible', d7.eligible === false);
 const d7b = evalJSON(`rosterImportDecision(${JSON.stringify(crossing)}, ${JSON.stringify(crossFlight)}, "2026-07-26", ${JSON.stringify({ nowMs: Date.UTC(2026, 6, 26, 4, 0, 0), calibrated: false, blockSeen: {} })})`);
 chk('dated yesterday and down: eligible again on the next sync', d7b.eligible === true);
 
+// ── 7b. The airborne guard uses the same block-off as the logbook ──
+// Review finding, reproduced: the guard was anchored on DTSTART while the
+// logbook row moved to STD, so for a whole check-in-to-departure gap the
+// app held a scheduled on-block of 06:30Z on the flight it was writing
+// while asking whether 05:30Z had passed, and offered a leg still in the
+// air, preticked and with no warning badge.
+const lateLeg = {
+  SUMMARY: 'PD950 YYZ-YWG', UID: 'late-1', DTSTART: '20261110T033000Z',
+  DESCRIPTION: 'PD950 YYZ - YWG\nCI 0330Z\nSTD 0430Z\nSTA 0630Z\nDuration: 03:00, BLH: 02:00\nAircraft: 295\n'
+};
+const lateFlight = toFlight(lateLeg);
+const decideAt = (ms) => evalJSON(`rosterImportDecision(${JSON.stringify(lateLeg)}, ${JSON.stringify(lateFlight)}, "2026-11-10", ${JSON.stringify({ nowMs: ms, calibrated: false, blockSeen: {} })})`);
+chk('fixture: the late leg is dated by its departure', lateFlight && lateFlight.date === '2026-11-09');
+chk('airborne on the old anchor but not yet down: NOT eligible',
+  decideAt(Date.UTC(2026, 10, 10, 5, 35, 0)).eligible === false);
+chk('still not eligible a minute before scheduled on-block',
+  decideAt(Date.UTC(2026, 10, 10, 6, 29, 0)).eligible === false);
+chk('eligible once it is actually due down',
+  decideAt(Date.UTC(2026, 10, 10, 6, 30, 0)).eligible === true);
+
 // ── 8. Future legs are never eligible ──────────────────────────────
 const future = evPlanned('1:52', 'uid-future', '20260801T123000Z');
 const d8 = decide(future, TODAY, { nowMs: NOW_AFTER, calibrated: true, blockSeen: {} });

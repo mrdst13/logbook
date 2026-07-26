@@ -11768,18 +11768,25 @@ function calculateDayNightSplit(blockOffUTC, blockOnUTC, depCoords, arrCoords) {
   const lat = (depCoords.lat + arrCoords.lat) / 2;
   const lon = (depCoords.lon + arrCoords.lon) / 2;
 
+  // Each sample is charged only the time it actually represents, so the
+  // minute the flight ends inside contributes its real remainder and
+  // nothing more. The previous version charged that minute in full inside
+  // the loop AND added its remainder again afterwards, overstating night
+  // by up to a minute on any leg whose block is not a whole number of
+  // minutes. On a leg flown entirely at night that pushed night past the
+  // block itself and printed a NEGATIVE day figure in a certifiable
+  // column (found by review, 2026-07-26: PD478 YTZ-YOW, BLH 00:52, gave
+  // day -0.02 against night 0.89 on a 0.87 block).
   const stepMs = 60000;
+  const endMs = blockOnUTC.getTime();
   let nightMs = 0;
-  for (let t = blockOffUTC.getTime(); t < blockOnUTC.getTime(); t += stepMs) {
-    if (isNightUTC(new Date(t), lat, lon)) nightMs += stepMs;
+  for (let t = blockOffUTC.getTime(); t < endMs; t += stepMs) {
+    const span = Math.min(stepMs, endMs - t);
+    if (isNightUTC(new Date(t), lat, lon)) nightMs += span;
   }
-  // Account for the final partial minute
-  const remainder = (blockOnUTC.getTime() - blockOffUTC.getTime()) % stepMs;
-  if (remainder > 0 && isNightUTC(new Date(blockOnUTC.getTime() - 1), lat, lon)) {
-    nightMs += remainder;
-  }
-  const nightHours = +(nightMs / 3600000).toFixed(2);
-  const dayHours = +(totalHours - nightHours).toFixed(2);
+  // Night can never exceed the block, and day can never be negative.
+  const nightHours = +(Math.min(nightMs, totalMs) / 3600000).toFixed(2);
+  const dayHours = +Math.max(0, totalHours - nightHours).toFixed(2);
   return { dayHours, nightHours };
 }
 
@@ -12291,10 +12298,17 @@ function icalScheduledSpanHours(desc) {
 
 // When the leg is due on the ground, from the feed's own numbers. Used as
 // the floor described above, and to decide which legs are still pending.
+//
+// Anchored on the same block-off the logbook row uses. Anchoring it on
+// DTSTART instead put this guard a whole check-in-to-departure gap early
+// (60 min on the first leg of a duty), so the app could hold a scheduled
+// on-block of 06:30Z on the flight it was writing while asking whether
+// 05:30Z had passed, and offer a leg that was still airborne. Found by
+// review, 2026-07-26.
 function icalScheduledArrivalUTC(ev) {
-  const off = icsDateTime(ev && ev.DTSTART);
+  const off = icalBlockOffUTC(ev);
   if (!off) return null;
-  const desc = (ev.DESCRIPTION || '').trim();
+  const desc = ((ev && ev.DESCRIPTION) || '').trim();
   const span = Math.max(icalPublishedBlockHours(desc), icalScheduledSpanHours(desc));
   if (span <= 0) return null;
   return new Date(off.getTime() + span * 3600000);
@@ -12487,9 +12501,16 @@ function rosterForecastFromEvents(events, todayStr) {
     const [depIATA, arrIATA] = routeRaw.split('-');
     if (!depIATA || !arrIATA) continue;
     const depICAO = iataToIcao(depIATA);
-    const date = (typeof icsLocalDate === 'function')
-      ? icsLocalDate(ev.DTSTART, depICAO)
-      : icsDate(ev.DTSTART);
+    // Dated by DEPARTURE, exactly like the logbook import. The duty
+    // projection dedupes forecast against logged legs on date + flight
+    // number, so if the two paths dated the same leg differently (which
+    // they would whenever check-in and departure straddle local midnight)
+    // the leg would be counted once as logged and once as forecast, and
+    // his CAR 700.27 rolling totals would read high.
+    const fOff = icalBlockOffUTC(ev);
+    const date = fOff
+      ? icsLocalDate(isoBasicUTC(fOff), depICAO)
+      : ((typeof icsLocalDate === 'function') ? icsLocalDate(ev.DTSTART, depICAO) : icsDate(ev.DTSTART));
     if (!date || date < todayStr) continue;                  // FUTURE (today included) only
     const desc = (ev.DESCRIPTION || '').trim();
     const blhMatch = desc.match(/BLH:\s*(\d{1,2}:\d{2})/);
@@ -27007,7 +27028,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-26-a5fd7ac';
+const BUILD_VERSION = '2026-07-26-296bcb0';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

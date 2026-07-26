@@ -141,6 +141,55 @@ const uidNoFalse = w.eval(`(function(){
 })()`);
 chk('a different UID never matches', uidNoFalse, 'NO MATCH');
 
+// ═══════════════════════════════════════════════════════════════════
+// DAY / NIGHT SPLIT ARITHMETIC (2026-07-26)
+//
+// calculateDayNightSplit charged the minute a flight ends inside in FULL
+// inside its 1-minute loop, then added that same minute's remainder a
+// second time. Any leg whose block is not a whole number of minutes had
+// night overstated by up to a minute; a leg flown entirely at night ended
+// up with night ABOVE the block and a NEGATIVE day figure in a
+// certifiable column. Found by review on PD478 YTZ-YOW, BLH 00:52.
+// ═══════════════════════════════════════════════════════════════════
+const nightLeg = (blh) => ({
+  UID: 'n1', DTSTART: '20260115T013000Z', SUMMARY: 'PD478 YTZ-YOW',
+  DESCRIPTION: 'PD478 YTZ - YOW\nCI 0130Z\nSTD 0215Z\nSTA 0307Z\nDuration: 01:52, BLH: ' + blh + '\nAircraft: 295\n'
+});
+const n52 = flightOf(nightLeg('00:52'));
+chk('all-night leg: day is never negative', String(n52.meDayCop), '0');
+chk('all-night leg: night equals the block', String(n52.meNightCop), String(n52.block));
+chk('all-night leg: cross-country day is never negative', String(n52.xcDayCop), '0');
+
+// Sweep every block length across the whole night window: day must never
+// go negative, and day + night must always come back to the block.
+let splitBad = 0;
+for (let m = 40; m <= 90; m++) {
+  const g = flightOf(nightLeg(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')));
+  if (g.meDayCop < 0 || g.meNightCop < 0 || Math.abs((g.meDayCop + g.meNightCop) - g.block) > 0.011) splitBad++;
+}
+chk('51 block lengths on an all-night leg: none negative, all summing to the block', String(splitBad), '0');
+
+// The case the clamp cannot hide: a MIXED leg, where the extra minute
+// moved real time from the day column into the night column. YOW-YYZ
+// leaving 21:30Z on 15 Jan with a 58-minute block lands entirely in
+// daylight, yet the old arithmetic credited 0.02 h of night that never
+// happened, and took it out of day.
+const mixed = flightOf({
+  UID: 'm1', DTSTART: '20260115T213000Z', SUMMARY: 'PD300 YOW-YYZ',
+  DESCRIPTION: 'PD300 YOW - YYZ\nSTD 2130Z\nSTA 2359Z\nDuration: 02:00, BLH: 00:58\nAircraft: 295\n'
+});
+chk('daylight leg is credited no night at all', String(mixed.meNightCop), '0');
+chk('daylight leg keeps its whole block in the day column', String(mixed.meDayCop), String(mixed.block));
+
+// A daylight leg must still come back all-day, so the fix did not simply
+// zero the night calculation.
+const dayLeg = flightOf({
+  UID: 'd1', DTSTART: '20260715T140000Z', SUMMARY: 'PD100 YOW-YYZ',
+  DESCRIPTION: 'PD100 YOW - YYZ\nCI 1400Z\nSTD 1500Z\nSTA 1620Z\nDuration: 02:30, BLH: 01:17\nAircraft: 295\n'
+});
+chk('midday leg is all day', String(dayLeg.meNightCop), '0');
+chk('midday leg day equals the block', String(dayLeg.meDayCop), String(dayLeg.block));
+
 if (failures.length) {
   console.error(`\n✗ ical-date test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);
