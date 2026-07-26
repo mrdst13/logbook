@@ -541,6 +541,19 @@ function findMatchingExistingFlight(incoming) {
   const normRoute = r => (r || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const normFn    = n => (n || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+  // Tier 0 — the roster's own identifier. Every tier below keys on the
+  // DATE, so any change to how a leg is dated could slip past all of them
+  // and mint a second row for a leg already logged. The feed's UID is the
+  // one field that survives a re-date: same UID means the same published
+  // leg, full stop. Added 2026-07-26 alongside the block-off correction,
+  // which moves a leg's date whenever check-in and departure straddle
+  // local midnight.
+  const incUid = incoming.navblueUid ? String(incoming.navblueUid) : '';
+  if (incUid) {
+    const byUid = flights.findIndex(f => f.navblueUid && String(f.navblueUid) === incUid);
+    if (byUid >= 0) return { idx: byUid, matchType: 'navblue-uid' };
+  }
+
   // Tier 1 — exact: date + flightNum + route. Block is deliberately NOT in the
   // key, so a re-import with a corrected/actual block still matches when these
   // three agree.

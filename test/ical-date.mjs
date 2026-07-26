@@ -66,6 +66,81 @@ chk('missing airport falls back to UTC date', localDate('20260530T010000Z', ''),
 // ── Regression guard: plain icsDate still returns the UTC date ──
 chk('icsDate unchanged (still UTC date)', w.eval(`icsDate('20260530T010000Z')`), '2026-05-30');
 
+// ═══════════════════════════════════════════════════════════════════
+// BLOCK-OFF ANCHOR (2026-07-26)
+//
+// DTSTART is the DUTY window start, not the departure. Martin's own feed,
+// PD589: DTSTART 20260725T100000Z with CI 1000Z and STD 1100Z, so DTSTART
+// is the CHECK-IN, an hour before the aircraft moves. Using it as
+// block-off anchored the RAC 101.01 day/night split an hour early on the
+// first leg of every duty, and could date a leg on the wrong local day.
+// Block-off now comes from STD, dated from DTSTART.
+// ═══════════════════════════════════════════════════════════════════
+const blockOff = (ev) => {
+  const iso = w.eval(`(function(){ const d = icalBlockOffUTC(${JSON.stringify(ev)}); return d ? d.toISOString() : ''; })()`);
+  return iso;
+};
+const flightOf = (ev) => JSON.parse(w.eval(`JSON.stringify(navblueEventToFlight(${JSON.stringify(ev)}, true, true))`));
+
+// Martin's real PD589, verbatim from his 2026-07-26 diagnostic.
+const PD589 = {
+  UID: '6784051', DTSTART: '20260725T100000Z', DTEND: '20260725T140400Z', SUMMARY: 'PD589 YOW-MCO',
+  DESCRIPTION: 'PD589 YOW - MCO\nCI 1000Z / 0600L\nSTD 1100Z / 0700L\nSTA 1419Z / 1019L\nDuration: 04:04, BLH: 02:57\nAircraft: 295 - 295XX - 295XX - C-GZQW\n'
+};
+chk('PD589 anchors on STD, not on check-in', blockOff(PD589), '2026-07-25T11:00:00.000Z');
+chk('PD589 stores the scheduled block-off', flightOf(PD589).dtstart_utc, '2026-07-25T11:00:00.000Z');
+chk('PD589 block time still comes from BLH', String(flightOf(PD589).block), '2.95');
+
+// Real PD590, a continuing leg where DTSTART is a turnaround marker.
+const PD590 = {
+  UID: '6784050', DTSTART: '20260725T150700Z', SUMMARY: 'PD590 MCO-YOW',
+  DESCRIPTION: 'PD590 MCO - YOW\nSTD 1520Z / 1120L\nSTA 1835Z / 1435L\nCO 1834Z / 1434L\nDuration: 03:27, BLH: 03:12\nAircraft: 295 - 295XX - 295XX - C-GZQW\n'
+};
+chk('PD590 anchors on STD, not on the turnaround marker', blockOff(PD590), '2026-07-25T15:20:00.000Z');
+
+// Check-in before UTC midnight, departure after: the block-off belongs to
+// the NEXT UTC day, and the logbook date follows the DEPARTURE.
+const WRAP = {
+  UID: 'w1', DTSTART: '20260725T233000Z', SUMMARY: 'PD900 YOW-YYZ',
+  DESCRIPTION: 'PD900 YOW - YYZ\nCI 2330Z\nSTD 0020Z\nSTA 0140Z\nDuration: 03:00, BLH: 01:20\nAircraft: 295\n'
+};
+chk('check-in before UTC midnight, STD after: block-off rolls to the next day',
+  blockOff(WRAP), '2026-07-26T00:20:00.000Z');
+chk('the logbook date follows the departure, not the check-in',
+  flightOf(WRAP).date, '2026-07-25');   // 00:20Z = 20:20 EDT on the 25th
+
+// No STD published: keep the old anchor rather than invent a departure.
+const NOSTD = {
+  UID: 'n1', DTSTART: '20260725T100000Z', SUMMARY: 'PD901 YOW-YYZ',
+  DESCRIPTION: 'PD901 YOW - YYZ\nDuration: 02:00, BLH: 01:20\nAircraft: 295\n'
+};
+chk('no STD in the feed: falls back to DTSTART', blockOff(NOSTD), '2026-07-25T10:00:00.000Z');
+
+// Implausible check-in to departure gap: refuse rather than guess.
+const FARSTD = {
+  UID: 'f1', DTSTART: '20260725T100000Z', SUMMARY: 'PD902 YOW-YYZ',
+  DESCRIPTION: 'PD902 YOW - YYZ\nSTD 2330Z\nSTA 0050Z\nDuration: 02:00, BLH: 01:20\nAircraft: 295\n'
+};
+chk('a 13 h gap is not a check-in: falls back to DTSTART', blockOff(FARSTD), '2026-07-25T10:00:00.000Z');
+chk('malformed DTSTART yields no anchor at all', blockOff({ DTSTART: 'nope', DESCRIPTION: 'STD 1100Z' }), '');
+
+// ── UID dedup: a re-dated leg must never become a second row ────────
+// Every other matcher tier keys on the date, so the block-off correction
+// could otherwise mint a duplicate for a leg already logged under its old
+// check-in date.
+const uidMatch = w.eval(`(function(){
+  flights = [{ id: 'x1', date: '2026-07-25', flightNum: 'PD900', route: 'YOW-YYZ', block: 1.33, navblueUid: 'w1' }];
+  const m = findMatchingExistingFlight({ date: '2026-07-26', flightNum: 'PD900', route: 'YOW-YYZ', block: 1.33, navblueUid: 'w1' });
+  return m ? m.matchType : 'NO MATCH';
+})()`);
+chk('same roster UID on a different date still matches', uidMatch, 'navblue-uid');
+const uidNoFalse = w.eval(`(function(){
+  flights = [{ id: 'x1', date: '2026-07-25', flightNum: 'PD900', route: 'YOW-YYZ', block: 1.33, navblueUid: 'w1' }];
+  const m = findMatchingExistingFlight({ date: '2026-08-02', flightNum: 'PD777', route: 'YYZ-YUL', block: 0.9, navblueUid: 'w2' });
+  return m ? m.matchType : 'NO MATCH';
+})()`);
+chk('a different UID never matches', uidNoFalse, 'NO MATCH');
+
 if (failures.length) {
   console.error(`\n✗ ical-date test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);

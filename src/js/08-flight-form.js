@@ -629,6 +629,55 @@ function icsDateTime(dtstart) {
   return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]));
 }
 
+// Date object → "YYYYMMDDTHHMMSSZ", the shape icsDate / icsLocalDate parse.
+function isoBasicUTC(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  return d.getUTCFullYear() + p2(d.getUTCMonth() + 1) + p2(d.getUTCDate())
+    + 'T' + p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + p2(d.getUTCSeconds()) + 'Z';
+}
+
+// The SCHEDULED BLOCK-OFF of a roster leg.
+//
+// DTSTART is NOT the departure. Proven against Martin's own Porter feed
+// on 2026-07-26: PD589 carries DTSTART 20260725T100000Z while its own
+// DESCRIPTION says CI 1000Z and STD 1100Z, so DTSTART is the CHECK-IN,
+// a full hour before the aircraft moves. On a continuing leg it is a
+// turnaround marker instead (PD590: DTSTART 1507Z against STD 1520Z).
+// DTEND is DTSTART plus Duration, i.e. the duty window, not the block.
+//
+// Using DTSTART as block-off pushed the RAC 101.01 day/night split up to
+// an hour early on the first leg of every duty, and could date a leg on
+// the wrong local day when check-in and departure straddle midnight.
+//
+// STD is the published block-off, but it is a bare HHMM Zulu with no
+// date. DTSTART still does the job it is actually good for: fixing the
+// calendar. Block-off = the first instant at or after DTSTART whose UTC
+// clock reads STD, which lands on the right side of UTC midnight without
+// any hand-rolled date arithmetic.
+//
+// If the feed publishes no STD, or the gap comes out implausible, the old
+// DTSTART value is kept rather than inventing a departure time.
+const ICAL_MAX_CHECKIN_TO_STD_MS = 12 * 60 * 60 * 1000;
+
+function icalBlockOffUTC(ev) {
+  const anchor = icsDateTime(ev && ev.DTSTART);
+  if (!anchor) return null;
+  const std = String((ev && ev.DESCRIPTION) || '').match(/STD\s+(\d{4})Z/);
+  if (!std) return anchor;
+  const hh = +std[1].slice(0, 2);
+  const mm = +std[1].slice(2);
+  if (hh > 23 || mm > 59) return anchor;
+  let off = new Date(Date.UTC(
+    anchor.getUTCFullYear(), anchor.getUTCMonth(), anchor.getUTCDate(), hh, mm, 0
+  ));
+  // Departure is never before the duty that precedes it, so a value that
+  // lands earlier belongs to the next UTC day.
+  if (off.getTime() < anchor.getTime()) off = new Date(off.getTime() + 86400000);
+  if (off.getTime() - anchor.getTime() > ICAL_MAX_CHECKIN_TO_STD_MS) return anchor;
+  return off;
+}
+
 // Build the airline-flight regex from the user's profile operatorCodes
 function getOperatorFlightRegex() {
   const p = DB.loadProfile();
@@ -750,17 +799,20 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
 
   const depICAO = iataToIcao(depIATA);
   const arrICAO = iataToIcao(arrIATA);
-  const dateStrUTC = icsDate(ev.DTSTART);             // UTC date — block-time fallback anchor only
-  const dateStr = icsLocalDate(ev.DTSTART, depICAO);  // LOCAL day of departure = the flight's logbook date
-
   // ── Block-off / Block-on UTC times ──
-  // SOURCE OF TRUTH = DTSTART (full ISO UTC, no ambiguity).
-  // Falls back to buildUTCDateTime(date, STD) only if DTSTART is malformed.
+  // Block-off comes from STD, anchored on DTSTART for the calendar. See
+  // icalBlockOffUTC: DTSTART is the DUTY window start, not the departure.
   const depCoords = AIRPORT_COORDS[depICAO];
   const arrCoords = AIRPORT_COORDS[arrICAO];
-  const blockOffUTC = icsDateTime(ev.DTSTART)
-                  || (stdMatch ? buildUTCDateTime(dateStrUTC, stdMatch[1]) : null);
+  const blockOffUTC = icalBlockOffUTC(ev);
   const blockOnUTC = blockOffUTC ? new Date(blockOffUTC.getTime() + block * 3600000) : null;
+
+  // The logbook DATE is the LOCAL day the flight DEPARTS, so it keys off
+  // block-off, not off the duty window. A 23:15 local check-in for a 00:20
+  // departure belongs to the next day, which is the day the leg was flown.
+  const dateStr = blockOffUTC
+    ? icsLocalDate(isoBasicUTC(blockOffUTC), depICAO)
+    : icsLocalDate(ev.DTSTART, depICAO);
 
   // ── Day/Night split (RAC 101.01) ──
   let dayHours = block, nightHours = 0;
@@ -827,10 +879,12 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
     route: `${depIATA}-${arrIATA}`,
     dep_icao: depICAO,
     arr_icao: arrICAO,
-    // dtstart_utc = full ISO timestamp from the iCal VEVENT. This is the
-    // SCHEDULED block-off — used internally for night/XC math ONLY when
-    // the user hasn't provided actual times. NEVER displayed to the user
-    // as if it were an actual time.
+    // dtstart_utc = the SCHEDULED BLOCK-OFF (the leg's own STD, dated from
+    // the feed's DTSTART; see icalBlockOffUTC). Used internally for
+    // night/XC math ONLY when the user hasn't provided actual times, and
+    // NEVER displayed as if it were an actual time. Before 2026-07-26 this
+    // held DTSTART itself, which on this feed is the CHECK-IN, so the
+    // night split was anchored up to an hour before the aircraft moved.
     dtstart_utc: blockOffUTC ? blockOffUTC.toISOString() : '',
     // Cumulo only tracks ACTUAL times in atd_utc / ata_utc. Navblue iCal
     // publishes the SCHEDULE only — putting STD into atd_utc would be
