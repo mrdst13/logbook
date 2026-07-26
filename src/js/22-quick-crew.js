@@ -171,6 +171,11 @@ function closeQuickCrewFill() {
   if (ov) ov.remove();
   document.body.style.overflow = '';
   _quickCrewIds = [];
+  // This modal opens on top of whatever page the import came from, and
+  // skipping it used to leave that page untouched. When that page is the
+  // dashboard, its roster-review card was still counting the legs that
+  // had just been imported behind it.
+  if (typeof renderDashboard === 'function') renderDashboard();
 }
 
 function saveQuickCrewFill() {

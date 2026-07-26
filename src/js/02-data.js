@@ -1379,9 +1379,21 @@ function _dashPendingTodayLegs() {
 function _dashRosterLegsNotLogged() {
   const cache = _dashRosterCache();
   if (!cache) return [];
-  const eligible = Array.isArray(cache.eligible) ? cache.eligible : [];
+  const todayStr = localTodayStr();
+  // Day-relative flags are stamped at sync time and then replayed from the
+  // cache, possibly days later, so they have to be re-evaluated here. A leg
+  // proven yesterday still carries _flownToday, and the review modal would
+  // badge it "Flown today" on a leg flown three days ago.
+  const eligible = (Array.isArray(cache.eligible) ? cache.eligible : []).map(g => {
+    if (g && g._flownToday && g.date !== todayStr) {
+      const copy = { ...g };
+      delete copy._flownToday;
+      return copy;
+    }
+    return g;
+  });
   // Today's unproven legs age out at midnight; the proven ones never do.
-  const pending = (Array.isArray(cache.flights) && cache.today === localTodayStr()) ? cache.flights : [];
+  const pending = (Array.isArray(cache.flights) && cache.today === todayStr) ? cache.flights : [];
   // One combined pass, so a single logbook row can never clear two entries.
   return _dashFilterAgainstLogbook(eligible.concat(pending));
 }

@@ -298,6 +298,52 @@ w.eval(`recordTombstone(${JSON.stringify(OUTSTANDING[0])})`);
 chk('a deliberately deleted leg is never nagged about again',
   notLogged({ ts: 0, today: TODAY, flights: [], eligible: OUTSTANDING }, []).join(',') === 'PD423,PD294');
 
+// ── 10d. The card must not keep counting legs already imported ─────
+// Review finding, reproduced: iCal legs arrive crewless, so importing
+// them opens the quick crew-fill, which skips the navigation to the
+// logbook. Nothing re-rendered the dashboard, so the card behind the
+// modal kept reporting flights that were now in the logbook. Same
+// confusion mode as the original incident, pointing the other way.
+const cardText = () => {
+  const el = w.document.getElementById('dashNextColumn');
+  const card = el && el.querySelector('.dash-next-card');
+  return card ? card.textContent.replace(/\s+/g, ' ').trim() : '';
+};
+// Distinct legs: the tombstone recorded above must not bleed into this case.
+const CARD_LEGS = [
+  { date: '2026-07-21', flightNum: 'PD801', route: 'YOW-YQB', block: 1.10 },
+  { date: '2026-07-21', flightNum: 'PD802', route: 'YQB-YOW', block: 1.15 },
+  { date: '2026-07-21', flightNum: 'PD803', route: 'YOW-YTZ', block: 0.90 }
+];
+w.eval(`
+  localStorage.setItem('cumulo_roster_pending_today_v1', JSON.stringify({ ts: 0, today: ${JSON.stringify(TODAY)}, flights: [], eligible: ${JSON.stringify(CARD_LEGS)} }));
+  flights = [];
+  localTodayStr = function () { return ${JSON.stringify(TODAY)}; };
+  setLang('en');
+  showPage('dashboard');
+`);
+chk('card announces the outstanding legs before import', /3 roster flights to review/.test(cardText()));
+w.eval(`openRosterNotLoggedReview(); confirmImport();`);
+chk('the legs really landed in the logbook', w.eval('flights.length') === 3);
+chk('card is cleared as soon as the import lands, without leaving the page',
+  cardText() === '' || !/roster flights? to review/.test(cardText()));
+w.eval('closeQuickCrewFill();');
+chk('card stays cleared after skipping the crew-fill',
+  cardText() === '' || !/roster flights? to review/.test(cardText()));
+
+// ── 10e. Day-relative badges must not survive into another day ─────
+// Review finding, reproduced: a leg proven yesterday keeps _flownToday in
+// the cache, and the review modal badged it "Flown today" days later.
+const badgeFor = (legDate, today) => JSON.parse(w.eval(`
+  localStorage.setItem('cumulo_roster_pending_today_v1', JSON.stringify({ ts: 0, today: ${JSON.stringify(TODAY)}, flights: [], eligible: [{ date: ${JSON.stringify(legDate)}, flightNum: 'PD274', route: 'YOW-YYZ', block: 1.75, _flownToday: true, _proof: 'actual-arrival' }] }));
+  flights = [];
+  localTodayStr = function () { return ${JSON.stringify(today)}; };
+  JSON.stringify(_dashRosterLegsNotLogged().map(function (g) { return !!g._flownToday; }));
+`));
+chk('a leg proven TODAY still reads as flown today', badgeFor(TODAY, TODAY)[0] === true);
+chk('the same leg replayed tomorrow no longer claims it was flown today', badgeFor(TODAY, '2026-07-26')[0] === false);
+chk('nor three days later', badgeFor(TODAY, '2026-07-28')[0] === false);
+
 // ── 11. A deadhead is still never a flight, on any path ────────────
 const dh = { SUMMARY: 'PD274 YOW-YYZ (D)', DESCRIPTION: evPlanned('1:52').DESCRIPTION, DTSTART: OFF, UID: 'uid-dh' };
 chk('a deadhead leg never maps to a flight', toFlight(dh) === null);

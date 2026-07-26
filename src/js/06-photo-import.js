@@ -493,6 +493,13 @@ function confirmImport() {
   DB.save(flights);
   pendingImport = [];
   closeImportOverlay();
+  // The dashboard carries the "roster flights to review" card, which is
+  // derived from `flights`. Importing from that card normally opens the
+  // quick crew-fill next (iCal legs arrive crewless), which skips the
+  // navigation to the logbook, so nothing re-rendered the dashboard and
+  // the card kept counting legs he had just imported. Any path that
+  // mutates `flights` re-renders it.
+  if (typeof renderDashboard === 'function') renderDashboard();
   showToast(
     skipped > 0
       ? t('toast.importedWithDups', { count: imported, dups: skipped })
