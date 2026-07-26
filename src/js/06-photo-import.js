@@ -328,7 +328,11 @@ function showImportPreview(list, subtitle, opts) {
   const selectNone = !!(opts && opts.selectNone);
   pendingImport = list.map(f => {
     const dup = (typeof findMatchingExistingFlight === 'function') && !!findMatchingExistingFlight(f);
-    return { ...f, selected: !dup && !selectNone, _dup: dup };
+    // _unproven legs are never preticked, whatever else is in the list: the
+    // app has no proof they are on the ground, so reaching the logbook has
+    // to cost a deliberate tick. Proven and past-dated legs still arrive
+    // ticked, so a mixed list behaves correctly row by row.
+    return { ...f, selected: !dup && !selectNone && !f._unproven, _dup: dup };
   });
   const dupN = pendingImport.filter(f => f._dup).length;
   const newN = pendingImport.length - dupN;

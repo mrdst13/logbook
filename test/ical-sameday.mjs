@@ -263,6 +263,41 @@ chk('a hand-typed leg matching a roster block clears THAT leg',
 chk('a hand-typed leg with a block unlike any roster figure clears one entry, not two',
   pendingAfterLogging([{ date: TODAY, flightNum: '', route: 'YOW-YYZ', block: 2.00 }]).join(',') === 'PD101,PD102,PD103');
 
+// ── 10c. Outstanding legs must OUTLIVE the import modal ────────────
+// Martin, 2026-07-25: his logbook stopped at 2026-07-19 and his career
+// total was wrong. The import only writes when the modal is confirmed,
+// and closing it left no trace anywhere, so five days of flying went
+// nowhere while the same modal reopened and closed. The list now lives in
+// the cache and the dashboard keeps asking.
+const OUTSTANDING = [
+  { date: '2026-07-20', flightNum: 'PD202', route: 'YHZ-YYZ', block: 2.35 },
+  { date: '2026-07-20', flightNum: 'PD423', route: 'YYZ-YWG', block: 3.02 },
+  { date: '2026-07-20', flightNum: 'PD294', route: 'YWG-YOW', block: 2.52 }
+];
+const notLogged = (cache, logged) => JSON.parse(w.eval(`
+  localStorage.setItem('cumulo_roster_pending_today_v1', JSON.stringify(${JSON.stringify(cache)}));
+  flights = ${JSON.stringify(logged)};
+  localTodayStr = function () { return ${JSON.stringify(TODAY)}; };
+  JSON.stringify(_dashRosterLegsNotLogged().map(function (g) { return g.flightNum; }));
+`));
+chk('past-dated legs left unconfirmed stay on the list',
+  notLogged({ ts: 0, today: TODAY, flights: [], eligible: OUTSTANDING }, []).join(',') === 'PD202,PD423,PD294');
+chk('the list survives a cache whose today has rolled over',
+  notLogged({ ts: 0, today: '2026-07-19', flights: [], eligible: OUTSTANDING }, []).length === 3);
+chk('logging them clears the list',
+  notLogged({ ts: 0, today: TODAY, flights: [], eligible: OUTSTANDING }, OUTSTANDING).length === 0);
+chk('logging one of them clears exactly that one',
+  notLogged({ ts: 0, today: TODAY, flights: [], eligible: OUTSTANDING }, [OUTSTANDING[1]]).join(',') === 'PD202,PD294');
+// Today's unproven legs still age out, and both halves are counted once.
+chk('proven past legs and today\'s unproven legs are listed together',
+  notLogged({ ts: 0, today: TODAY, flights: TURN.slice(0, 1), eligible: OUTSTANDING }, []).length === 4);
+chk('yesterday\'s unproven legs age out while the proven ones do not',
+  notLogged({ ts: 0, today: '2026-07-24', flights: TURN.slice(0, 1), eligible: OUTSTANDING }, []).length === 3);
+// A leg he deleted on purpose must never be nagged about again.
+w.eval(`recordTombstone(${JSON.stringify(OUTSTANDING[0])})`);
+chk('a deliberately deleted leg is never nagged about again',
+  notLogged({ ts: 0, today: TODAY, flights: [], eligible: OUTSTANDING }, []).join(',') === 'PD423,PD294');
+
 // ── 11. A deadhead is still never a flight, on any path ────────────
 const dh = { SUMMARY: 'PD274 YOW-YYZ (D)', DESCRIPTION: evPlanned('1:52').DESCRIPTION, DTSTART: OFF, UID: 'uid-dh' };
 chk('a deadhead leg never maps to a flight', toFlight(dh) === null);

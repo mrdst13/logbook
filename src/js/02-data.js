@@ -1311,19 +1311,22 @@ function _dashRenderLegs() {
 // finished hours earlier and no trace of them anywhere. Re-filtered at
 // render time against the live logbook, so a leg he adds by hand or that
 // arrives on a later sync disappears from the notice immediately.
-function _dashPendingTodayLegs() {
+function _dashRosterCache() {
   const key = (typeof CUMULO_PENDING_TODAY_KEY !== 'undefined') ? CUMULO_PENDING_TODAY_KEY : 'cumulo_roster_pending_today_v1';
-  let cache;
-  try { cache = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return []; }
-  if (!cache || !Array.isArray(cache.flights)) return [];
-  if (cache.today !== localTodayStr()) return [];   // stale: yesterday's notice never carries over
+  try { return JSON.parse(localStorage.getItem(key) || 'null') || null; } catch (e) { return null; }
+}
 
+// Which of these roster legs are genuinely absent from the logbook right
+// now. Two passes, and the second one only sees what the first did not
+// claim, so logging two legs clears exactly two entries.
+function _dashFilterAgainstLogbook(list) {
+  if (!Array.isArray(list) || !list.length) return [];
   const norm = s => String(s || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
   // Pass 1: the strict matcher, remembering WHICH logbook row each hit
   // claimed. Legs he deliberately deleted drop out here too.
   const claimed = new Set();
-  const unmatched = cache.flights.filter(g => {
+  const unmatched = list.filter(g => {
     if (!g || !g.date) return false;
     if (typeof isTombstoned === 'function' && isTombstoned(g)) return false;
     const m = (typeof findMatchingExistingFlight === 'function') ? findMatchingExistingFlight(g) : null;
@@ -1332,39 +1335,67 @@ function _dashPendingTodayLegs() {
   });
   if (!unmatched.length) return [];
 
-  // Pass 2: route on the same day, over the rows pass 1 did NOT claim. The
-  // strict matcher cannot see a leg he typed in himself with no flight
+  // Pass 2: same date and same route, over the rows pass 1 did NOT claim.
+  // The strict matcher cannot see a leg he typed in himself with no flight
   // number and his REAL block, which by definition differs from the roster
-  // figure that put the leg on this list. Excluding the already-claimed
-  // rows is what keeps a four-leg turn day honest: logging two YOW-YYZ legs
-  // must clear two entries, not four.
+  // figure that put the leg on this list.
   const pool = {};
   if (Array.isArray(flights)) {
     flights.forEach((f, i) => {
-      if (!f || claimed.has(i) || f.date !== cache.today) return;
+      if (!f || claimed.has(i) || !f.date) return;
       const r = norm(f.route);
       if (!r) return;
-      pool[r] = (pool[r] || 0) + 1;
+      const k = f.date + '|' + r;
+      pool[k] = (pool[k] || 0) + 1;
     });
   }
   return unmatched.filter(g => {
     const r = norm(g.route);
-    if (r && pool[r] > 0) { pool[r]--; return false; }
+    const k = g.date + '|' + r;
+    if (r && pool[k] > 0) { pool[k]--; return false; }
     return true;
   });
 }
 
-// Hand the unproven legs to the shared review modal, every row UNCHECKED.
-// They are offered, never asserted: the app has no proof these are on the
-// ground, so the pilot ticks the ones he actually flew and confirms the
-// block matches. Called from the dashboard card.
-function openPendingTodayReview() {
-  const legs = _dashPendingTodayLegs();
+// Legs the roster says were flown TODAY but that the feed cannot yet prove
+// complete, so the import held them back (see rosterFlightCompletionProof).
+function _dashPendingTodayLegs() {
+  const cache = _dashRosterCache();
+  if (!cache || !Array.isArray(cache.flights)) return [];
+  if (cache.today !== localTodayStr()) return [];   // stale: yesterday's notice never carries over
+  return _dashFilterAgainstLogbook(cache.flights);
+}
+
+// EVERYTHING from the roster that is not in the logbook, any date.
+//
+// Martin, 2026-07-25: his logbook stopped at July 19 and his career total
+// was wrong, because the import preview only ever writes when it is
+// confirmed. The modal had been opening on each sync and closing again
+// with the same legs, he read that as "already imported", and five days
+// of flying quietly went nowhere. Nothing anywhere said the flights were
+// still outstanding. So the list now OUTLIVES the modal: closing the
+// window loses nothing, and the card stays until the legs are either in
+// the logbook or deliberately deleted.
+function _dashRosterLegsNotLogged() {
+  const cache = _dashRosterCache();
+  if (!cache) return [];
+  const eligible = Array.isArray(cache.eligible) ? cache.eligible : [];
+  // Today's unproven legs age out at midnight; the proven ones never do.
+  const pending = (Array.isArray(cache.flights) && cache.today === localTodayStr()) ? cache.flights : [];
+  // One combined pass, so a single logbook row can never clear two entries.
+  return _dashFilterAgainstLogbook(eligible.concat(pending));
+}
+
+// Hand them to the shared review modal. Legs the feed proved complete
+// arrive ticked; today's unproven ones arrive UNTICKED with their warning,
+// because the app has no proof they are on the ground.
+function openRosterNotLoggedReview() {
+  const legs = _dashRosterLegsNotLogged();
   if (!legs.length) {
     if (typeof showToast === 'function') showToast(t('pendingToday.none'));
     return;
   }
-  showImportPreview(legs, t('pendingToday.subtitle', { n: legs.length }), { selectNone: true });
+  showImportPreview(legs, t('pendingToday.subtitle', { n: legs.length }));
 }
 
 function _dashRenderNextColumn() {
@@ -1374,23 +1405,26 @@ function _dashRenderNextColumn() {
   const fr = lang === 'fr';
   const cards = [];
 
-  // ─── Card 0: FLOWN TODAY, NOT LOGGED YET ───────────────────
-  const pendingToday = _dashPendingTodayLegs();
-  if (pendingToday.length > 0) {
-    const n = pendingToday.length;
+  // ─── Card 0: ON YOUR ROSTER, NOT IN YOUR LOGBOOK ───────────
+  // Stays up until the legs are logged or deliberately deleted. Closing
+  // the import window must never be how flights go missing.
+  const notLogged = _dashRosterLegsNotLogged();
+  if (notLogged.length > 0) {
+    const n = notLogged.length;
+    const oldest = notLogged.map(g => g.date).sort()[0];
     cards.push({
       tone: 'warning',
-      kicker: fr ? "AUJOURD'HUI" : 'TODAY',
+      kicker: fr ? 'À INSCRIRE' : 'TO LOG',
       title: fr
-        ? (n === 1 ? 'Un vol pas encore inscrit' : `${n} vols pas encore inscrits`)
-        : (n === 1 ? 'One flight not logged yet' : `${n} flights not logged yet`),
+        ? (n === 1 ? 'Un vol manque à votre carnet' : `${n} vols manquent à votre carnet`)
+        : (n === 1 ? 'One flight missing from your logbook' : `${n} flights missing from your logbook`),
       sub: fr
-        ? (n === 1 ? 'Votre horaire a publié ce vol. Le vérifier et l’inscrire →'
-                   : 'Votre horaire a publié ces vols. Les vérifier et les inscrire →')
-        : (n === 1 ? 'Your roster has published it. Check it and log it →'
-                   : 'Your roster has published them. Check them and log them →'),
+        ? (n === 1 ? `Publié à votre horaire le ${oldest}. Le revoir →`
+                   : `Le plus ancien remonte au ${oldest}. Les revoir →`)
+        : (n === 1 ? `On your roster since ${oldest}. Review it →`
+                   : `The oldest goes back to ${oldest}. Review them →`),
       chip: 'LOG',
-      onclick: "openPendingTodayReview();"
+      onclick: "openRosterNotLoggedReview();"
     });
   }
 

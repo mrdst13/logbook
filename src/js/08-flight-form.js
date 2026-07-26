@@ -1343,10 +1343,8 @@ async function syncNavblueNow(opts) {
     // Baseline the still-pending legs for the next sync's block comparison.
     recordPendingRosterBlocks(events, nowMs);
 
-    // Publish the unproven same-day legs for the dashboard notice.
-    try {
-      localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify({ ts: nowMs, today, flights: pendingToday }));
-    } catch (e) { /* non-fatal */ }
+    // (The outstanding-legs cache is written further down, once the fresh
+    // list is known, so both halves land in one consistent record.)
 
     console.log(`[Navblue Sync] ${mapped.length} eligible, ${pendingToday.length} flown-today awaiting proof; feed calibration: usable=${calibration.usable} samples=${calibration.samples} diverged=${calibration.diverged}`);
 
@@ -1483,6 +1481,21 @@ async function syncNavblueNow(opts) {
 
     // Persist any merged changes (so the fill-empty pass below sees them)
     if (mergedCount > 0) DB.save(flights);
+
+    // Record the outstanding legs so they OUTLIVE the preview modal. The
+    // import only ever writes on confirmation, and until now closing that
+    // window left no trace anywhere: Martin's logbook silently stopped at
+    // 2026-07-19 while the same modal reopened and closed for five days.
+    // The dashboard reads this and keeps asking until the legs are logged
+    // or deliberately deleted.
+    try {
+      const cur = JSON.parse(localStorage.getItem(CUMULO_PENDING_TODAY_KEY) || 'null') || {};
+      cur.ts = nowMs;
+      cur.today = today;
+      cur.flights = pendingToday;
+      cur.eligible = fresh;
+      localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify(cur));
+    } catch (e) { /* non-fatal */ }
 
     // Fill empty Night/XC slots on enriched flights — STRICT only-fill-empty,
     // never overwrites a pilot-typed value. See recalculateFlightDayNightXC()
