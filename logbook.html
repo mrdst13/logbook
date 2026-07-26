@@ -8824,18 +8824,30 @@ function _dashRenderNextColumn() {
   const notLogged = _dashRosterLegsNotLogged();
   if (notLogged.length > 0) {
     const n = notLogged.length;
-    const oldest = notLogged.map(g => g.date).sort()[0];
+    // The FLIGHT date of the oldest one, formatted like every other date
+    // the app shows him. Only mentioned when it is genuinely older than
+    // today, otherwise "the oldest goes back to" would print today.
+    const dates = notLogged.map(g => g.date).filter(Boolean).sort();
+    const oldest = dates[0];
+    const oldestIsPast = !!oldest && oldest < localTodayStr();
+    const oldestStr = oldest
+      ? new Date(oldest + 'T12:00:00').toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'long' })
+      : '';
     cards.push({
       tone: 'warning',
-      kicker: fr ? 'À INSCRIRE' : 'TO LOG',
+      kicker: fr ? 'À REVOIR' : 'TO REVIEW',
       title: fr
-        ? (n === 1 ? 'Un vol manque à votre carnet' : `${n} vols manquent à votre carnet`)
-        : (n === 1 ? 'One flight missing from your logbook' : `${n} flights missing from your logbook`),
-      sub: fr
-        ? (n === 1 ? `Publié à votre horaire le ${oldest}. Le revoir →`
-                   : `Le plus ancien remonte au ${oldest}. Les revoir →`)
-        : (n === 1 ? `On your roster since ${oldest}. Review it →`
-                   : `The oldest goes back to ${oldest}. Review them →`),
+        ? (n === 1 ? 'Un vol de votre horaire à revoir' : `${n} vols de votre horaire à revoir`)
+        : (n === 1 ? 'One roster flight to review' : `${n} roster flights to review`),
+      sub: (function () {
+        const one = n === 1;
+        if (fr) {
+          const when = !oldestIsPast ? '' : (one ? `Vol du ${oldestStr}. ` : `Le plus ancien : vol du ${oldestStr}. `);
+          return `Pas dans votre carnet. ${when}${one ? 'Le revoir' : 'Les revoir'} →`;
+        }
+        const when = !oldestIsPast ? '' : (one ? `Flight of ${oldestStr}. ` : `Oldest: flight of ${oldestStr}. `);
+        return `Not in your logbook. ${when}Review ${one ? 'it' : 'them'} →`;
+      })(),
       chip: 'LOG',
       onclick: "openRosterNotLoggedReview();"
     });
@@ -17560,8 +17572,8 @@ const STRINGS = {
  'import.preview.proofArrival': 'the arrival time published by your roster',
  'import.preview.unproven': 'Your roster has not published an arrival time for this leg. Tick it only if you have landed, and check the block against what you flew.',
  'import.preview.unprovenChanged': 'Your roster has changed this leg’s block time, which usually means it was closed out after landing. It can also mean the leg was replanned. Tick it only if you have landed, and check the block against what you flew.',
- 'pendingToday.subtitle': 'On your roster, missing from your logbook: {n} to review',
- 'pendingToday.none': 'Nothing left to review. Your logbook matches your roster.',
+ 'pendingToday.subtitle': 'From your roster, not in your logbook: {n} to review',
+ 'pendingToday.none': 'Nothing left to review.',
  'import.preview.subtitle': '{n} flights from your roster PDF — review before import',
  'dash.alert.medicalSoon': 'Your medical expires in {days} days — book your renewal.',
  'dash.alert.medicalExpired': 'Your medical has expired. You may not exercise the privileges of your licence.',
@@ -18698,8 +18710,8 @@ const STRINGS = {
  'import.preview.proofArrival': 'l’heure d’arrivée publiée par votre horaire',
  'import.preview.unproven': 'Votre horaire ne publie pas d’heure d’arrivée pour ce segment. Ne le cochez que si vous avez atterri, et vérifiez le bloc par rapport à ce que vous avez volé.',
  'import.preview.unprovenChanged': 'Votre horaire a modifié le temps de bloc de ce segment, ce qui indique généralement une clôture après l’atterrissage. Cela peut aussi vouloir dire que le segment a été replanifié. Ne le cochez que si vous avez atterri, et vérifiez le bloc par rapport à ce que vous avez volé.',
- 'pendingToday.subtitle': 'À votre horaire, absents de votre carnet : {n} à revoir',
- 'pendingToday.none': 'Plus rien à revoir. Votre carnet correspond à votre horaire.',
+ 'pendingToday.subtitle': 'De votre horaire, pas dans votre carnet : {n} à revoir',
+ 'pendingToday.none': 'Plus rien à revoir.',
  'import.preview.subtitle': '{n} vols extraits de votre horaire PDF — vérifiez avant l’import',
  'dash.alert.medicalSoon': 'Votre médical expire dans {days} jours — planifiez le renouvellement.',
  'dash.alert.medicalExpired': 'Votre médical est expiré. Vous ne pouvez pas exercer les privilèges de votre licence.',
@@ -26904,7 +26916,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-25-2d0ea8e';
+const BUILD_VERSION = '2026-07-25-cf839fb';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

@@ -1411,18 +1411,30 @@ function _dashRenderNextColumn() {
   const notLogged = _dashRosterLegsNotLogged();
   if (notLogged.length > 0) {
     const n = notLogged.length;
-    const oldest = notLogged.map(g => g.date).sort()[0];
+    // The FLIGHT date of the oldest one, formatted like every other date
+    // the app shows him. Only mentioned when it is genuinely older than
+    // today, otherwise "the oldest goes back to" would print today.
+    const dates = notLogged.map(g => g.date).filter(Boolean).sort();
+    const oldest = dates[0];
+    const oldestIsPast = !!oldest && oldest < localTodayStr();
+    const oldestStr = oldest
+      ? new Date(oldest + 'T12:00:00').toLocaleDateString(fr ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'long' })
+      : '';
     cards.push({
       tone: 'warning',
-      kicker: fr ? 'À INSCRIRE' : 'TO LOG',
+      kicker: fr ? 'À REVOIR' : 'TO REVIEW',
       title: fr
-        ? (n === 1 ? 'Un vol manque à votre carnet' : `${n} vols manquent à votre carnet`)
-        : (n === 1 ? 'One flight missing from your logbook' : `${n} flights missing from your logbook`),
-      sub: fr
-        ? (n === 1 ? `Publié à votre horaire le ${oldest}. Le revoir →`
-                   : `Le plus ancien remonte au ${oldest}. Les revoir →`)
-        : (n === 1 ? `On your roster since ${oldest}. Review it →`
-                   : `The oldest goes back to ${oldest}. Review them →`),
+        ? (n === 1 ? 'Un vol de votre horaire à revoir' : `${n} vols de votre horaire à revoir`)
+        : (n === 1 ? 'One roster flight to review' : `${n} roster flights to review`),
+      sub: (function () {
+        const one = n === 1;
+        if (fr) {
+          const when = !oldestIsPast ? '' : (one ? `Vol du ${oldestStr}. ` : `Le plus ancien : vol du ${oldestStr}. `);
+          return `Pas dans votre carnet. ${when}${one ? 'Le revoir' : 'Les revoir'} →`;
+        }
+        const when = !oldestIsPast ? '' : (one ? `Flight of ${oldestStr}. ` : `Oldest: flight of ${oldestStr}. `);
+        return `Not in your logbook. ${when}Review ${one ? 'it' : 'them'} →`;
+      })(),
       chip: 'LOG',
       onclick: "openRosterNotLoggedReview();"
     });
