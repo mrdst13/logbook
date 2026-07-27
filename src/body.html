@@ -1572,6 +1572,14 @@
 
  <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
  <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="nightRecheck.rowTitle">Recheck day and night hours</div>
+ <div class="settings-row-desc" data-i18n="nightRecheck.rowDesc">Two errors in how the day/night split was computed were corrected on 26 July 2026. Flights logged before that keep the old figures. This shows you exactly which ones change and by how much, and writes nothing until you approve.</div>
+ </div>
+ <button class="btn btn-outline" onclick="openNightRecheck()" id="nightRecheckBtn" data-i18n="nightRecheck.btn">Review</button>
+ </div>
+
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
+ <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="settings.restore.title">Restore from JSON backup</div>
  <div class="settings-row-desc" data-i18n="settings.restore.desc">Load a previously exported backup file (from Privacy → Export). A preview opens before any data is overwritten.</div>
  </div>
