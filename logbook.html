@@ -25820,7 +25820,23 @@ function _payReleaseMs(f) { // actual release = check-out; fallback = on-block +
   const on = isNaN(off) ? NaN : off + (+f.block || +f.total || 0) * 3600000;
   return f.co_utc ? _payPlaceNear(on, f.co_utc, false) : (isNaN(on) ? NaN : on + 15 * 60000);
 }
-const _payIsUS = icao => /^K/i.test(String(icao || ''));   // US airports = ICAO "K…"
+// Country of a stored airport code, THREE-state. A 4-letter ICAO starting
+// with K is US; any other 4-letter ICAO is not US; a code still 3 letters
+// after iataToIcao (a station outside the 60-entry table, e.g. RSW, SAN,
+// SEA, ATL) is UNKNOWN and must never be treated as Canadian. It used to
+// be: an overnight in Fort Myers was paid as a Canadian layover, and the
+// page then reported a phantom shortfall against a stub that had paid the
+// US rate correctly. Same rule isCrossCountry already applies: say unknown
+// rather than guess. (Audit 2026-07-27.)
+function _payCountry(code) {
+  const u = String(code || '').toUpperCase().trim();
+  const icao = u.length === 4 ? u
+    : ((typeof iataToIcao === 'function') ? String(iataToIcao(u) || '').toUpperCase() : u);
+  if (icao.length !== 4) return 'unknown';
+  return /^K/.test(icao) ? 'us' : 'other';
+}
+const _payIsUS = code => _payCountry(code) === 'us';
+const _payIsUnknownCountry = code => _payCountry(code) === 'unknown';
 
 // ── pairings: leave base → return to base ───────────────────────────
 function groupPairings(flights, baseIcao) {
@@ -25865,8 +25881,19 @@ function pairingPerDiem(pairing) {
   const report = _payReportMs(pairing[0]);
   const release = _payReleaseMs(pairing[pairing.length - 1]);
   let awayMin = (isNaN(report) || isNaN(release)) ? 0 : Math.max(0, (release - report) / 60000);
-  let usMin = 0;
+  let usMin = 0, unknownMin = 0, unknownStations = 0;
   for (let i = 0; i < pairing.length - 1; i++) {
+    // A station this app cannot place in a country is counted as neither.
+    // Treating it as Canadian paid a Fort Myers overnight at the domestic
+    // rate and produced a phantom shortfall. (Audit 2026-07-27.)
+    if (_payIsUnknownCountry(pairing[i].arr_icao)) {
+      unknownStations++;
+      // Its ground time leaves BOTH pools. Subtracting only from the US side
+      // would have dropped it straight into the Canadian one by arithmetic.
+      const us = _payReleaseMs(pairing[i]), ue = _payReportMs(pairing[i + 1]);
+      if (!isNaN(us) && !isNaN(ue)) unknownMin += Math.max(0, (ue - us) / 60000);
+      continue;
+    }
     if (_payIsUS(pairing[i].arr_icao)) {                 // layover at a US airport
       const start = _payReleaseMs(pairing[i]);           // check-out of the flight into the US
       const end = _payReportMs(pairing[i + 1]);          // check-in of the flight out of the US
@@ -25874,7 +25901,10 @@ function pairingPerDiem(pairing) {
     }
   }
   usMin = Math.min(usMin, awayMin);
-  return { awayHours: awayMin / 60, usHours: usMin / 60, cdnHours: (awayMin - usMin) / 60 };
+  unknownMin = Math.min(unknownMin, Math.max(0, awayMin - usMin));
+  return { awayHours: awayMin / 60, usHours: usMin / 60,
+    cdnHours: (awayMin - usMin - unknownMin) / 60,
+    unknownHours: unknownMin / 60, unknownStations: unknownStations };
 }
 
 // Per diem for a whole set of flights (a pay period), in dollars.
@@ -25882,7 +25912,7 @@ function pairingPerDiem(pairing) {
 function computePerDiem(flights, baseIcao, rates) {
   const r = rates || {};
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
-  let awayH = 0, usH = 0, cdnH = 0, openP = 0;
+  let awayH = 0, usH = 0, cdnH = 0, openP = 0, unknownSt = 0;
   const pairings = groupPairings(flights, baseIcao);
   // An open-ended pairing is skipped, never priced. Its release time is
   // genuinely unknown, and counting it to the last logged check-out would
@@ -25891,12 +25921,13 @@ function computePerDiem(flights, baseIcao, rates) {
   // discrepancy it cannot support.
   pairings.forEach(p => {
     if (p.openEnded) { openP++; return; }
-    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours;
+    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours; unknownSt += (d.unknownStations || 0);
   });
   const round2 = n => Math.round(n * 100) / 100;
   return {
     pairings: pairings.length,
     openPairings: openP,
+    unknownStations: unknownSt,
     awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
     cdnAmount: round2(cdnH * cdnRate),
     usAmount: round2(usH * usUsd * fx),
@@ -26478,6 +26509,14 @@ function payRender() {
   if (!rosterHas) {
     pdCheck.status = 'info';
     pdCheck.desc = nonCompare;
+  } else if (pd.unknownStations > 0) {
+    // A layover this app cannot place in a country is counted as neither
+    // Canadian nor US, so the comparison would be against a figure it knows
+    // is incomplete. Name the gap instead of asserting a shortfall.
+    pdCheck.status = 'info';
+    pdCheck.desc = fr
+      ? 'Une escale de cette periode est a un aeroport que Cumulo ne sait pas situer, donc ni canadienne ni americaine. Le per diem de cette periode ne peut pas etre compare au talon.'
+      : 'A layover in this period is at an airport Cumulo cannot place in a country, so it counts as neither Canadian nor US. The per diem for this period cannot be compared against the stub.';
   } else if (pd.openPairings > 0) {
     // A trip with no logged return to base has an unknown release time, so
     // its per diem is not counted at all. Comparing a deliberately partial
@@ -26542,7 +26581,21 @@ function payRender() {
 
   // 2. Hourly rate.
   const rateCheck = { id: 'rate', name: fr ? 'Taux horaire' : 'Hourly rate' };
-  if (stubRate != null && st.rate) {
+  // The grid rate is a CALENDAR-YEAR figure and the stored seat year is
+  // TODAY's step. Neither is known for a past period, so an auto-derived rate
+  // is only comparable against a stub from the year it was derived for. It
+  // used to be compared against every stub, so a December 2025 stub paying
+  // the correct year-3 rate was reported as a pay error, with the page
+  // telling him to change a setting that was already right. A rate he typed
+  // himself is his own figure and stays comparable. (Audit 2026-07-27.)
+  const _stubYear = perDmy ? perDmy.y : +String(ym).slice(0, 4);
+  const _rateComparable = !!st.rateManual || _stubYear === new Date().getFullYear();
+  if (stubRate != null && st.rate && !_rateComparable) {
+    rateCheck.status = 'info';
+    rateCheck.desc = fr
+      ? 'Le talon montre ' + money(stubRate) + '/h. Le taux attendu vient de la grille de l’annee en cours, pas de ' + _stubYear + ', donc il n’est pas compare ici.'
+      : 'The stub shows ' + money(stubRate) + '/h. The expected rate comes from this year’s grid, not ' + _stubYear + ', so it is not compared here.';
+  } else if (stubRate != null && st.rate) {
     const ok = Math.abs(stubRate - st.rate) < 0.005;
     rateCheck.status = ok ? 'ok' : 'bad';
     rateCheck.desc = ok
@@ -27068,7 +27121,7 @@ function payStubHistory(all, curYm, allFls, st, fr, money, hL, cur) {
 
 // Node test harness export (ignored in the browser).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { groupPairings, pairingPerDiem, computePerDiem, computeCredits, computeBasePay, isSummerLOA, payRateForYear, deriveUsFx, usPerDiemDays, _payMonthPairingLegs, computePerDiemInPeriod, _payLocalMidnightMs, _payNextDay };
+  module.exports = { groupPairings, pairingPerDiem, computePerDiem, computeCredits, computeBasePay, isSummerLOA, payRateForYear, deriveUsFx, usPerDiemDays, _payMonthPairingLegs, computePerDiemInPeriod, _payLocalMidnightMs, _payNextDay, _payCountry };
 }
 // ═══════════════════════════════════════════════════════════════════
 //  PORTER PAY-STUB PDF PARSER (page-pay)
@@ -27693,7 +27746,7 @@ function applyNightRecheck() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-27-a5ea177';
+const BUILD_VERSION = '2026-07-27-5e46d04';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

@@ -188,6 +188,29 @@ chk('deadhead home: days spent at home are never billed', dhPd.awayHours < 100);
 const dhUs = pay.usPerDiemDays(dhLegs, 'CYOW');
 chk('deadhead home: no fabricated US layover', dhUs.length === 0);
 
+// ── A layover the app cannot place in a country (audit 2026-07-27) ──
+// _payIsUS tested the ICAO prefix K, and iataToIcao returns the raw 3-letter
+// code for any station outside its table (RSW, SAN, SEA, ATL...). Those
+// stayed 3 letters, failed /^K/, and were paid as CANADIAN layovers, so a
+// stub that correctly paid the US rate looked like a shortfall.
+chk('a mapped US station is US', pay._payCountry('KBOS') === 'us');
+// (IATA->ICAO lookup lives in the browser bundle; in this pure-module test an
+// IATA code degrades to unknown, which is the SAFE direction.)
+chk('a Canadian ICAO is not US', pay._payCountry('CYOW') === 'other');
+chk('an unmapped station is UNKNOWN, never Canadian', pay._payCountry('RSW') === 'unknown');
+chk('another unmapped station is UNKNOWN', pay._payCountry('SAN') === 'unknown');
+const unkLegs = [
+  { date: '2026-06-10', dep_icao: 'CYOW', arr_icao: 'RSW', dtstart_utc: '2026-06-10T13:00:00.000Z', block: 3.0, duty: 5.0, ci_utc: '1230', co_utc: '1615' },
+  { date: '2026-06-11', dep_icao: 'RSW', arr_icao: 'CYOW', dtstart_utc: '2026-06-11T13:00:00.000Z', block: 3.0, duty: 5.0, ci_utc: '1230', co_utc: '1615' }
+];
+const unkPd = pay.computePerDiem(unkLegs, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 });
+chk('an unplaceable layover is reported', unkPd.unknownStations === 1);
+// The 20 h on the ground at RSW leave BOTH pools. What stays Canadian is the
+// duty time either side of it, not the layover. Before the fix the whole
+// 27.75 h was billed Canadian.
+chk('the unplaceable ground time is set aside', unkPd.unknownStations === 1 && unkPd.awayHours > 27);
+chk('and it is NOT billed as Canadian', unkPd.cdnHours < 10);
+
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
 console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
 process.exit(0);
