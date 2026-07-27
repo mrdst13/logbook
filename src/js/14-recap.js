@@ -50,7 +50,9 @@ function renderRecap() {
 
   // Stats
   const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
-  const block = yFlights.reduce((s,f) => s + (+f.block||0), 0);
+  // flightTimeOf, not raw block: the Recap stat card used to print simulator
+  // block time as flight hours while the chart beside it did not.
+  const block = yFlights.reduce((s,f) => s + ((typeof flightTimeOf === 'function') ? flightTimeOf(f) : (+f.total || +f.block || 0)), 0);
   const ldg   = yFlights.reduce((s,f) => s + (f.isSim ? 0 : (+f.ldgDay||0) + (+f.ldgNight||0)), 0);
   // Night = all night flying — shared nightHoursOf() so the Recap, Dashboard,
   // PDF and drill-down never disagree for heli/SE/student pilots (incl. seNightDual).

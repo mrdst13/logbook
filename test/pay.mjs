@@ -220,7 +220,12 @@ const openInPeriod = pay.computePerDiemInPeriod(dhLegs, 'CYOW', { cdn: 4.25, usU
 chk('a period containing an unclosed trip reports it', openInPeriod.openPairings === 1);
 const unkInPeriod = pay.computePerDiemInPeriod(unkLegs, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 },
   Date.UTC(2026, 5, 1, 4, 0, 0), Date.UTC(2026, 6, 1, 4, 0, 0));
-chk('a period containing an unplaceable layover reports it', (unkInPeriod.unknownStations || 0) >= 0);
+// This assertion used to read `(x || 0) >= 0`, which is true for undefined,
+// 0 and 1 alike. It could never fail, which is exactly why the period path
+// shipped without the fix the month path had.
+chk('a period containing an unplaceable layover reports it', unkInPeriod.unknownStations === 1);
+chk('and the period path does not bill it as Canadian',
+  Math.abs(unkInPeriod.cdnHours - unkPd.cdnHours) < 0.01);
 
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
 console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');

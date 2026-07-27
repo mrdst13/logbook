@@ -303,20 +303,34 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
   const r = rates || {};
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
   const clip = (a, b) => (isNaN(a) || isNaN(b)) ? 0 : Math.max(0, Math.min(b, endMs) - Math.max(a, startMs));
-  let awayMs = 0, usMs = 0, n = 0, openP = 0;
+  let awayMs = 0, usMs = 0, unkMs = 0, n = 0, openP = 0, unkSt = 0;
   groupPairings(flights, baseIcao).forEach(p => {
     // Not priced: no logged return to base means the release time is unknown.
-    if (p.openEnded) { openP++; return; }
+    // It only makes THIS period incomparable when its known span reaches into
+    // the window; an old trip from February must not disqualify July forever.
+    if (p.openEnded) {
+      if (clip(_payReportMs(p[0]), _payReleaseMs(p[p.length - 1])) > 0) openP++;
+      return;
+    }
     const away = clip(_payReportMs(p[0]), _payReleaseMs(p[p.length - 1]));
     if (away <= 0) return;
     n++; awayMs += away;
     for (let i = 0; i < p.length - 1; i++) {
+      // Same three-state rule as pairingPerDiem. This path is the one that runs
+      // whenever a stub is loaded, so leaving it out made the whole fix inert
+      // exactly where the comparison happens.
+      if (_payIsUnknownCountry(p[i].arr_icao)) {
+        const g = clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
+        if (g > 0) { unkSt++; unkMs += g; }
+        continue;
+      }
       if (_payIsUS(p[i].arr_icao)) usMs += clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
     }
   });
   const round2 = x => Math.round(x * 100) / 100;
-  const awayH = awayMs / 3600000, usH = Math.min(usMs / 3600000, awayH), cdnH = awayH - usH;
-  return { pairings: n, openPairings: openP, awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
+  const awayH = awayMs / 3600000, usH = Math.min(usMs / 3600000, awayH);
+  const unkH = Math.min(unkMs / 3600000, Math.max(0, awayH - usH)), cdnH = awayH - usH - unkH;
+  return { pairings: n, openPairings: openP, unknownStations: unkSt, unknownHours: round2(unkH), awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
     cdnAmount: round2(cdnH * cdnRate), usAmount: round2(usH * usUsd * fx), total: round2(cdnH * cdnRate + usH * usUsd * fx) };
 }
 
@@ -684,6 +698,9 @@ function payRender() {
     ? computePerDiemInPeriod(allFls, st.base, rates, _payLocalMidnightMs(range.start, baseTz), _payLocalMidnightMs(_payNextDay(range.end), baseTz))
     : computePerDiem(_payMonthPairingLegs(allFls, st.base, ym), st.base, rates);
   const rosterHas = scoped.length > 0 || pd.awayHours > 0;
+  // A dropped trip or an unplaceable layover makes the computed per diem
+  // knowingly partial. Nothing may state it as an expectation. (Audit fixes.)
+  const _pdPartial = (pd.openPairings > 0) || (pd.unknownStations > 0);
   const ymLabel = (fr ? _PAY_MO_FR : _PAY_MO_EN)[(+ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
 
   // ── 0 stub for this period: honest neutral state ──────────────────
@@ -886,6 +903,14 @@ function payRender() {
   if (!rosterHas) {
     usCheck.status = 'info';
     usCheck.desc = nonCompare;
+  } else if (pd.openPairings > 0 || pd.unknownStations > 0) {
+    // The computed US hours are knowingly partial: a trip was not priced, or a
+    // layover could not be placed in a country. Comparing them would announce
+    // an error the app cannot support. Same guard as the Canadian check.
+    usCheck.status = 'info';
+    usCheck.desc = fr
+      ? 'Le per diem US de cette période ne peut pas être comparé : une rotation ou une escale n’a pas pu être chiffrée.'
+      : 'The US per diem for this period cannot be compared: a trip or a layover could not be priced.';
   } else if (pd.usHours <= 0.05 && paidUsAmt == null) {
     usCheck.status = 'ok';
     usCheck.desc = fr ? 'Aucun layover US cette période : rien d’attendu, rien de payé.' : 'No US layover this period: nothing expected, nothing paid.';
@@ -1044,10 +1069,12 @@ function payRender() {
       parsed.taxableYtd != null ? money(parsed.taxableYtd) : DASH,
       parsed.deductionsYtd != null ? (fr ? 'Déductions à ce jour' + C + ' ' : 'Deductions to date: ') + money(parsed.deductionsYtd) : '') +
     kpi(fr ? 'Per diem CDN attendu' : 'Expected Canadian per diem',
-      rosterHas ? money(pd.cdnAmount) : DASH,
-      rosterHas
-        ? hL(pd.cdnHours) + ' h × ' + money(st.cdn) + '/h' + (paidCdnAmt != null ? ' · ' + money(paidCdnAmt) + (fr ? ' payés' : ' paid') : '')
-        : (fr ? 'Aucun vol enregistré pour cette période' : 'No flights logged for this period')) +
+      (rosterHas && !_pdPartial) ? money(pd.cdnAmount) : DASH,
+      !rosterHas
+        ? (fr ? 'Aucun vol enregistré pour cette période' : 'No flights logged for this period')
+        : _pdPartial
+          ? (fr ? 'Chiffre incomplet : une rotation ou une escale n’a pas pu être chiffrée' : 'Incomplete: a trip or a layover could not be priced')
+          : hL(pd.cdnHours) + ' h × ' + money(st.cdn) + '/h' + (paidCdnAmt != null ? ' · ' + money(paidCdnAmt) + (fr ? ' payés' : ' paid') : '')) +
     gapKpi + '</section>';
 
   // ── checks section (mockup §5): head + problem card + list ─────────

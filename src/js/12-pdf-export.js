@@ -742,7 +742,7 @@ function _generatePDF() {
       doc.setTextColor(...statusColor);
       doc.text(statusText, W - tableMargin - 4, y + 11, { align: 'right' });
 
-      y += 26;
+      y += 20;   // 18 mm card + 2 mm gutter: seven cards, disclaimer and both signature lines fit inside the 216 mm sheet. At 26 the last card ran 4 mm past the bottom and everything below it was drawn off the page.
     });
 
     // Disclaimer footer

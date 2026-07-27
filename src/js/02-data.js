@@ -184,8 +184,12 @@ function calcStats() {
     picus += +f.picus || 0;
     xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
         + (+f.xcDayCop||0)+(+f.xcNightCop||0);
-    block += +f.block || 0;
-    if (f.date && new Date(f.date) >= cutoff30) block30 += +f.block || 0;
+    // Through flightTimeOf, like `total` above: a simulator session is not
+    // flight time. Reading the raw block here made the 30-day delta pill and
+    // the sparkline contradict the hero printed directly above them, and the
+    // Recap stat card contradict its own chart. (Audit fixes 2026-07-27.)
+    block += flightTimeOf(f);
+    if (f.date && new Date(f.date) >= cutoff30) block30 += flightTimeOf(f);
   });
   return {total,pic,sic,night,ldg,me,heli,hover,dualGiven,dualRcvd,picus,xc,block,block30,entries:flights.length};
 }
