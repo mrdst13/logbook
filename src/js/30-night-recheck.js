@@ -199,6 +199,13 @@ function buildNightRecheckPlan(anchorMap) {
       flightNum: f.flightNum || '',
       route: f.route || '',
       block: block,
+      // The INPUTS the proposed hours were computed from. Re-checking only
+      // the values being written was not enough: a block corrected on the
+      // other device while the panel was open left day and night that no
+      // longer belonged to the flight at all.
+      dep: f.dep_icao || '', arr: f.arr_icao || '',
+      oldAnchor: f.dtstart_utc || '',
+      hasXc: hasXc,
       cols: cols,
       fromDay: curDay, fromNight: curNight,
       toDay: fixed.dayHours, toNight: fixed.nightHours,
@@ -265,7 +272,9 @@ async function openNightRecheck() {
             <td style="padding:6px 8px;">${r.fromNight.toFixed(2)} &rarr; <strong>${r.toNight.toFixed(2)}</strong></td>
             <td style="padding:6px 8px;">${r.touchesXc
               ? `${r.fromXcDay.toFixed(2)}/${r.fromXcNight.toFixed(2)} &rarr; <strong>${r.toDay.toFixed(2)}/${r.toNight.toFixed(2)}</strong>`
-              : esc(r.xcKept ? t('nightRecheck.xcKept') : t('nightRecheck.xcNone'))}</td>
+              : (r.xcKept ? esc(t('nightRecheck.xcKept'))
+                          : (r.hasXc ? `${r.fromXcDay.toFixed(2)}/${r.fromXcNight.toFixed(2)} ${esc(t('nightRecheck.xcUnchanged'))}`
+                                     : esc(t('nightRecheck.xcNone'))))}</td>
             <td style="padding:6px 8px; color:var(--text-secondary);">${esc(r.anchorFixed ? t('nightRecheck.whyAnchor') : t('nightRecheck.whyMinute'))}</td>
           </tr>`).join('')}
         </tbody>
@@ -296,28 +305,59 @@ async function openNightRecheck() {
 
 function skippedCount(n) { return (+n || 0) > 0; }
 
+// Is this row still exactly the row that was reviewed? Every value the
+// write will touch, every input those values were computed from, and
+// every precondition that let the row into the plan.
+function _nightRecheckStillValid(f, r) {
+  if (Math.abs((+f[r.cols.day] || 0) - r.fromDay) > NIGHT_RECHECK_EPS) return false;
+  if (Math.abs((+f[r.cols.night] || 0) - r.fromNight) > NIGHT_RECHECK_EPS) return false;
+  if (r.touchesXc &&
+      (Math.abs((+f[r.cols.xcDay] || 0) - r.fromXcDay) > NIGHT_RECHECK_EPS ||
+       Math.abs((+f[r.cols.xcNight] || 0) - r.fromXcNight) > NIGHT_RECHECK_EPS)) return false;
+  // Inputs: hours computed from a block or a pair of airports that have
+  // since changed do not belong to this flight any more.
+  if (Math.abs((+f.block || +f.total || 0) - r.block) > NIGHT_RECHECK_EPS) return false;
+  if ((f.dep_icao || '') !== r.dep || (f.arr_icao || '') !== r.arr) return false;
+  // The anchor is written too, so it gets the same treatment as the rest.
+  if (Date.parse(f.dtstart_utc || '') !== Date.parse(r.oldAnchor || '')) return false;
+  // Preconditions that let the row into the plan.
+  if (f.atd_utc || f.signedBy || f.signedAt) return false;
+  return true;
+}
+
 function applyNightRecheck() {
   const rows = _nightRecheckPlan || [];
   if (!rows.length) { closeImportOverlay(); return; }
-  if (typeof snapshotBeforeOperation === 'function') snapshotBeforeOperation('Night recheck');
-  let changed = 0, dropped = 0;
+
+  // Decide what is still writable BEFORE touching anything. Snapshotting
+  // first burned one of the ten recovery points even on a run that turned
+  // out to write nothing.
+  const writable = [];
+  let dropped = 0;
   for (const r of rows) {
     // By id, never by index: a cloud pull can remove a row while the
     // panel is open, and every later index then shifts by one.
     const f = r.id ? flights.find(x => x && x.id === r.id) : null;
-    if (!f) { dropped++; continue; }
-    // And the row must still hold the values that were reviewed.
-    if (Math.abs((+f[r.cols.day] || 0) - r.fromDay) > NIGHT_RECHECK_EPS ||
-        Math.abs((+f[r.cols.night] || 0) - r.fromNight) > NIGHT_RECHECK_EPS) { dropped++; continue; }
-    // The same re-check on every OTHER field this row will write. The
-    // main pair was guarded and the cross-country pair was not, so a
-    // hand-set cross-country figure arriving from the other device while
-    // the panel was open got overwritten with a value never displayed.
-    if (r.touchesXc &&
-        (Math.abs((+f[r.cols.xcDay] || 0) - r.fromXcDay) > NIGHT_RECHECK_EPS ||
-         Math.abs((+f[r.cols.xcNight] || 0) - r.fromXcNight) > NIGHT_RECHECK_EPS)) { dropped++; continue; }
-    // Preconditions that held when the row was reviewed must still hold.
-    if (f.atd_utc || f.signedBy || f.signedAt) { dropped++; continue; }
+    if (!f || !_nightRecheckStillValid(f, r)) { dropped++; continue; }
+    writable.push({ f: f, r: r });
+  }
+  if (!writable.length) {
+    _nightRecheckPlan = null;
+    closeImportOverlay();
+    showToast(t('nightRecheck.noneLeft'), 'error');
+    return;
+  }
+
+  // No undo point, no rewrite. This is the only tool that overwrites
+  // hours already in the logbook, so without a stored "before" state the
+  // previous figures would exist nowhere.
+  if (typeof snapshotBeforeOperation !== 'function' || snapshotBeforeOperation('Night recheck') !== true) {
+    showToast(t('nightRecheck.noSnapshot'), 'error');
+    return;
+  }
+
+  const touched = [];
+  for (const { f, r } of writable) {
     f[r.cols.day] = r.toDay;
     f[r.cols.night] = r.toNight;
     if (r.touchesXc) {
@@ -325,14 +365,31 @@ function applyNightRecheck() {
       f[r.cols.xcNight] = r.toNight;
     }
     if (r.anchorFixed && r.newAnchor) f.dtstart_utc = r.newAnchor;
-    changed++;
+    if (f.id) touched.push(f.id);
   }
   DB.save(flights);
+  // Mark them dirty for the cloud. A device whose fingerprint map is
+  // empty treats every row as already synced on the next push, which
+  // would leave these corrections local and let the other device's copy
+  // win the next pull, undoing them.
+  try {
+    if (typeof Sync !== 'undefined' && Sync._loadSyncedSig && Sync._saveSyncedSig) {
+      const sm = Sync._loadSyncedSig();
+      let n = 0;
+      for (const id of touched) { if (id in sm) { delete sm[id]; n++; } }
+      if (n > 0) Sync._saveSyncedSig(sm);
+    }
+  } catch (e) { /* non-fatal: the row still pushes on its next change */ }
+  if (typeof Sync !== 'undefined' && Sync.pushAllFlights) {
+    try { Sync.pushAllFlights(); } catch (e) { /* offline: queued for later */ }
+  }
   _nightRecheckPlan = null;
   closeImportOverlay();
   if (typeof updateUndoButton === 'function') updateUndoButton();
   if (typeof renderDashboard === 'function') renderDashboard();
+  const changed = writable.length;
   showToast(dropped > 0
-    ? t(changed === 1 ? 'nightRecheck.donePartialOne' : 'nightRecheck.donePartial', { n: changed, dropped: dropped })
+    ? t(dropped === 1 ? 'nightRecheck.donePartialOne' : 'nightRecheck.donePartial',
+        { n: changed, w: t(changed === 1 ? 'word.flight' : 'word.flights'), dropped: dropped })
     : t(changed === 1 ? 'nightRecheck.doneOne' : 'nightRecheck.done', { n: changed }), 'success');
 }

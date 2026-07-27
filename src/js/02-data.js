@@ -384,16 +384,27 @@ function loadSnapshots() {
   } catch { return []; }
 }
 
+// Returns TRUE only when the history was actually stored. Callers that
+// are about to modify data the user cannot otherwise recover must check
+// it: the night recheck overwrites hours already in the logbook, so
+// writing without an undo point would leave the previous figures nowhere.
 function saveSnapshots(arr) {
   // Trim to MAX_SNAPSHOTS most recent (LIFO — newest first)
   const trimmed = arr.slice(0, MAX_SNAPSHOTS);
   try {
     localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(trimmed));
+    return true;
   } catch (e) {
     console.warn('[Snapshot] localStorage full — trimming further:', e);
     // Quota exceeded — keep only 3 most recent
-    try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(arr.slice(0, 3))); }
-    catch { localStorage.removeItem(SNAPSHOTS_KEY); }
+    try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(arr.slice(0, 3))); return true; }
+    catch (e2) {
+      // Nothing new fits. KEEP whatever is already stored: removing the key
+      // used to destroy the undo points of every EARLIER operation too, on
+      // top of failing to record this one.
+      console.error('[Snapshot] could not be stored:', e2);
+      return false;
+    }
   }
 }
 
@@ -409,9 +420,9 @@ function snapshotBeforeOperation(operationName) {
   };
   const history = loadSnapshots();
   history.unshift(snapshot);  // newest first
-  saveSnapshots(history);
-  console.log(`[Snapshot] Saved before "${operationName}" — ${flights.length} flights · ${history.length} snapshots in history`);
-  return true;
+  const ok = saveSnapshots(history);
+  console.log(`[Snapshot] ${ok ? 'Saved' : 'FAILED'} before "${operationName}" — ${flights.length} flights · ${history.length} snapshots in history`);
+  return ok;
 }
 
 function ageString(ms) {

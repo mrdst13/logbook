@@ -227,6 +227,86 @@ const signedRace = evalJSON(`(function(){
 chk('a row signed while the panel was open is not written',
   signedRace.d === legacyCI.dayHours && signedRace.n === legacyCI.nightHours);
 
+// ── 7d. The INPUTS the hours came from are re-checked too ──────────
+// Fresh-pass finding: only the written values were re-checked, so a block
+// corrected on the other device while the panel was open left day and
+// night that no longer belonged to the flight.
+const inputRace = (mutation) => evalJSON(`(function(){
+  flights = [${JSON.stringify(mk({ id: 'i1' }))}];
+  const p = buildNightRecheckPlan(${JSON.stringify(ROSTER)});
+  _nightRecheckPlan = p.rows;
+  Object.assign(flights[0], ${JSON.stringify(mutation)});
+  applyNightRecheck();
+  return { d: flights[0].meDayCop, n: flights[0].meNightCop, anchor: flights[0].dtstart_utc };
+})()`);
+const blockRace = inputRace({ block: 1.35, total: 1.35 });
+chk('a block corrected mid-review blocks the write',
+  blockRace.d === legacyCI.dayHours && blockRace.n === legacyCI.nightHours);
+const portRace = inputRace({ arr_icao: 'CYUL' });
+chk('a route corrected mid-review blocks the write',
+  portRace.d === legacyCI.dayHours && portRace.n === legacyCI.nightHours);
+const anchorRace = inputRace({ dtstart_utc: '' });
+chk('a row that lost its anchor mid-review is never stamped with one',
+  anchorRace.anchor === '' && anchorRace.d === legacyCI.dayHours);
+
+// ── 7e. No undo point, no rewrite ──────────────────────────────────
+// Confirmed finding: apply used to proceed when the snapshot could not be
+// stored, leaving the hours changed with no way back, under a toast that
+// said Undo was available.
+const noSnap = evalJSON(`(function(){
+  flights = [${JSON.stringify(mk({ id: 'q1' }))}];
+  DB.save(flights);                       // storage matches memory before we start
+  const p = buildNightRecheckPlan(${JSON.stringify(ROSTER)});
+  _nightRecheckPlan = p.rows;
+  const realSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) {
+    if (k === 'cumulo_snapshots_v2') { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+    return realSet.call(this, k, v);
+  };
+  try { applyNightRecheck(); } finally { Storage.prototype.setItem = realSet; }
+  return { d: flights[0].meDayCop, n: flights[0].meNightCop, saved: DB.load()[0].meDayCop };
+})()`);
+chk('with no storable snapshot the hours are left alone in memory',
+  noSnap.d === legacyCI.dayHours && noSnap.n === legacyCI.nightHours);
+chk('with no storable snapshot nothing is persisted either', noSnap.saved === legacyCI.dayHours);
+
+// A failed snapshot must not destroy the undo points of earlier work.
+const keptHistory = w.eval(`(function(){
+  localStorage.setItem('cumulo_snapshots_v2', JSON.stringify([{ flights: [], timestamp: 1, operation: 'earlier', flightCount: 0 }]));
+  const realSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) {
+    if (k === 'cumulo_snapshots_v2') { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+    return realSet.call(this, k, v);
+  };
+  try { snapshotBeforeOperation('Night recheck'); } finally { Storage.prototype.setItem = realSet; }
+  return (JSON.parse(localStorage.getItem('cumulo_snapshots_v2') || '[]')).length;
+})()`);
+chk('a failed snapshot leaves earlier recovery points intact', keptHistory === 1);
+chk('and snapshotBeforeOperation reports the failure', w.eval(`(function(){
+  const realSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) {
+    if (k === 'cumulo_snapshots_v2') { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+    return realSet.call(this, k, v);
+  };
+  let r; try { r = snapshotBeforeOperation('x'); } finally { Storage.prototype.setItem = realSet; }
+  return r;
+})()`) === false);
+w.eval(`localStorage.removeItem('cumulo_snapshots_v2')`);
+
+// ── 7f. A run that writes nothing burns no recovery point ──────────
+const noBurn = evalJSON(`(function(){
+  localStorage.removeItem('cumulo_snapshots_v2');
+  flights = [${JSON.stringify(mk({ id: 'b1' }))}];
+  const p = buildNightRecheckPlan(${JSON.stringify(ROSTER)});
+  _nightRecheckPlan = p.rows;
+  flights[0].signedAt = '2026-02-01T00:00:00.000Z';   // becomes ineligible
+  applyNightRecheck();
+  return { snaps: (JSON.parse(localStorage.getItem('cumulo_snapshots_v2') || '[]')).length,
+           d: flights[0].meDayCop };
+})()`);
+chk('a run where every row is dropped takes no snapshot', noBurn.snaps === 0);
+chk('and changes nothing', noBurn.d === legacyCI.dayHours);
+
 // ── 8. Apply writes exactly what was reviewed, and persists it ─────
 const applied = evalJSON(`(function(){
   flights = [${JSON.stringify(mk())}, ${JSON.stringify(mk({ id: 'f2', meDayCop: 0.5, meNightCop: 0.37 }))}];
