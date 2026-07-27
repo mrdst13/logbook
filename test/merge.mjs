@@ -43,10 +43,33 @@ chk('numeric fills a missing hour bucket', w.eval("(()=>{const e={};fillEmptyNum
 chk('numeric never overwrites a positive value', w.eval("(()=>{const e={block:3};fillEmptyNumeric(e,{block:9},['block']);return e.block;})()") === 3);
 chk('numeric ignores a 0 incoming', w.eval("(()=>{const e={block:0};fillEmptyNumeric(e,{block:0},['block']);return e.block;})()") === 0);
 
+// ── Converting a logged flight to a simulator session ────────────────
+// A sim session carries no block time, so zeroing it on conversion is
+// correct. What was not correct: the entry-type buttons stay live while
+// editing, so one misclick on a real leg discarded recorded flight time
+// on save with nothing asked. Flagged 2026-06-27, closed 2026-07-27.
+const convert = (answer) => JSON.parse(w.eval(`(function(){
+  localStorage.setItem('logbook_v1', JSON.stringify([{ id: 'r1', date: '2026-06-01', flightNum: 'PD100', route: 'YOW-YYZ', block: 1.2, total: 1.2, meDayCop: 1.2, isSim: false }]));
+  flights = DB.load();
+  editingId = 'r1';
+  currentEntryType = 'sim';
+  window.confirm = function () { return ${answer}; };
+  showPage('add');
+  document.getElementById('f-date').value = '2026-06-01';
+  saveFlight();
+  const f = DB.load()[0];
+  return JSON.stringify({ block: f.block, isSim: !!f.isSim });
+})()`));
+const declined = convert('false');
+chk('declining the conversion keeps the recorded flight time', declined.block === 1.2 && declined.isSim === false);
+const accepted = convert('true');
+chk('accepting the conversion still works', accepted.block === 0 && accepted.isSim === true);
+chk('the warning names the hours at risk', /1\.2/.test(w.eval("t('confirm.convertToSim', { h: '1.2' })")));
+
 if (failures.length) {
   console.error(`\n✗ merge test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);
   process.exit(1);
 }
-console.log('✓ merge test passed — fillEmptyStrict keeps explicit 0, fillEmptyNumeric fills 0-buckets, neither overwrites');
+console.log('✓ merge test passed — fillEmptyStrict keeps explicit 0, fillEmptyNumeric fills 0-buckets, neither overwrites, and converting a logged flight to a sim asks before discarding its hours');
 process.exit(0);

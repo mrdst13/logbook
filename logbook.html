@@ -9930,6 +9930,20 @@ function saveFlight(options) {
 
   const isSim = currentEntryType === 'sim';
 
+  // Converting a REAL flight into a simulator session zeroes its block, and
+  // rightly so: a sim session is not flight time. But the entry-type
+  // buttons stay live while editing, so one misclick on an existing leg
+  // used to discard recorded flight time on save with nothing asked.
+  // A recorded value is never destroyed silently. (Flagged 2026-06-27,
+  // still reachable, closed 2026-07-27.)
+  if (isSim && editingId) {
+    const prev = (Array.isArray(flights) ? flights : []).find(f => f && f.id === editingId);
+    const prevBlock = prev ? (+prev.block || 0) : 0;
+    if (prev && !prev.isSim && prevBlock > 0) {
+      if (!confirm(t('confirm.convertToSim', { h: prevBlock.toFixed(1) }))) return;
+    }
+  }
+
   const flight = {
     id: editingId || (typeof newUUID === 'function' ? newUUID() : Date.now().toString()),
     date,
@@ -17984,6 +17998,7 @@ const STRINGS = {
  // ─── Confirm dialogs
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
  'confirm.removeNavblue': 'Remove the saved iCal URL?',
+ 'confirm.convertToSim': 'This flight has {h} h of recorded flight time. Saving it as a simulator session sets that to zero, because a simulator session is not flight time. Convert it anyway?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
  'confirm.deleteFlightTitle':'Delete flight',
  'confirm.deleteFlight': 'Delete this flight? A snapshot is taken first — you can undo from Settings → Data. The flight won\'t come back on the next sync.',
@@ -19164,6 +19179,7 @@ const STRINGS = {
  // ─── Dialogues de confirmation
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
  'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
+ 'confirm.convertToSim': 'Ce vol porte {h} h de temps de vol enregistré. L’enregistrer comme séance de simulateur met ce temps à zéro, parce qu’une séance de simulateur n’est pas du temps de vol. Convertir quand même ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlightTitle':'Supprimer le vol',
  'confirm.deleteFlight': 'Supprimer ce vol ? Un instantané est pris d\'abord — vous pouvez annuler depuis Paramètres → Données. Le vol ne reviendra pas à la prochaine synchro.',
@@ -27539,7 +27555,7 @@ function applyNightRecheck() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-27-86aa55d';
+const BUILD_VERSION = '2026-07-27-d6e5dad';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

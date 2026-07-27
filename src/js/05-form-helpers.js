@@ -131,6 +131,20 @@ function saveFlight(options) {
 
   const isSim = currentEntryType === 'sim';
 
+  // Converting a REAL flight into a simulator session zeroes its block, and
+  // rightly so: a sim session is not flight time. But the entry-type
+  // buttons stay live while editing, so one misclick on an existing leg
+  // used to discard recorded flight time on save with nothing asked.
+  // A recorded value is never destroyed silently. (Flagged 2026-06-27,
+  // still reachable, closed 2026-07-27.)
+  if (isSim && editingId) {
+    const prev = (Array.isArray(flights) ? flights : []).find(f => f && f.id === editingId);
+    const prevBlock = prev ? (+prev.block || 0) : 0;
+    if (prev && !prev.isSim && prevBlock > 0) {
+      if (!confirm(t('confirm.convertToSim', { h: prevBlock.toFixed(1) }))) return;
+    }
+  }
+
   const flight = {
     id: editingId || (typeof newUUID === 'function' ? newUUID() : Date.now().toString()),
     date,

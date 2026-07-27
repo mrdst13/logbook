@@ -905,6 +905,7 @@ const STRINGS = {
  // ─── Confirm dialogs
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
  'confirm.removeNavblue': 'Remove the saved iCal URL?',
+ 'confirm.convertToSim': 'This flight has {h} h of recorded flight time. Saving it as a simulator session sets that to zero, because a simulator session is not flight time. Convert it anyway?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
  'confirm.deleteFlightTitle':'Delete flight',
  'confirm.deleteFlight': 'Delete this flight? A snapshot is taken first — you can undo from Settings → Data. The flight won\'t come back on the next sync.',
@@ -2085,6 +2086,7 @@ const STRINGS = {
  // ─── Dialogues de confirmation
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
  'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
+ 'confirm.convertToSim': 'Ce vol porte {h} h de temps de vol enregistré. L’enregistrer comme séance de simulateur met ce temps à zéro, parce qu’une séance de simulateur n’est pas du temps de vol. Convertir quand même ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlightTitle':'Supprimer le vol',
  'confirm.deleteFlight': 'Supprimer ce vol ? Un instantané est pris d\'abord — vous pouvez annuler depuis Paramètres → Données. Le vol ne reviendra pas à la prochaine synchro.',
