@@ -926,7 +926,11 @@ function payRender() {
     const idx = all.findIndex(x => x.ym === ym);
     const prior = (idx >= 0 && idx + 1 < all.length) ? all[idx + 1].stub : null;
     if (prior) {
-      const RECUR = [['253', 'Footwear'], ['255', fr ? 'Nettoyage' : 'Cleaning'], ['256', fr ? 'Examen médical' : 'Annual medical'], ['587', fr ? 'Cotisations ALPA' : 'ALPA dues']];
+      // Only items that genuinely appear on EVERY stub. Footwear (253) and
+      // the annual medical (256) are once-a-year reimbursements, as their own
+      // labels say, so demanding them every period raised a permanent red
+      // issue from the month after each one was paid. (Audit 2026-07-27.)
+      const RECUR = [['255', fr ? 'Nettoyage' : 'Cleaning'], ['587', fr ? 'Cotisations ALPA' : 'ALPA dues']];
       const paidIn = (s, code) => { const arr = (+code < 500 ? s.earnings : s.deductions) || []; const it = arr.find(x => x.code === code); return !!(it && it.amount != null && +it.amount !== 0); };
       const missing = RECUR.filter(r => paidIn(prior, r[0]) && !paidIn(parsed, r[0]));
       if (missing.length) {
