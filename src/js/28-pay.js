@@ -621,7 +621,19 @@ function _payQuickCheck(stub, bkx, range, allFls, st) {
     _payLocalMidnightMs(range.start, baseTz), _payLocalMidnightMs(_payNextDay(range.end), baseTz));
   const scoped = (allFls || []).filter(f => f.date && f.date >= range.start && f.date <= range.end);
   if (!scoped.length && !(pdx.awayHours > 0)) return 'none';
-  return Math.abs(pdx.cdnHours - paidH) <= 1.0 ? 'ok' : 'issue';
+  // Not comparable: a trip with no logged return to base, or a layover this
+  // app cannot place in a country, means the computed figure is knowingly
+  // incomplete. Badging that Verified would vouch for a comparison never made.
+  if (pdx.openPairings > 0 || pdx.unknownStations > 0) return 'none';
+  if (Math.abs(pdx.cdnHours - paidH) > 1.0) return 'issue';
+  // Hours alone are not enough. A period can match to the hour and still be
+  // paid at the wrong RATE, which used to come back badged Verified.
+  const paidAmt = (bkx.perDiemCdn && bkx.perDiemCdn.amount != null) ? bkx.perDiemCdn.amount : null;
+  if (paidAmt != null && +st.cdn > 0) {
+    const expected = pdx.cdnHours * (+st.cdn);
+    if (Math.abs(expected - paidAmt) > 0.02 + Math.abs(1.0 * (+st.cdn))) return 'issue';
+  }
+  return 'ok';
 }
 
 function payRender() {

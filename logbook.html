@@ -6021,7 +6021,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div class="field span2 split-row">
  <label class="checkline">
  <input type="checkbox" id="fdp-split">
- <span data-i18n="fdp.split">Split duty</span>
+ <span data-i18n="fdp.split">Split duty (break in suitable accommodation)</span>
  </label>
  <div class="cond" id="fdp-split-detail" style="display:none">
  <div class="field">
@@ -6030,7 +6030,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  <label class="checkline">
  <input type="checkbox" id="fdp-night">
- <span data-i18n="fdp.night">Night break</span>
+ <span data-i18n="fdp.night">Break falls between 00:00 and 05:59</span>
  </label>
  </div>
  </div>
@@ -6079,7 +6079,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
       truth, register-verified) with the active row/column highlighted. -->
  <div class="tbl-wrap" id="dutyRefTable"></div>
  <div class="footnote">
- <p data-i18n="duty.ref.split">Split duty: a ground break of at least 60 minutes extends the duty by (break − 45 min), at 100% at night and 50% by day (CAR 700.50).</p>
+ <p data-i18n="duty.ref.split">Split duty: if the air operator provides a break IN SUITABLE ACCOMMODATION of at least 60 consecutive minutes during the flight duty period, the maximum is extended by (break − 45 min): 100% for a break falling between 00:00 and 05:59, 50% otherwise (CAR 700.50). A sit at the gate or in the crew room is not suitable accommodation.</p>
  <p data-i18n="duty.ref.ceiling">Whatever the table gives, the flight duty period never exceeds 18 h (CAR 700.62).</p>
  <p data-i18n="duty.ref.ext">Unforeseen circumstances: after consulting the crew, the pilot-in-command may extend the flight duty period by up to 2 h for an unaugmented crew (CAR 700.63). This extension is never added automatically to the maximum shown.</p>
  <p data-i18n="duty.ref.src">Source: CAR 700.28.</p>
@@ -7671,7 +7671,21 @@ function recalculateFlightDayNightXC(f, opts = {}) {
   if (!blockOff && f.std_utc && f.std_utc.length === 4) {
     blockOff = buildUTCDateTime(f.date, f.std_utc);
   }
-  if (!blockOff) return f;  // no UTC time to anchor the calc
+  if (!blockOff) {
+    // No UTC time, so no day/night or XC split. The ICAO codes are a pure
+    // function of the route and do not need a clock, so they are still
+    // filled: without them a hand-entered leg was invisible to the Pay page,
+    // which filters on dep_icao/arr_icao, so it could neither be paid nor
+    // close a pairing. Fill-empty only, never over a pilot value.
+    // (Audit 2026-07-27.)
+    if (!f.dep_icao || !f.arr_icao) {
+      const withIcao = { ...f };
+      if (!withIcao.dep_icao) withIcao.dep_icao = depICAO;
+      if (!withIcao.arr_icao) withIcao.arr_icao = arrICAO;
+      return withIcao;
+    }
+    return f;
+  }
 
   const blockOn = new Date(blockOff.getTime() + block * 3600000);
   const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
@@ -15220,35 +15234,35 @@ function _generatePDF() {
 
       doc.setDrawColor(...border);
       doc.setLineWidth(0.3);
-      doc.roundedRect(tableMargin, y, W - 2 * tableMargin, 22, 2, 2, 'S');
+      doc.roundedRect(tableMargin, y, W - 2 * tableMargin, 18, 2, 2, 'S');
 
       // Left bar (color-coded status)
       doc.setFillColor(...statusColor);
-      doc.rect(tableMargin, y, 2, 22, 'F');
+      doc.rect(tableMargin, y, 2, 18, 'F');
 
       // Title + reg
       doc.setTextColor(...textPrimary);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text(item.title, tableMargin + 6, y + 6);
+      doc.text(item.title, tableMargin + 6, y + 5);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(...muted);
-      doc.text(item.reg, tableMargin + 6, y + 11);
+      doc.text(item.reg, tableMargin + 6, y + 9.5);
 
       // Requirement + current state
       doc.setFontSize(8);
       doc.setTextColor(...textPrimary);
-      doc.text('Requirement: ' + item.requirement, tableMargin + 6, y + 16);
+      doc.text('Requirement: ' + item.requirement, tableMargin + 6, y + 13.5);
       doc.setTextColor(...muted);
-      doc.text('Current: ' + item.current, tableMargin + 6, y + 20);
+      doc.text('Current: ' + item.current, tableMargin + 6, y + 17);
 
       // Status badge (right)
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(...statusColor);
-      doc.text(statusText, W - tableMargin - 4, y + 13, { align: 'right' });
+      doc.text(statusText, W - tableMargin - 4, y + 11, { align: 'right' });
 
       y += 26;
     });
@@ -17267,9 +17281,9 @@ const STRINGS = {
  'fdp.dur.ge50': '50 min and more',
  'fdp.dur.vfr': 'Day VFR',
  'fdp.legs': 'Number of flights',
- 'fdp.split': 'Split duty',
+ 'fdp.split': 'Split duty (break in suitable accommodation)',
  'fdp.brk': 'Break (minutes)',
- 'fdp.night': 'Night break',
+ 'fdp.night': 'Break falls between 00:00 and 05:59',
  'fdp.max': 'Maximum flight duty period',
  'fdp.endBy': 'Latest end of duty',
  'fdp.cumTitle': 'Your flight hours across the three regulatory windows',
@@ -17281,7 +17295,7 @@ const STRINGS = {
  'duty.cum.kicker': 'Cumulative limits',
  'duty.ref.kicker': 'Reference',
  'duty.ref.title': 'The table behind the calculation',
- 'duty.ref.split': 'Split duty: a ground break of at least 60 minutes extends the duty by (break − 45 min), at 100% at night and 50% by day (CAR 700.50).',
+ 'duty.ref.split': 'Split duty: if the air operator provides a break in SUITABLE ACCOMMODATION of at least 60 consecutive minutes during the flight duty period, the maximum is extended by (break minus 45 min): 100% for a break falling between 00:00 and 05:59, 50% otherwise (CAR 700.50). A sit at the gate or in the crew room is not suitable accommodation.',
  'duty.ref.ceiling': 'Whatever the table gives, the flight duty period never exceeds 18 h (CAR 700.62).',
  'duty.ref.ext': 'Unforeseen circumstances: after consulting the crew, the pilot-in-command may extend the flight duty period by up to 2 h for an unaugmented crew (CAR 700.63). This extension is never added automatically to the maximum shown.',
  'duty.ref.src': 'Source: CAR 700.28.',
@@ -18444,9 +18458,9 @@ const STRINGS = {
  'fdp.dur.ge50': '50 min et plus',
  'fdp.dur.vfr': 'VFR de jour',
  'fdp.legs': 'Nombre de vols',
- 'fdp.split': 'Service fractionné',
+ 'fdp.split': 'Service fractionné (pause en poste de repos approprié)',
  'fdp.brk': 'Pause (minutes)',
- 'fdp.night': 'Pause de nuit',
+ 'fdp.night': 'Pause comprise entre 00:00 et 05:59',
  'fdp.max': 'Service de vol maximum',
  'fdp.endBy': 'Fin de service au plus tard',
  'fdp.cumTitle': 'Tes heures de vol dans les trois fenêtres réglementaires',
@@ -18458,7 +18472,7 @@ const STRINGS = {
  'duty.cum.kicker': 'Limites cumulatives',
  'duty.ref.kicker': 'Référence',
  'duty.ref.title': 'La table derrière le calcul',
- 'duty.ref.split': 'Service fractionné : une pause au sol d’au moins 60 minutes prolonge le service de (pause − 45 min), à 100 % la nuit et à 50 % le jour (RAC 700.50).',
+ 'duty.ref.split': 'Service fractionné : si l’exploitant fournit une pause en POSTE DE REPOS APPROPRIÉ d’au moins 60 minutes consécutives pendant la période de service de vol, le maximum est prolongé de (pause moins 45 min) : 100 % pour une pause comprise entre 00:00 et 05:59, 50 % sinon (RAC 700.50). Une attente à la porte ou en salle d’équipage n’est pas un poste de repos approprié.',
  'duty.ref.ceiling': 'Peu importe le résultat de la table, la période de service de vol ne dépasse jamais 18 h (RAC 700.62).',
  'duty.ref.ext': 'Circonstances imprévues : après consultation de l’équipage, le commandant de bord peut prolonger la période de service de vol d’au plus 2 h pour un équipage non augmenté (RAC 700.63). Cette prolongation n’est jamais ajoutée automatiquement au maximum affiché.',
  'duty.ref.src': 'Source : RAC 700.28.',
@@ -26386,7 +26400,19 @@ function _payQuickCheck(stub, bkx, range, allFls, st) {
     _payLocalMidnightMs(range.start, baseTz), _payLocalMidnightMs(_payNextDay(range.end), baseTz));
   const scoped = (allFls || []).filter(f => f.date && f.date >= range.start && f.date <= range.end);
   if (!scoped.length && !(pdx.awayHours > 0)) return 'none';
-  return Math.abs(pdx.cdnHours - paidH) <= 1.0 ? 'ok' : 'issue';
+  // Not comparable: a trip with no logged return to base, or a layover this
+  // app cannot place in a country, means the computed figure is knowingly
+  // incomplete. Badging that Verified would vouch for a comparison never made.
+  if (pdx.openPairings > 0 || pdx.unknownStations > 0) return 'none';
+  if (Math.abs(pdx.cdnHours - paidH) > 1.0) return 'issue';
+  // Hours alone are not enough. A period can match to the hour and still be
+  // paid at the wrong RATE, which used to come back badged Verified.
+  const paidAmt = (bkx.perDiemCdn && bkx.perDiemCdn.amount != null) ? bkx.perDiemCdn.amount : null;
+  if (paidAmt != null && +st.cdn > 0) {
+    const expected = pdx.cdnHours * (+st.cdn);
+    if (Math.abs(expected - paidAmt) > 0.02 + Math.abs(1.0 * (+st.cdn))) return 'issue';
+  }
+  return 'ok';
 }
 
 function payRender() {
@@ -27746,7 +27772,7 @@ function applyNightRecheck() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-27-5e46d04';
+const BUILD_VERSION = '2026-07-27-289e25a';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

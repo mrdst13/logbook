@@ -66,6 +66,20 @@ const accepted = convert('true');
 chk('accepting the conversion still works', accepted.block === 0 && accepted.isSim === true);
 chk('the warning names the hours at risk', /1\.2/.test(w.eval("t('confirm.convertToSim', { h: '1.2' })")));
 
+// ── A hand-entered leg with no UTC time still gets its airports ──────
+// recalculateFlightDayNightXC bailed before writing dep_icao/arr_icao when
+// there was no clock to anchor the day/night split, so a leg typed into the
+// form was invisible to the Pay page (which filters on those fields): it
+// could neither be paid nor close a pairing. (Audit 2026-07-27.)
+{
+  const rc = (f) => JSON.parse(w.eval(`JSON.stringify(recalculateFlightDayNightXC(${JSON.stringify(f)}, { skipLandingFill: true }))`));
+  const noClock = rc({ date: '2026-06-10', route: 'YOW-YYZ', block: 1.2, total: 1.2 });
+  chk('a leg with no UTC time still gets its departure airport', noClock.dep_icao === 'CYOW');
+  chk('and its arrival airport', noClock.arr_icao === 'CYYZ');
+  const pilotSet = rc({ date: '2026-06-10', route: 'YOW-YYZ', block: 1.2, dep_icao: 'CYUL' });
+  chk('a pilot-set airport is never overwritten', pilotSet.dep_icao === 'CYUL');
+}
+
 if (failures.length) {
   console.error(`\n✗ merge test: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);

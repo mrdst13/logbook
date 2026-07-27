@@ -712,35 +712,35 @@ function _generatePDF() {
 
       doc.setDrawColor(...border);
       doc.setLineWidth(0.3);
-      doc.roundedRect(tableMargin, y, W - 2 * tableMargin, 22, 2, 2, 'S');
+      doc.roundedRect(tableMargin, y, W - 2 * tableMargin, 18, 2, 2, 'S');
 
       // Left bar (color-coded status)
       doc.setFillColor(...statusColor);
-      doc.rect(tableMargin, y, 2, 22, 'F');
+      doc.rect(tableMargin, y, 2, 18, 'F');
 
       // Title + reg
       doc.setTextColor(...textPrimary);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text(item.title, tableMargin + 6, y + 6);
+      doc.text(item.title, tableMargin + 6, y + 5);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(...muted);
-      doc.text(item.reg, tableMargin + 6, y + 11);
+      doc.text(item.reg, tableMargin + 6, y + 9.5);
 
       // Requirement + current state
       doc.setFontSize(8);
       doc.setTextColor(...textPrimary);
-      doc.text('Requirement: ' + item.requirement, tableMargin + 6, y + 16);
+      doc.text('Requirement: ' + item.requirement, tableMargin + 6, y + 13.5);
       doc.setTextColor(...muted);
-      doc.text('Current: ' + item.current, tableMargin + 6, y + 20);
+      doc.text('Current: ' + item.current, tableMargin + 6, y + 17);
 
       // Status badge (right)
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(...statusColor);
-      doc.text(statusText, W - tableMargin - 4, y + 13, { align: 'right' });
+      doc.text(statusText, W - tableMargin - 4, y + 11, { align: 'right' });
 
       y += 26;
     });

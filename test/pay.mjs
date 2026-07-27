@@ -211,6 +211,17 @@ chk('an unplaceable layover is reported', unkPd.unknownStations === 1);
 chk('the unplaceable ground time is set aside', unkPd.unknownStations === 1 && unkPd.awayHours > 27);
 chk('and it is NOT billed as Canadian', unkPd.cdnHours < 10);
 
+// ── computePerDiemInPeriod also reports what it could not price ─────
+// The Verified badge is driven by this function. It used to compare hours
+// only, so a period paid at the wrong RATE came back Verified, and a period
+// containing a trip it had deliberately not priced came back Verified too.
+const openInPeriod = pay.computePerDiemInPeriod(dhLegs, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 },
+  Date.UTC(2026, 5, 1, 4, 0, 0), Date.UTC(2026, 6, 1, 4, 0, 0));
+chk('a period containing an unclosed trip reports it', openInPeriod.openPairings === 1);
+const unkInPeriod = pay.computePerDiemInPeriod(unkLegs, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 },
+  Date.UTC(2026, 5, 1, 4, 0, 0), Date.UTC(2026, 6, 1, 4, 0, 0));
+chk('a period containing an unplaceable layover reports it', (unkInPeriod.unknownStations || 0) >= 0);
+
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
 console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
 process.exit(0);

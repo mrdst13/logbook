@@ -242,7 +242,21 @@ function recalculateFlightDayNightXC(f, opts = {}) {
   if (!blockOff && f.std_utc && f.std_utc.length === 4) {
     blockOff = buildUTCDateTime(f.date, f.std_utc);
   }
-  if (!blockOff) return f;  // no UTC time to anchor the calc
+  if (!blockOff) {
+    // No UTC time, so no day/night or XC split. The ICAO codes are a pure
+    // function of the route and do not need a clock, so they are still
+    // filled: without them a hand-entered leg was invisible to the Pay page,
+    // which filters on dep_icao/arr_icao, so it could neither be paid nor
+    // close a pairing. Fill-empty only, never over a pilot value.
+    // (Audit 2026-07-27.)
+    if (!f.dep_icao || !f.arr_icao) {
+      const withIcao = { ...f };
+      if (!withIcao.dep_icao) withIcao.dep_icao = depICAO;
+      if (!withIcao.arr_icao) withIcao.arr_icao = arrICAO;
+      return withIcao;
+    }
+    return f;
+  }
 
   const blockOn = new Date(blockOff.getTime() + block * 3600000);
   const split = calculateDayNightSplit(blockOff, blockOn, depCoords, arrCoords);
