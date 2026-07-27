@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════
 //  NIGHT RECHECK — repair the day/night split on flights already logged
 // ═══════════════════════════════════════════════════════════════════
-// Two defects, both fixed on 2026-07-26, both of which had already
-// written values into the logbook:
+// Two defects, both fixed on 2026-07-26, had already written values into
+// the logbook:
 //
-//   1. The block-off anchor. This feed puts the CHECK-IN in DTSTART, and
+//   1. The block-off anchor. This feed puts the CHECK-IN in DTSTART and
 //      Cumulo read it as the departure. On the first leg of a duty that
 //      is a full hour early (PD589: DTSTART/CI 1000Z against STD 1100Z),
 //      so the RAC 101.01 split was computed over the wrong window.
@@ -13,24 +13,39 @@
 //      not a whole number of minutes, and a leg flown entirely at night
 //      came out with a NEGATIVE day figure.
 //
-// Repairing this cannot be done blind. Two rules govern it:
+// This is the only code in Cumulo that REWRITES values already in the
+// logbook, so it is built as a review screen, not a migration. The first
+// version of it was taken apart by an adversarial review on 2026-07-26
+// which found fourteen defects; the rules below are what came out of it.
 //
-//   NEVER overwrite a value the pilot put there. For each flight the tool
-//   recomputes what the OLD code would have produced. If the stored value
-//   matches, the app wrote it and may be corrected. If it does not match,
-//   he typed or edited it, and the row is left alone and reported as
-//   such. See feedback_recalc_never_overwrites_pilot_values.
+//   AUTHORSHIP. A stored split may be corrected only when it is
+//   reproducible as this app's own output: the OLD algorithm or the
+//   CURRENT one, at the stored anchor or at the roster anchor. Anything
+//   else was set by the pilot and is left alone. Testing only the old
+//   algorithm made the tool accuse him of hand-entering the values it had
+//   itself written one run earlier.
 //
-//   NEVER invent an anchor. The correct anchor is the leg's STD, which
-//   the logbook does not store, so the tool re-reads the roster feed and
-//   matches by the roster's own UID. A flight whose leg is no longer
-//   published can only have the arithmetic corrected, and the report says
-//   so per row rather than pretending the fix was complete.
+//   IDENTITY. Rows are addressed by id, never by array index, and their
+//   current values are re-checked at write time. A cloud pull can delete
+//   a row while the panel is open, and index-based writing then landed a
+//   correction, and an invented departure time, on a completely different
+//   flight.
 //
-// Nothing is written until the pilot presses Apply, and a snapshot is
-// taken first so Undo works.
+//   EVERY COLUMN WRITTEN IS A COLUMN SHOWN. Cross-country hours get the
+//   same authorship test as the main pair and appear in the table when
+//   they will change. The first version mirrored the split into
+//   cross-country without checking or displaying it.
+//
+//   NEVER INVENT AN ANCHOR. The correct one is the leg's STD, which the
+//   logbook does not store, so the roster is re-read and matched on the
+//   roster's own UID. If the roster cannot be read at all, Apply is
+//   refused rather than writing a value derived from the anchor known to
+//   be wrong.
+//
+// Nothing is written until Apply, and a snapshot is taken first.
 
 const NIGHT_RECHECK_STEP_MS = 60000;
+const NIGHT_RECHECK_EPS = 0.005;
 
 // The day/night split EXACTLY as it was computed before 2026-07-26, kept
 // only so the tool can recognise its own past output. Do not call it for
@@ -64,9 +79,29 @@ function _nightRecheckColumns(f) {
   return null;
 }
 
-// Build the UID -> block-off map from the live roster feed. Returns an
-// empty map on any failure: the tool then reports "arithmetic only" per
-// row instead of silently using a wrong anchor.
+// Every split this app could have produced for a leg, across both
+// algorithms and both plausible anchors. A stored pair matching any of
+// them is app output and may be corrected; anything else is the pilot's.
+function _nightRecheckAppOutputs(anchors, block, depCoords, arrCoords) {
+  const out = [];
+  for (const a of anchors) {
+    if (!a) continue;
+    const on = new Date(a.getTime() + block * 3600000);
+    out.push(_legacyDayNightSplit(a, on, depCoords, arrCoords));
+    out.push(calculateDayNightSplit(a, on, depCoords, arrCoords));
+  }
+  return out;
+}
+
+function _nightRecheckMatches(day, night, candidates) {
+  return candidates.some(c =>
+    Math.abs(day - c.dayHours) <= NIGHT_RECHECK_EPS &&
+    Math.abs(night - c.nightHours) <= NIGHT_RECHECK_EPS);
+}
+
+// Build the UID -> block-off map from the live roster feed. `ok` is false
+// on any failure, and the caller then refuses to write rather than
+// deriving hours from an anchor it knows to be wrong.
 async function _nightRecheckFetchAnchors() {
   const url = localStorage.getItem(NAVBLUE_URL_KEY);
   if (!url) return { map: {}, ok: false, reason: 'no-url' };
@@ -100,7 +135,10 @@ async function _nightRecheckFetchAnchors() {
 function buildNightRecheckPlan(anchorMap) {
   const map = anchorMap || {};
   const rows = [];
-  const skipped = { edited: 0, noAnchor: 0, noCoords: 0, noBlock: 0 };
+  // Counted separately so each can be described honestly. Lumping them
+  // together produced a panel that told him he had hand-entered hours he
+  // had never touched.
+  const skipped = { pilotSet: 0, hasActual: 0, noAnchor: 0, noCoords: 0, noBlock: 0 };
   if (!Array.isArray(flights)) return { rows, skipped };
 
   for (let i = 0; i < flights.length; i++) {
@@ -108,42 +146,50 @@ function buildNightRecheckPlan(anchorMap) {
     if (!f || f.isSim) continue;
     const block = +f.block || +f.total || 0;
     if (block <= 0) { skipped.noBlock++; continue; }
-    // Only roster-derived rows: a hand-typed flight has no stored anchor
-    // and nothing here can improve it.
     const storedAnchor = f.dtstart_utc ? new Date(f.dtstart_utc) : null;
     if (!storedAnchor || isNaN(storedAnchor.getTime())) { skipped.noAnchor++; continue; }
-    // A pilot-supplied actual departure already wins over any roster
-    // anchor elsewhere in the app, so those rows are not this tool's
-    // business.
-    if (f.atd_utc) { skipped.edited++; continue; }
+    // A recorded actual departure is a better anchor than anything this
+    // tool has, and rebuilding the split from it is a different job.
+    if (f.atd_utc) { skipped.hasActual++; continue; }
     const depCoords = AIRPORT_COORDS[f.dep_icao];
     const arrCoords = AIRPORT_COORDS[f.arr_icao];
     if (!depCoords || !arrCoords) { skipped.noCoords++; continue; }
     const cols = _nightRecheckColumns(f);
     if (!cols) { skipped.noBlock++; continue; }
 
-    // Did the app write this value, or did he?
-    const legacyOn = new Date(storedAnchor.getTime() + block * 3600000);
-    const legacy = _legacyDayNightSplit(storedAnchor, legacyOn, depCoords, arrCoords);
+    const uid = f.navblueUid ? String(f.navblueUid) : '';
+    const freshIso = uid && map[uid] ? map[uid] : '';
+    const rosterAnchor = freshIso ? new Date(freshIso) : null;
+    const anchor = rosterAnchor || storedAnchor;
+    // Instants, not strings: the same moment comes back from Supabase in
+    // the offset form and would otherwise read as a change.
+    const anchorFixed = !!freshIso && Date.parse(freshIso) !== Date.parse(f.dtstart_utc);
+
+    const candidates = _nightRecheckAppOutputs([storedAnchor, rosterAnchor], block, depCoords, arrCoords);
     const curDay = +f[cols.day] || 0;
     const curNight = +f[cols.night] || 0;
-    if (Math.abs(curDay - legacy.dayHours) > 0.005 || Math.abs(curNight - legacy.nightHours) > 0.005) {
-      skipped.edited++;
-      continue;
-    }
+    if (!_nightRecheckMatches(curDay, curNight, candidates)) { skipped.pilotSet++; continue; }
 
-    // Correct anchor when the roster still publishes the leg.
-    const uid = f.navblueUid ? String(f.navblueUid) : '';
-    const freshAnchorIso = uid && map[uid] ? map[uid] : '';
-    const anchor = freshAnchorIso ? new Date(freshAnchorIso) : storedAnchor;
-    const anchorFixed = !!freshAnchorIso && freshAnchorIso !== f.dtstart_utc;
     const blockOn = new Date(anchor.getTime() + block * 3600000);
     const fixed = calculateDayNightSplit(anchor, blockOn, depCoords, arrCoords);
 
-    if (Math.abs(fixed.dayHours - curDay) < 0.005 && Math.abs(fixed.nightHours - curNight) < 0.005) continue;
+    // Cross-country gets its own authorship test. It is only rewritten
+    // when the app wrote it too, and only then is it shown.
+    const curXcDay = +f[cols.xcDay] || 0;
+    const curXcNight = +f[cols.xcNight] || 0;
+    const hasXc = (curXcDay + curXcNight) > 0;
+    const xcIsAppWritten = hasXc && _nightRecheckMatches(curXcDay, curXcNight, candidates);
+    const xcChanges = xcIsAppWritten &&
+      (Math.abs(fixed.dayHours - curXcDay) > NIGHT_RECHECK_EPS ||
+       Math.abs(fixed.nightHours - curXcNight) > NIGHT_RECHECK_EPS);
+
+    const meChanges = Math.abs(fixed.dayHours - curDay) > NIGHT_RECHECK_EPS ||
+                      Math.abs(fixed.nightHours - curNight) > NIGHT_RECHECK_EPS;
+    if (!meChanges && !xcChanges && !anchorFixed) continue;
+    if (!meChanges && !xcChanges) continue;
 
     rows.push({
-      idx: i,
+      id: f.id,
       date: f.date,
       flightNum: f.flightNum || '',
       route: f.route || '',
@@ -151,6 +197,9 @@ function buildNightRecheckPlan(anchorMap) {
       cols: cols,
       fromDay: curDay, fromNight: curNight,
       toDay: fixed.dayHours, toNight: fixed.nightHours,
+      touchesXc: xcChanges,
+      fromXcDay: curXcDay, fromXcNight: curXcNight,
+      xcKept: hasXc && !xcIsAppWritten,
       anchorFixed: anchorFixed,
       newAnchor: anchorFixed ? anchor.toISOString() : ''
     });
@@ -166,31 +215,37 @@ async function openNightRecheck() {
   let anchors = { map: {}, ok: false, reason: 'no-url' };
   try { anchors = await _nightRecheckFetchAnchors(); } catch (e) { /* handled below */ }
   const plan = buildNightRecheckPlan(anchors.map);
-  _nightRecheckPlan = plan.rows;
+  // Apply is only offered when the roster was actually read. Writing an
+  // arithmetic-only value derived from the known-wrong anchor would look
+  // like a repair while leaving the real error in place.
+  _nightRecheckPlan = anchors.ok ? plan.rows : null;
   if (btn) { btn.disabled = false; btn.textContent = t('nightRecheck.btn'); }
 
   const overlay = document.getElementById('importPreview');
   if (!overlay) { showToast(t('nightRecheck.noUi'), 'error'); return; }
 
-  const anchorNote = anchors.ok
-    ? t('nightRecheck.rosterRead')
-    : t('nightRecheck.rosterMissed');
+  const anchorNote = anchors.ok ? t('nightRecheck.rosterRead') : t('nightRecheck.rosterMissed');
   const fixedAnchors = plan.rows.filter(r => r.anchorFixed).length;
   const netNight = plan.rows.reduce((s, r) => s + (r.toNight - r.fromNight), 0);
+  const one = plan.rows.length === 1;
 
-  const body = plan.rows.length === 0
-    ? `<p style="font-size:14px; line-height:1.6;">${esc(t('nightRecheck.nothing'))}</p>`
-    : `
-      <p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:var(--s-3);">
-        ${esc(t('nightRecheck.intro', { n: plan.rows.length, anchors: fixedAnchors, night: (netNight >= 0 ? '+' : '') + netNight.toFixed(2) }))}
-      </p>
-      <p style="font-size:12px; color:var(--text-secondary); margin-bottom:var(--s-3);">${esc(anchorNote)}</p>
+  const head = plan.rows.length === 0
+    ? `<p style="font-size:14px; line-height:1.6;">${esc(anchors.ok ? t('nightRecheck.nothing') : t('nightRecheck.nothingOffline'))}</p>`
+    : `<p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:var(--s-3);">
+         ${esc(t(one ? 'nightRecheck.introOne' : 'nightRecheck.intro', {
+           n: plan.rows.length, anchors: fixedAnchors,
+           night: (netNight >= 0 ? '+' : '') + netNight.toFixed(2)
+         }))}
+       </p>`;
+
+  const table = plan.rows.length === 0 ? '' : `
       <div style="overflow-x:auto;">
       <table style="width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:11px;">
         <thead><tr style="text-align:left; color:var(--text-muted);">
           <th style="padding:6px 8px;">${esc(t('nightRecheck.colFlight'))}</th>
           <th style="padding:6px 8px;">${esc(t('nightRecheck.colDay'))}</th>
           <th style="padding:6px 8px;">${esc(t('nightRecheck.colNight'))}</th>
+          <th style="padding:6px 8px;">${esc(t('nightRecheck.colXc'))}</th>
           <th style="padding:6px 8px;">${esc(t('nightRecheck.colWhy'))}</th>
         </tr></thead>
         <tbody>
@@ -199,39 +254,53 @@ async function openNightRecheck() {
             <td style="padding:6px 8px;">${esc(r.date)} ${esc(r.flightNum)} ${esc(r.route)}</td>
             <td style="padding:6px 8px;">${r.fromDay.toFixed(2)} &rarr; <strong>${r.toDay.toFixed(2)}</strong></td>
             <td style="padding:6px 8px;">${r.fromNight.toFixed(2)} &rarr; <strong>${r.toNight.toFixed(2)}</strong></td>
+            <td style="padding:6px 8px;">${r.touchesXc
+              ? `${r.fromXcDay.toFixed(2)}/${r.fromXcNight.toFixed(2)} &rarr; <strong>${r.toDay.toFixed(2)}/${r.toNight.toFixed(2)}</strong>`
+              : esc(r.xcKept ? t('nightRecheck.xcKept') : t('nightRecheck.xcNone'))}</td>
             <td style="padding:6px 8px; color:var(--text-secondary);">${esc(r.anchorFixed ? t('nightRecheck.whyAnchor') : t('nightRecheck.whyMinute'))}</td>
           </tr>`).join('')}
         </tbody>
       </table></div>`;
 
-  const skippedNote = (plan.skipped.edited > 0)
-    ? `<p style="font-size:12px; color:var(--text-secondary); margin-top:var(--s-3);">${esc(t('nightRecheck.skippedEdited', { n: plan.skipped.edited }))}</p>`
-    : '';
+  const notes = [];
+  notes.push(anchorNote);
+  if (skippedCount(plan.skipped.pilotSet)) notes.push(t('nightRecheck.skippedPilot', { n: plan.skipped.pilotSet }));
+  if (skippedCount(plan.skipped.hasActual)) notes.push(t('nightRecheck.skippedActual', { n: plan.skipped.hasActual }));
+  const notesHtml = `<div style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:var(--s-3);">${
+    notes.map(n => `<p style="margin:0 0 6px 0;">${esc(n)}</p>`).join('')}</div>`;
 
   document.getElementById('importSubtitle').textContent = t('nightRecheck.subtitle');
-  document.getElementById('extractedList').innerHTML = body + skippedNote;
+  document.getElementById('extractedList').innerHTML = head + table + notesHtml;
 
+  const canApply = anchors.ok && plan.rows.length > 0;
   const confirmBtn = document.getElementById('importConfirmBtn');
-  confirmBtn.textContent = plan.rows.length ? t('nightRecheck.apply', { n: plan.rows.length }) : t('nightRecheck.close');
+  confirmBtn.textContent = canApply
+    ? t(one ? 'nightRecheck.applyOne' : 'nightRecheck.apply', { n: plan.rows.length })
+    : t('nightRecheck.close');
   confirmBtn.disabled = false;
-  confirmBtn.onclick = () => (plan.rows.length ? applyNightRecheck() : closeImportOverlay());
+  confirmBtn.onclick = () => (canApply ? applyNightRecheck() : closeImportOverlay());
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
+
+function skippedCount(n) { return (+n || 0) > 0; }
 
 function applyNightRecheck() {
   const rows = _nightRecheckPlan || [];
   if (!rows.length) { closeImportOverlay(); return; }
   if (typeof snapshotBeforeOperation === 'function') snapshotBeforeOperation('Night recheck');
-  let changed = 0;
+  let changed = 0, dropped = 0;
   for (const r of rows) {
-    const f = flights[r.idx];
-    if (!f) continue;
+    // By id, never by index: a cloud pull can remove a row while the
+    // panel is open, and every later index then shifts by one.
+    const f = r.id ? flights.find(x => x && x.id === r.id) : null;
+    if (!f) { dropped++; continue; }
+    // And the row must still hold the values that were reviewed.
+    if (Math.abs((+f[r.cols.day] || 0) - r.fromDay) > NIGHT_RECHECK_EPS ||
+        Math.abs((+f[r.cols.night] || 0) - r.fromNight) > NIGHT_RECHECK_EPS) { dropped++; continue; }
     f[r.cols.day] = r.toDay;
     f[r.cols.night] = r.toNight;
-    // Cross-country mirrors the same split when the leg counts as XC.
-    const xcTotal = (+f[r.cols.xcDay] || 0) + (+f[r.cols.xcNight] || 0);
-    if (xcTotal > 0) {
+    if (r.touchesXc) {
       f[r.cols.xcDay] = r.toDay;
       f[r.cols.xcNight] = r.toNight;
     }
@@ -243,5 +312,7 @@ function applyNightRecheck() {
   closeImportOverlay();
   if (typeof updateUndoButton === 'function') updateUndoButton();
   if (typeof renderDashboard === 'function') renderDashboard();
-  showToast(t('nightRecheck.done', { n: changed }), 'success');
+  showToast(dropped > 0
+    ? t('nightRecheck.donePartial', { n: changed, dropped: dropped })
+    : t('nightRecheck.done', { n: changed }), 'success');
 }

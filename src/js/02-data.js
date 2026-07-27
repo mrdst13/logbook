@@ -433,6 +433,7 @@ function _snapOpLabel(op) {
     'Crew names enrichment from PDF': 'undo.op.enrich',
     'Cloud migration to Supabase': 'undo.op.migration',
     'delete-flight': 'undo.op.deleteFlight',
+    'Night recheck': 'undo.op.nightRecheck',
   };
   return map[op] ? t(map[op]) : op;
 }
