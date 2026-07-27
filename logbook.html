@@ -6665,6 +6665,14 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 
  <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
  <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.snapHistory.title">Restore points</div>
+ <div class="settings-row-desc" data-i18n="settings.snapHistory.desc">The last ten states Cumulo saved before a bulk operation, with what each one was taken before. Undo only takes back the most recent; from here you can go back to any of them.</div>
+ </div>
+ <button class="btn btn-outline" onclick="showSnapshotHistoryModal()" id="snapHistoryBtn" data-i18n="settings.snapHistory.btn">View</button>
+ </div>
+
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
+ <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="nightRecheck.rowTitle">Recheck day and night hours</div>
  <div class="settings-row-desc" data-i18n="nightRecheck.rowDesc">Two errors in how the day/night split was computed were corrected on 26 July 2026. Flights logged before that keep the old figures. This shows you exactly which ones change and by how much, and writes nothing until you approve.</div>
  </div>
@@ -7913,9 +7921,13 @@ function restoreSnapshot(index) {
   showToast(t('toast.snapshotRestored', { n: snap.flightCount, age: ageString(Date.now() - snap.timestamp) }), 'success');
 }
 
+// Reachable from Settings, Data, Recovery. Before 2026-07-27 this function
+// existed but nothing called it, so the ten stored recovery points could
+// not be seen at all: Undo could only take back the most recent one, with
+// no way to know what the others were.
 function showSnapshotHistoryModal() {
   const history = loadSnapshots();
-  if (history.length === 0) return;
+  if (history.length === 0) { showToast(t('undo.none')); return; }
   const overlay = document.getElementById('importPreview');
   // Use the import-overlay as a generic modal
   const _dateLocale = (typeof getLang === 'function' && getLang() === 'fr') ? 'fr-CA' : 'en-CA';
@@ -17247,6 +17259,9 @@ const STRINGS = {
  'settings.permanent.title': 'Permanent actions',
  'settings.permanent.descHtml': '<strong>Cannot be undone.</strong> Export a JSON backup first if you’re not sure.',
  'settings.undo.desc': 'Cumulo snapshots automatically before each iCal sync. Restore a previous state — your data is never deleted without your explicit per-flight confirmation.',
+ 'settings.snapHistory.title': 'Restore points',
+ 'settings.snapHistory.desc': 'The last ten states Cumulo saved before a bulk operation, with what each one was taken before. Undo only takes back the most recent; from here you can go back to any of them.',
+ 'settings.snapHistory.btn': 'View',
  'settings.backup.title': 'Download backup',
  'settings.backup.desc': 'Save a JSON snapshot of all flights + profile to your device.',
  'settings.restore.title': 'Restore from backup',
@@ -18420,6 +18435,9 @@ const STRINGS = {
  'settings.permanent.title': 'Actions permanentes',
  'settings.permanent.descHtml': '<strong>Irréversible.</strong> Exportez d’abord une sauvegarde JSON en cas de doute.',
  'settings.undo.desc': 'Cumulo prend un instantané automatique avant chaque synchro iCal. Vous pouvez restaurer un état antérieur — vos données ne sont jamais supprimées sans votre confirmation explicite par vol.',
+ 'settings.snapHistory.title': 'Points de restauration',
+ 'settings.snapHistory.desc': 'Les dix derniers états enregistrés par Cumulo avant une opération en lot, avec ce qui allait suivre dans chaque cas. Annuler ne reprend que le plus récent ; d’ici vous pouvez revenir à n’importe lequel.',
+ 'settings.snapHistory.btn': 'Voir',
  'settings.backup.title': 'Télécharger une sauvegarde',
  'settings.backup.desc': 'Enregistre un instantané JSON de tous les vols et du profil sur votre appareil.',
  'settings.restore.title': 'Restaurer une sauvegarde',
@@ -27521,7 +27539,7 @@ function applyNightRecheck() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-27-59fc4f3';
+const BUILD_VERSION = '2026-07-27-86aa55d';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

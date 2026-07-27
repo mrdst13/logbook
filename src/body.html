@@ -1572,6 +1572,14 @@
 
  <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
  <div class="settings-row-info">
+ <div class="settings-row-title" data-i18n="settings.snapHistory.title">Restore points</div>
+ <div class="settings-row-desc" data-i18n="settings.snapHistory.desc">The last ten states Cumulo saved before a bulk operation, with what each one was taken before. Undo only takes back the most recent; from here you can go back to any of them.</div>
+ </div>
+ <button class="btn btn-outline" onclick="showSnapshotHistoryModal()" id="snapHistoryBtn" data-i18n="settings.snapHistory.btn">View</button>
+ </div>
+
+ <div class="settings-row" style="border:0;padding:var(--s-3) 0;border-top:1px solid var(--border);">
+ <div class="settings-row-info">
  <div class="settings-row-title" data-i18n="nightRecheck.rowTitle">Recheck day and night hours</div>
  <div class="settings-row-desc" data-i18n="nightRecheck.rowDesc">Two errors in how the day/night split was computed were corrected on 26 July 2026. Flights logged before that keep the old figures. This shows you exactly which ones change and by how much, and writes nothing until you approve.</div>
  </div>

@@ -116,6 +116,35 @@ if (typeof window.showPage === 'function') {
   }
 }
 
+// ── Every wired control must call a function that exists ─────────────
+// showSnapshotHistoryModal was fully written, translated and unreachable
+// for months because no element ever called it: the ten restore points
+// could not be seen at all. A dead handler stays invisible until the day
+// someone needs it, so the whole page is swept rather than that one
+// button. Covers onclick and onchange on every element in the app.
+let handlersChecked = 0;
+{
+  const seen = new Set();
+  const KEYWORDS = ['if', 'for', 'while', 'switch', 'catch', 'return', 'typeof', 'function', 'setTimeout', 'event'];
+  for (const el of document.querySelectorAll('[onclick],[onchange]')) {
+    for (const attr of ['onclick', 'onchange']) {
+      const code = el.getAttribute(attr);
+      if (!code) continue;
+      for (const m of code.matchAll(/(?:^|[^\w.$])([A-Za-z_$][\w$]*)\s*\(/g)) {
+        const name = m[1];
+        if (KEYWORDS.includes(name)) continue;
+        const key = name + '|' + (el.id || el.getAttribute('data-i18n') || attr);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        handlersChecked++;
+        if (typeof window[name] !== 'function') {
+          fail(`dead handler: ${attr}="${code.slice(0, 60)}" calls ${name}(), which is not defined`);
+        }
+      }
+    }
+  }
+}
+
 // ── Report ───────────────────────────────────────────────────────────
 if (failures.length) {
   console.error(`\n✗ smoke test: ${failures.length} failure(s)\n`);
@@ -123,5 +152,5 @@ if (failures.length) {
   console.error('');
   process.exit(1);
 }
-console.log(`✓ smoke test passed — booted + visited ${pagesToVisit.length} pages, unknown-id fallback OK`);
+console.log(`✓ smoke test passed — booted + visited ${pagesToVisit.length} pages, unknown-id fallback OK, ${handlersChecked} wired handlers all resolve`);
 process.exit(0);

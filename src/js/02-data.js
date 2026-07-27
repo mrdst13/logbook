@@ -492,9 +492,13 @@ function restoreSnapshot(index) {
   showToast(t('toast.snapshotRestored', { n: snap.flightCount, age: ageString(Date.now() - snap.timestamp) }), 'success');
 }
 
+// Reachable from Settings, Data, Recovery. Before 2026-07-27 this function
+// existed but nothing called it, so the ten stored recovery points could
+// not be seen at all: Undo could only take back the most recent one, with
+// no way to know what the others were.
 function showSnapshotHistoryModal() {
   const history = loadSnapshots();
-  if (history.length === 0) return;
+  if (history.length === 0) { showToast(t('undo.none')); return; }
   const overlay = document.getElementById('importPreview');
   // Use the import-overlay as a generic modal
   const _dateLocale = (typeof getLang === 'function' && getLang() === 'fr') ? 'fr-CA' : 'en-CA';
