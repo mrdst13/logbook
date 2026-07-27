@@ -165,6 +165,29 @@ chk('clipped per diem: 2 pairings touch the period', clip1.pairings === 2);
 const clip0 = pay.computePerDiemInPeriod(straddlePd.slice(0, 2), 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 }, Date.UTC(2026, 6, 1, 4, 0, 0), Date.UTC(2026, 6, 15, 4, 0, 0));
 chk('clipped per diem: trip outside window → 0 h', near(clip0.awayHours, 0));
 
+// ── A trip that ends with a deadhead home (audit 2026-07-27) ────────
+// Deadheads are never logged, so such a trip has no leg arriving at base.
+// Arrival-at-base used to be the ONLY close condition, so the NEXT trip was
+// appended and per diem billed every day spent at home in between. On his own
+// roster that merged four trips and reported a $640 shortfall against a stub
+// Porter had paid correctly.
+const dhLegs = [
+  { date: '2026-06-18', dep_icao: 'CYOW', arr_icao: 'CYYZ', dtstart_utc: '2026-06-18T13:00:00.000Z', block: 1.0, duty: 2.0, ci_utc: '1230', co_utc: '1415' },
+  { date: '2026-06-24', dep_icao: 'CYOW', arr_icao: 'CYHZ', dtstart_utc: '2026-06-24T13:00:00.000Z', block: 1.5, duty: 3.0, ci_utc: '1230', co_utc: '1430' },
+  { date: '2026-06-25', dep_icao: 'CYHZ', arr_icao: 'CYOW', dtstart_utc: '2026-06-25T13:00:00.000Z', block: 1.5, duty: 3.0, ci_utc: '1230', co_utc: '1430' }
+];
+const dhGroups = pay.groupPairings(dhLegs, 'CYOW');
+chk('deadhead home: the trips are NOT merged', dhGroups.length === 2);
+chk('deadhead home: the orphan trip is flagged open-ended', dhGroups[0].openEnded === true);
+chk('deadhead home: the complete trip is not flagged', dhGroups[1].openEnded === false);
+const dhPd = pay.computePerDiem(dhLegs, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1 });
+chk('deadhead home: the open trip is reported, not priced', dhPd.openPairings === 1);
+chk('deadhead home: away time is the complete trip only, not the days at home', dhPd.awayHours < 30);
+// The merged figure was 170.75 h. Anything near it means the bug is back.
+chk('deadhead home: days spent at home are never billed', dhPd.awayHours < 100);
+const dhUs = pay.usPerDiemDays(dhLegs, 'CYOW');
+chk('deadhead home: no fabricated US layover', dhUs.length === 0);
+
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
 console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
 process.exit(0);

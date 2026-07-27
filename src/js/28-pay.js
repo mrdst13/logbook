@@ -63,11 +63,33 @@ function groupPairings(flights, baseIcao) {
   const legs = (flights || []).filter(f => f.dep_icao && f.arr_icao && !isNaN(_payOffMs(f)))
     .slice().sort((a, b) => _payOffMs(a) - _payOffMs(b));
   const pairings = []; let cur = [];
+  // openEnded = no logged return to base, so this pairing's release time is
+  // UNKNOWN and it must not be priced.
+  //
+  // Arrival at base used to be the ONLY way a pairing closed. Deadheads are
+  // never logged, since they are not flown time, so a trip that ends by
+  // deadheading home never closed and the NEXT trip was appended to it. Per
+  // diem was then measured from the first check-in straight through to the
+  // last check-out, billing every day spent at home in between. On Martin's
+  // own 73-leg roster that merged four separate trips and made the page
+  // report a $640 shortfall against a stub Porter had paid correctly.
+  // (Audit 2026-07-27.)
+  const close = () => {
+    if (!cur.length) return;
+    cur.openEnded = String(cur[cur.length - 1].arr_icao).toUpperCase() !== base;
+    pairings.push(cur);
+    cur = [];
+  };
   for (const f of legs) {
+    const prev = cur[cur.length - 1];
+    // A leg that does not depart where the previous one arrived is direct
+    // evidence of an un-logged deadhead or positioning: the previous trip
+    // ended there. An observed break in the chain, not a guessed threshold.
+    if (prev && String(prev.arr_icao).toUpperCase() !== String(f.dep_icao).toUpperCase()) close();
     cur.push(f);
-    if (String(f.arr_icao).toUpperCase() === base) { pairings.push(cur); cur = []; }  // back at base → close
+    if (String(f.arr_icao).toUpperCase() === base) close();   // back at base → close
   }
-  if (cur.length) pairings.push(cur);   // still-open pairing (not yet returned to base)
+  close();
   return pairings;
 }
 
@@ -95,12 +117,21 @@ function pairingPerDiem(pairing) {
 function computePerDiem(flights, baseIcao, rates) {
   const r = rates || {};
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
-  let awayH = 0, usH = 0, cdnH = 0;
+  let awayH = 0, usH = 0, cdnH = 0, openP = 0;
   const pairings = groupPairings(flights, baseIcao);
-  pairings.forEach(p => { const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours; });
+  // An open-ended pairing is skipped, never priced. Its release time is
+  // genuinely unknown, and counting it to the last logged check-out would
+  // understate the away time as dishonestly as merging overstated it.
+  // The count is returned so the page can say so instead of asserting a
+  // discrepancy it cannot support.
+  pairings.forEach(p => {
+    if (p.openEnded) { openP++; return; }
+    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours;
+  });
   const round2 = n => Math.round(n * 100) / 100;
   return {
     pairings: pairings.length,
+    openPairings: openP,
     awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
     cdnAmount: round2(cdnH * cdnRate),
     usAmount: round2(usH * usUsd * fx),
@@ -183,6 +214,10 @@ function deriveUsFx(stubUsAmount, usHours, usUsdRate) {
 function usPerDiemDays(flights, baseIcao) {
   const out = [];
   groupPairings(flights, baseIcao).forEach(p => {
+    // Same rule as computePerDiem: an open-ended pairing is not priced. It
+    // used to swallow the next trip, which turned a single overnight into a
+    // fabricated 126-hour US layover.
+    if (p.openEnded) return;
     for (let i = 0; i < p.length - 1; i++) {
       if (!_payIsUS(p[i].arr_icao)) continue;
       const start = _payReleaseMs(p[i]);       // check-out of the flight into the US
@@ -237,8 +272,10 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
   const r = rates || {};
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
   const clip = (a, b) => (isNaN(a) || isNaN(b)) ? 0 : Math.max(0, Math.min(b, endMs) - Math.max(a, startMs));
-  let awayMs = 0, usMs = 0, n = 0;
+  let awayMs = 0, usMs = 0, n = 0, openP = 0;
   groupPairings(flights, baseIcao).forEach(p => {
+    // Not priced: no logged return to base means the release time is unknown.
+    if (p.openEnded) { openP++; return; }
     const away = clip(_payReportMs(p[0]), _payReleaseMs(p[p.length - 1]));
     if (away <= 0) return;
     n++; awayMs += away;
@@ -248,7 +285,7 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
   });
   const round2 = x => Math.round(x * 100) / 100;
   const awayH = awayMs / 3600000, usH = Math.min(usMs / 3600000, awayH), cdnH = awayH - usH;
-  return { pairings: n, awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
+  return { pairings: n, openPairings: openP, awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
     cdnAmount: round2(cdnH * cdnRate), usAmount: round2(usH * usUsd * fx), total: round2(cdnH * cdnRate + usH * usUsd * fx) };
 }
 
@@ -676,6 +713,19 @@ function payRender() {
   if (!rosterHas) {
     pdCheck.status = 'info';
     pdCheck.desc = nonCompare;
+  } else if (pd.openPairings > 0) {
+    // A trip with no logged return to base has an unknown release time, so
+    // its per diem is not counted at all. Comparing a deliberately partial
+    // figure against the stub would manufacture a shortfall. Say what is
+    // missing instead, and name the fix.
+    pdCheck.status = 'info';
+    pdCheck.desc = fr
+      ? (pd.openPairings === 1
+          ? 'Une rotation n’a aucun retour à la base dans ton horaire, probablement un deadhead qui n’est pas inscrit. Son per diem n’est pas compté, donc cette période ne peut pas être comparée au talon.'
+          : pd.openPairings + ' rotations n’ont aucun retour à la base dans ton horaire, probablement des deadheads qui ne sont pas inscrits. Leur per diem n’est pas compté, donc cette période ne peut pas être comparée au talon.')
+      : (pd.openPairings === 1
+          ? 'One trip has no logged return to base, most likely a deadhead that is not in your logbook. Its per diem is not counted, so this period cannot be compared against the stub.'
+          : pd.openPairings + ' trips have no logged return to base, most likely deadheads that are not in your logbook. Their per diem is not counted, so this period cannot be compared against the stub.');
   } else if (paidCdnH == null && paidCdnAmt == null) {
     if (pd.cdnHours > 0.05) {
       pdCheck.status = 'bad';
