@@ -138,12 +138,17 @@ function buildNightRecheckPlan(anchorMap) {
   // Counted separately so each can be described honestly. Lumping them
   // together produced a panel that told him he had hand-entered hours he
   // had never touched.
-  const skipped = { pilotSet: 0, hasActual: 0, noAnchor: 0, noCoords: 0, noBlock: 0 };
+  const skipped = { pilotSet: 0, hasActual: 0, signed: 0, noAnchor: 0, noCoords: 0, noBlock: 0 };
   if (!Array.isArray(flights)) return { rows, skipped };
 
   for (let i = 0; i < flights.length; i++) {
     const f = flights[i];
     if (!f || f.isSim) continue;
+    // A signed row is an attestation over the numbers as they stood when
+    // it was signed. Changing them underneath it would leave a signature
+    // covering figures that are no longer the ones signed for, so those
+    // rows are reported and left as they are.
+    if (f.signedBy || f.signedAt) { skipped.signed++; continue; }
     const block = +f.block || +f.total || 0;
     if (block <= 0) { skipped.noBlock++; continue; }
     const storedAnchor = f.dtstart_utc ? new Date(f.dtstart_utc) : null;
@@ -229,10 +234,14 @@ async function openNightRecheck() {
   const netNight = plan.rows.reduce((s, r) => s + (r.toNight - r.fromNight), 0);
   const one = plan.rows.length === 1;
 
+  // With the roster unreadable nothing can be written, so the panel must
+  // not invite him to press Apply or quote a movement in night hours that
+  // is never going to happen. It shows what it FOUND, and says so.
+  const introKey = !anchors.ok ? 'nightRecheck.introBlocked' : (one ? 'nightRecheck.introOne' : 'nightRecheck.intro');
   const head = plan.rows.length === 0
     ? `<p style="font-size:14px; line-height:1.6;">${esc(anchors.ok ? t('nightRecheck.nothing') : t('nightRecheck.nothingOffline'))}</p>`
     : `<p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:var(--s-3);">
-         ${esc(t(one ? 'nightRecheck.introOne' : 'nightRecheck.intro', {
+         ${esc(t(introKey, {
            n: plan.rows.length, anchors: fixedAnchors,
            night: (netNight >= 0 ? '+' : '') + netNight.toFixed(2)
          }))}
@@ -264,8 +273,10 @@ async function openNightRecheck() {
 
   const notes = [];
   notes.push(anchorNote);
-  if (skippedCount(plan.skipped.pilotSet)) notes.push(t('nightRecheck.skippedPilot', { n: plan.skipped.pilotSet }));
-  if (skippedCount(plan.skipped.hasActual)) notes.push(t('nightRecheck.skippedActual', { n: plan.skipped.hasActual }));
+  const pluralKey = (base, n) => (n === 1 ? base + 'One' : base);
+  if (skippedCount(plan.skipped.pilotSet)) notes.push(t(pluralKey('nightRecheck.skippedPilot', plan.skipped.pilotSet), { n: plan.skipped.pilotSet }));
+  if (skippedCount(plan.skipped.hasActual)) notes.push(t(pluralKey('nightRecheck.skippedActual', plan.skipped.hasActual), { n: plan.skipped.hasActual }));
+  if (skippedCount(plan.skipped.signed)) notes.push(t(pluralKey('nightRecheck.skippedSigned', plan.skipped.signed), { n: plan.skipped.signed }));
   const notesHtml = `<div style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:var(--s-3);">${
     notes.map(n => `<p style="margin:0 0 6px 0;">${esc(n)}</p>`).join('')}</div>`;
 
@@ -298,6 +309,15 @@ function applyNightRecheck() {
     // And the row must still hold the values that were reviewed.
     if (Math.abs((+f[r.cols.day] || 0) - r.fromDay) > NIGHT_RECHECK_EPS ||
         Math.abs((+f[r.cols.night] || 0) - r.fromNight) > NIGHT_RECHECK_EPS) { dropped++; continue; }
+    // The same re-check on every OTHER field this row will write. The
+    // main pair was guarded and the cross-country pair was not, so a
+    // hand-set cross-country figure arriving from the other device while
+    // the panel was open got overwritten with a value never displayed.
+    if (r.touchesXc &&
+        (Math.abs((+f[r.cols.xcDay] || 0) - r.fromXcDay) > NIGHT_RECHECK_EPS ||
+         Math.abs((+f[r.cols.xcNight] || 0) - r.fromXcNight) > NIGHT_RECHECK_EPS)) { dropped++; continue; }
+    // Preconditions that held when the row was reviewed must still hold.
+    if (f.atd_utc || f.signedBy || f.signedAt) { dropped++; continue; }
     f[r.cols.day] = r.toDay;
     f[r.cols.night] = r.toNight;
     if (r.touchesXc) {
@@ -313,6 +333,6 @@ function applyNightRecheck() {
   if (typeof updateUndoButton === 'function') updateUndoButton();
   if (typeof renderDashboard === 'function') renderDashboard();
   showToast(dropped > 0
-    ? t('nightRecheck.donePartial', { n: changed, dropped: dropped })
-    : t('nightRecheck.done', { n: changed }), 'success');
+    ? t(changed === 1 ? 'nightRecheck.donePartialOne' : 'nightRecheck.donePartial', { n: changed, dropped: dropped })
+    : t(changed === 1 ? 'nightRecheck.doneOne' : 'nightRecheck.done', { n: changed }), 'success');
 }

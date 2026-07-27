@@ -17637,13 +17637,20 @@ const STRINGS = {
  'nightRecheck.xcNone': 'none',
  'nightRecheck.whyAnchor': 'departure time and rounding',
  'nightRecheck.whyMinute': 'rounding only',
- 'nightRecheck.skippedPilot': '{n} flights carry hours this app would not have produced, so they were set by hand and are left alone.',
- 'nightRecheck.skippedActual': '{n} flights already carry a recorded actual departure time, so this tool does not touch them.',
+ 'nightRecheck.introBlocked': 'This check found {n} flights whose hours do not match the corrected calculation. Nothing can be written right now because your roster could not be read, so this is a report only.',
+ 'nightRecheck.skippedPilot': '{n} flights carry hours this app would not have produced from their stored times, so they were left untouched. That happens when the hours or the block were entered or corrected by hand.',
+ 'nightRecheck.skippedPilotOne': 'One flight carries hours this app would not have produced from its stored times, so it was left untouched. That happens when the hours or the block were entered or corrected by hand.',
+ 'nightRecheck.skippedActual': '{n} flights carry a recorded actual departure time. This tool works from roster times and cannot check those, so their day and night hours were not verified.',
+ 'nightRecheck.skippedActualOne': 'One flight carries a recorded actual departure time. This tool works from roster times and cannot check it, so its day and night hours were not verified.',
+ 'nightRecheck.skippedSigned': '{n} flights carry a signature. Their hours are left exactly as signed, so the attestation still covers the figures it was signed for.',
+ 'nightRecheck.skippedSignedOne': 'One flight carries a signature. Its hours are left exactly as signed, so the attestation still covers the figures it was signed for.',
  'nightRecheck.apply': 'Apply to {n} flights',
  'nightRecheck.applyOne': 'Apply to 1 flight',
  'nightRecheck.close': 'Close',
  'nightRecheck.done': '{n} flights corrected. Undo is available in Settings, Data, Recovery.',
+ 'nightRecheck.doneOne': 'One flight corrected. Undo is available in Settings, Data, Recovery.',
  'nightRecheck.donePartial': '{n} flights corrected. {dropped} were skipped because they changed while the panel was open. Run the check again to review those.',
+ 'nightRecheck.donePartialOne': 'One flight corrected. {dropped} were skipped because they changed while the panel was open. Run the check again to review those.',
  'nightRecheck.noUi': 'Could not open the review panel.',
  'undo.op.nightRecheck': 'Day and night recheck',
  'sync.diag.indexTitle': 'Everything your feed carries from {from} to {to}, in order ({n} entries)',
@@ -18804,13 +18811,20 @@ const STRINGS = {
  'nightRecheck.xcNone': 'aucun',
  'nightRecheck.whyAnchor': 'heure de départ et arrondi',
  'nightRecheck.whyMinute': 'arrondi seulement',
- 'nightRecheck.skippedPilot': '{n} vols portent des heures que cette application n’aurait pas produites : elles ont été saisies à la main et sont laissées intactes.',
- 'nightRecheck.skippedActual': '{n} vols portent déjà une heure de départ réelle, donc cet outil n’y touche pas.',
+ 'nightRecheck.introBlocked': 'Cette vérification a trouvé {n} vols dont les heures ne correspondent pas au calcul corrigé. Rien ne peut être écrit pour l’instant parce que votre horaire n’a pas pu être lu : ceci est un rapport seulement.',
+ 'nightRecheck.skippedPilot': '{n} vols portent des heures que cette application n’aurait pas produites à partir des heures conservées, donc ils ont été laissés intacts. Cela arrive quand les heures ou le bloc ont été saisis ou corrigés à la main.',
+ 'nightRecheck.skippedPilotOne': 'Un vol porte des heures que cette application n’aurait pas produites à partir des heures conservées, donc il a été laissé intact. Cela arrive quand les heures ou le bloc ont été saisis ou corrigés à la main.',
+ 'nightRecheck.skippedActual': '{n} vols portent une heure de départ réelle. Cet outil travaille à partir des heures d’horaire et ne peut pas les vérifier, donc leurs heures de jour et de nuit n’ont pas été vérifiées.',
+ 'nightRecheck.skippedActualOne': 'Un vol porte une heure de départ réelle. Cet outil travaille à partir des heures d’horaire et ne peut pas le vérifier, donc ses heures de jour et de nuit n’ont pas été vérifiées.',
+ 'nightRecheck.skippedSigned': '{n} vols portent une signature. Leurs heures sont laissées exactement telles que signées, pour que l’attestation couvre encore les chiffres pour lesquels elle a été signée.',
+ 'nightRecheck.skippedSignedOne': 'Un vol porte une signature. Ses heures sont laissées exactement telles que signées, pour que l’attestation couvre encore les chiffres pour lesquels elle a été signée.',
  'nightRecheck.apply': 'Appliquer à {n} vols',
  'nightRecheck.applyOne': 'Appliquer à 1 vol',
  'nightRecheck.close': 'Fermer',
  'nightRecheck.done': '{n} vols corrigés. L’annulation est disponible dans Réglages, Données, Récupération.',
+ 'nightRecheck.doneOne': 'Un vol corrigé. L’annulation est disponible dans Réglages, Données, Récupération.',
  'nightRecheck.donePartial': '{n} vols corrigés. {dropped} ont été sautés parce qu’ils ont changé pendant que le panneau était ouvert. Relancez la vérification pour les revoir.',
+ 'nightRecheck.donePartialOne': 'Un vol corrigé. {dropped} ont été sautés parce qu’ils ont changé pendant que le panneau était ouvert. Relancez la vérification pour les revoir.',
  'nightRecheck.noUi': 'Impossible d’ouvrir le panneau de révision.',
  'undo.op.nightRecheck': 'Revérification jour et nuit',
  'sync.diag.indexTitle': 'Tout ce que votre flux contient du {from} au {to}, en ordre ({n} entrées)',
@@ -27231,12 +27245,17 @@ function buildNightRecheckPlan(anchorMap) {
   // Counted separately so each can be described honestly. Lumping them
   // together produced a panel that told him he had hand-entered hours he
   // had never touched.
-  const skipped = { pilotSet: 0, hasActual: 0, noAnchor: 0, noCoords: 0, noBlock: 0 };
+  const skipped = { pilotSet: 0, hasActual: 0, signed: 0, noAnchor: 0, noCoords: 0, noBlock: 0 };
   if (!Array.isArray(flights)) return { rows, skipped };
 
   for (let i = 0; i < flights.length; i++) {
     const f = flights[i];
     if (!f || f.isSim) continue;
+    // A signed row is an attestation over the numbers as they stood when
+    // it was signed. Changing them underneath it would leave a signature
+    // covering figures that are no longer the ones signed for, so those
+    // rows are reported and left as they are.
+    if (f.signedBy || f.signedAt) { skipped.signed++; continue; }
     const block = +f.block || +f.total || 0;
     if (block <= 0) { skipped.noBlock++; continue; }
     const storedAnchor = f.dtstart_utc ? new Date(f.dtstart_utc) : null;
@@ -27322,10 +27341,14 @@ async function openNightRecheck() {
   const netNight = plan.rows.reduce((s, r) => s + (r.toNight - r.fromNight), 0);
   const one = plan.rows.length === 1;
 
+  // With the roster unreadable nothing can be written, so the panel must
+  // not invite him to press Apply or quote a movement in night hours that
+  // is never going to happen. It shows what it FOUND, and says so.
+  const introKey = !anchors.ok ? 'nightRecheck.introBlocked' : (one ? 'nightRecheck.introOne' : 'nightRecheck.intro');
   const head = plan.rows.length === 0
     ? `<p style="font-size:14px; line-height:1.6;">${esc(anchors.ok ? t('nightRecheck.nothing') : t('nightRecheck.nothingOffline'))}</p>`
     : `<p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:var(--s-3);">
-         ${esc(t(one ? 'nightRecheck.introOne' : 'nightRecheck.intro', {
+         ${esc(t(introKey, {
            n: plan.rows.length, anchors: fixedAnchors,
            night: (netNight >= 0 ? '+' : '') + netNight.toFixed(2)
          }))}
@@ -27357,8 +27380,10 @@ async function openNightRecheck() {
 
   const notes = [];
   notes.push(anchorNote);
-  if (skippedCount(plan.skipped.pilotSet)) notes.push(t('nightRecheck.skippedPilot', { n: plan.skipped.pilotSet }));
-  if (skippedCount(plan.skipped.hasActual)) notes.push(t('nightRecheck.skippedActual', { n: plan.skipped.hasActual }));
+  const pluralKey = (base, n) => (n === 1 ? base + 'One' : base);
+  if (skippedCount(plan.skipped.pilotSet)) notes.push(t(pluralKey('nightRecheck.skippedPilot', plan.skipped.pilotSet), { n: plan.skipped.pilotSet }));
+  if (skippedCount(plan.skipped.hasActual)) notes.push(t(pluralKey('nightRecheck.skippedActual', plan.skipped.hasActual), { n: plan.skipped.hasActual }));
+  if (skippedCount(plan.skipped.signed)) notes.push(t(pluralKey('nightRecheck.skippedSigned', plan.skipped.signed), { n: plan.skipped.signed }));
   const notesHtml = `<div style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:var(--s-3);">${
     notes.map(n => `<p style="margin:0 0 6px 0;">${esc(n)}</p>`).join('')}</div>`;
 
@@ -27391,6 +27416,15 @@ function applyNightRecheck() {
     // And the row must still hold the values that were reviewed.
     if (Math.abs((+f[r.cols.day] || 0) - r.fromDay) > NIGHT_RECHECK_EPS ||
         Math.abs((+f[r.cols.night] || 0) - r.fromNight) > NIGHT_RECHECK_EPS) { dropped++; continue; }
+    // The same re-check on every OTHER field this row will write. The
+    // main pair was guarded and the cross-country pair was not, so a
+    // hand-set cross-country figure arriving from the other device while
+    // the panel was open got overwritten with a value never displayed.
+    if (r.touchesXc &&
+        (Math.abs((+f[r.cols.xcDay] || 0) - r.fromXcDay) > NIGHT_RECHECK_EPS ||
+         Math.abs((+f[r.cols.xcNight] || 0) - r.fromXcNight) > NIGHT_RECHECK_EPS)) { dropped++; continue; }
+    // Preconditions that held when the row was reviewed must still hold.
+    if (f.atd_utc || f.signedBy || f.signedAt) { dropped++; continue; }
     f[r.cols.day] = r.toDay;
     f[r.cols.night] = r.toNight;
     if (r.touchesXc) {
@@ -27406,14 +27440,14 @@ function applyNightRecheck() {
   if (typeof updateUndoButton === 'function') updateUndoButton();
   if (typeof renderDashboard === 'function') renderDashboard();
   showToast(dropped > 0
-    ? t('nightRecheck.donePartial', { n: changed, dropped: dropped })
-    : t('nightRecheck.done', { n: changed }), 'success');
+    ? t(changed === 1 ? 'nightRecheck.donePartialOne' : 'nightRecheck.donePartial', { n: changed, dropped: dropped })
+    : t(changed === 1 ? 'nightRecheck.doneOne' : 'nightRecheck.done', { n: changed }), 'success');
 }
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-07-26-8f5f000';
+const BUILD_VERSION = '2026-07-27-f979599';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

@@ -193,6 +193,40 @@ const moved = evalJSON(`(function(){
 })()`);
 chk('a row edited while the panel was open is not overwritten', moved.d === 0.99 && moved.n === 0.01);
 
+// ── 7b. The same race on the CROSS-COUNTRY pair ────────────────────
+// Second review finding: the write-time guard covered day and night but
+// not cross-country, so a hand-set XC figure arriving from the other
+// device while the panel was open was overwritten with a value never
+// displayed.
+const xcRace = evalJSON(`(function(){
+  flights = [${JSON.stringify(mk({ id: 'x1' }))}];
+  const p = buildNightRecheckPlan(${JSON.stringify(ROSTER)});
+  _nightRecheckPlan = p.rows;
+  // verbatim the line Sync.pullFlights uses when adopting a remote row
+  Object.assign(flights[0], { xcDayCop: 0.40, xcNightCop: 0.47 });
+  applyNightRecheck();
+  return { d: flights[0].meDayCop, n: flights[0].meNightCop, xd: flights[0].xcDayCop, xn: flights[0].xcNightCop };
+})()`);
+chk('a cross-country value arriving mid-review is not overwritten',
+  xcRace.xd === 0.40 && xcRace.xn === 0.47);
+chk('and the row is dropped whole rather than half-written',
+  xcRace.d === legacyCI.dayHours && xcRace.n === legacyCI.nightHours);
+
+// ── 7c. A signature is never written under ─────────────────────────
+const signedPlan = plan([mk({ id: 's1', signedBy: 'M. Daoust', signedAt: '2026-02-01T00:00:00.000Z' })], ROSTER);
+chk('a signed row is never listed', signedPlan.rows.length === 0);
+chk('a signed row is counted on its own', signedPlan.skipped.signed === 1 && signedPlan.skipped.pilotSet === 0);
+const signedRace = evalJSON(`(function(){
+  flights = [${JSON.stringify(mk({ id: 's2' }))}];
+  const p = buildNightRecheckPlan(${JSON.stringify(ROSTER)});
+  _nightRecheckPlan = p.rows;
+  flights[0].signedAt = '2026-02-01T00:00:00.000Z';   // signed while the panel was open
+  applyNightRecheck();
+  return { d: flights[0].meDayCop, n: flights[0].meNightCop };
+})()`);
+chk('a row signed while the panel was open is not written',
+  signedRace.d === legacyCI.dayHours && signedRace.n === legacyCI.nightHours);
+
 // ── 8. Apply writes exactly what was reviewed, and persists it ─────
 const applied = evalJSON(`(function(){
   flights = [${JSON.stringify(mk())}, ${JSON.stringify(mk({ id: 'f2', meDayCop: 0.5, meNightCop: 0.37 }))}];
@@ -238,6 +272,9 @@ const offline = JSON.parse(await (async () => {
 chk('with no roster nothing is armed for writing', offline.armed === true);
 chk('with no roster the button is Close, not Apply', /close/i.test(offline.btn));
 chk('with no roster the panel says the roster could not be read', /roster could not be read/i.test(offline.body));
+chk('with no roster the panel does NOT invite him to press Apply', !/press Apply/i.test(offline.body));
+chk('with no roster the panel does NOT promise a movement in night hours', !/Night hours would move/i.test(offline.body));
+chk('with no roster the panel says it is a report only', /report only/i.test(offline.body));
 w.eval('closeImportOverlay()');
 
 // And the plan itself still reports what it can see.
