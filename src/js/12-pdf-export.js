@@ -609,8 +609,23 @@ function _generatePDF() {
     const cutoff90Str = shiftDateStr(todayStr, -89);
     const cutoff6mStr = sixMonthCutoffStr();
 
-    const recent90 = flights.filter(f => f.date && f.date >= cutoff90Str && f.date <= todayStr);
-    const recent6m = flights.filter(f => f.date && f.date >= cutoff6mStr && f.date <= todayStr);
+    const _in90 = flights.filter(f => f.date && f.date >= cutoff90Str && f.date <= todayStr);
+    const _in6m = flights.filter(f => f.date && f.date >= cutoff6mStr && f.date <= todayStr);
+
+    // The device filters the dashboard has always applied, and this page had
+    // not. CAR 401.05(2)(b) admits only an aircraft of the same category and
+    // class or a Level B/C/D full-flight simulator for take-off and landing
+    // recency, so an FTD session used to make this page badge passenger
+    // recency CURRENT off nothing but simulator landings, while the dashboard
+    // reported 0 for the same data. The approach rule 401.05(3.1)(b) is
+    // BROADER (it admits an approved flight training device), which is why the
+    // two use different predicates and must never share one.
+    // (Registre 401.05, audit 2026-07-27.)
+    const _recFilter = (typeof countsTowardRecency === 'function') ? countsTowardRecency : function () { return true; };
+    const _apprFilter = (typeof approachCountsTowardIFR === 'function') ? approachCountsTowardIFR : function () { return true; };
+    const recent90 = _in90.filter(_recFilter);
+    const recent6m = _in6m.filter(_recFilter);
+    const recent6mAppr = _in6m.filter(_apprFilter);
 
     const ldg90Day = recent90.reduce((s, f) => s + (+f.ldgDay || 0), 0);
     const ldg90Night = recent90.reduce((s, f) => s + (+f.ldgNight || 0), 0);
@@ -625,8 +640,9 @@ function _generatePDF() {
     const to6mNight = recent6m.reduce((s, f) => s + (+f.toNight || 0), 0);
     const to6m = to6mDay + to6mNight;
     // CAR 401.05: 6 instrument approaches in 6 months. Counter is approaches only.
-    const approaches6m = recent6m.reduce((s, f) => s + (+f.approaches || 0), 0);
-    const instHours6m = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
+    const approaches6m = recent6mAppr.reduce((s, f) => s + (+f.approaches || 0), 0);
+    // Instrument TIME carries no device restriction in 401.05(3.1)(a): unfiltered.
+    const instHours6m = _in6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
     const items = [
       {
@@ -671,8 +687,13 @@ function _generatePDF() {
       },
       {
         title: 'ECG due date',
-        reg: 'TC Cat 1 standard',
-        requirement: 'Under 40: at first issuance · 40-65: every 24 months · 65+: annual',
+        // The intervals that used to print here were STRIPPED from the app on
+        // 2026-06-26 because nothing sourced them, and the register says they must
+        // not return until verified against TP 13312 / Standard 424. They came back
+        // on this page anyway, under a source line that reads like a citation.
+        // The due date itself is the pilot own entry and stays. (Audit 2026-07-27.)
+        reg: 'Category 1 medical standard',
+        requirement: 'Interval set by your Civil Aviation Medical Examiner',
         current: p.ecg ? `Next due ${p.ecg}` : 'Not set in profile',
         ok: p.ecg ? (new Date(p.ecg) >= today) : null
       },

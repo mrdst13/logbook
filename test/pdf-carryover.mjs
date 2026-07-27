@@ -188,6 +188,23 @@ if (hasFix) {
   chk('(j) the cover attests the same 2781.0, not 0', near(coverBf, 2781.0));
 }
 
+// (k) The PDF currency page must apply the same device filters as the
+// dashboard. An FTD session used to badge passenger recency CURRENT off
+// nothing but simulator landings. CAR 401.05(2)(b) admits only an aircraft
+// or a Level B/C/D full-flight simulator; 401.05(3.1)(b) is BROADER and does
+// admit an approved flight training device, so the two rules keep separate
+// predicates.
+{
+  const ftd = { date: '2026-07-15', isSim: true, simType: 'FTD', instSim: 4, toDay: 6, ldgDay: 6, approaches: 6 };
+  chk('(k) an FTD session does not count toward landing recency',
+    w.eval(`countsTowardRecency(${JSON.stringify(ftd)})`) === false);
+  chk('(k) but it DOES count toward IFR approach recency',
+    w.eval(`approachCountsTowardIFR(${JSON.stringify(ftd)})`) === true);
+  const ffs = Object.assign({}, ftd, { simType: 'FFS' });
+  chk('(k) a Level B/C/D full-flight simulator counts for landings',
+    w.eval(`countsTowardRecency(${JSON.stringify(ffs)})`) === true);
+}
+
 if (failures.length) {
   console.error('pdf-carryover: FAIL\n  - ' + failures.join('\n  - '));
   process.exit(1);
