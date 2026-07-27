@@ -635,7 +635,10 @@ function _bfCheckConsistency() {
   const careerEl = document.getElementById('bf-career-total');
   if (careerWrap && careerEl) {
     const cumulo = (Array.isArray(flights) ? flights : [])
-      .reduce((s, f) => s + (+f.total || +f.block || 0), 0);
+    // Through flightTimeOf: a simulator session is not flight time, and this
+    // is the figure he is asked to attest against. Without the guard it read
+    // higher than the dashboard hero for the identical flight list.
+      .reduce((s, f) => s + ((typeof flightTimeOf === 'function') ? flightTimeOf(f) : (+f.total || +f.block || 0)), 0);
     if (total > 0 || cumulo > 0) {
       careerWrap.style.display = 'block';
       careerEl.textContent = fmtH(total + cumulo) + ' h';

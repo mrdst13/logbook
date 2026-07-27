@@ -961,7 +961,10 @@ function _dashMonthlyBlockTotals(months) {
   flights.forEach(f => {
     if (!f.date) return;
     const ym = f.date.slice(0, 7);
-    buckets[ym] = (buckets[ym] || 0) + (+f.block || 0);
+    // flightTimeOf, like the hero and the delta pill above it. Reading raw
+    // block here left the sparkline inside the SAME card disagreeing with the
+    // number printed above it.
+    buckets[ym] = (buckets[ym] || 0) + flightTimeOf(f);
   });
   // index 0 = oldest, index N-1 = current month
   for (let i = months - 1; i >= 0; i--) {

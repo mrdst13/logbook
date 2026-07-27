@@ -227,6 +227,26 @@ chk('a period containing an unplaceable layover reports it', unkInPeriod.unknown
 chk('and the period path does not bill it as Canadian',
   Math.abs(unkInPeriod.cdnHours - unkPd.cdnHours) < 0.01);
 
+// ── An open-ended trip that crosses a period boundary ───────────────
+// The first repair tested the last logged CHECK-OUT as if it were the
+// release, so a trip whose unlogged deadhead home lands in the NEXT period
+// dropped out of that period silently and the page asserted a discrepancy on
+// a figure missing real away time. The unknown release lies between that
+// check-out and the report of the next logged pairing.
+const JUL = [Date.UTC(2026, 6, 1, 4, 0, 0), Date.UTC(2026, 6, 16, 4, 0, 0)];
+const openAcross = [{ date: '2026-06-29', dep_icao: 'CYOW', arr_icao: 'CYHZ', dtstart_utc: '2026-06-29T12:30:00.000Z', block: 2, ci_utc: '1200', co_utc: '2300' }];
+chk('a trip that deadheads home into the next period disqualifies it',
+  pay.computePerDiemInPeriod(openAcross, 'CYOW', { cdn: 4.25 }, JUL[0], JUL[1]).openPairings === 1);
+const staleThenClosed = [
+  { date: '2026-02-10', dep_icao: 'CYOW', arr_icao: 'CYHZ', dtstart_utc: '2026-02-10T12:30:00.000Z', block: 2, ci_utc: '1200', co_utc: '1500' },
+  { date: '2026-06-05', dep_icao: 'CYOW', arr_icao: 'CYYZ', dtstart_utc: '2026-06-05T12:30:00.000Z', block: 1, ci_utc: '1200', co_utc: '1500' },
+  { date: '2026-06-05', dep_icao: 'CYYZ', arr_icao: 'CYOW', dtstart_utc: '2026-06-05T18:00:00.000Z', block: 1, ci_utc: '1730', co_utc: '2030' }
+];
+chk('an old open trip followed by a logged trip does NOT disqualify July',
+  pay.computePerDiemInPeriod(staleThenClosed, 'CYOW', { cdn: 4.25 }, JUL[0], JUL[1]).openPairings === 0);
+chk('an old open trip with nothing logged since stays honest',
+  pay.computePerDiemInPeriod([staleThenClosed[0]], 'CYOW', { cdn: 4.25 }, JUL[0], JUL[1]).openPairings === 1);
+
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
 console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
 process.exit(0);

@@ -205,6 +205,25 @@ if (hasFix) {
     w.eval(`countsTowardRecency(${JSON.stringify(ffs)})`) === true);
 }
 
+// (l) Every surface that shows career or period hours reads flightTimeOf, so
+// none can contradict the one printed beside it. The sparkline was repaired
+// last, after calcStats: it is drawn by its own aggregator.
+{
+  const today = new Date().toISOString().slice(0, 10);
+  const agg = JSON.parse(w.eval(`(function(){
+    flights = [{ id: 'a', date: ${JSON.stringify(today)}, total: 2, block: 2, meDayCop: 2 },
+               { id: 's', date: ${JSON.stringify(today)}, isSim: true, simType: 'FFS', total: 1.5, block: 1.5, instSim: 1.5 },
+               { id: 't', date: ${JSON.stringify(today)}, total: 3, block: '', meDayCop: 3 }];
+    const s = calcStats();
+    const spark = _dashMonthlyBlockTotals(1);
+    return JSON.stringify({ hero: s.total, block: s.block, block30: s.block30, spark: Object.values(spark) });
+  })()`));
+  chk('(l) hero excludes the simulator and counts a total-only row', agg.hero === 5);
+  chk('(l) the block aggregate agrees with the hero', agg.block === 5);
+  chk('(l) the 30-day delta agrees with the hero', agg.block30 === 5);
+  chk('(l) the sparkline agrees with the hero', agg.spark.every(function (v) { return v === 5; }));
+}
+
 if (failures.length) {
   console.error('pdf-carryover: FAIL\n  - ' + failures.join('\n  - '));
   process.exit(1);

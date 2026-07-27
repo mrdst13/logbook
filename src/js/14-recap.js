@@ -49,7 +49,9 @@ function renderRecap() {
   }
 
   // Stats
-  const total = yFlights.reduce((s,f) => s + (+f.total||0), 0);
+  // A simulator session is not flight time. Without this the Total card
+  // contradicted the Block card printed beside it and the chart below.
+  const total = yFlights.reduce((s,f) => s + (f.isSim ? 0 : (+f.total||0)), 0);
   // flightTimeOf, not raw block: the Recap stat card used to print simulator
   // block time as flight hours while the chart beside it did not.
   const block = yFlights.reduce((s,f) => s + ((typeof flightTimeOf === 'function') ? flightTimeOf(f) : (+f.total || +f.block || 0)), 0);

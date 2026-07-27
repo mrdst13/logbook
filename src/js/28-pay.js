@@ -304,12 +304,19 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
   const clip = (a, b) => (isNaN(a) || isNaN(b)) ? 0 : Math.max(0, Math.min(b, endMs) - Math.max(a, startMs));
   let awayMs = 0, usMs = 0, unkMs = 0, n = 0, openP = 0, unkSt = 0;
-  groupPairings(flights, baseIcao).forEach(p => {
+  const _groups = groupPairings(flights, baseIcao);
+  _groups.forEach((p, gi) => {
     // Not priced: no logged return to base means the release time is unknown.
+    // Testing the last logged CHECK-OUT as if it were the release was wrong in
+    // the direction that matters: a trip that deadheads home across a period
+    // boundary dropped out of the next period silently. The unknown release
+    // lies between that check-out and the report of the NEXT logged pairing.
     // It only makes THIS period incomparable when its known span reaches into
     // the window; an old trip from February must not disqualify July forever.
     if (p.openEnded) {
-      if (clip(_payReportMs(p[0]), _payReleaseMs(p[p.length - 1])) > 0) openP++;
+      const nextRep = _groups[gi + 1] ? _payReportMs(_groups[gi + 1][0]) : Infinity;
+      const upper = isNaN(nextRep) ? Infinity : Math.max(_payReleaseMs(p[p.length - 1]), nextRep);
+      if (clip(_payReportMs(p[0]), upper) > 0) openP++;
       return;
     }
     const away = clip(_payReportMs(p[0]), _payReleaseMs(p[p.length - 1]));
@@ -713,10 +720,14 @@ function payRender() {
           : 'Drop your Porter pay PDF above: it is read on this device only, then checked against your schedule.');
       out += '<section class="v2-card" style="margin-top:16px">' +
         '<p class="chart-title">' + (fr ? 'Calculé de ton horaire pour ' : 'Computed from your schedule for ') + esc(ymLabel) + '</p>' +
-        '<div class="kv"><span class="k">Per diem CDN</span><span class="v num">' + hL(pd.cdnHours) + ' h · ' + money(pd.cdnAmount) + '</span></div>' +
+        '<div class="kv"><span class="k">Per diem CDN</span><span class="v num">' + ((pd.openPairings > 0 || pd.unknownStations > 0) ? DASH : hL(pd.cdnHours) + ' h · ' + money(pd.cdnAmount)) + '</span></div>' +
         '<div class="kv"><span class="k">Per diem US</span><span class="v num">' + (pd.usHours > 0 ? hL(pd.usHours) + ' h' : DASH) + '</span></div>' +
         '<div class="kv"><span class="k">' + (fr ? 'Temps loin de la base' : 'Time away from base') + '</span><span class="v num">' + hL(pd.awayHours) + ' h · ' + pd.pairings + ' pairing' + (pd.pairings > 1 ? 's' : '') + '</span></div>' +
-        '<p class="tbl-note">' + (fr ? 'Dès qu’un talon est importé, ces heures sont comparées au montant payé.' : 'Once a stub is imported, these hours are checked against what was paid.') + '</p>' +
+        '<p class="tbl-note">' + ((pd.openPairings > 0 || pd.unknownStations > 0)
+          ? (fr ? 'Chiffre incomplet : une rotation ou une escale n’a pas pu être chiffrée. Ces heures ne peuvent pas être comparées au talon.'
+                : 'Incomplete: a trip or a layover could not be priced. These hours cannot be checked against the stub.')
+          : (fr ? 'Dès qu’un talon est importé, ces heures sont comparées au montant payé.'
+                : 'Once a stub is imported, these hours are checked against what was paid.')) + '</p>' +
         '</section>';
     } else {
       out = _payBanner('neutral',
@@ -779,7 +790,7 @@ function payRender() {
     // is incomplete. Name the gap instead of asserting a shortfall.
     pdCheck.status = 'info';
     pdCheck.desc = fr
-      ? 'Une escale de cette periode est a un aeroport que Cumulo ne sait pas situer, donc ni canadienne ni americaine. Le per diem de cette periode ne peut pas etre compare au talon.'
+      ? 'Une escale de cette période est à un aéroport que Cumulo ne sait pas situer, donc ni canadienne ni américaine. Le per diem de cette période ne peut pas être comparé au talon.'
       : 'A layover in this period is at an airport Cumulo cannot place in a country, so it counts as neither Canadian nor US. The per diem for this period cannot be compared against the stub.';
   } else if (pd.openPairings > 0) {
     // A trip with no logged return to base has an unknown release time, so
