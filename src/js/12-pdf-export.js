@@ -46,9 +46,37 @@ function openingSeedForCumulative(cols, openingSeed) {
 // and leaves block empty, so an unguarded "Flt Time" column would undercount
 // the career total sitting right under a hero that already reads flightTimeOf).
 // Every other column keeps computeCellValue's own derivation.
+// The brought-forward total the cover attests to. DERIVED, never the raw
+// stored keys, and from the SAME source that seeds the log-page TOTALS
+// BROUGHT FORWARD row, so the two can never disagree. A pilot who filled
+// only the detailed engine-class grid has no stored total or block, so a
+// raw read returned 0 and the cover attested "0.0 hrs declared" while page 1
+// of the same PDF printed 2781.0. (Audit 2026-07-27.)
+function pdfBroughtForwardTotal(balances) {
+  const b = balances || {};
+  if (typeof totalsWithOpening === 'function') {
+    const d = totalsWithOpening({});
+    const v = +d.total || +d.block || 0;
+    if (v) return v;
+  }
+  return +b.total || +b.block || 0;
+}
+// The integer tally columns the PDF sums into PAGE and CUMULATIVE TOTALS.
+const PDF_INT_TALLY_KEYS = new Set(['ldgDay', 'ldgNight', 'approaches']);
+
 function pdfCellValue(f, key) {
   if (key === 'total' || key === 'block') {
     return (typeof flightTimeOf === 'function') ? flightTimeOf(f) : (+f.total || +f.block || 0);
+  }
+  // A flight typed into the form stores these as STRINGS; one imported from a
+  // roster stores numbers. The totals accumulator adds with +, so a string
+  // contributed nothing: every hand-entered landing and approach vanished
+  // from the certifiable cumulative row while still printing on its own line.
+  // Coercing at this seam fixes the cell and the total together, and repairs
+  // values already stored. (Audit 2026-07-27.)
+  if (PDF_INT_TALLY_KEYS.has(key)) {
+    const n = +computeCellValue(f, key);
+    return Number.isFinite(n) ? n : 0;
   }
   return computeCellValue(f, key);
 }
@@ -231,7 +259,13 @@ function _generatePDF() {
     let breakdown;
     if (hasBF && typeof loadOpeningBalances === 'function') {
       const ob = loadOpeningBalances();
-      const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
+      // DERIVED, never the raw stored keys, and from the SAME source that
+      // seeds the log-page "TOTALS BROUGHT FORWARD" row. A pilot who filled
+      // only the detailed engine-class grid has no stored `total` or `block`,
+      // so a raw read returned 0: the cover attested "0.0 hrs declared" while
+      // page 1 of the same PDF printed 2781.0. That is exactly the shape of
+      // Martin own record. (Audit 2026-07-27.)
+      const bfTotal = pdfBroughtForwardTotal(ob.balances);
       const loggedHere = Math.max(0, (totals.total || totals.block || 0) - bfTotal);
       breakdown = `+ ${fmt(bfTotal)} brought-forward (paper)   ·   + ${fmt(loggedHere)} logged in Cumulo`;
     } else {
@@ -298,7 +332,13 @@ function _generatePDF() {
     let attestationLines = [];
     if (hasBF && typeof loadOpeningBalances === 'function') {
       const ob = loadOpeningBalances();
-      const bfTotal = (+ob.balances.total || +ob.balances.block || 0);
+      // DERIVED, never the raw stored keys, and from the SAME source that
+      // seeds the log-page "TOTALS BROUGHT FORWARD" row. A pilot who filled
+      // only the detailed engine-class grid has no stored `total` or `block`,
+      // so a raw read returned 0: the cover attested "0.0 hrs declared" while
+      // page 1 of the same PDF printed 2781.0. That is exactly the shape of
+      // Martin own record. (Audit 2026-07-27.)
+      const bfTotal = pdfBroughtForwardTotal(ob.balances);
       const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
       attestationLines.push(
         `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(2)(h))`
@@ -441,7 +481,23 @@ function _generatePDF() {
           display = String(v);
           if (runTotals.hasOwnProperty(c.key)) pageTotals[c.key] += v;
         } else {
-          display = String(v).substring(0, 22);
+          // Fit the column's real width instead of a fixed character count.
+          // The old cap of 22 was neither necessary (a longer name fits a wide
+          // PIC column) nor sufficient (with every column ticked the column is
+          // narrow and 22 characters overflow it). All it guaranteed was that
+          // a long captain name was silently cut, so the PDF showed a name
+          // that is not the name in the record. Newlines are flattened because
+          // a row band is one line high. Anything genuinely shortened now ends
+          // in a marker rather than stopping mid-word. (Audit 2026-07-27.)
+          const raw = String(v).replace(/[\r\n]+/g, ' ').trim();
+          const room = Math.max(4, colWidths[ci] - 2);
+          display = raw;
+          if (doc.getTextWidth(display) > room) {
+            while (display.length > 1 && doc.getTextWidth(display + '...') > room) {
+              display = display.slice(0, -1);
+            }
+            display += '...';
+          }
         }
         const tx = c.align === 'right' ? x + colWidths[ci] - 1
                 : c.align === 'center' ? x + colWidths[ci] / 2
@@ -605,14 +661,19 @@ function _generatePDF() {
         title: 'Medical certificate',
         reg: 'CAR 404',
         requirement: 'Valid Category 1 or 3 medical for commercial operations',
-        current: p.medical ? `Expires ${new Date(p.medical).toLocaleDateString('en-CA')}` : 'Not set in profile',
+        // Print the stored YYYY-MM-DD as it stands. Routing it through a Date
+        // parsed it as UTC midnight and formatted it in local time, printing
+        // the day BEFORE the one he entered, contradicting the cover of the
+        // same PDF and, on the expiry date itself, badging a valid medical
+        // NOT CURRENT. (Audit 2026-07-27.)
+        current: p.medical ? `Expires ${p.medical}` : 'Not set in profile',
         ok: p.medical ? (new Date(p.medical) >= today) : null
       },
       {
         title: 'ECG due date',
         reg: 'TC Cat 1 standard',
         requirement: 'Under 40: at first issuance · 40-65: every 24 months · 65+: annual',
-        current: p.ecg ? `Next due ${new Date(p.ecg).toLocaleDateString('en-CA')}` : 'Not set in profile',
+        current: p.ecg ? `Next due ${p.ecg}` : 'Not set in profile',
         ok: p.ecg ? (new Date(p.ecg) >= today) : null
       },
       {

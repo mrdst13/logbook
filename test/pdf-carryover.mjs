@@ -143,6 +143,51 @@ if (hasFix) {
   chk('(g) non-flight-time column unaffected: ldgDay = 2', cell({ ldgDay: 2 }, 'ldgDay') === 2);
 }
 
+// ── Audit 2026-07-27 ────────────────────────────────────────────────
+// (h) A flight typed into the form stores landings and approaches as
+// STRINGS. The totals accumulator adds with +, so those rows contributed
+// nothing: every hand-entered landing vanished from the certifiable
+// CUMULATIVE row while still printing on its own line.
+{
+  const cell = (f, k) => +w.eval(`pdfCellValue(${JSON.stringify(f)}, ${JSON.stringify(k)})`);
+  const typed = { ldgDay: '2', ldgNight: '1', approaches: '1' };
+  const rawCell = (f, k) => JSON.parse(w.eval(`JSON.stringify(pdfCellValue(${JSON.stringify(f)}, ${JSON.stringify(k)}))`));
+  chk('(h) a hand-entered tally is returned as a NUMBER, not a string', typeof rawCell(typed, 'ldgDay') === 'number');
+  chk('(h) hand-entered landings count as numbers, not strings', cell(typed, 'ldgDay') === 2);
+  chk('(h) hand-entered night landings count', cell(typed, 'ldgNight') === 1);
+  chk('(h) hand-entered approaches count', cell(typed, 'approaches') === 1);
+  chk('(h) an imported numeric row is unchanged', cell({ ldgDay: 2 }, 'ldgDay') === 2);
+}
+
+// (i) A simulator session is not flight time. Its block used to be added
+// to career flight time on the dashboard and the PDF cover, while the
+// PDF's own column note says sim time stays separate.
+{
+  const cell = (f, k) => +w.eval(`pdfCellValue(${JSON.stringify(f)}, ${JSON.stringify(k)})`);
+  chk('(i) a simulator row contributes no flight time', cell({ isSim: true, block: 4, total: 4 }, 'total') === 0);
+  chk('(i) a real flight is unaffected', near(cell({ block: 1.2, total: 1.2 }, 'total'), 1.2));
+}
+
+// (j) The cover attestation must read the DERIVED brought-forward total.
+// Martin's record is the detailed engine-class grid with no stored total,
+// so a raw read returned 0 and the cover attested "0.0 hrs declared"
+// while page 1 of the same PDF printed 2781.0.
+{
+  w.eval(`localStorage.setItem('cumulo_opening_balances_v1', JSON.stringify({
+    balances: { seDay:415.8, seNight:5.0, seDayDual:132.1, seNightDual:7.1,
+                meDayCop:1880.3, meNightCop:299.6, meDayDual:37.7, meNightDual:3.4 },
+    cutoff: '2025-11-27', signedBy: 'F/O Martin Daoust' }))`);
+  const derived = JSON.parse(w.eval(
+    '(function(){ const t = totalsWithOpening({}); ' +
+    'return JSON.stringify({ total: +t.total || +t.block || 0, ' +
+    'raw: +(loadOpeningBalances().balances.total || 0) }); })()'
+  ));
+  chk('(j) the raw stored key really is 0 on this record shape', derived.raw === 0);
+  chk('(j) the derived brought-forward total is 2781.0', near(derived.total, 2781.0));
+  const coverBf = +w.eval(`pdfBroughtForwardTotal(loadOpeningBalances().balances)`);
+  chk('(j) the cover attests the same 2781.0, not 0', near(coverBf, 2781.0));
+}
+
 if (failures.length) {
   console.error('pdf-carryover: FAIL\n  - ' + failures.join('\n  - '));
   process.exit(1);

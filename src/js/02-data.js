@@ -106,6 +106,12 @@ function approachCountsTowardIFR(f) {
 //  block-first there — showing four different career numbers).
 // ─────────────────────────────────────────────────────────────────
 function flightTimeOf(f) {
+  // A simulator session is not flight time. Its hours belong in instSim, and
+  // the flight form already stores block 0 for a sim. A sim row that carries
+  // a block anyway (legacy or imported) used to be added to career flight
+  // time on the dashboard and the PDF cover, while the PDF's own column note
+  // says sim time must stay separate. (Audit 2026-07-27.)
+  if (f && f.isSim) return 0;
   return +f.total || +f.block || 0;
 }
 
