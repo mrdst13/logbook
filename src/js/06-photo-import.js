@@ -450,6 +450,9 @@ function confirmImport() {
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
   let imported = 0, skipped = 0;
+  // Clicking Import IS accepting these rows. One instant for the whole batch so
+  // every row the pilot accepted in this click carries the same stamp.
+  const _acceptedAt = new Date().toISOString();
   toImport.forEach(f => {
     // Strip UI-only flags. Every one of them is underscore-prefixed by
     // convention (_dup, _needsDayNight, _flownToday, _proof), and no real
@@ -471,7 +474,10 @@ function confirmImport() {
       const e = flights[match.idx];
       const merged = { ...e };
       const changed = fillEmptyStrict(merged, flightData, IMPORT_MERGE_FIELDS);
-      if (changed) flights[match.idx] = merged;
+      if (changed) {
+        if (typeof stampFlightAccepted === 'function') stampFlightAccepted(merged, _acceptedAt, importProfile);
+        flights[match.idx] = merged;
+      }
       skipped++;
       return;
     }
@@ -486,6 +492,7 @@ function confirmImport() {
     const enriched = (typeof recalculateFlightDayNightXC === 'function')
       ? recalculateFlightDayNightXC(withId, { skipLandingFill: true })
       : withId;
+    if (typeof stampFlightAccepted === 'function') stampFlightAccepted(enriched, _acceptedAt, importProfile);
     flights.push(enriched);
     newIds.push(newId);
     imported++;

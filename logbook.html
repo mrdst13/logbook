@@ -7523,6 +7523,57 @@ function approachCountsTowardIFR(f) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+//  ACCEPTANCE STAMP — when the pilot accepted a change, and by whom.
+//
+//  Martin, 2026-08-01: "tout ce que je veux c'est un timestamp et mes
+//  initiales après que j'ai accepté un changement dans le logbook."
+//
+//  Written on every row the pilot knowingly accepts: saving the flight form,
+//  confirming an import preview, applying the day/night recheck. NOT written
+//  by anything the pilot did not confirm — a cloud pull carries whatever stamp
+//  the originating device wrote and never invents one here.
+//
+//  Deliberately NOT signedBy/signedAt: those mean a formal per-batch
+//  attestation and the recheck tool treats a row carrying them as untouchable
+//  (30-night-recheck.js). Stamping every accepted edit into them would have
+//  silently frozen the whole logbook against its own repair tools.
+// ─────────────────────────────────────────────────────────────────
+
+// The pilot's initials from their profile. Returns '' when the profile has no
+// name — initials are never invented, and an empty string is a real "unknown"
+// that propagates, rather than leaving stale initials beside a fresh timestamp.
+function pilotInitials(profile) {
+  let p = profile;
+  if (!p) { try { p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null; } catch (e) { p = null; } }
+  p = p || {};
+  const a = String(p.fname || '').trim().charAt(0);
+  const b = String(p.lname || '').trim().charAt(0);
+  return (a + b).toUpperCase();
+}
+
+// Stamp one flight as accepted now (or at `whenISO`, so a batch shares one
+// instant). Mutates and returns the flight.
+function stampFlightAccepted(flight, whenISO, profile) {
+  if (!flight || typeof flight !== 'object') return flight;
+  flight.acceptedAt = whenISO || new Date().toISOString();
+  flight.acceptedBy = pilotInitials(profile);
+  return flight;
+}
+
+// "2026-08-01 14:32 · MD" for display. Local time: the pilot accepted it on
+// their own clock, and this is a provenance note, not certifiable flight data
+// (which stays UTC). Returns '' when nothing was ever stamped.
+function acceptedStampText(f, fr) {
+  if (!f || !f.acceptedAt) return '';
+  const d = new Date(f.acceptedAt);
+  if (isNaN(d.getTime())) return '';
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  const stamp = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) +
+                ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  return f.acceptedBy ? (stamp + ' · ' + f.acceptedBy) : stamp;
+}
+
+// ─────────────────────────────────────────────────────────────────
 //  flightTimeOf — the ONE definition of a flight's flight time.
 //  Flight time == block-to-block in Canada (CAR/RAC 101.01). `total` is the
 //  editable flight-time field; `block` is the legacy/import field. They are
@@ -9658,6 +9709,14 @@ function openFlightDetail(id) {
     [t('flight.picus'), fmtCell(+f.picus)],
     [t('flight.multiCrew'), f.multiCrew ? t('common.yes') : '—']
   ];
+  // When the pilot last accepted a change to this row, and their initials.
+  // Only shown once something has actually been stamped: a flight logged
+  // before this existed says nothing rather than claiming an unknown date.
+  const acceptedTxt = (typeof acceptedStampText === 'function') ? acceptedStampText(f) : '';
+  if (acceptedTxt) {
+    fields.push([]);
+    fields.push([t('detail.accepted'), acceptedTxt]);
+  }
   const rows = fields.map(([k, v]) => {
     if (!k) return '<div class="detail-sep"></div>';
     return `<div class="detail-row"><div class="detail-key">${esc(k)}</div><div class="detail-val">${esc(v || '—')}</div></div>`;
@@ -10092,6 +10151,10 @@ function saveFlight(options) {
   const finalFlight = (typeof recalculateFlightDayNightXC === 'function')
     ? recalculateFlightDayNightXC(flight)
     : flight;
+
+  // Pressing Save IS accepting this row: stamp when, and by whom. Placed after
+  // the recalc so the stamp covers the values actually written.
+  if (typeof stampFlightAccepted === 'function') stampFlightAccepted(finalFlight);
 
   // Capture before editingId is cleared below — used to prompt for a PPC/LOFT
   // date confirmation only on NEW entries (never on edits).
@@ -10870,6 +10933,9 @@ function confirmImport() {
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
   let imported = 0, skipped = 0;
+  // Clicking Import IS accepting these rows. One instant for the whole batch so
+  // every row the pilot accepted in this click carries the same stamp.
+  const _acceptedAt = new Date().toISOString();
   toImport.forEach(f => {
     // Strip UI-only flags. Every one of them is underscore-prefixed by
     // convention (_dup, _needsDayNight, _flownToday, _proof), and no real
@@ -10891,7 +10957,10 @@ function confirmImport() {
       const e = flights[match.idx];
       const merged = { ...e };
       const changed = fillEmptyStrict(merged, flightData, IMPORT_MERGE_FIELDS);
-      if (changed) flights[match.idx] = merged;
+      if (changed) {
+        if (typeof stampFlightAccepted === 'function') stampFlightAccepted(merged, _acceptedAt, importProfile);
+        flights[match.idx] = merged;
+      }
       skipped++;
       return;
     }
@@ -10906,6 +10975,7 @@ function confirmImport() {
     const enriched = (typeof recalculateFlightDayNightXC === 'function')
       ? recalculateFlightDayNightXC(withId, { skipLandingFill: true })
       : withId;
+    if (typeof stampFlightAccepted === 'function') stampFlightAccepted(enriched, _acceptedAt, importProfile);
     flights.push(enriched);
     newIds.push(newId);
     imported++;
@@ -13735,6 +13805,8 @@ async function handleRosterFile(file) {
     // PIPEDA: read consent toggle BEFORE looping so we apply the same policy
     // to every captain name in this import batch.
     const rosterProfile = DB.loadProfile();
+    // One instant for every row this import touches.
+    const _rosterAcceptedAt = new Date().toISOString();
 
     // Merge crew names + ATD/ATA actuals into existing flights.
     // Strict rule (2026-05-14): only write atd_utc/ata_utc when (a) the PDF
@@ -13771,7 +13843,10 @@ async function handleRosterFile(file) {
         merged.ata_utc = item.ata_utc;
         changed = true;
       }
-      if (changed) flights[idx] = merged;
+      if (changed) {
+        if (typeof stampFlightAccepted === 'function') stampFlightAccepted(merged, _rosterAcceptedAt, rosterProfile);
+        flights[idx] = merged;
+      }
     });
 
     if (matched > 0 || atdAdded > 0) {
@@ -14916,6 +14991,25 @@ function _generatePDF() {
           `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + e.firstAt.slice(0, 10) : ''}`
         );
       });
+    }
+    // Acceptance stamps (2026-08-01). Summarised here rather than added as a
+    // 39th column: the log grid is the TC 38-column layout an inspector reads
+    // at a ramp check, and it is not widened for provenance. Counted, never
+    // estimated — entries logged before the stamp existed carry none and are
+    // simply not counted.
+    const _accepted = sorted.filter(f => f && f.acceptedAt);
+    if (_accepted.length > 0) {
+      let newest = null;
+      for (const f of _accepted) {
+        const t = Date.parse(f.acceptedAt);
+        if (!isNaN(t) && (!newest || t > newest.t)) newest = { t: t, f: f };
+      }
+      const who = newest && newest.f.acceptedBy ? ' · ' + newest.f.acceptedBy : '';
+      const when = newest ? new Date(newest.t).toISOString().slice(0, 10) : '';
+      attestationLines.push(
+        `${_accepted.length} of ${sorted.length} entries carry an acceptance stamp` +
+        (when ? ` · most recent ${when}${who}` : '')
+      );
     }
 
     if (attestationLines.length === 0) {
@@ -17096,6 +17190,8 @@ function commitCsvImport() {
   }
   const flightsToImport = csvImportState.materialized;
   const rollback = flights.slice();
+  // One instant for every row this import writes.
+  const _csvAcceptedAt = new Date().toISOString();
   snapshotBeforeOperation(`Import from ${csvImportState.parsed.source}`);
   updateUndoButton();
 
@@ -17134,6 +17230,7 @@ function commitCsvImport() {
       // integrity). (Adversarially verified 2026-06-27.)
       if (!existing.signedBy && incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
       if (!existing.signedAt && incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
+      if (typeof stampFlightAccepted === 'function') stampFlightAccepted(mergedFlight, _csvAcceptedAt);
       flights[match.idx] = mergedFlight;
       merged++;
     } else {
@@ -17144,6 +17241,7 @@ function commitCsvImport() {
       const enriched = (typeof recalculateFlightDayNightXC === 'function')
         ? recalculateFlightDayNightXC(incoming, { skipLandingFill: true })
         : incoming;
+      if (typeof stampFlightAccepted === 'function') stampFlightAccepted(enriched, _csvAcceptedAt);
       flights.push(enriched);
       added++;
     }
@@ -18222,6 +18320,7 @@ const STRINGS = {
  'detail.ataUtc': 'ATA UTC',
  'detail.checkInUtc': 'Check-In UTC',
  'detail.checkOutUtc': 'Check-Out UTC',
+ 'detail.accepted': 'Accepted',
  'detail.flightTimeDecimal': 'Flight Time (decimal)',
  'common.yes': 'Yes',
  'crewPos.dual': 'Dual',
@@ -19403,6 +19502,7 @@ const STRINGS = {
  'detail.ataUtc': 'ATA UTC',
  'detail.checkInUtc': 'Présentation (UTC)',
  'detail.checkOutUtc': 'Libération (UTC)',
+ 'detail.accepted': 'Accepté',
  'detail.flightTimeDecimal': 'Temps de vol (décimal)',
  'common.yes': 'Oui',
  'crewPos.dual': 'Double',
@@ -20588,6 +20688,12 @@ const FLIGHT_FIELD_MAP = {
   navblueUid: 'navblue_uid',
   signedBy: 'signed_by',
   signedAt: 'signed_at',
+  // Per-row acceptance stamp (Martin 2026-08-01). Distinct from signedBy/
+  // signedAt, which mean a formal attestation and freeze the row against the
+  // repair tools. Columns added by the 2026-08-01 ALTER; a database that has
+  // not run it yet is handled by the 42703 fallback in pushAllFlights.
+  acceptedAt: 'accepted_at',
+  acceptedBy: 'accepted_by',
 };
 
 const FLIGHT_FIELD_MAP_INV = (() => {
@@ -20609,9 +20715,28 @@ const NUMERIC_COLS = new Set([
   'inst_actual','inst_hood','inst_sim','approaches','picus',
   'to_day','to_night','ldg_day','ldg_night','dual_given_day','dual_given_night',
 ]);
-const TIMESTAMP_COLS = new Set(['dtstart_utc','signed_at','deleted_at']);
+const TIMESTAMP_COLS = new Set(['dtstart_utc','signed_at','deleted_at','accepted_at']);
 const BOOLEAN_COLS = new Set(['is_sim','multi_crew']);
 const JSONB_COLS = new Set(['sources']);
+
+// Columns added after the original schema. A pilot whose Supabase has not run
+// the matching ALTER would otherwise see EVERY flight push fail with 42703 and
+// queue forever — a silent sync outage caused by a provenance nicety. On the
+// first such error we drop these columns and carry on; the stamp stays local
+// until the ALTER is run. Reset per page load, so running the ALTER takes
+// effect on the next launch without any further code.
+const OPTIONAL_FLIGHT_COLS = ['accepted_at', 'accepted_by'];
+let _optionalFlightColsMissing = false;
+function stripOptionalFlightCols(row) {
+  const out = { ...row };
+  for (const c of OPTIONAL_FLIGHT_COLS) delete out[c];
+  return out;
+}
+function isMissingColumnError(error) {
+  if (!error) return false;
+  const blob = String(error.message || '') + ' ' + String(error.code || '') + ' ' + String(error.details || '');
+  return /42703/.test(blob) || (/column/i.test(blob) && /does not exist|schema cache/i.test(blob));
+}
 
 // Make a row safe for the typed Supabase columns. Numeric "" → null (honest
 // "empty", not a fabricated 0 — cf. never-approximate rule; reads back as 0 in
@@ -20656,6 +20781,9 @@ function localFlightToRow(f, userId, opId) {
   // unavailable (load-order regression), we cannot prove consent — so blank
   // the crew names rather than push raw PII. Local data is untouched and a
   // later push with the gate present restores the anonymized values.
+  if (_optionalFlightColsMissing) {
+    for (const c of OPTIONAL_FLIGHT_COLS) delete row[c];
+  }
   const gateProfile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null;
   const hasConsent = !!(gateProfile && gateProfile.consentCaptainNames);
   if (!hasConsent) {
@@ -21840,7 +21968,16 @@ Sync.pushAllFlights = async function () {
     const rows = slice.map(p => p.row);
     const failedIds = new Set();
     try {
-      const { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
+      let { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
+      // This database has not run the 2026-08-01 ALTER yet. Drop the optional
+      // provenance columns and retry once rather than queue every flight: a
+      // missing nicety must never stop the logbook from syncing.
+      if (isMissingColumnError(error)) {
+        _optionalFlightColsMissing = true;
+        console.warn('[Sync] accepted_at/accepted_by not in this database — pushing without them');
+        for (let k = 0; k < rows.length; k++) rows[k] = stripOptionalFlightCols(rows[k]);
+        ({ error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' }));
+      }
       if (error && error.code === '23505') {
         // navblue_uid dedup-index collision: two rows with different ids
         // claim the same UID (e.g. duplicate segments imported by two
@@ -22424,40 +22561,19 @@ function _dashRenderBfBanner(hasFlights) {
   const draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
   const draftPending = !!draft && (!rec.attestedAt || (draft.savedAt && draft.savedAt > rec.attestedAt));
 
+  // ATTESTED → show NOTHING on the dashboard. The "Declaration sealed and
+  // verified" card sat at the top of every visit repeating a fact the pilot
+  // already knew, with no action attached. Removed at Martin's request
+  // 2026-08-01: "ça enlève ça aussi, c'est fatigant […] tout ce que je veux
+  // c'est un timestamp et mes initiales après que j'ai accepté un changement".
+  // The declaration itself, its seal and the Edit path all still live on the
+  // brought-forward page; only the standing dashboard notice is gone.
   if (attested) {
-    const summary = (typeof openingBalanceSummary === 'function') ? (openingBalanceSummary() || '') : '';
-    const hash = rec.hash || '';
-    banner.style.display = 'block';
-    banner.style.borderColor = 'var(--success, var(--accent))';
-    banner.innerHTML = `
-      <div style="display:flex;gap:11px;align-items:flex-start;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success, var(--accent))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Déclaration scellée et vérifiée' : 'Declaration sealed and verified'}</div>
-          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux sont enregistrés. Si un seul chiffre changeait après la signature, le sceau le détecterait.' : 'Your totals are saved. If a single number changed after signing, the seal would detect it.'}</div>
-          ${summary ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">${esc(summary)}</div>` : ''}
-          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Comment fonctionne le sceau' : 'How the seal works'}</summary><div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">${fr ? 'Une empreinte d\'intégrité unique est calculée à partir de vos totaux et conservée avec votre déclaration. Changer un seul chiffre produirait une empreinte différente — c\'est ainsi que toute altération serait détectée.' : 'A unique integrity fingerprint is computed from your totals and stored with your declaration. Changing a single number would produce a different fingerprint — that\'s how any tampering is detected.'}</div></details>` : ''}
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
-      </div>`;
-    // Actually verify the seal (async). If a value changed after signing,
-    // downgrade "sealed and verified" to an integrity warning — so the
-    // promise above is enforced, not decorative. (Audit item 8.)
-    verifyOpeningBalances(rec).then(res => {
-      if (res.ok) return;
-      banner.style.borderColor = 'var(--danger, var(--warning))';
-      banner.innerHTML = `
-        <div style="display:flex;gap:11px;align-items:flex-start;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger, var(--warning))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Vérification du sceau : échec' : 'Seal check failed'}</div>
-            <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux reportés ne correspondent plus à l\'empreinte signée — une valeur a changé depuis la signature. Rouvrez et attestez de nouveau pour resceller.' : 'Your brought-forward totals no longer match the signed fingerprint — a value changed since signing. Reopen and attest again to re-seal.'}</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Revoir' : 'Review'}</button>
-        </div>`;
-    }).catch(() => {});
+    banner.style.display = 'none';
+    banner.innerHTML = '';
     return;
   }
+
 
   if (draftPending) {
     const savedStr = draft.savedAt
@@ -23686,6 +23802,15 @@ function _renderQuickCrewModal(flightList, field) {
     ? "Saisissez vite le nom de l'équipage pour chaque vol. Autocomplete des noms récents. Bouton « Appliquer à tous » copie le 1er nom dans les champs vides — pratique quand vous avez fait toute la journée avec le même capitaine."
     : "Type the crew name for each leg. Autocomplete pulls from recent flights. \"Apply to all\" copies the first name into empty rows — useful when the same captain flew the whole duty day.";
 
+  // Drop any overlay still in the DOM before adding another. Two elements can
+  // otherwise share this id, and every reader here uses getElementById, which
+  // returns the FIRST one — so a second quick-fill would read the previous
+  // modal's rows and save nothing for the flights actually on screen. Only
+  // reachable when a prompt is raised again without the first being closed, but
+  // the code must not depend on the pilot having closed it. (Found 2026-08-01.)
+  const _stale = document.getElementById('_quickCrewOverlay');
+  if (_stale && _stale.parentNode) _stale.parentNode.removeChild(_stale);
+
   const overlay = document.createElement('div');
   overlay.className = 'import-overlay show';
   overlay.id = '_quickCrewOverlay';
@@ -23776,6 +23901,8 @@ function saveQuickCrewFill() {
   if (!overlay) return;
   const field = _quickCrewTargetField();
   let updated = 0;
+  // One instant for every row saved in this click.
+  const _crewAcceptedAt = new Date().toISOString();
 
   overlay.querySelectorAll('.qc-row').forEach(row => {
     const id = row.getAttribute('data-flight-id');
@@ -23789,6 +23916,8 @@ function saveQuickCrewFill() {
     // If this user typed the captain (they're F/O) and the flight didn't
     // have a crewPosition set, default to SIC (consistent with iCal import).
     if (field === 'pic' && !f.crewPosition) f.crewPosition = 'SIC';
+    // Typing a crew name and pressing Save is accepting a change to this row.
+    if (typeof stampFlightAccepted === 'function') stampFlightAccepted(f, _crewAcceptedAt);
     updated++;
   });
 
@@ -28068,6 +28197,9 @@ function applyNightRecheck() {
   }
 
   const touched = [];
+  // One instant for the whole run: the pilot accepted these corrections in a
+  // single click, so they share one stamp.
+  const _acceptedAt = new Date().toISOString();
   for (const { f, r } of writable) {
     f[r.cols.day] = r.toDay;
     f[r.cols.night] = r.toNight;
@@ -28076,6 +28208,7 @@ function applyNightRecheck() {
       f[r.cols.xcNight] = r.toNight;
     }
     if (r.anchorFixed && r.newAnchor) f.dtstart_utc = r.newAnchor;
+    if (typeof stampFlightAccepted === 'function') stampFlightAccepted(f, _acceptedAt);
     if (f.id) touched.push(f.id);
   }
   DB.save(flights);
@@ -28108,7 +28241,7 @@ function applyNightRecheck() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-01-6982c9b';
+const BUILD_VERSION = '2026-08-01-39453df';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

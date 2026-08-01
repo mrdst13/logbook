@@ -489,40 +489,19 @@ function _dashRenderBfBanner(hasFlights) {
   const draft = (typeof loadOpeningDraft === 'function') ? loadOpeningDraft() : null;
   const draftPending = !!draft && (!rec.attestedAt || (draft.savedAt && draft.savedAt > rec.attestedAt));
 
+  // ATTESTED → show NOTHING on the dashboard. The "Declaration sealed and
+  // verified" card sat at the top of every visit repeating a fact the pilot
+  // already knew, with no action attached. Removed at Martin's request
+  // 2026-08-01: "ça enlève ça aussi, c'est fatigant […] tout ce que je veux
+  // c'est un timestamp et mes initiales après que j'ai accepté un changement".
+  // The declaration itself, its seal and the Edit path all still live on the
+  // brought-forward page; only the standing dashboard notice is gone.
   if (attested) {
-    const summary = (typeof openingBalanceSummary === 'function') ? (openingBalanceSummary() || '') : '';
-    const hash = rec.hash || '';
-    banner.style.display = 'block';
-    banner.style.borderColor = 'var(--success, var(--accent))';
-    banner.innerHTML = `
-      <div style="display:flex;gap:11px;align-items:flex-start;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success, var(--accent))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Déclaration scellée et vérifiée' : 'Declaration sealed and verified'}</div>
-          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux sont enregistrés. Si un seul chiffre changeait après la signature, le sceau le détecterait.' : 'Your totals are saved. If a single number changed after signing, the seal would detect it.'}</div>
-          ${summary ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">${esc(summary)}</div>` : ''}
-          ${hash ? `<details style="margin-top:7px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);list-style:none;">${fr ? 'Comment fonctionne le sceau' : 'How the seal works'}</summary><div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;background:var(--bg-surface-2,rgba(120,140,170,.08));border-radius:6px;padding:8px 10px;margin-top:6px;">${fr ? 'Une empreinte d\'intégrité unique est calculée à partir de vos totaux et conservée avec votre déclaration. Changer un seul chiffre produirait une empreinte différente — c\'est ainsi que toute altération serait détectée.' : 'A unique integrity fingerprint is computed from your totals and stored with your declaration. Changing a single number would produce a different fingerprint — that\'s how any tampering is detected.'}</div></details>` : ''}
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Modifier' : 'Edit'}</button>
-      </div>`;
-    // Actually verify the seal (async). If a value changed after signing,
-    // downgrade "sealed and verified" to an integrity warning — so the
-    // promise above is enforced, not decorative. (Audit item 8.)
-    verifyOpeningBalances(rec).then(res => {
-      if (res.ok) return;
-      banner.style.borderColor = 'var(--danger, var(--warning))';
-      banner.innerHTML = `
-        <div style="display:flex;gap:11px;align-items:flex-start;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger, var(--warning))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:14px;color:var(--text);">${fr ? 'Vérification du sceau : échec' : 'Seal check failed'}</div>
-            <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;">${fr ? 'Vos totaux reportés ne correspondent plus à l\'empreinte signée — une valeur a changé depuis la signature. Rouvrez et attestez de nouveau pour resceller.' : 'Your brought-forward totals no longer match the signed fingerprint — a value changed since signing. Reopen and attest again to re-seal.'}</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="showPage('bf')" style="flex:0 0 auto;">${fr ? 'Revoir' : 'Review'}</button>
-        </div>`;
-    }).catch(() => {});
+    banner.style.display = 'none';
+    banner.innerHTML = '';
     return;
   }
+
 
   if (draftPending) {
     const savedStr = draft.savedAt

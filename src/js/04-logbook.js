@@ -201,6 +201,14 @@ function openFlightDetail(id) {
     [t('flight.picus'), fmtCell(+f.picus)],
     [t('flight.multiCrew'), f.multiCrew ? t('common.yes') : '—']
   ];
+  // When the pilot last accepted a change to this row, and their initials.
+  // Only shown once something has actually been stamped: a flight logged
+  // before this existed says nothing rather than claiming an unknown date.
+  const acceptedTxt = (typeof acceptedStampText === 'function') ? acceptedStampText(f) : '';
+  if (acceptedTxt) {
+    fields.push([]);
+    fields.push([t('detail.accepted'), acceptedTxt]);
+  }
   const rows = fields.map(([k, v]) => {
     if (!k) return '<div class="detail-sep"></div>';
     return `<div class="detail-row"><div class="detail-key">${esc(k)}</div><div class="detail-val">${esc(v || '—')}</div></div>`;

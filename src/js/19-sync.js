@@ -176,6 +176,12 @@ const FLIGHT_FIELD_MAP = {
   navblueUid: 'navblue_uid',
   signedBy: 'signed_by',
   signedAt: 'signed_at',
+  // Per-row acceptance stamp (Martin 2026-08-01). Distinct from signedBy/
+  // signedAt, which mean a formal attestation and freeze the row against the
+  // repair tools. Columns added by the 2026-08-01 ALTER; a database that has
+  // not run it yet is handled by the 42703 fallback in pushAllFlights.
+  acceptedAt: 'accepted_at',
+  acceptedBy: 'accepted_by',
 };
 
 const FLIGHT_FIELD_MAP_INV = (() => {
@@ -197,9 +203,28 @@ const NUMERIC_COLS = new Set([
   'inst_actual','inst_hood','inst_sim','approaches','picus',
   'to_day','to_night','ldg_day','ldg_night','dual_given_day','dual_given_night',
 ]);
-const TIMESTAMP_COLS = new Set(['dtstart_utc','signed_at','deleted_at']);
+const TIMESTAMP_COLS = new Set(['dtstart_utc','signed_at','deleted_at','accepted_at']);
 const BOOLEAN_COLS = new Set(['is_sim','multi_crew']);
 const JSONB_COLS = new Set(['sources']);
+
+// Columns added after the original schema. A pilot whose Supabase has not run
+// the matching ALTER would otherwise see EVERY flight push fail with 42703 and
+// queue forever — a silent sync outage caused by a provenance nicety. On the
+// first such error we drop these columns and carry on; the stamp stays local
+// until the ALTER is run. Reset per page load, so running the ALTER takes
+// effect on the next launch without any further code.
+const OPTIONAL_FLIGHT_COLS = ['accepted_at', 'accepted_by'];
+let _optionalFlightColsMissing = false;
+function stripOptionalFlightCols(row) {
+  const out = { ...row };
+  for (const c of OPTIONAL_FLIGHT_COLS) delete out[c];
+  return out;
+}
+function isMissingColumnError(error) {
+  if (!error) return false;
+  const blob = String(error.message || '') + ' ' + String(error.code || '') + ' ' + String(error.details || '');
+  return /42703/.test(blob) || (/column/i.test(blob) && /does not exist|schema cache/i.test(blob));
+}
 
 // Make a row safe for the typed Supabase columns. Numeric "" → null (honest
 // "empty", not a fabricated 0 — cf. never-approximate rule; reads back as 0 in
@@ -244,6 +269,9 @@ function localFlightToRow(f, userId, opId) {
   // unavailable (load-order regression), we cannot prove consent — so blank
   // the crew names rather than push raw PII. Local data is untouched and a
   // later push with the gate present restores the anonymized values.
+  if (_optionalFlightColsMissing) {
+    for (const c of OPTIONAL_FLIGHT_COLS) delete row[c];
+  }
   const gateProfile = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null;
   const hasConsent = !!(gateProfile && gateProfile.consentCaptainNames);
   if (!hasConsent) {
@@ -1428,7 +1456,16 @@ Sync.pushAllFlights = async function () {
     const rows = slice.map(p => p.row);
     const failedIds = new Set();
     try {
-      const { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
+      let { error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' });
+      // This database has not run the 2026-08-01 ALTER yet. Drop the optional
+      // provenance columns and retry once rather than queue every flight: a
+      // missing nicety must never stop the logbook from syncing.
+      if (isMissingColumnError(error)) {
+        _optionalFlightColsMissing = true;
+        console.warn('[Sync] accepted_at/accepted_by not in this database — pushing without them');
+        for (let k = 0; k < rows.length; k++) rows[k] = stripOptionalFlightCols(rows[k]);
+        ({ error } = await Auth.client.from('flights').upsert(rows, { onConflict: 'id' }));
+      }
       if (error && error.code === '23505') {
         // navblue_uid dedup-index collision: two rows with different ids
         // claim the same UID (e.g. duplicate segments imported by two

@@ -94,6 +94,57 @@ function approachCountsTowardIFR(f) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+//  ACCEPTANCE STAMP — when the pilot accepted a change, and by whom.
+//
+//  Martin, 2026-08-01: "tout ce que je veux c'est un timestamp et mes
+//  initiales après que j'ai accepté un changement dans le logbook."
+//
+//  Written on every row the pilot knowingly accepts: saving the flight form,
+//  confirming an import preview, applying the day/night recheck. NOT written
+//  by anything the pilot did not confirm — a cloud pull carries whatever stamp
+//  the originating device wrote and never invents one here.
+//
+//  Deliberately NOT signedBy/signedAt: those mean a formal per-batch
+//  attestation and the recheck tool treats a row carrying them as untouchable
+//  (30-night-recheck.js). Stamping every accepted edit into them would have
+//  silently frozen the whole logbook against its own repair tools.
+// ─────────────────────────────────────────────────────────────────
+
+// The pilot's initials from their profile. Returns '' when the profile has no
+// name — initials are never invented, and an empty string is a real "unknown"
+// that propagates, rather than leaving stale initials beside a fresh timestamp.
+function pilotInitials(profile) {
+  let p = profile;
+  if (!p) { try { p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null; } catch (e) { p = null; } }
+  p = p || {};
+  const a = String(p.fname || '').trim().charAt(0);
+  const b = String(p.lname || '').trim().charAt(0);
+  return (a + b).toUpperCase();
+}
+
+// Stamp one flight as accepted now (or at `whenISO`, so a batch shares one
+// instant). Mutates and returns the flight.
+function stampFlightAccepted(flight, whenISO, profile) {
+  if (!flight || typeof flight !== 'object') return flight;
+  flight.acceptedAt = whenISO || new Date().toISOString();
+  flight.acceptedBy = pilotInitials(profile);
+  return flight;
+}
+
+// "2026-08-01 14:32 · MD" for display. Local time: the pilot accepted it on
+// their own clock, and this is a provenance note, not certifiable flight data
+// (which stays UTC). Returns '' when nothing was ever stamped.
+function acceptedStampText(f, fr) {
+  if (!f || !f.acceptedAt) return '';
+  const d = new Date(f.acceptedAt);
+  if (isNaN(d.getTime())) return '';
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  const stamp = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) +
+                ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  return f.acceptedBy ? (stamp + ' · ' + f.acceptedBy) : stamp;
+}
+
+// ─────────────────────────────────────────────────────────────────
 //  flightTimeOf — the ONE definition of a flight's flight time.
 //  Flight time == block-to-block in Canada (CAR/RAC 101.01). `total` is the
 //  editable flight-time field; `block` is the legacy/import field. They are

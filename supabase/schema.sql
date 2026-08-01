@@ -225,6 +225,12 @@ create table if not exists public.flights (
   sources jsonb default '[]'::jsonb, -- audit trail of merges
   navblue_uid text,                  -- iCal UID for dedup
 
+  -- Acceptance stamp: when the pilot accepted a change to this row, and their
+  -- initials. Ordinary provenance, NOT an attestation: signed_by/signed_at below
+  -- freeze a row against the repair tools, these do not. (2026-08-01)
+  accepted_at timestamptz,
+  accepted_by text,
+
   -- Attestation (per-import batch signature)
   signed_by text,
   signed_at timestamptz,

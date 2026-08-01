@@ -65,6 +65,8 @@ async function handleRosterFile(file) {
     // PIPEDA: read consent toggle BEFORE looping so we apply the same policy
     // to every captain name in this import batch.
     const rosterProfile = DB.loadProfile();
+    // One instant for every row this import touches.
+    const _rosterAcceptedAt = new Date().toISOString();
 
     // Merge crew names + ATD/ATA actuals into existing flights.
     // Strict rule (2026-05-14): only write atd_utc/ata_utc when (a) the PDF
@@ -101,7 +103,10 @@ async function handleRosterFile(file) {
         merged.ata_utc = item.ata_utc;
         changed = true;
       }
-      if (changed) flights[idx] = merged;
+      if (changed) {
+        if (typeof stampFlightAccepted === 'function') stampFlightAccepted(merged, _rosterAcceptedAt, rosterProfile);
+        flights[idx] = merged;
+      }
     });
 
     if (matched > 0 || atdAdded > 0) {

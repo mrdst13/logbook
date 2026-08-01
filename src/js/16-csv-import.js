@@ -1117,6 +1117,8 @@ function commitCsvImport() {
   }
   const flightsToImport = csvImportState.materialized;
   const rollback = flights.slice();
+  // One instant for every row this import writes.
+  const _csvAcceptedAt = new Date().toISOString();
   snapshotBeforeOperation(`Import from ${csvImportState.parsed.source}`);
   updateUndoButton();
 
@@ -1155,6 +1157,7 @@ function commitCsvImport() {
       // integrity). (Adversarially verified 2026-06-27.)
       if (!existing.signedBy && incoming.signedBy) mergedFlight.signedBy = incoming.signedBy;
       if (!existing.signedAt && incoming.signedAt) mergedFlight.signedAt = incoming.signedAt;
+      if (typeof stampFlightAccepted === 'function') stampFlightAccepted(mergedFlight, _csvAcceptedAt);
       flights[match.idx] = mergedFlight;
       merged++;
     } else {
@@ -1165,6 +1168,7 @@ function commitCsvImport() {
       const enriched = (typeof recalculateFlightDayNightXC === 'function')
         ? recalculateFlightDayNightXC(incoming, { skipLandingFill: true })
         : incoming;
+      if (typeof stampFlightAccepted === 'function') stampFlightAccepted(enriched, _csvAcceptedAt);
       flights.push(enriched);
       added++;
     }

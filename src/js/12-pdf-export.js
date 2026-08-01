@@ -351,6 +351,25 @@ function _generatePDF() {
         );
       });
     }
+    // Acceptance stamps (2026-08-01). Summarised here rather than added as a
+    // 39th column: the log grid is the TC 38-column layout an inspector reads
+    // at a ramp check, and it is not widened for provenance. Counted, never
+    // estimated — entries logged before the stamp existed carry none and are
+    // simply not counted.
+    const _accepted = sorted.filter(f => f && f.acceptedAt);
+    if (_accepted.length > 0) {
+      let newest = null;
+      for (const f of _accepted) {
+        const t = Date.parse(f.acceptedAt);
+        if (!isNaN(t) && (!newest || t > newest.t)) newest = { t: t, f: f };
+      }
+      const who = newest && newest.f.acceptedBy ? ' · ' + newest.f.acceptedBy : '';
+      const when = newest ? new Date(newest.t).toISOString().slice(0, 10) : '';
+      attestationLines.push(
+        `${_accepted.length} of ${sorted.length} entries carry an acceptance stamp` +
+        (when ? ` · most recent ${when}${who}` : '')
+      );
+    }
 
     if (attestationLines.length === 0) {
       doc.text(baseFooter, W / 2, H - 8, { align: 'center' });

@@ -357,6 +357,9 @@ function applyNightRecheck() {
   }
 
   const touched = [];
+  // One instant for the whole run: the pilot accepted these corrections in a
+  // single click, so they share one stamp.
+  const _acceptedAt = new Date().toISOString();
   for (const { f, r } of writable) {
     f[r.cols.day] = r.toDay;
     f[r.cols.night] = r.toNight;
@@ -365,6 +368,7 @@ function applyNightRecheck() {
       f[r.cols.xcNight] = r.toNight;
     }
     if (r.anchorFixed && r.newAnchor) f.dtstart_utc = r.newAnchor;
+    if (typeof stampFlightAccepted === 'function') stampFlightAccepted(f, _acceptedAt);
     if (f.id) touched.push(f.id);
   }
   DB.save(flights);

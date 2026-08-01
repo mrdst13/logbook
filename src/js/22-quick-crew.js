@@ -93,6 +93,15 @@ function _renderQuickCrewModal(flightList, field) {
     ? "Saisissez vite le nom de l'équipage pour chaque vol. Autocomplete des noms récents. Bouton « Appliquer à tous » copie le 1er nom dans les champs vides — pratique quand vous avez fait toute la journée avec le même capitaine."
     : "Type the crew name for each leg. Autocomplete pulls from recent flights. \"Apply to all\" copies the first name into empty rows — useful when the same captain flew the whole duty day.";
 
+  // Drop any overlay still in the DOM before adding another. Two elements can
+  // otherwise share this id, and every reader here uses getElementById, which
+  // returns the FIRST one — so a second quick-fill would read the previous
+  // modal's rows and save nothing for the flights actually on screen. Only
+  // reachable when a prompt is raised again without the first being closed, but
+  // the code must not depend on the pilot having closed it. (Found 2026-08-01.)
+  const _stale = document.getElementById('_quickCrewOverlay');
+  if (_stale && _stale.parentNode) _stale.parentNode.removeChild(_stale);
+
   const overlay = document.createElement('div');
   overlay.className = 'import-overlay show';
   overlay.id = '_quickCrewOverlay';
@@ -183,6 +192,8 @@ function saveQuickCrewFill() {
   if (!overlay) return;
   const field = _quickCrewTargetField();
   let updated = 0;
+  // One instant for every row saved in this click.
+  const _crewAcceptedAt = new Date().toISOString();
 
   overlay.querySelectorAll('.qc-row').forEach(row => {
     const id = row.getAttribute('data-flight-id');
@@ -196,6 +207,8 @@ function saveQuickCrewFill() {
     // If this user typed the captain (they're F/O) and the flight didn't
     // have a crewPosition set, default to SIC (consistent with iCal import).
     if (field === 'pic' && !f.crewPosition) f.crewPosition = 'SIC';
+    // Typing a crew name and pressing Save is accepting a change to this row.
+    if (typeof stampFlightAccepted === 'function') stampFlightAccepted(f, _crewAcceptedAt);
     updated++;
   });
 

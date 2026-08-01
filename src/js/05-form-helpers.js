@@ -267,6 +267,10 @@ function saveFlight(options) {
     ? recalculateFlightDayNightXC(flight)
     : flight;
 
+  // Pressing Save IS accepting this row: stamp when, and by whom. Placed after
+  // the recalc so the stamp covers the values actually written.
+  if (typeof stampFlightAccepted === 'function') stampFlightAccepted(finalFlight);
+
   // Capture before editingId is cleared below — used to prompt for a PPC/LOFT
   // date confirmation only on NEW entries (never on edits).
   const wasNewEntry = !editingId;
