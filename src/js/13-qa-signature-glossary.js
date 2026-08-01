@@ -258,6 +258,8 @@ function saveSignature() {
  localStorage.setItem('logbook_signature', data);
  document.getElementById('sigStatus').textContent = (typeof t === 'function') ? t('sig.statusJustSaved') : 'Saved.';
  showToast(t('toast.signatureSaved'), 'success');
+ // Carry it to the account (see Sync.pushDeviceSettingsIfAny).
+ try { if (typeof Sync !== 'undefined' && Sync.pushDeviceSettingsIfAny) Sync.pushDeviceSettingsIfAny({ intent: true }); } catch (e) {}
 }
 
 // ═══════════════════════════════════════════

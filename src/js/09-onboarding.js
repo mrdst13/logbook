@@ -193,6 +193,9 @@ function onboardingNext() {
     let url = onbData.navblueUrl.replace(/^webcal:\/\//i, 'https://');
     if (/^https:\/\/[^/]*navblue\.cloud\//i.test(url)) {
       localStorage.setItem(NAVBLUE_URL_KEY, url);
+      try { localStorage.removeItem(NAVBLUE_REMOVED_KEY); } catch (e) {}
+      // Carry it to the account so every other device gets the feed too.
+      try { if (typeof Sync !== 'undefined' && Sync.pushDeviceSettingsIfAny) Sync.pushDeviceSettingsIfAny({ intent: true }); } catch (e) {}
     }
   }
 

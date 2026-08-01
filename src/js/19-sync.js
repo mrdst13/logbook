@@ -612,6 +612,13 @@ const Sync = {
       }
       const _pulled = await this.pullFlights({ silent: true });
       _adopted = !!(_pulled && (_pulled.added || _pulled.updated || _pulled.removed));
+      // Settings, not just flights. A device left open in the background never
+      // re-ran pullProfile, so a roster feed (or signature, or prefs) connected
+      // on the other device stayed invisible here until a full reload — which is
+      // the same "I have to reload before my phone sees it" complaint this whole
+      // function exists to fix, applied to everything that isn't a flight.
+      // Fill-empty and idempotent, so re-running it costs one row read.
+      try { await this.pullProfile(); } catch (e) { /* transient — retried next foreground */ }
     } catch (e) {
       console.warn('[Sync] pullOnForeground error:', e);
     } finally {
@@ -643,15 +650,14 @@ const Sync = {
     // and a 2nd device stays empty (audit 2026-06-30 cause #2). These columns
     // already exist in `profiles`; no schema change.
     const ls = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-    const navblueUrl = profile.navblueUrl || ls('cumulo_navblue_url') || null;
-    const lang = profile.lang || ls('cumulo_lang') || 'en';
-    const darkMode = (profile.darkMode !== undefined) ? !!profile.darkMode : (ls('logbook_dark') === '1');
-    let columnPrefs = profile.columnPrefs;
-    if (!columnPrefs) {
-      try { columnPrefs = JSON.parse(ls('cumulo_column_prefs_v1') || '{}'); } catch (e) { columnPrefs = {}; }
-    }
     const row = {
       id: Auth.currentUserId(),
+      // Profile-object fields. Every caller of DB.saveProfile loads the whole
+      // local profile, mutates it and saves it back (07-profile.js, 26-validities.js,
+      // 21-dash-drilldown.js, 00-core.js, 09-onboarding.js all spread over the
+      // existing record), so a blank here is a real "the pilot cleared it" and
+      // must propagate as null. Verified call-site by call-site 2026-08-01 —
+      // if a future caller ever passes a PARTIAL profile, it belongs below.
       fname: profile.fname || null,
       lname: profile.lname || null,
       rank: profile.rank || null,
@@ -663,27 +669,53 @@ const Sync = {
       base: profile.base || null,
       fleet: profile.fleet || null,
       operator_codes: profile.operatorCodes || null,
-      navblue_url: navblueUrl,
-      pilot_type: profile.pilotType || 'airline705',
-      // Stored key is `autoCountIFR` (uppercase); the old `autoCountIfr` read
-      // was always undefined → always pushed true (audit cause #3).
-      auto_count_ifr: profile.autoCountIFR !== false,
-      consent_captain_names: !!profile.consentCaptainNames,
-      hide_zero_columns: !!profile.hideZeroColumns,
-      lang: lang,
-      dark_mode: darkMode,
-      ac_configs: profile.acConfigs || ['wheels'],
-      column_prefs: columnPrefs || {},
       // Fields synced since the 2026-07-01 Supabase ALTER (audit cause #2).
-      // ppcDueDate / personalGoal* live on the profile object; signature +
-      // onboarded live in localStorage (read via ls()).
       ppc_due_date: profile.ppcDueDate || null,
       personal_goal_hrs: (profile.personalGoalHrs != null && profile.personalGoalHrs !== '') ? +profile.personalGoalHrs : null,
       personal_goal_kind: profile.personalGoalKind || null,
       personal_goal_context: profile.personalGoalContext || null,
-      signature: ls('logbook_signature') || null,
-      onboarded: !!ls('cumulo_onboarded_v1'),
     };
+    // ── Columns this device may not legitimately have an answer for ────────
+    // Everything below is either kept in localStorage (iCal URL, signature,
+    // language, dark mode, column prefs, onboarding flag) or was defaulted by
+    // the old code (pilot type, aircraft configs, the three toggles). A device
+    // that simply has not been set up yet was sending null / '' / a fabricated
+    // default for every one of them — and upsert applies EVERY column present
+    // in the payload, so one profile edit on a fresh phone silently blanked the
+    // iCal URL, the PDF signature and the prefs that lived on the computer.
+    // That is exactly how Martin's iPhone ended up telling him to "connect your
+    // schedule" while his computer was connected on the same account
+    // (2026-08-01). Same hazard the custom-validities fix closed on 2026-07-09;
+    // it was never limited to those two columns.
+    //
+    // OMIT rather than blank: upsert leaves an omitted column untouched, and
+    // the pull side is fill-empty, so the cloud keeps whatever the device that
+    // actually HAS the value uploaded. Nothing can be lost by omitting.
+    const put = (col, val) => { if (val !== undefined && val !== null && val !== '') row[col] = val; };
+    const nbKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';
+    put('navblue_url', profile.navblueUrl || ls(nbKey));
+    put('signature', ls('logbook_signature'));
+    put('lang', profile.lang || ls('cumulo_lang'));
+    put('pilot_type', profile.pilotType);
+    // Stored key is `autoCountIFR` (uppercase); the old `autoCountIfr` read
+    // was always undefined → always pushed true (audit cause #3). Send it only
+    // when this device holds a real answer, so an unset device can't flip a
+    // deliberate "off" back on.
+    if (profile.autoCountIFR !== undefined) row.auto_count_ifr = profile.autoCountIFR !== false;
+    if (profile.consentCaptainNames !== undefined) row.consent_captain_names = !!profile.consentCaptainNames;
+    if (profile.hideZeroColumns !== undefined) row.hide_zero_columns = !!profile.hideZeroColumns;
+    const darkLS = ls('logbook_dark');
+    if (profile.darkMode !== undefined) row.dark_mode = !!profile.darkMode;
+    else if (darkLS === '0' || darkLS === '1') row.dark_mode = darkLS === '1';
+    if (Array.isArray(profile.acConfigs) && profile.acConfigs.length) row.ac_configs = profile.acConfigs.slice();
+    let columnPrefs = profile.columnPrefs;
+    if (!columnPrefs) {
+      try { columnPrefs = JSON.parse(ls('cumulo_column_prefs_v1') || 'null'); } catch (e) { columnPrefs = null; }
+    }
+    if (columnPrefs && Object.keys(columnPrefs).length) row.column_prefs = columnPrefs;
+    // Onboarding: true only. A fresh device pushing `false` would re-arm the
+    // wizard on every other device — and you cannot un-onboard.
+    if (ls('cumulo_onboarded_v1')) row.onboarded = true;
     // Custom validities (Passport, RAIC, Line check…) + per-type goal BF: attach
     // ONLY when THIS device actually has them. A device with none must OMIT these
     // columns — sending [] / null blanks the copy a device WITH them uploaded
@@ -731,6 +763,104 @@ const Sync = {
         console.warn('[Sync] pushCustomValiditiesIfAny failed:', error.message);
       }
     } catch (e) { /* offline — non-fatal */ }
+  },
+
+  // ─── Roster iCal URL: targeted cross-device propagation ─────────────
+  // The URL is saved in Settings > Sync, which writes localStorage and nothing
+  // else — it never touched DB.saveProfile, and pushProfile (the ONLY writer of
+  // navblue_url) fires exclusively from the DB.saveProfile patch. So a pilot who
+  // pasted their feed in Settings and never afterwards edited their Profile had
+  // it stored on that one device forever: the cloud column stayed null and the
+  // second device kept showing "connect your schedule" (Martin, iPhone,
+  // 2026-08-01).
+  //
+  // The iCal URL is not alone. The PDF signature, the language, the theme and
+  // the column preferences are all saved the same way — one localStorage write,
+  // no cloud call — so every one of them was stranded on whichever device set
+  // it. This pushes ALL of them, and ONLY the ones this device actually holds:
+  // an absent value is omitted, never sent as null, so a bare device can never
+  // blank what another device uploaded. Runs on every save, on sign-in and on
+  // every launch (the launch pass self-heals settings saved before this build).
+  //
+  // Disconnecting the roster on ONE device must stay disconnected on THAT
+  // device: the fill-empty pull would otherwise hand the URL back on the next
+  // launch and the Remove button would look broken. A local tombstone (written
+  // by clearNavblueUrl, cleared by saveNavblueUrl) stops both this push and the
+  // pull-side restore. Deliberately local: the other device is still genuinely
+  // connected, so nothing is blanked in the cloud behind the pilot's back.
+  // TWO MODES, and the difference matters (independent review, 2026-08-01).
+  //
+  //   { intent: true }  — the pilot just saved this setting here. Their action
+  //                       is the newest fact there is, so it overwrites.
+  //   default           — launch / sign-in self-heal. Reads the cloud row first
+  //                       and sends ONLY the columns the cloud has no value for.
+  //
+  // Without that split, an unconditional launch push made every device shout its
+  // own copy over everyone else's: paste a corrected feed URL on the computer,
+  // and the phone would push the DEAD one back the next time it opened, forever,
+  // because the fill-empty pull never lets the phone adopt the new one. Same for
+  // a re-drawn PDF signature. The self-heal fills gaps; it never reverts.
+  async pushDeviceSettingsIfAny(opts) {
+    if (!Auth.isAuthenticated()) return;
+    const intent = !!(opts && opts.intent);
+    const payload = { id: Auth.currentUserId() };
+    try {
+      const ls = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+      const url = ls(NAVBLUE_URL_KEY);
+      if (url && !ls(NAVBLUE_REMOVED_KEY)) payload.navblue_url = url;
+      const sig = ls('logbook_signature');
+      if (sig) payload.signature = sig;
+      const lang = ls('cumulo_lang');
+      if (lang) payload.lang = lang;
+      // Theme only when the pilot actually picked one. applyDarkMode() writes
+      // 'logbook_dark' on the very first boot of any device (via setTheme), so
+      // the key's mere presence proves nothing — without this marker a phone
+      // that had never been touched pushed "light" over a deliberate dark.
+      const dark = ls('logbook_dark');
+      if ((dark === '0' || dark === '1') && ls(THEME_CHOSEN_KEY)) payload.dark_mode = dark === '1';
+      const prefsRaw = ls('cumulo_column_prefs_v1');
+      if (prefsRaw) {
+        try {
+          const prefs = JSON.parse(prefsRaw);
+          if (prefs && Object.keys(prefs).length) payload.column_prefs = prefs;
+        } catch (e) { /* corrupt local prefs — skip rather than push garbage */ }
+      }
+      if (ls('cumulo_onboarded_v1')) payload.onboarded = true;
+    } catch (e) { return; }
+    if (Object.keys(payload).length < 2) return;   // nothing to say — never write a bare row
+
+    if (!intent) {
+      // Self-heal: drop every column the cloud already answers, so this can only
+      // ever fill a gap. A read failure means we cannot prove the cloud is empty,
+      // so we send nothing rather than risk reverting the other device.
+      let row = null;
+      try {
+        const resp = await Auth.client.from('profiles').select('*').eq('id', Auth.currentUserId());
+        if (resp.error) return;
+        row = resp.data && resp.data[0];
+      } catch (e) { return; }
+      if (row) {
+        for (const col of Object.keys(payload)) {
+          if (col === 'id') continue;
+          const cur = row[col];
+          const filled = (col === 'column_prefs')
+            ? !!(cur && Object.keys(cur).length)
+            : (cur !== undefined && cur !== null && cur !== '');
+          if (filled) delete payload[col];
+        }
+      }
+      if (Object.keys(payload).length < 2) return;   // cloud already knows everything
+    }
+
+    try {
+      const { error } = await Auth.client.from('profiles').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        console.warn('[Sync] pushDeviceSettingsIfAny failed, queuing:', error.message);
+        this._enqueue({ type: 'upsert_profile', payload: payload });
+      }
+    } catch (e) {
+      this._enqueue({ type: 'upsert_profile', payload: payload });   // offline — drains on reconnect
+    }
   },
 
   // Pull the cloud profile for cross-device sync. FILL-EMPTY merge: a remote
@@ -815,20 +945,34 @@ const Sync = {
       local.personalGoalBroughtForward = +row.personal_goal_bf; changed = true;
     }
 
-    if (changed) DB.saveProfile(local);
-
-    // Device-scoped settings kept in localStorage — restore only when absent
-    // on this device (never overwrite a local choice).
+    // Settings kept in localStorage — restore only when absent on this device
+    // (never overwrite a local choice).
+    //
+    // THIS MUST RUN BEFORE DB.saveProfile BELOW. That save is patched to fire
+    // pushProfile, and pushProfile reads these very keys out of localStorage.
+    // Restoring afterwards meant the echo push went out from a device whose
+    // localStorage was still empty — so the pull that was supposed to heal the
+    // second device instead told the cloud this pilot had no roster URL, no
+    // signature and had never onboarded, milliseconds before filling them in
+    // locally from the row it had just read. (Found 2026-08-01 by an
+    // independent review of the fix above; the omit-when-blank rule already
+    // defuses it, and this ordering closes the hole outright.)
+    let adoptedNavblue = false, adoptedLang = null, adoptedDark = null;
     try {
       const nbKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';
-      if (!localStorage.getItem(nbKey) && row.navblue_url) {
+      const rmKey = (typeof NAVBLUE_REMOVED_KEY !== 'undefined') ? NAVBLUE_REMOVED_KEY : 'cumulo_navblue_removed_v1';
+      // …unless the pilot disconnected the feed on THIS device on purpose.
+      if (!localStorage.getItem(nbKey) && row.navblue_url && !localStorage.getItem(rmKey)) {
         localStorage.setItem(nbKey, row.navblue_url);
+        adoptedNavblue = true;
       }
       if (!localStorage.getItem('cumulo_lang') && row.lang) {
         localStorage.setItem('cumulo_lang', row.lang);
+        adoptedLang = row.lang;
       }
       if (localStorage.getItem('logbook_dark') === null && (row.dark_mode === true || row.dark_mode === false)) {
         localStorage.setItem('logbook_dark', row.dark_mode ? '1' : '0');
+        adoptedDark = row.dark_mode ? 'dark' : 'light';
       }
       if (!localStorage.getItem('cumulo_column_prefs_v1') && row.column_prefs && Object.keys(row.column_prefs).length) {
         localStorage.setItem('cumulo_column_prefs_v1', JSON.stringify(row.column_prefs));
@@ -845,7 +989,53 @@ const Sync = {
       }
     } catch (e) { /* storage unavailable — non-fatal */ }
 
+    if (changed) DB.saveProfile(local);
+
+    // Adopting a language or a theme is only half the job: both are read at
+    // RENDER time, and pullProfile lands after the page has already painted.
+    // Writing the key alone left the nav, headings and buttons in the language
+    // of the load while freshly-rendered panels came back in the other one.
+    // applyTranslations / setTheme are called directly rather than setLang, so
+    // adopting the account's choice cannot bounce straight back as a push.
+    if (adoptedLang) {
+      try { if (typeof document !== 'undefined') document.documentElement.setAttribute('lang', adoptedLang); } catch (e) {}
+      try { if (typeof applyTranslations === 'function') applyTranslations(); } catch (e) {}
+      try { if (typeof syncLangToggleUI === 'function') syncLangToggleUI(adoptedLang); } catch (e) {}
+    }
+    if (adoptedDark) {
+      try { if (typeof setTheme === 'function') setTheme(adoptedDark); } catch (e) {}
+    }
+
     if (typeof renderDashboard === 'function') renderDashboard();
+
+    // The roster feed arriving from the cloud changes what three screens say,
+    // and every one of them reads localStorage SYNCHRONOUSLY at render time.
+    // pullProfile is async and lands after the first paint, so without this the
+    // pilot sat on a Duty page still telling them to connect a schedule that had
+    // just been connected — until a full reload. (Martin, iPhone, 2026-08-01.)
+    if (adoptedNavblue) {
+      // Let the Duty page's self-heal fetch a forecast for the newly-known feed
+      // instead of staying latched from the render that ran while it was absent.
+      try { if (typeof _dutyForecastSyncing !== 'undefined') _dutyForecastSyncing = false; } catch (e) {}
+      try { if (typeof loadNavblueUI === 'function' && document.getElementById('navblueUrl')) loadNavblueUI(); } catch (e) {}
+      // Exactly ONE roster fetch. When the Duty page is the one on screen its own
+      // self-heal starts the fetch (25-duty-tracker.js, guarded by the latch we
+      // just lowered); firing syncNavblueAuto as well ran two imports of the same
+      // feed side by side, each matching against a `flights` array the other was
+      // still mutating — the precise way duplicate legs get minted. Off that page
+      // nothing else would fetch, so we start it here instead.
+      let dutyRendered = false;
+      try {
+        const dutyPage = document.getElementById('page-duty');
+        if (dutyPage && dutyPage.classList.contains('active') && typeof renderDutyTracker === 'function') {
+          renderDutyTracker();
+          dutyRendered = true;
+        }
+      } catch (e) {}
+      if (!dutyRendered) {
+        try { if (typeof syncNavblueAuto === 'function') syncNavblueAuto('profile-pull'); } catch (e) {}
+      }
+    }
   },
 
   // ─── Opening balances (brought-forward hours) cross-device sync ──────
@@ -879,6 +1069,16 @@ const Sync = {
     if (typeof loadOpeningBalances !== 'function') return;
     // Fill-empty: never clobber a local attestation. Only adopt the cloud
     // record when this device has declared no opening balances of its own.
+    //
+    // A re-attestation made on another device therefore does NOT propagate, and
+    // that is deliberate as of 2026-08-01. A 'newest attestation wins' rule was
+    // written and then REMOVED the same day: the cloud table has no attested_by
+    // column (supabase/schema.sql), so an adopted record loses the signer name
+    // that the SHA-256 seal is computed over. The phone would have replaced a
+    // record the pilot signed here, failed its own seal check, and told him his
+    // brought-forward totals had been tampered with. Adopting an unverifiable
+    // copy over a verified one is worse than not syncing at all. Re-attest by
+    // hand on each device until attested_by is carried end to end.
     const localRec = loadOpeningBalances();
     if (localRec && localRec.balances && Object.keys(localRec.balances).length) return;
     let data, error;

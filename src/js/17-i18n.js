@@ -548,7 +548,7 @@ const STRINGS = {
  'sync.failed': 'Sync failed',
  'sync.diag.noData': 'No diagnostic data yet — run an iCal sync first, then click Diagnostic again.',
  'sync.diag.corrupted': 'Diagnostic data corrupted — run a fresh sync.',
- 'sync.diag.consoleFallback': 'Diagnostic data printed to the console (press Ctrl+Shift+J to view).',
+ 'sync.diag.consoleFallback': 'The diagnostic view could not open on this screen. Try again from Settings, Sync.',
  'sync.diag.subtitle': 'iCal diagnostic · synced {age} min ago · {events} events',
  'sync.diag.intro': 'Below are {n} raw entries from your roster feed, taken from the days around today. Share this whole block with support when captain names are missing from your PIC column, or when a flight you have already finished is not showing up.',
  'sync.diag.sample': '— Sample {n} —',
@@ -904,7 +904,7 @@ const STRINGS = {
 
  // ─── Confirm dialogs
  'confirm.deleteAll': 'Delete ALL flights? This cannot be undone.',
- 'confirm.removeNavblue': 'Remove the saved iCal URL?',
+ 'confirm.removeNavblue': 'Remove the saved iCal URL on this device? Your other devices keep theirs.',
  'confirm.convertToSim': 'This flight has {h} h of recorded flight time. Saving it as a simulator session sets that to zero, because a simulator session is not flight time. Convert it anyway?',
  'confirm.deleteFlightShort':'Delete this flight entry?',
  'confirm.deleteFlightTitle':'Delete flight',
@@ -1729,7 +1729,7 @@ const STRINGS = {
  'sync.failed': 'Échec de la synchronisation',
  'sync.diag.noData': 'Aucune donnée de diagnostic — lancez d’abord une synchro iCal, puis recliquez sur Diagnostic.',
  'sync.diag.corrupted': 'Données de diagnostic corrompues — relancez une synchro.',
- 'sync.diag.consoleFallback': 'Données de diagnostic affichées dans la console (appuyez sur Ctrl+Maj+J pour les voir).',
+ 'sync.diag.consoleFallback': 'La vue de diagnostic n’a pas pu s’ouvrir sur cet écran. Réessayez depuis Paramètres, Synchro.',
  'sync.diag.subtitle': 'Diagnostic iCal · synchro il y a {age} min · {events} événements',
  'sync.diag.intro': 'Voici {n} entrées brutes du flux de votre horaire, prises dans les jours entourant aujourd’hui. Partagez ce bloc complet avec le soutien si des noms de commandant manquent dans votre colonne CDB, ou si un vol que vous avez terminé n’apparaît pas.',
  'sync.diag.sample': '— Échantillon {n} —',
@@ -2085,7 +2085,7 @@ const STRINGS = {
 
  // ─── Dialogues de confirmation
  'confirm.deleteAll': 'Supprimer TOUS les vols ? Cette action est irréversible.',
- 'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée ?',
+ 'confirm.removeNavblue': 'Supprimer l’URL iCal enregistrée sur cet appareil ? Vos autres appareils gardent la leur.',
  'confirm.convertToSim': 'Ce vol porte {h} h de temps de vol enregistré. L’enregistrer comme séance de simulateur met ce temps à zéro, parce qu’une séance de simulateur n’est pas du temps de vol. Convertir quand même ?',
  'confirm.deleteFlightShort':'Supprimer ce vol ?',
  'confirm.deleteFlightTitle':'Supprimer le vol',
@@ -2387,6 +2387,8 @@ function getLang() {
 function setLang(lang) {
  if (!SUPPORTED_LANGS.includes(lang)) return;
  localStorage.setItem(LANG_KEY, lang);
+ // Carry it to the account (see Sync.pushDeviceSettingsIfAny).
+ try { if (typeof Sync !== 'undefined' && Sync.pushDeviceSettingsIfAny) Sync.pushDeviceSettingsIfAny({ intent: true }); } catch (e) {}
  document.documentElement.setAttribute('lang', lang);
  applyTranslations();
  // Sync header EN/FR toggle button states (mirrors setTheme pattern).

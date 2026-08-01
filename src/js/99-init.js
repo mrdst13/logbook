@@ -204,7 +204,16 @@ function injectDemoBanner() {
    });
  };
  document.addEventListener('visibilitychange', () => {
-   if (document.visibilityState === 'visible') onForegroundReturn('visibility', true);
+   if (document.visibilityState !== 'visible') return;
+   // Coming back to the front starts a new render cycle for the Duty page's
+   // self-healing forecast fetch. Its guard latches true and is never lowered,
+   // so a fetch that failed once (no signal on the ramp, worker hiccup) left the
+   // page unable to try again for the whole session. Lowering it here is what
+   // the guard's own comment always claimed it did. Safe: the render that
+   // follows only re-fires the fetch when the roster is configured AND no
+   // forecast is cached, and it raises the latch again immediately.
+   try { if (typeof _dutyForecastSyncing !== 'undefined') _dutyForecastSyncing = false; } catch (e) {}
+   onForegroundReturn('visibility', true);
  });
  window.addEventListener('focus', () => onForegroundReturn('focus', false));
  // Defensive flush on tab hide.
@@ -297,6 +306,12 @@ function injectDemoBanner() {
  // Same self-heal for custom validities + per-type goal BF (only the device
  // that has them writes; empty devices no-op, so nothing gets wiped).
  if (Sync.pushCustomValiditiesIfAny) Sync.pushCustomValiditiesIfAny();
+ // …and for the roster iCal URL, which until 2026-08-01 was only ever written
+ // to the cloud as a side effect of editing the Profile. A pilot who pasted
+ // their feed in Settings and never touched their Profile again had it on one
+ // device only. The device that HAS it re-uploads every launch; a device
+ // without one no-ops, so this can never blank the cloud copy.
+ if (Sync.pushDeviceSettingsIfAny) Sync.pushDeviceSettingsIfAny();
  } else {
  if (window._kickNavblueInitSync) window._kickNavblueInitSync(1200);
  }

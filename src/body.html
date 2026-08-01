@@ -43,10 +43,10 @@
 
  <!-- Theme toggle (v3a) — small sun/moon switch -->
  <div class="theme-toggle" role="group" aria-label="Theme" data-i18n-aria-label="a11y.theme">
- <button type="button" id="themeBtnLight" onclick="setTheme('light')" title="Light mode" aria-label="Light mode" data-i18n-title="a11y.lightMode" data-i18n-aria-label="a11y.lightMode">
+ <button type="button" id="themeBtnLight" onclick="setTheme('light', { explicit: true })" title="Light mode" aria-label="Light mode" data-i18n-title="a11y.lightMode" data-i18n-aria-label="a11y.lightMode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41"/></svg>
  </button>
- <button type="button" id="themeBtnDark" onclick="setTheme('dark')" title="Dark mode" aria-label="Dark mode" data-i18n-title="a11y.darkMode" data-i18n-aria-label="a11y.darkMode">
+ <button type="button" id="themeBtnDark" onclick="setTheme('dark', { explicit: true })" title="Dark mode" aria-label="Dark mode" data-i18n-title="a11y.darkMode" data-i18n-aria-label="a11y.darkMode">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
  </button>
  </div>

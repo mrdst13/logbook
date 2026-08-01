@@ -574,6 +574,12 @@ async function onAuthSuccess() {
   if (typeof Sync !== 'undefined' && Sync.pushCustomValiditiesIfAny) {
     Sync.pushCustomValiditiesIfAny();
   }
+  // Same for the roster iCal URL: the device that has the feed re-uploads it on
+  // sign-in, so signing in on a new phone brings the schedule with it instead of
+  // asking the pilot to connect one they already connected (2026-08-01).
+  if (typeof Sync !== 'undefined' && Sync.pushDeviceSettingsIfAny) {
+    Sync.pushDeviceSettingsIfAny();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

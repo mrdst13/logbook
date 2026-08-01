@@ -435,8 +435,19 @@ async function deleteAccountPurge() {
     'logbook_v1', 'logbook_profile_v1', 'logbook_dark',
     'cumulo_snapshots_v2', 'cumulo_snapshot_v1',
     'cumulo_import_log_v1', 'cumulo_column_prefs_v1',
-    'cumulo_lang', 'cumulo_signature',
+    'cumulo_lang',
+    // 'cumulo_signature' was a key that never existed: saveSignature writes
+    // 'logbook_signature'. Purging an account left the PDF signature behind.
+    'logbook_signature',
     'cumulo_navblue_url', 'cumulo_navblue_last_sync', 'cumulo_navblue_debug_v1',
+    // The "disconnected here on purpose" marker must go too, or a purged device
+    // would refuse to adopt the account's roster feed ever again.
+    'cumulo_navblue_removed_v1',
+    // The theme marker, the append-only attest log and the pre-migration backup
+    // all have real writers and all survived a purge that claimed to erase
+    // everything (independent review 2026-08-01).
+    'cumulo_theme_chosen_v1', 'cumulo_opening_attest_log_v1',
+    'cumulo_premigration_backup_v1', 'cumulo_opening_balances_v1',
     // Roster-derived caches: planning forecast, the pending-block baseline
     // used to prove a same-day flight is over, and today's unproven legs.
     'cumulo_roster_forecast_v1', 'cumulo_roster_block_seen_v1', 'cumulo_roster_pending_today_v1',

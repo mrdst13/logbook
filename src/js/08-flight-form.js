@@ -199,6 +199,9 @@ function loadColumnPrefs() {
 
 function saveColumnPrefs(prefs) {
   localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(prefs));
+  // Carry it to the account. Saved settings used to be one localStorage write
+  // and nothing else, so each one stayed on the device that set it.
+  try { if (typeof Sync !== 'undefined' && Sync.pushDeviceSettingsIfAny) Sync.pushDeviceSettingsIfAny({ intent: true }); } catch (e) {}
 }
 
 function getVisibleColumns(context = 'table') {
@@ -275,6 +278,11 @@ function computeCellValue(f, key) {
 
 const NAVBLUE_URL_KEY = 'cumulo_navblue_url';
 const NAVBLUE_LAST_SYNC_KEY = 'cumulo_navblue_last_sync';
+// Set by clearNavblueUrl, cleared by saveNavblueUrl. Marks "this device was
+// disconnected on purpose" so the cross-device restore (Sync.pullProfile) and
+// the launch-time re-upload (Sync.pushDeviceSettingsIfAny) both leave it alone —
+// otherwise Remove would silently undo itself on the next launch.
+const NAVBLUE_REMOVED_KEY = 'cumulo_navblue_removed_v1';
 const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
 // Forward-looking roster FORECAST cache (Duty-page cumulative-limit projection).
 // This is PLANNING data, never certifiable logbook data — see rosterForecastFromEvents.
@@ -1276,15 +1284,25 @@ function saveNavblueUrl() {
     return;
   }
   localStorage.setItem(NAVBLUE_URL_KEY, url);
+  localStorage.removeItem(NAVBLUE_REMOVED_KEY);   // reconnecting cancels an earlier disconnect
   input.value = url;
   showToast(t('toast.urlSaved'), 'success');
   updateNavblueStatus();
+  // Carry it to the account NOW. Saving here used to write localStorage and
+  // nothing else, so the feed stayed on whichever device pasted it and every
+  // other device kept asking the pilot to connect a schedule that was already
+  // connected (Martin, iPhone, 2026-08-01).
+  try { if (typeof Sync !== 'undefined' && Sync.pushDeviceSettingsIfAny) Sync.pushDeviceSettingsIfAny({ intent: true }); } catch (e) {}
 }
 
 function clearNavblueUrl() {
   if (!confirm(t('confirm.removeNavblue'))) return;
   localStorage.removeItem(NAVBLUE_URL_KEY);
   localStorage.removeItem(NAVBLUE_LAST_SYNC_KEY);
+  // Remember the disconnect, or the cross-device restore hands the URL straight
+  // back on the next launch and the button looks broken. Device-scoped on
+  // purpose: another device that still has the feed connected keeps it.
+  try { localStorage.setItem(NAVBLUE_REMOVED_KEY, new Date().toISOString()); } catch (e) {}
   document.getElementById('navblueUrl').value = '';
   document.getElementById('navblueDetails').style.display = 'none';
   updateNavblueStatus();
@@ -1661,7 +1679,12 @@ function syncNavblueAuto(reason) {
     // Don't auto-sync while the import-preview modal is already open
     // (avoids stacking two prompts on top of each other if the user
     // happens to refocus the tab mid-review).
-    if (document.querySelector('.import-preview-modal, #importPreviewOverlay, .modal[data-import-preview]')) {
+    // The real element is #importPreview.import-overlay (src/body.html). The old
+  // selector listed three names that exist nowhere in the app, so this guard has
+  // never once fired and auto-sync could stack a second import on top of a review
+  // the pilot had open. (Independent review 2026-08-01.)
+  const _preview = document.getElementById('importPreview');
+  if (_preview && _preview.classList.contains('show')) {
       console.log('[Navblue Auto-Sync] Skipped: import preview already open');
       return;
     }

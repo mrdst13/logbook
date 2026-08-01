@@ -215,7 +215,12 @@ if (!hasMethod) {
   await Promise.resolve(w.eval('window.__p1'));
   await Promise.resolve(w.eval('window.__p2'));
   await settle();
-  chk('(f) single-flight: still only one select after both settle (2nd dropped)', net().select === 1);
+  // One foreground cycle now reads TWO tables: flights, then the profile —
+  // added 2026-08-01 so a device left open picks up settings (the roster iCal
+  // URL above all) connected on the other device, not just new flights. The
+  // guard is what's under test: had the 2nd event not been dropped, this would
+  // be 4.
+  chk('(f) single-flight: still one cycle after both settle (2nd dropped)', net().select === 2);
 }
 
 if (failures.length) {

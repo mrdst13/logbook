@@ -1031,7 +1031,10 @@ async function commitOpeningBalances() {
   } catch (e) {
     console.error('[OpeningBalances] save failed:', e);
     if (typeof showToast === 'function') showToast(
-      fr ? 'Échec de la sauvegarde. Voir la console.' : 'Could not save brought-forward totals. Check the console.',
+      // Never send the pilot to a browser console. Say what happened and what
+      // to do about it. (Independent review 2026-08-01.)
+      fr ? 'Vos heures reportées n’ont pas pu être enregistrées. Rien n’a changé. Réessayez.'
+         : 'Your brought-forward hours could not be saved. Nothing was changed. Please try again.',
       'error');
     return;
   }

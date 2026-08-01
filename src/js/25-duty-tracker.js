@@ -225,12 +225,25 @@ function _dutyRenderNotice(hit, hasForecast, fr) {
     // whose iCal IS connected but whose published roster has no upcoming flight
     // must never be told to "import" it: offer a manual sync instead.
     if (_navblueConfigured()) {
+      // THREE honest cases, not two. "Connected but nothing upcoming" is only
+      // true once we have actually read the feed at least once: the forecast
+      // cache is written on every successful sync, empty roster included. With
+      // no cache at all the feed has never been read on this device (first
+      // launch, or the sync failed), and saying "no upcoming flight was
+      // detected" would be asserting something we never checked. (2026-08-01.)
+      const read = _forecastCached();
       box.innerHTML = '<div class="notice neutral" role="status">' +
         '<span class="n-ic" aria-hidden="true">' + DUTY_IC_INFO + '</span>' +
-        '<div class="n-txt"><div class="n-title">' + (fr ? 'Aucun vol à venir' : 'No upcoming flights') + '</div>' +
-        '<div class="n-body">' + (fr
-          ? 'Ton horaire est connecté, mais aucun vol à venir n’est détecté. Les trois fenêtres ci-dessous restent calculées sur tes vols enregistrés.'
-          : 'Your schedule is connected, but no upcoming flight was detected. The three windows below stay calculated from your recorded flights.') +
+        '<div class="n-txt"><div class="n-title">' + (read
+          ? (fr ? 'Aucun vol à venir' : 'No upcoming flights')
+          : (fr ? 'Horaire pas encore lu' : 'Schedule not read yet')) + '</div>' +
+        '<div class="n-body">' + (read
+          ? (fr
+            ? 'Ton horaire est connecté, mais aucun vol à venir n’est détecté. Les trois fenêtres ci-dessous restent calculées sur tes vols enregistrés.'
+            : 'Your schedule is connected, but no upcoming flight was detected. The three windows below stay calculated from your recorded flights.')
+          : (fr
+            ? 'Ton horaire est connecté, mais il n’a pas encore pu être lu sur cet appareil. Les trois fenêtres ci-dessous restent calculées sur tes vols enregistrés.'
+            : 'Your schedule is connected, but it has not been read on this device yet. The three windows below stay calculated from your recorded flights.')) +
         '<br><a href="#" onclick="if(typeof syncNavblueNow===\'function\'){Promise.resolve(syncNavblueNow()).catch(function(){}).finally(function(){if(typeof renderDutyTracker===\'function\')renderDutyTracker();});}return false;">' +
         (fr ? 'Synchroniser maintenant' : 'Sync now') + '</a></div></div></div>';
     } else {
