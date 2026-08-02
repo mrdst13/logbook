@@ -102,9 +102,20 @@
 #page-schedule .sched-standby { border-left-color: var(--warning, #d08a1e); }
 #page-schedule .sched-ground  { border-left-color: var(--text-muted); }
 #page-schedule .sched-hotel   { border-left-color: var(--text-muted); font-style: italic; }
-/* A day off the roster contradicts with a flight on the same day: still shown,
-   struck through, so the day does not read as off and flying with equal weight. */
-#page-schedule .sched-chip.is-overridden { opacity: 0.55; text-decoration: line-through; }
+/* A flight on a day off is overtime. Flagged on the day, never claimed as
+   paid: either he was, or scheduling took the day back and the roster has not
+   caught up. Both are worth seeing. */
+#page-schedule .sched-ot {
+  margin-top: 1px;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: var(--warning, #d08a1e);
+  background: color-mix(in srgb, var(--warning, #d08a1e) 12%, transparent);
+  overflow-wrap: anywhere;
+}
 
 #page-schedule .sched-foot {
   margin-top: var(--s-3);

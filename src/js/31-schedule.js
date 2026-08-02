@@ -173,24 +173,30 @@ function renderSchedule() {
     const key = cur.y + '-' + p2(cur.m + 1) + '-' + p2(d);
     const items = byDay.get(key) || [];
     const isToday = key === todayKey;
-    // A day off that also carries a flight is a contradiction the roster itself
-    // publishes. Both are shown — hiding either would be inventing — but the day
-    // off is marked so the day does not read as "off AND flying" with equal
-    // weight. (Martin 2026-08-02: "ça dit que j'ai des vols et congé en même
-    // temps".) The tooltip carries the operator's own wording.
-    const hasFlight = items.some(function (e) { return _schedKind(e) === 'flight'; });
+    // A flight on a day off is OVERTIME, not a contradiction to hide.
+    // Martin, 2026-08-02, verbatim: "gd est un day off et sdo aussi mais si je
+    // vol sur un gdo ou sdo ces de lovertime". So the day off keeps its normal
+    // weight, the flight keeps its own, and the DAY is flagged — which is worth
+    // seeing twice over: either he was paid overtime, or his roster is still
+    // publishing a day off that scheduling took back.
+    //
+    // Flagged, never claimed. The page says what the roster shows and what that
+    // combination means; it never asserts he was actually paid, which is the
+    // Pay page's business and needs his stub.
+    const isOvertime = items.some(function (e) { return _schedKind(e) === 'flight'; }) &&
+                       items.some(function (e) { return _schedKind(e) === 'off'; });
     const chips = items.map(function (e) {
       const kind = _schedKind(e);
       const time = (kind === 'off') ? '' : _schedHHMM(e);
-      const overridden = (kind === 'off') && hasFlight;
       const tip = e.note ? (e.summary + ' — ' + e.note) : e.summary;
-      const tipFull = overridden
-        ? tip + (fr ? ' — ton horaire publie aussi un vol ce jour-là' : ' — your roster also publishes a flight this day')
-        : tip;
-      return '<div class="sched-chip sched-' + kind + (overridden ? ' is-overridden' : '') +
-        '" title="' + esc(tipFull) + '">' +
+      return '<div class="sched-chip sched-' + kind + '" title="' + esc(tip) + '">' +
         (time ? '<span class="sched-t">' + time + '</span> ' : '') + esc(e.summary) + '</div>';
-    }).join('');
+    }).join('') + (isOvertime
+      ? '<div class="sched-ot" title="' + esc(fr
+          ? 'Ton horaire publie un vol sur un jour de congé. Voler sur un GD ou un SDO, c’est du temps supplémentaire.'
+          : 'Your roster publishes a flight on a day off. Flying on a GD or an SDO is overtime.') + '">' +
+        (fr ? 'Vol sur congé' : 'Flight on a day off') + '</div>'
+      : '');
     cells += '<div class="sched-cell' + (isToday ? ' is-today' : '') + '">' +
       '<div class="sched-daynum">' + d + '</div>' + chips + '</div>';
   }
@@ -211,12 +217,12 @@ function renderSchedule() {
       if (k.slice(0, 7) !== cur.y + '-' + p2(cur.m + 1)) return;
       v.forEach(function (e) { if (typeof e.offMin !== 'number') guessed++; });
     });
-    let clashes = 0;
+    let otDays = 0;
     byDay.forEach(function (v, k) {
       if (k.slice(0, 7) !== cur.y + '-' + p2(cur.m + 1)) return;
       const f = v.some(function (e) { return _schedKind(e) === 'flight'; });
       const o = v.some(function (e) { return _schedKind(e) === 'off'; });
-      if (f && o) clashes++;
+      if (f && o) otDays++;
     });
     foot.textContent = (fr
       ? shown + ' élément' + (shown === 1 ? '' : 's') + ' à ton horaire ce mois-ci. Heures locales de chaque escale, telles que ton horaire les publie. Horaire publié, pas ton carnet.'
@@ -224,9 +230,15 @@ function renderSchedule() {
       (guessed > 0 ? (fr
         ? ' ' + guessed + ' élément' + (guessed === 1 ? ' n’indique' : 's n’indiquent') + ' pas d’heure locale : affiché sur l’heure de cet appareil.'
         : ' ' + guessed + ' item' + (guessed === 1 ? ' publishes' : 's publish') + ' no local time: shown on this device’s clock.') : '') +
-      (clashes > 0 ? (fr
-        ? ' ' + clashes + ' jour' + (clashes === 1 ? '' : 's') + ' portent à la fois un congé et un vol : ton horaire publie les deux, ils sont marqués.'
-        : ' ' + clashes + ' day' + (clashes === 1 ? '' : 's') + ' carry both a day off and a flight: your roster publishes both, and they are marked.') : '') +
+      (otDays > 0 ? (fr
+        ? (otDays === 1
+          ? ' 1 jour porte un vol sur un congé, donc du temps supplémentaire.'
+          : ' ' + otDays + ' jours portent un vol sur un congé, donc du temps supplémentaire.') +
+          ' Si tu n’en as pas fait, ton horaire publie encore un congé qui t’a été repris.'
+        : (otDays === 1
+          ? ' 1 day carries a flight on a day off, so overtime.'
+          : ' ' + otDays + ' days carry a flight on a day off, so overtime.') +
+          ' If you did not fly overtime, your roster is still publishing a day off that was taken back.') : '') +
       (readAt ? (fr ? ' Lu le ' + readAt + '.' : ' Read ' + readAt + '.') : '');
   }
 }

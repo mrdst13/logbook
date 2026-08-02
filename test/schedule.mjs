@@ -88,15 +88,18 @@ chk('with no expansion, a bare GD is not assumed to be work either',
     renderSchedule();
   `);
   const html = w.eval("document.getElementById('scheduleGrid').innerHTML");
-  chk('the contradicted day off is still shown', (html.match(/sched-off/g) || []).length === 2);
-  chk('it is marked as overridden', /is-overridden/.test(html));
-  chk('the clean day off is NOT marked', (html.match(/is-overridden/g) || []).length === 1);
+  chk('both days off are still shown at full weight', (html.match(/sched-off/g) || []).length === 2);
+  chk('nothing is struck through: a day off flown is overtime, not a mistake',
+    !/line-through|is-overridden/.test(html));
+  chk('the day carrying a flight on a day off is flagged as overtime',
+    (html.match(/sched-ot/g) || []).length === 1);
+  chk('the clean day off is NOT flagged', !/sched-ot[sS]*sched-ot/.test(html));
   chk('the flight keeps its local time', /1030/.test(html));
   chk('no Zulu suffix is printed any more', !/\d{4}Z</.test(html));
   const foot = w.eval("document.getElementById('scheduleFoot').textContent");
   chk('the footer says which clock this is', /Local time at each station/i.test(foot));
-  chk('and counts the contradiction instead of leaving him to spot it',
-    /1 day carr(y|ies) both a day off and a flight/i.test(foot));
+  chk('and names it as overtime rather than as a clash',
+    /1 day carries a flight on a day off, so overtime/i.test(foot));
 }
 
 if (failures.length) {
