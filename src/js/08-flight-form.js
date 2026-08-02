@@ -1671,6 +1671,16 @@ async function syncNavblueNow(opts) {
     updateNavblueStatus();
     renderDashboard();
 
+    // Legs the pilot still has to deal with, counted AFTER the merge above so
+    // anything just enriched no longer counts. `fresh` is only the eligible new
+    // legs; a leg the feed cannot prove is outstanding too, and it used to fall
+    // through to "already up to date". Pressing Sync and being told everything
+    // was fine, with today's flight sitting unlogged, is how Martin lost trust
+    // in this screen twice. (2026-08-01.)
+    let outstanding = 0;
+    try { outstanding = (typeof _dashRosterLegsNotLogged === 'function') ? _dashRosterLegsNotLogged().length : 0; }
+    catch (e) { outstanding = 0; }
+
     if (fresh.length > 0) {
       // Even in silent/auto-sync mode we surface the import-preview modal —
       // this is the whole point of auto-sync: detect new flights and prompt
@@ -1679,6 +1689,13 @@ async function syncNavblueNow(opts) {
       showToast(t('toast.syncFreshEnriched', { fresh: fresh.length, merged: mergedCount }));
     } else if (mergedCount > 0) {
       showToast(t('toast.syncEnrichedRecalc', { merged: mergedCount, updated: recalcStats.updated }), 'success');
+    } else if (outstanding > 0) {
+      // Say what is actually outstanding, and put it in front of him: he asked
+      // for this sync precisely because a flight was missing.
+      if (!silent) {
+        showToast(t('toast.syncOutstanding', { n: outstanding }));
+        if (typeof openRosterNotLoggedReview === 'function') openRosterNotLoggedReview();
+      }
     } else if (!silent) {
       showToast(t('toast.alreadyUpToDate'));
     }
