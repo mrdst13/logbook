@@ -12765,6 +12765,18 @@ function rosterImportDecision(ev, flight, todayStr, ctx) {
 // dashboard can say so out loud instead of showing nothing.
 const CUMULO_PENDING_TODAY_KEY = 'cumulo_roster_pending_today_v1';
 
+// Merge a patch into that note. Never replaces the whole record: a sync that
+// only learned about today's unproven legs must not wipe the list of older legs
+// a previous sync had already found outstanding.
+function persistOutstandingLegs(patch) {
+  try {
+    const cur = JSON.parse(localStorage.getItem(CUMULO_PENDING_TODAY_KEY) || 'null') || {};
+    Object.assign(cur, patch || {});
+    cur.ts = Date.now();
+    localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify(cur));
+  } catch (e) { /* storage full or unavailable — the next sync retries */ }
+}
+
 // Roster diagnostic capture window, centred on today rather than on the
 // head of the feed. Bounded so the dump can never fill localStorage.
 const DIAG_WINDOW_DAYS = 3;
@@ -12992,6 +13004,16 @@ async function syncNavblueNow(opts) {
 
     void(`[Navblue Sync] ${mapped.length} eligible, ${pendingToday.length} flown-today awaiting proof; feed calibration: usable=${calibration.usable} samples=${calibration.samples} diverged=${calibration.diverged}`);
 
+    // Record the unproven legs RIGHT HERE, the instant the decision is made.
+    // This used to be written near the end of the sync, after the snapshot, the
+    // match loop and two DB.save calls — so anything that threw in between left
+    // the pilot with a feed the app had correctly judged "flown, unproven" and a
+    // dashboard that said nothing at all. That is how a flight goes missing in
+    // plain sight, and it is exactly the failure the outstanding-legs note was
+    // built to prevent. (Martin, PD325 of 2026-08-01: the diagnostic showed
+    // pending=true while the dashboard showed no card.)
+    persistOutstandingLegs({ today: today, flights: pendingToday });
+
     // Diagnostic dump for the "Roster diagnostic" button in Settings, so
     // the raw feed can be inspected with no dev console (Martin never uses
     // F12). Sampled AROUND TODAY rather than from the head of the feed:
@@ -13096,9 +13118,16 @@ async function syncNavblueNow(opts) {
       localStorage.setItem(CUMULO_CALENDAR_KEY, JSON.stringify({ ts: Date.now(), events: cal }));
     } catch (e) { /* non-fatal — the Schedule page says so rather than guessing */ }
 
-    // SNAPSHOT before any modification — pilot data is precious
-    snapshotBeforeOperation('Navblue iCal sync');
-    updateUndoButton();
+    // SNAPSHOT before any modification — pilot data is precious.
+    // Guarded: a full-storage failure here used to throw out of the whole sync,
+    // taking the outstanding-legs note and the dashboard refresh with it. The
+    // undo point is a safety net for the merge below, and the merge is
+    // fill-empty only, so losing the net is worth telling the pilot about but
+    // not worth abandoning the sync over.
+    let _snapOk = false;
+    try { _snapOk = snapshotBeforeOperation('Navblue iCal sync') !== false; }
+    catch (e) { console.warn('[Navblue Sync] snapshot failed:', e); }
+    try { updateUndoButton(); } catch (e) { /* non-fatal */ }
 
     // Smart matching :
     //   1. Try exact match (date + flightNum + route)
@@ -13155,12 +13184,7 @@ async function syncNavblueNow(opts) {
     // The dashboard reads this and keeps asking until the legs are logged
     // or deliberately deleted.
     try {
-      const cur = JSON.parse(localStorage.getItem(CUMULO_PENDING_TODAY_KEY) || 'null') || {};
-      cur.ts = nowMs;
-      cur.today = today;
-      cur.flights = pendingToday;
-      cur.eligible = fresh;
-      localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify(cur));
+      persistOutstandingLegs({ today: today, flights: pendingToday, eligible: fresh });
     } catch (e) { /* non-fatal */ }
 
     // Fill empty Night/XC slots on enriched flights — STRICT only-fill-empty,
@@ -28574,7 +28598,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-01-5c2f897';
+const BUILD_VERSION = '2026-08-01-3710b06';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
