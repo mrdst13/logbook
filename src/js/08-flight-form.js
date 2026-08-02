@@ -1029,6 +1029,31 @@ function icalHasActualArrival(desc) {
 }
 
 // The block the feed publishes for this leg (BLH), decimal hours.
+// Minutes to add to UTC to reach the STATION's local clock, read straight out
+// of the feed's own paired times: "CI 1430Z / 1030L", "Start 0600Z / 2300L".
+//
+// Read, never derived. Cumulo has no timezone database and a station's offset
+// changes with the date anyway, so computing one would mean guessing; the
+// operator already publishes the answer next to every time it prints. It also
+// gets layovers right, which a single device-wide conversion cannot: a hotel in
+// Kelowna and a check-in in Ottawa are three hours apart in the same roster.
+//
+// Returns null when the event publishes no local time — the caller then says so
+// rather than inventing one. (Martin 2026-08-02: "l'horaire en heure zulu ça
+// fuck les jours de congé".)
+function icalPublishedLocalOffsetMin(desc) {
+  const m = String(desc || '').match(/(\d{2})(\d{2})Z\s*\/\s*(\d{2})(\d{2})L/);
+  if (!m) return null;
+  const utcMin = (+m[1]) * 60 + (+m[2]);
+  const locMin = (+m[3]) * 60 + (+m[4]);
+  let diff = locMin - utcMin;
+  // The pair is two wall clocks with no date, so the difference lands anywhere
+  // in ±24 h. Fold it into the range real offsets occupy (UTC-12 to UTC+14).
+  if (diff > 840) diff -= 1440;
+  if (diff < -720) diff += 1440;
+  return diff;
+}
+
 function icalPublishedBlockHours(desc) {
   const m = String(desc || '').match(/BLH:\s*(\d{1,2}:\d{2})/);
   return m ? +hhmmToDecimal(m[1]).toFixed(2) : 0;
@@ -1564,6 +1589,21 @@ async function syncNavblueNow(opts) {
           summary: (e.SUMMARY || '').trim(),
           start: start.toISOString(),
           end: end ? end.toISOString() : null,
+          // Minutes to add to UTC to get the STATION's local clock, taken from
+          // the feed's own "1430Z / 1030L" pairs. Read, never computed from a
+          // timezone table: the operator already states the local time of the
+          // place the event happens, and a hotel in Kelowna is not on the same
+          // clock as a check-in in Ottawa. null when the event publishes no
+          // local time, in which case the page says so instead of guessing.
+          offMin: icalPublishedLocalOffsetMin((e.DESCRIPTION || '').trim()),
+          // The operator's own words for what this is: "GD (Guaranteed Day off)",
+          // "VAC (Vacation)", "HTL (Hotel)". Guessing from the code alone got it
+          // wrong — GD reads like "ground duty" and is the opposite. Kept so the
+          // page classifies on what the feed states, not on an abbreviation.
+          note: (function () {
+            const m = String(e.DESCRIPTION || '').match(/\(([^)]{2,40})\)/);
+            return m ? m[1].trim() : '';
+          })(),
         });
       }
       cal.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));

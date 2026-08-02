@@ -5193,6 +5193,10 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 #page-schedule .sched-off     { border-left-color: var(--success, #2e9e6b); opacity: 0.85; }
 #page-schedule .sched-standby { border-left-color: var(--warning, #d08a1e); }
 #page-schedule .sched-ground  { border-left-color: var(--text-muted); }
+#page-schedule .sched-hotel   { border-left-color: var(--text-muted); font-style: italic; }
+/* A day off the roster contradicts with a flight on the same day: still shown,
+   struck through, so the day does not read as off and flying with equal weight. */
+#page-schedule .sched-chip.is-overridden { opacity: 0.55; text-decoration: line-through; }
 
 #page-schedule .sched-foot {
   margin-top: var(--s-3);
@@ -12577,6 +12581,31 @@ function icalHasActualArrival(desc) {
 }
 
 // The block the feed publishes for this leg (BLH), decimal hours.
+// Minutes to add to UTC to reach the STATION's local clock, read straight out
+// of the feed's own paired times: "CI 1430Z / 1030L", "Start 0600Z / 2300L".
+//
+// Read, never derived. Cumulo has no timezone database and a station's offset
+// changes with the date anyway, so computing one would mean guessing; the
+// operator already publishes the answer next to every time it prints. It also
+// gets layovers right, which a single device-wide conversion cannot: a hotel in
+// Kelowna and a check-in in Ottawa are three hours apart in the same roster.
+//
+// Returns null when the event publishes no local time — the caller then says so
+// rather than inventing one. (Martin 2026-08-02: "l'horaire en heure zulu ça
+// fuck les jours de congé".)
+function icalPublishedLocalOffsetMin(desc) {
+  const m = String(desc || '').match(/(\d{2})(\d{2})Z\s*\/\s*(\d{2})(\d{2})L/);
+  if (!m) return null;
+  const utcMin = (+m[1]) * 60 + (+m[2]);
+  const locMin = (+m[3]) * 60 + (+m[4]);
+  let diff = locMin - utcMin;
+  // The pair is two wall clocks with no date, so the difference lands anywhere
+  // in ±24 h. Fold it into the range real offsets occupy (UTC-12 to UTC+14).
+  if (diff > 840) diff -= 1440;
+  if (diff < -720) diff += 1440;
+  return diff;
+}
+
 function icalPublishedBlockHours(desc) {
   const m = String(desc || '').match(/BLH:\s*(\d{1,2}:\d{2})/);
   return m ? +hhmmToDecimal(m[1]).toFixed(2) : 0;
@@ -13112,6 +13141,21 @@ async function syncNavblueNow(opts) {
           summary: (e.SUMMARY || '').trim(),
           start: start.toISOString(),
           end: end ? end.toISOString() : null,
+          // Minutes to add to UTC to get the STATION's local clock, taken from
+          // the feed's own "1430Z / 1030L" pairs. Read, never computed from a
+          // timezone table: the operator already states the local time of the
+          // place the event happens, and a hotel in Kelowna is not on the same
+          // clock as a check-in in Ottawa. null when the event publishes no
+          // local time, in which case the page says so instead of guessing.
+          offMin: icalPublishedLocalOffsetMin((e.DESCRIPTION || '').trim()),
+          // The operator's own words for what this is: "GD (Guaranteed Day off)",
+          // "VAC (Vacation)", "HTL (Hotel)". Guessing from the code alone got it
+          // wrong — GD reads like "ground duty" and is the opposite. Kept so the
+          // page classifies on what the feed states, not on an abbreviation.
+          note: (function () {
+            const m = String(e.DESCRIPTION || '').match(/\(([^)]{2,40})\)/);
+            return m ? m[1].trim() : '';
+          })(),
         });
       }
       cal.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
@@ -28467,10 +28511,16 @@ function applyNightRecheck() {
 //  flights, because a roster is also days off, ground duty and standby.
 //
 //  THIS IS THE PUBLISHED SCHEDULE, NEVER THE LOGBOOK. Nothing on this page is
-//  flight time, nothing here is counted, and the page says so. Times are shown
-//  in UTC because that is exactly what the feed publishes: converting them to
-//  a local clock would mean guessing a timezone per station, and a guessed
-//  time on a pilot's schedule is worse than an honest Z.
+//  flight time, nothing here is counted, and the page says so.
+//
+//  TIMES ARE THE STATION'S LOCAL CLOCK, READ FROM THE FEED. This shipped in Zulu
+//  first, on the reasoning that converting would mean guessing a timezone per
+//  station. Martin, 2026-08-02: "en heure zulu ça fuck les jours de congé, ça dit
+//  que j'ai des vols et congé en même temps". He was right, and the premise was
+//  wrong: the feed prints both clocks side by side ("CI 1430Z / 1030L"), so the
+//  local time is published, not guessed — and reading it also puts each event on
+//  the calendar day the pilot would point at. An event that publishes no local
+//  time falls back to this device's clock and is counted out loud in the footer.
 // ═══════════════════════════════════════════
 
 let _schedMonth = null;   // {y, m} — the month on screen; null = current month
@@ -28484,29 +28534,64 @@ function loadRosterCalendar() {
   } catch (e) { return null; }
 }
 
-// Local calendar date of an instant, as YYYY-MM-DD. The grid is a wall
-// calendar, so an event belongs to the day the pilot would point at.
-function _schedLocalDay(iso) {
-  const d = new Date(iso);
+// The instant, shifted onto the clock the ROSTER prints for that event.
+//
+// `offMin` is read from the feed's own "1430Z / 1030L" pairs (see
+// icalPublishedLocalOffsetMin), so this is the operator's own local time, not a
+// conversion Cumulo invented. When an event publishes no local time we fall
+// back to this device's clock, which is right for anything at the pilot's base
+// and is the only honest option left.
+function _schedAtLocal(ev) {
+  const d = new Date(ev && ev.start);
   if (isNaN(d.getTime())) return null;
-  const p2 = (n) => (n < 10 ? '0' : '') + n;
-  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  if (ev && typeof ev.offMin === 'number') {
+    // Shift the instant, then read it in UTC: that yields the station's wall
+    // clock without dragging the device's own timezone into it.
+    return { d: new Date(d.getTime() + ev.offMin * 60000), published: true };
+  }
+  return { d: d, published: false };
 }
 
-function _schedHHMMz(iso) {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
+// Local calendar date, as YYYY-MM-DD. The grid is a wall calendar, so an event
+// belongs to the day the pilot would point at on his own roster.
+function _schedLocalDay(ev) {
+  const at = _schedAtLocal(ev);
+  if (!at) return null;
   const p2 = (n) => (n < 10 ? '0' : '') + n;
-  return p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + 'Z';
+  return at.published
+    ? at.d.getUTCFullYear() + '-' + p2(at.d.getUTCMonth() + 1) + '-' + p2(at.d.getUTCDate())
+    : at.d.getFullYear() + '-' + p2(at.d.getMonth() + 1) + '-' + p2(at.d.getDate());
+}
+
+function _schedHHMM(ev) {
+  const at = _schedAtLocal(ev);
+  if (!at) return '';
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  return at.published
+    ? p2(at.d.getUTCHours()) + p2(at.d.getUTCMinutes())
+    : p2(at.d.getHours()) + p2(at.d.getMinutes());
 }
 
 // Classify a roster line for colour only. Anything unrecognised stays neutral
 // and keeps its own wording — the feed's text is never rewritten.
-function _schedKind(summary) {
-  const s = (summary || '').toUpperCase();
-  if (/^(SDO|DO|OFF|RD)\b/.test(s)) return 'off';
+//
+// The operator's own expansion wins over the code. "GD" was being read as
+// ground duty and painted as work; Porter spells it out as "GD (Guaranteed Day
+// off)", which is the exact opposite. Codes are a fallback for feeds that
+// publish no expansion, never the first source. (Martin 2026-08-02.)
+function _schedKind(ev) {
+  const s = ((ev && ev.summary) || '').toUpperCase();
+  const note = ((ev && ev.note) || '').toUpperCase();
+  if (note) {
+    if (/\bDAY OFF\b|\bDAYS OFF\b|\bVACATION\b|\bREST\b|\bCONG/.test(note)) return 'off';
+    if (/\bSTAND ?BY\b|\bRESERVE\b/.test(note)) return 'standby';
+    if (/\bHOTEL\b/.test(note)) return 'hotel';
+    if (/\bTRAINING\b|\bSIMULATOR\b|\bMEETING\b|\bGROUND\b/.test(note)) return 'ground';
+  }
+  if (/^(SDO|DO|OFF|RD|VAC)\b/.test(s)) return 'off';
   if (/\bSTBY|STANDBY|RESERVE|RES\b/.test(s)) return 'standby';
-  if (/^(GD|GND|TRG|TRAINING|SIM|CBT|MTG)\b/.test(s)) return 'ground';
+  if (/^HTL\b/.test(s)) return 'hotel';
+  if (/^(GND|TRG|TRAINING|SIM|CBT|MTG)\b/.test(s)) return 'ground';
   if (/\b[A-Z]{3}-[A-Z]{3}\b/.test(s)) return 'flight';
   return 'other';
 }
@@ -28515,7 +28600,7 @@ function _schedKind(summary) {
 function _schedByDay(events) {
   const map = new Map();
   for (const e of (events || [])) {
-    const day = _schedLocalDay(e.start);
+    const day = _schedLocalDay(e);
     if (!day) continue;
     if (!map.has(day)) map.set(day, []);
     map.get(day).push(e);
@@ -28588,10 +28673,22 @@ function renderSchedule() {
     const key = cur.y + '-' + p2(cur.m + 1) + '-' + p2(d);
     const items = byDay.get(key) || [];
     const isToday = key === todayKey;
+    // A day off that also carries a flight is a contradiction the roster itself
+    // publishes. Both are shown — hiding either would be inventing — but the day
+    // off is marked so the day does not read as "off AND flying" with equal
+    // weight. (Martin 2026-08-02: "ça dit que j'ai des vols et congé en même
+    // temps".) The tooltip carries the operator's own wording.
+    const hasFlight = items.some(function (e) { return _schedKind(e) === 'flight'; });
     const chips = items.map(function (e) {
-      const kind = _schedKind(e.summary);
-      const time = (kind === 'off') ? '' : _schedHHMMz(e.start);
-      return '<div class="sched-chip sched-' + kind + '" title="' + esc(e.summary) + '">' +
+      const kind = _schedKind(e);
+      const time = (kind === 'off') ? '' : _schedHHMM(e);
+      const overridden = (kind === 'off') && hasFlight;
+      const tip = e.note ? (e.summary + ' — ' + e.note) : e.summary;
+      const tipFull = overridden
+        ? tip + (fr ? ' — ton horaire publie aussi un vol ce jour-là' : ' — your roster also publishes a flight this day')
+        : tip;
+      return '<div class="sched-chip sched-' + kind + (overridden ? ' is-overridden' : '') +
+        '" title="' + esc(tipFull) + '">' +
         (time ? '<span class="sched-t">' + time + '</span> ' : '') + esc(e.summary) + '</div>';
     }).join('');
     cells += '<div class="sched-cell' + (isToday ? ' is-today' : '') + '">' +
@@ -28607,9 +28704,29 @@ function renderSchedule() {
     const shown = (function () { let n = 0; byDay.forEach(function (v, k) { if (k.slice(0, 7) === cur.y + '-' + p2(cur.m + 1)) n += v.length; }); return n; })();
     const when = (cache && cache.ts) ? new Date(cache.ts) : null;
     const readAt = when ? (when.getFullYear() + '-' + p2(when.getMonth() + 1) + '-' + p2(when.getDate()) + ' ' + p2(when.getHours()) + ':' + p2(when.getMinutes())) : null;
+    // Count anything shown on this device's clock because the roster gave no
+    // local time for it, and say so rather than let it pass as station time.
+    let guessed = 0;
+    byDay.forEach(function (v, k) {
+      if (k.slice(0, 7) !== cur.y + '-' + p2(cur.m + 1)) return;
+      v.forEach(function (e) { if (typeof e.offMin !== 'number') guessed++; });
+    });
+    let clashes = 0;
+    byDay.forEach(function (v, k) {
+      if (k.slice(0, 7) !== cur.y + '-' + p2(cur.m + 1)) return;
+      const f = v.some(function (e) { return _schedKind(e) === 'flight'; });
+      const o = v.some(function (e) { return _schedKind(e) === 'off'; });
+      if (f && o) clashes++;
+    });
     foot.textContent = (fr
-      ? shown + ' élément' + (shown === 1 ? '' : 's') + ' à ton horaire ce mois-ci. Heures en UTC, telles que publiées. Horaire publié, pas ton carnet.'
-      : shown + ' item' + (shown === 1 ? '' : 's') + ' on your roster this month. Times in UTC, exactly as published. This is the published schedule, not your logbook.') +
+      ? shown + ' élément' + (shown === 1 ? '' : 's') + ' à ton horaire ce mois-ci. Heures locales de chaque escale, telles que ton horaire les publie. Horaire publié, pas ton carnet.'
+      : shown + ' item' + (shown === 1 ? '' : 's') + ' on your roster this month. Local time at each station, exactly as your roster publishes it. This is the published schedule, not your logbook.') +
+      (guessed > 0 ? (fr
+        ? ' ' + guessed + ' élément' + (guessed === 1 ? ' n’indique' : 's n’indiquent') + ' pas d’heure locale : affiché sur l’heure de cet appareil.'
+        : ' ' + guessed + ' item' + (guessed === 1 ? ' publishes' : 's publish') + ' no local time: shown on this device’s clock.') : '') +
+      (clashes > 0 ? (fr
+        ? ' ' + clashes + ' jour' + (clashes === 1 ? '' : 's') + ' portent à la fois un congé et un vol : ton horaire publie les deux, ils sont marqués.'
+        : ' ' + clashes + ' day' + (clashes === 1 ? '' : 's') + ' carry both a day off and a flight: your roster publishes both, and they are marked.') : '') +
       (readAt ? (fr ? ' Lu le ' + readAt + '.' : ' Read ' + readAt + '.') : '');
   }
 }
@@ -28617,7 +28734,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-01-8078a97';
+const BUILD_VERSION = '2026-08-02-69df19f';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

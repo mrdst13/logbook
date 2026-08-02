@@ -101,6 +101,10 @@
 #page-schedule .sched-off     { border-left-color: var(--success, #2e9e6b); opacity: 0.85; }
 #page-schedule .sched-standby { border-left-color: var(--warning, #d08a1e); }
 #page-schedule .sched-ground  { border-left-color: var(--text-muted); }
+#page-schedule .sched-hotel   { border-left-color: var(--text-muted); font-style: italic; }
+/* A day off the roster contradicts with a flight on the same day: still shown,
+   struck through, so the day does not read as off and flying with equal weight. */
+#page-schedule .sched-chip.is-overridden { opacity: 0.55; text-decoration: line-through; }
 
 #page-schedule .sched-foot {
   margin-top: var(--s-3);
