@@ -5090,6 +5090,125 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
   #page-pay .settings-grid { grid-template-columns: 1fr; }
   #page-pay .prow .pa { margin-left: 0; width: 100%; text-align: right; }
 }
+/* ═══════════════════════════════════════════
+   SCHEDULE PAGE — month calendar of the published roster.
+   Wall-calendar layout: seven columns, Sunday first, the way a phone shows it.
+   Colour carries the kind of duty; the feed's own wording is never rewritten.
+   ═══════════════════════════════════════════ */
+
+#page-schedule .sched-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+#page-schedule .sched-month {
+  font-weight: 650;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  min-width: 10.5rem;
+  text-align: center;
+  text-transform: capitalize;
+}
+#page-schedule .sched-note {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+#page-schedule .sched-grid {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+#page-schedule .sched-head,
+#page-schedule .sched-body {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+#page-schedule .sched-dow {
+  padding: 7px 8px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-subtle, rgba(120, 140, 170, 0.07));
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+#page-schedule .sched-cell {
+  min-height: 104px;
+  padding: 6px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+#page-schedule .sched-cell:nth-child(7n) { border-right: 0; }
+#page-schedule .sched-cell-empty { background: var(--bg-subtle, rgba(120, 140, 170, 0.04)); }
+#page-schedule .sched-daynum {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+#page-schedule .sched-cell.is-today .sched-daynum {
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* One roster line. Wraps rather than truncating: a pilot needs the whole
+   flight number and route, not an ellipsis. */
+#page-schedule .sched-chip {
+  font-size: 10.5px;
+  line-height: 1.35;
+  padding: 3px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+  background: var(--bg-subtle, rgba(120, 140, 170, 0.1));
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+}
+#page-schedule .sched-chip .sched-t {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+#page-schedule .sched-flight  { border-left-color: var(--accent); }
+#page-schedule .sched-off     { border-left-color: var(--success, #2e9e6b); opacity: 0.85; }
+#page-schedule .sched-standby { border-left-color: var(--warning, #d08a1e); }
+#page-schedule .sched-ground  { border-left-color: var(--text-muted); }
+
+#page-schedule .sched-foot {
+  margin-top: var(--s-3);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Narrow screens: the seven columns stay (it is a calendar), but the cells
+   shrink and the day number leads. */
+@media (max-width: 720px) {
+  #page-schedule .sched-cell { min-height: 74px; padding: 4px; }
+  #page-schedule .sched-chip { font-size: 9.5px; padding: 2px 4px; }
+  #page-schedule .sched-dow { padding: 5px 4px; font-size: 9.5px; }
+  #page-schedule .sched-month { min-width: 8rem; font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -5176,6 +5295,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </button>
  <button type="button" class="nav-item" data-page="licence">
  <span data-i18n="nav.licence">Licence progress</span>
+ </button>
+ <button type="button" class="nav-item" data-page="schedule">
+ <span data-i18n="nav.schedule">Schedule</span>
  </button>
  <button type="button" class="nav-item" data-page="duty">
  <span data-i18n="nav.duty">Duty limits</span>
@@ -5959,6 +6081,24 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
  <div id="licenceTracker"></div>
+ </div>
+
+ <div id="page-schedule" class="page">
+ <div class="page-header">
+ <div>
+ <h1 class="page-title" data-i18n="page.schedule.title">Schedule</h1>
+ <div class="page-sub" data-i18n="page.schedule.sub">Your published roster, month by month.</div>
+ </div>
+ </div>
+ <div id="scheduleNotice"></div>
+ <div class="sched-bar">
+ <button type="button" class="btn btn-ghost btn-sm" onclick="scheduleShiftMonth(-1)" aria-label="Previous month">&#8592;</button>
+ <div id="scheduleMonthLabel" class="sched-month"></div>
+ <button type="button" class="btn btn-ghost btn-sm" onclick="scheduleShiftMonth(1)" aria-label="Next month">&#8594;</button>
+ <button type="button" class="btn btn-ghost btn-sm" onclick="scheduleToday()" data-i18n="sched.today">Today</button>
+ </div>
+ <div id="scheduleGrid" class="sched-grid"></div>
+ <p id="scheduleFoot" class="sched-foot"></p>
  </div>
 
  <div id="page-duty" class="page">
@@ -7395,6 +7535,7 @@ function showPage(id) {
   if (id === 'recap') { initRecapYears(); renderRecap(); }
   if (id === 'licence' && typeof renderLicenceTracker === 'function') renderLicenceTracker();
   if (id === 'duty' && typeof initFdpCalc === 'function') initFdpCalc();
+  if (id === 'schedule' && typeof renderSchedule === 'function') renderSchedule();
   if (id === 'duty' && typeof renderDutyTracker === 'function') renderDutyTracker();
   if (id === 'pay' && typeof payInit === 'function') payInit();
   if (id === 'glossary') renderGlossary();
@@ -11694,6 +11835,9 @@ const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
 // Forward-looking roster FORECAST cache (Duty-page cumulative-limit projection).
 // This is PLANNING data, never certifiable logbook data — see rosterForecastFromEvents.
 const CUMULO_FORECAST_KEY = 'cumulo_roster_forecast_v1';
+// The whole published roster (flights, days off, ground duty, standby) for the
+// Schedule page. Planning data only — never counted as logbook time.
+const CUMULO_CALENDAR_KEY = 'cumulo_roster_calendar_v1';
 // Auto-sync gates — keep us from hammering the worker every page load.
 // On init: skip if last sync was less than 30 min ago.
 // On visibilitychange (tab refocus): skip if less than 15 min ago.
@@ -12929,6 +13073,28 @@ async function syncNavblueNow(opts) {
       localStorage.setItem(CUMULO_FORECAST_KEY, JSON.stringify({ ts: Date.now(), today, flights: forecast }));
       void(`[Navblue Sync] Roster forecast cached: ${forecast.length} future flight(s)`);
     } catch (e) { /* non-fatal — forecast is a convenience layer */ }
+
+    // Cache the WHOLE published roster for the Schedule page: days off, ground
+    // duty and standby as well as flights. The forecast cache above cannot serve
+    // that view — it keeps only the pilot's own future flight legs (operator
+    // regex, deadheads dropped), which is a third of what a roster shows.
+    // Schedule data, never logbook data: nothing here is ever counted as time.
+    try {
+      const cal = [];
+      for (const e of events) {
+        const start = icsDateTime(e.DTSTART);
+        if (!start) continue;
+        const end = icsDateTime(e.DTEND);
+        cal.push({
+          uid: e.UID || '',
+          summary: (e.SUMMARY || '').trim(),
+          start: start.toISOString(),
+          end: end ? end.toISOString() : null,
+        });
+      }
+      cal.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+      localStorage.setItem(CUMULO_CALENDAR_KEY, JSON.stringify({ ts: Date.now(), events: cal }));
+    } catch (e) { /* non-fatal — the Schedule page says so rather than guessing */ }
 
     // SNAPSHOT before any modification — pilot data is precious
     snapshotBeforeOperation('Navblue iCal sync');
@@ -17396,6 +17562,10 @@ const STRINGS = {
  'nav.recap': 'Year Recap',
  'nav.licence': 'Licence progress',
  'nav.duty': 'Duty',
+ 'nav.schedule': 'Schedule',
+ 'page.schedule.title': 'Schedule',
+ 'page.schedule.sub': 'Your published roster, month by month.',
+ 'sched.today': 'Today',
  'nav.glossary': 'Glossary',
  'nav.qa': 'Q&A',
  'nav.photoPdf': 'Photo / PDF',
@@ -18574,6 +18744,10 @@ const STRINGS = {
  'nav.recap': 'Sommaire annuel',
  'nav.licence': 'Progression de licence',
  'nav.duty': 'Service',
+ 'nav.schedule': 'Horaire',
+ 'page.schedule.title': 'Horaire',
+ 'page.schedule.sub': 'Ton horaire publié, mois par mois.',
+ 'sched.today': 'Aujourd’hui',
  'nav.glossary': 'Glossaire',
  'nav.qa': 'Q et R',
  'nav.photoPdf': 'Photo / PDF',
@@ -28238,10 +28412,169 @@ function applyNightRecheck() {
     : t(changed === 1 ? 'nightRecheck.doneOne' : 'nightRecheck.done', { n: changed }), 'success');
 }
 // ═══════════════════════════════════════════
+//  SCHEDULE (page-schedule) — the published roster on a month calendar
+//
+//  Martin, 2026-08-01: "peux-tu ajouter schedule aussi dans la barre quelque
+//  part donc je peux voir ma schedule sur un calendrier type Apple iPhone ou
+//  Google Calendar."
+//
+//  Reads cumulo_roster_calendar_v1, written by syncNavblueNow from the SAME
+//  fetch that feeds everything else — no extra network call, no second source
+//  of truth. That cache holds every roster event, not just the pilot's own
+//  flights, because a roster is also days off, ground duty and standby.
+//
+//  THIS IS THE PUBLISHED SCHEDULE, NEVER THE LOGBOOK. Nothing on this page is
+//  flight time, nothing here is counted, and the page says so. Times are shown
+//  in UTC because that is exactly what the feed publishes: converting them to
+//  a local clock would mean guessing a timezone per station, and a guessed
+//  time on a pilot's schedule is worse than an honest Z.
+// ═══════════════════════════════════════════
+
+let _schedMonth = null;   // {y, m} — the month on screen; null = current month
+
+function loadRosterCalendar() {
+  try {
+    const raw = localStorage.getItem(CUMULO_CALENDAR_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return (o && Array.isArray(o.events)) ? o : null;
+  } catch (e) { return null; }
+}
+
+// Local calendar date of an instant, as YYYY-MM-DD. The grid is a wall
+// calendar, so an event belongs to the day the pilot would point at.
+function _schedLocalDay(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
+function _schedHHMMz(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  return p2(d.getUTCHours()) + p2(d.getUTCMinutes()) + 'Z';
+}
+
+// Classify a roster line for colour only. Anything unrecognised stays neutral
+// and keeps its own wording — the feed's text is never rewritten.
+function _schedKind(summary) {
+  const s = (summary || '').toUpperCase();
+  if (/^(SDO|DO|OFF|RD)\b/.test(s)) return 'off';
+  if (/\bSTBY|STANDBY|RESERVE|RES\b/.test(s)) return 'standby';
+  if (/^(GD|GND|TRG|TRAINING|SIM|CBT|MTG)\b/.test(s)) return 'ground';
+  if (/\b[A-Z]{3}-[A-Z]{3}\b/.test(s)) return 'flight';
+  return 'other';
+}
+
+// Events grouped by the local day they start on.
+function _schedByDay(events) {
+  const map = new Map();
+  for (const e of (events || [])) {
+    const day = _schedLocalDay(e.start);
+    if (!day) continue;
+    if (!map.has(day)) map.set(day, []);
+    map.get(day).push(e);
+  }
+  for (const list of map.values()) list.sort((a, b) => (a.start < b.start ? -1 : 1));
+  return map;
+}
+
+function scheduleShiftMonth(delta) {
+  const base = _schedMonth || (() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() }; })();
+  let y = base.y, m = base.m + delta;
+  while (m < 0) { m += 12; y--; }
+  while (m > 11) { m -= 12; y++; }
+  _schedMonth = { y, m };
+  renderSchedule();
+}
+
+function scheduleToday() { _schedMonth = null; renderSchedule(); }
+
+function renderSchedule() {
+  const host = document.getElementById('scheduleGrid');
+  if (!host) return;
+  const fr = (typeof getLang === 'function') && getLang() === 'fr';
+  const cache = loadRosterCalendar();
+  const notice = document.getElementById('scheduleNotice');
+
+  // Three honest states, exactly like the Duty page: no feed connected, a feed
+  // that has never been read on this device, and a feed we have read.
+  const configured = (function () { try { return !!localStorage.getItem(NAVBLUE_URL_KEY); } catch (e) { return false; } })();
+  if (notice) {
+    if (!configured) {
+      notice.innerHTML = '<div class="sched-note">' + (fr
+        ? 'Aucun horaire connecté. Ajoute ton flux iCal dans Paramètres, Synchro pour voir ton horaire ici.'
+        : 'No schedule connected. Add your iCal feed under Settings, Sync to see your roster here.') +
+        ' <a href="#" onclick="showPage(\'backup\');setTimeout(function(){if(typeof showSettingsTab===\'function\')showSettingsTab(\'sync\');},60);return false;">' +
+        (fr ? 'Ouvrir les réglages' : 'Open settings') + '</a></div>';
+    } else if (!cache) {
+      notice.innerHTML = '<div class="sched-note">' + (fr
+        ? 'Ton horaire est connecté mais n’a pas encore pu être lu sur cet appareil.'
+        : 'Your schedule is connected but has not been read on this device yet.') +
+        ' <a href="#" onclick="if(typeof syncNavblueNow===\'function\'){Promise.resolve(syncNavblueNow()).catch(function(){}).finally(function(){renderSchedule();});}return false;">' +
+        (fr ? 'Synchroniser maintenant' : 'Sync now') + '</a></div>';
+    } else {
+      notice.innerHTML = '';
+    }
+  }
+
+  const now = new Date();
+  const cur = _schedMonth || { y: now.getFullYear(), m: now.getMonth() };
+  const byDay = _schedByDay(cache && cache.events);
+
+  const monthNames = fr
+    ? ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dayNames = fr ? ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam']
+                      : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const label = document.getElementById('scheduleMonthLabel');
+  if (label) label.textContent = monthNames[cur.m] + ' ' + cur.y;
+
+  const first = new Date(cur.y, cur.m, 1);
+  const lead = first.getDay();                       // Sunday-first, like the phone
+  const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate();
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  const todayKey = now.getFullYear() + '-' + p2(now.getMonth() + 1) + '-' + p2(now.getDate());
+
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div class="sched-cell sched-cell-empty" aria-hidden="true"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = cur.y + '-' + p2(cur.m + 1) + '-' + p2(d);
+    const items = byDay.get(key) || [];
+    const isToday = key === todayKey;
+    const chips = items.map(function (e) {
+      const kind = _schedKind(e.summary);
+      const time = (kind === 'off') ? '' : _schedHHMMz(e.start);
+      return '<div class="sched-chip sched-' + kind + '" title="' + esc(e.summary) + '">' +
+        (time ? '<span class="sched-t">' + time + '</span> ' : '') + esc(e.summary) + '</div>';
+    }).join('');
+    cells += '<div class="sched-cell' + (isToday ? ' is-today' : '') + '">' +
+      '<div class="sched-daynum">' + d + '</div>' + chips + '</div>';
+  }
+
+  host.innerHTML =
+    '<div class="sched-head">' + dayNames.map(function (n) { return '<div class="sched-dow">' + n + '</div>'; }).join('') + '</div>' +
+    '<div class="sched-body">' + cells + '</div>';
+
+  const foot = document.getElementById('scheduleFoot');
+  if (foot) {
+    const shown = (function () { let n = 0; byDay.forEach(function (v, k) { if (k.slice(0, 7) === cur.y + '-' + p2(cur.m + 1)) n += v.length; }); return n; })();
+    const when = (cache && cache.ts) ? new Date(cache.ts) : null;
+    const readAt = when ? (when.getFullYear() + '-' + p2(when.getMonth() + 1) + '-' + p2(when.getDate()) + ' ' + p2(when.getHours()) + ':' + p2(when.getMinutes())) : null;
+    foot.textContent = (fr
+      ? shown + ' élément' + (shown === 1 ? '' : 's') + ' à ton horaire ce mois-ci. Heures en UTC, telles que publiées. Horaire publié, pas ton carnet.'
+      : shown + ' item' + (shown === 1 ? '' : 's') + ' on your roster this month. Times in UTC, exactly as published. This is the published schedule, not your logbook.') +
+      (readAt ? (fr ? ' Lu le ' + readAt + '.' : ' Read ' + readAt + '.') : '');
+  }
+}
+// ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-01-39453df';
+const BUILD_VERSION = '2026-08-01-5c2f897';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

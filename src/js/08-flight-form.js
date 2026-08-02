@@ -287,6 +287,9 @@ const WORKER_URL = 'https://logbook-api.martindaoust33.workers.dev';
 // Forward-looking roster FORECAST cache (Duty-page cumulative-limit projection).
 // This is PLANNING data, never certifiable logbook data — see rosterForecastFromEvents.
 const CUMULO_FORECAST_KEY = 'cumulo_roster_forecast_v1';
+// The whole published roster (flights, days off, ground duty, standby) for the
+// Schedule page. Planning data only — never counted as logbook time.
+const CUMULO_CALENDAR_KEY = 'cumulo_roster_calendar_v1';
 // Auto-sync gates — keep us from hammering the worker every page load.
 // On init: skip if last sync was less than 30 min ago.
 // On visibilitychange (tab refocus): skip if less than 15 min ago.
@@ -1522,6 +1525,28 @@ async function syncNavblueNow(opts) {
       localStorage.setItem(CUMULO_FORECAST_KEY, JSON.stringify({ ts: Date.now(), today, flights: forecast }));
       console.log(`[Navblue Sync] Roster forecast cached: ${forecast.length} future flight(s)`);
     } catch (e) { /* non-fatal — forecast is a convenience layer */ }
+
+    // Cache the WHOLE published roster for the Schedule page: days off, ground
+    // duty and standby as well as flights. The forecast cache above cannot serve
+    // that view — it keeps only the pilot's own future flight legs (operator
+    // regex, deadheads dropped), which is a third of what a roster shows.
+    // Schedule data, never logbook data: nothing here is ever counted as time.
+    try {
+      const cal = [];
+      for (const e of events) {
+        const start = icsDateTime(e.DTSTART);
+        if (!start) continue;
+        const end = icsDateTime(e.DTEND);
+        cal.push({
+          uid: e.UID || '',
+          summary: (e.SUMMARY || '').trim(),
+          start: start.toISOString(),
+          end: end ? end.toISOString() : null,
+        });
+      }
+      cal.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+      localStorage.setItem(CUMULO_CALENDAR_KEY, JSON.stringify({ ts: Date.now(), events: cal }));
+    } catch (e) { /* non-fatal — the Schedule page says so rather than guessing */ }
 
     // SNAPSHOT before any modification — pilot data is precious
     snapshotBeforeOperation('Navblue iCal sync');

@@ -41,6 +41,7 @@ function showPage(id) {
   if (id === 'recap') { initRecapYears(); renderRecap(); }
   if (id === 'licence' && typeof renderLicenceTracker === 'function') renderLicenceTracker();
   if (id === 'duty' && typeof initFdpCalc === 'function') initFdpCalc();
+  if (id === 'schedule' && typeof renderSchedule === 'function') renderSchedule();
   if (id === 'duty' && typeof renderDutyTracker === 'function') renderDutyTracker();
   if (id === 'pay' && typeof payInit === 'function') payInit();
   if (id === 'glossary') renderGlossary();

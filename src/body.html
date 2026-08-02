@@ -84,6 +84,9 @@
  <button type="button" class="nav-item" data-page="licence">
  <span data-i18n="nav.licence">Licence progress</span>
  </button>
+ <button type="button" class="nav-item" data-page="schedule">
+ <span data-i18n="nav.schedule">Schedule</span>
+ </button>
  <button type="button" class="nav-item" data-page="duty">
  <span data-i18n="nav.duty">Duty limits</span>
  </button>
@@ -866,6 +869,24 @@
  </div>
  </div>
  <div id="licenceTracker"></div>
+ </div>
+
+ <div id="page-schedule" class="page">
+ <div class="page-header">
+ <div>
+ <h1 class="page-title" data-i18n="page.schedule.title">Schedule</h1>
+ <div class="page-sub" data-i18n="page.schedule.sub">Your published roster, month by month.</div>
+ </div>
+ </div>
+ <div id="scheduleNotice"></div>
+ <div class="sched-bar">
+ <button type="button" class="btn btn-ghost btn-sm" onclick="scheduleShiftMonth(-1)" aria-label="Previous month">&#8592;</button>
+ <div id="scheduleMonthLabel" class="sched-month"></div>
+ <button type="button" class="btn btn-ghost btn-sm" onclick="scheduleShiftMonth(1)" aria-label="Next month">&#8594;</button>
+ <button type="button" class="btn btn-ghost btn-sm" onclick="scheduleToday()" data-i18n="sched.today">Today</button>
+ </div>
+ <div id="scheduleGrid" class="sched-grid"></div>
+ <p id="scheduleFoot" class="sched-foot"></p>
  </div>
 
  <div id="page-duty" class="page">
