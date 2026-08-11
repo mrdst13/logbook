@@ -308,8 +308,20 @@ chk('a recorded take-off still prints',
 // ── 13. Sim hours out of the PDF class/role columns too ─────────────────
 chk('a sim row prints blank in ME SIC on the grid',
   w.eval("pdfCellValue({ isSim: true, meDayCop: 3 }, 'meDayCop')") === '');
-chk('a sim row prints blank in XC on the grid',
-  w.eval("pdfCellValue({ isSim: true, xcDayCop: 3 }, 'xcDayCop')") === '');
+// RENDERED keys, not slot keys: the round-3 pin certified 'xcDayCop', which
+// the PDF never renders, while the derived columns leaked. (Round-4 judge.)
+chk('a sim row prints blank in the rendered XC Day column',
+  w.eval("pdfCellValue({ isSim: true, xcDayCop: 3 }, 'xcDay')") === '');
+chk('a sim row prints blank in the rendered Night column',
+  w.eval("pdfCellValue({ isSim: true, meNightCop: 1 }, 'night')") === '');
+chk('a sim row prints blank in the rendered VFR column',
+  w.eval("pdfCellValue({ isSim: true, total: 3 }, 'vfr')") === '');
+chk('an aircraft row keeps its rendered Night hours',
+  w.eval("pdfCellValue({ meNightCop: 1.5 }, 'night')") === 1.5);
+chk('the cover footer dates are local, never a UTC slice', (() => {
+  const src = readFileSync(join(root, 'src/js/12-pdf-export.js'), 'utf8');
+  return src.indexOf('pdfLocalDateOf(e.firstAt)') >= 0 && src.indexOf('toISOString().slice(0, 10)') < 0;
+})());
 chk('an aircraft row still prints its ME SIC hours',
   w.eval("pdfCellValue({ meDayCop: 3 }, 'meDayCop')") === 3);
 chk('sim instrument time still prints in ITS column',

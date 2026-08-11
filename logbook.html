@@ -15049,6 +15049,16 @@ function openingSeedForCumulative(cols, openingSeed) {
 // only the detailed engine-class grid has no stored total or block, so a
 // raw read returned 0 and the cover attested "0.0 hrs declared" while page 1
 // of the same PDF printed 2781.0. (Audit 2026-07-27.)
+// Local civil date of an ISO instant — an evening stamp in Toronto must not
+// date itself tomorrow on the cover an inspector reads.
+function pdfLocalDateOf(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
 function pdfBroughtForwardTotal(balances) {
   const b = balances || {};
   if (typeof totalsWithOpening === 'function') {
@@ -15070,6 +15080,12 @@ const PDF_SIM_ZERO_KEYS = new Set([
   'heliDayPic','heliDayCop','heliDayDual','heliNightPic','heliNightCop','heliNightDual','hoverTime',
   'xcDayPic','xcDayCop','xcDayDual','xcNightPic','xcNightCop','xcNightDual',
   'picus','dualGivenDay','dualGivenNight','toDay','toNight',
+  // The grid's DERIVED columns recompute from those same slots (day/night via
+  // nightHoursOf, xcDay/xcNight sums) or from the raw total (vfr) and were
+  // bypassing this gate: a sim row printed Night hours in a default-on column
+  // while the cover of the same PDF said 0. Caught by the round-4 judge —
+  // the round-3 pin had certified 'xcDayCop', a key the PDF never renders.
+  'day','night','xcDay','xcNight','vfr',
 ]);
 
 function pdfCellValue(f, key) {
@@ -15374,7 +15390,7 @@ function _generatePDF() {
     if (importedSet.size > 0) {
       [...importedSet.values()].forEach(e => {
         attestationLines.push(
-          `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + e.firstAt.slice(0, 10) : ''}`
+          `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + pdfLocalDateOf(e.firstAt) : ''}`
         );
       });
     }
@@ -15391,7 +15407,7 @@ function _generatePDF() {
         if (!isNaN(t) && (!newest || t > newest.t)) newest = { t: t, f: f };
       }
       const who = newest && newest.f.acceptedBy ? ' · ' + newest.f.acceptedBy : '';
-      const when = newest ? new Date(newest.t).toISOString().slice(0, 10) : '';
+      const when = newest ? pdfLocalDateOf(new Date(newest.t).toISOString()) : '';
       attestationLines.push(
         `${_accepted.length} of ${sorted.length} entries carry an acceptance stamp` +
         (when ? ` · most recent ${when}${who}` : '')
@@ -29300,7 +29316,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-11-dc58e4d';
+const BUILD_VERSION = '2026-08-11-3901681';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
