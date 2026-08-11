@@ -292,6 +292,53 @@ function _fdpRenderRefTable(band, row, col, acclimMin, fr) {
   }
 }
 
+// Pre-fill the calculator from TODAY'S published roster (Martin 2026-08-02:
+// "pour le duty, il devrait etre deja pre remplis a l'heure de mon check in du
+// jour avec le max duty time de la journee automatique et au besoin je le
+// change"). Reads the same calendar cache the Schedule page uses; DTSTART of
+// the day's first flight event is the CHECK-IN (proven against his own feed
+// 2026-07-26), and its published offset gives the local clock. Runs ONCE per
+// session, before the pilot can have touched anything, so an edited value is
+// never overwritten; days with nothing on the roster keep the defaults and say
+// nothing. Schedule data, never logbook data.
+let _fdpPrefilled = false;
+function fdpPrefillFromRoster() {
+  if (_fdpPrefilled) return false;
+  _fdpPrefilled = true;
+  try {
+    if (typeof loadRosterCalendar !== 'function' || typeof _schedLocalDay !== 'function'
+        || typeof _schedKind !== 'function' || typeof _schedHHMM !== 'function') return false;
+    const cache = loadRosterCalendar();
+    if (!cache || !Array.isArray(cache.events)) return false;
+    const today = (typeof _dutyLocalToday === 'function') ? _dutyLocalToday() : null;
+    if (!today) return false;
+    const todays = cache.events
+      .filter(e => _schedKind(e) === 'flight' && _schedLocalDay(e) === today)
+      .sort((a, b) => (a.start < b.start ? -1 : 1));
+    if (!todays.length) return false;
+    const hhmm = _schedHHMM(todays[0]);          // station-local check-in, from the feed
+    if (!/^\d{4}$/.test(hhmm)) return false;
+    const hSel = document.getElementById('fdp-report-h');
+    const mSel = document.getElementById('fdp-report-m');
+    const legsIn = document.getElementById('fdp-legs');
+    if (!hSel || !mSel || !legsIn) return false;
+    hSel.value = String(+hhmm.slice(0, 2));
+    mSel.value = String(+hhmm.slice(2, 4));
+    legsIn.value = String(todays.length);
+    const note = document.getElementById('fdp-prefill-note');
+    if (note) {
+      const fr = (typeof getLang === 'function') && getLang() === 'fr';
+      note.style.display = '';
+      note.textContent = fr
+        ? 'Prérempli depuis ton horaire du jour : présentation ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2, 4) +
+          ', ' + todays.length + ' vol' + (todays.length === 1 ? '' : 's') + '. Modifie au besoin.'
+        : 'Pre-filled from today\'s roster: report ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2, 4) +
+          ', ' + todays.length + ' flight' + (todays.length === 1 ? '' : 's') + '. Change it if needed.';
+    }
+    return true;
+  } catch (e) { return false; }
+}
+
 // Populate the two location selects (once), wire listeners, run first compute.
 // Called by the router each time the Duty page is shown.
 function initFdpCalc() {
@@ -335,5 +382,6 @@ function initFdpCalc() {
       };
     });
   }
-  fdpCompute();
+  fdpPrefillFromRoster();
+  fdpCompute();   // the max duty of the day computes itself from the prefilled values
 }

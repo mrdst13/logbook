@@ -63,6 +63,86 @@ function _dutyFlightTimeInDays(days, todayOverride) {
   }, 0);
 }
 
+// ─── Hours of work, last 7 days — RAC 700.29 FLOOR (never a total) ──────────
+// Martin, 2026-08-02: "je veux que tu code dans le duty le 60 heures max dans
+// 7 jours de duty time ... donc check in to check out". The register
+// (docs/REGISTRE-REGLEMENTAIRE.md, 700.29, verified 2026-07-17) rules that a
+// weekly CEILING cannot be displayed as one number: it is 60 h OR 70 h per 7
+// consecutive days depending on what the operator granted in days free from
+// duty, "hours of work" is not a defined term, and 700.29(3) only lists
+// inclusions (reserve at 33%, standby at 100%) that a logbook cannot see. What
+// the app may show is an honest FLOOR — duty periods actually recorded, report
+// to release — labelled as such. A floor that already exceeds a ceiling is a
+// reliable detection; a floor under it proves nothing.
+//
+// A duty period is a run of legs sharing one check-in: it starts at a leg
+// carrying ci_utc and extends while the next leg carries none (the same
+// discriminator the Pay page uses for turns, read from his own feed). The
+// period counts ONLY when its last leg carries co_utc — report and release are
+// then his recorded times, exact, with no fallback. Anything else is skipped
+// and the card says how much was skipped. Never approximated.
+function _dutyWorkFloor(days, todayOverride) {
+  const out = { hours: 0, periods: 0, skippedLegs: 0 };
+  if (!Array.isArray(flights)) return out;
+  if (typeof _payReportMs !== 'function' || typeof _payReleaseMs !== 'function') return out;
+  const today = todayOverride || _dutyLocalToday();
+  const cutStr = _dutyShiftDate(today, -(days - 1));
+  const inWin = flights
+    .filter(function (f) { return f && f.date && f.date >= cutStr && f.date <= today; })
+    .sort(function (a, b) {
+      const ka = String(a.dtstart_utc || a.date || ''), kb = String(b.dtstart_utc || b.date || '');
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
+    });
+  let i = 0;
+  while (i < inWin.length) {
+    if (!inWin[i].ci_utc) { out.skippedLegs++; i++; continue; }   // no recorded report: not countable
+    let j = i;
+    while (j + 1 < inWin.length && !inWin[j + 1].ci_utc) j++;     // same duty period: no fresh check-in
+    const last = inWin[j];
+    if (!last.co_utc) { out.skippedLegs += (j - i + 1); i = j + 1; continue; }  // period never closed out
+    const rep = _payReportMs(inWin[i]), rel = _payReleaseMs(last);
+    if (!isNaN(rep) && !isNaN(rel) && rel > rep) { out.hours += (rel - rep) / 3600000; out.periods++; }
+    else { out.skippedLegs += (j - i + 1); }
+    i = j + 1;
+  }
+  out.hours = Math.round(out.hours * 10) / 10;
+  return out;
+}
+
+// The card. No gauge: a gauge needs ONE limit, and 700.29 does not give one.
+function _dutyWorkFloorHtml(fr) {
+  const wf = _dutyWorkFloor(7);
+  const fh = function (n) { return _dutyFh(n, fr); };
+  const atLeast = fr ? ('au moins ' + fh(wf.hours) + ' h') : ('at least ' + fh(wf.hours) + ' h');
+  let sev = '', sevLine = '';
+  if (wf.hours >= 70) {
+    sev = 'over';
+    sevLine = fr
+      ? 'Ce plancher dépasse déjà les DEUX plafonds possibles du RAC 700.29 (60 h et 70 h sur 7 jours). À signaler.'
+      : 'This floor already exceeds BOTH possible RAC 700.29 ceilings (60 h and 70 h in 7 days). Worth flagging.';
+  } else if (wf.hours >= 60) {
+    sev = 'watch';
+    sevLine = fr
+      ? 'Ce plancher atteint 60 h. Si ton plafond est 60 h (le cas le plus courant), il est atteint avec tes seules périodes enregistrées.'
+      : 'This floor reaches 60 h. If your ceiling is 60 h (the usual case), it is reached on your recorded duty alone.';
+  }
+  const skipped = wf.skippedLegs > 0
+    ? (fr
+      ? ' ' + wf.skippedLegs + ' vol' + (wf.skippedLegs === 1 ? '' : 's') + ' sans présentation ou libération enregistrée ne ' + (wf.skippedLegs === 1 ? 'compte' : 'comptent') + ' pas.'
+      : ' ' + wf.skippedLegs + ' flight' + (wf.skippedLegs === 1 ? '' : 's') + ' without a recorded report or release ' + (wf.skippedLegs === 1 ? 'is' : 'are') + ' not counted.')
+    : '';
+  return '<article class="win" id="duty-work-floor" aria-labelledby="duty-wf-title">' +
+    '<div class="win-top"><span class="win-label" id="duty-wf-title">' +
+    (fr ? 'Heures de travail, 7 derniers jours' : 'Hours of work, last 7 days') + '</span>' +
+    '<span class="win-limit num">RAC 700.29</span></div>' +
+    '<div class="win-val num">' + atLeast + '</div>' +
+    (sevLine ? '<div class="win-note num"><span class="wn-ic" aria-hidden="true">' + DUTY_IC_WARN_SM + '</span>' + sevLine + '</div>' : '') +
+    '<div class="win-rest">' + (fr
+      ? 'Le plafond est 60 h ou 70 h par 7 jours selon les journées sans service que l’exploitant t’a accordées. Ce compte est un plancher : tes périodes de service enregistrées seulement, de la présentation à la libération, sur ' + wf.periods + ' période' + (wf.periods === 1 ? '' : 's') + '. La réserve et l’attente comptent aussi dans le règlement mais ne sont pas dans ton carnet.' + skipped + ' Un plancher sous le plafond ne prouve pas la conformité.'
+      : 'The ceiling is 60 h or 70 h per 7 days depending on the days free from duty your operator granted. This count is a floor: your recorded duty periods only, report to release, across ' + wf.periods + ' period' + (wf.periods === 1 ? '' : 's') + '. Reserve and standby also count in the regulation but are not in your logbook.' + skipped + ' A floor under the ceiling does not prove compliance.') +
+    '</div></article>';
+}
+
 // ─── Shared render formatters (locale-true, real data only) ──────────────────
 
 function _dutyFh(n, fr) { return (+n || 0).toLocaleString(fr ? 'fr-CA' : 'en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
@@ -166,6 +246,7 @@ function renderDutyTracker() {
   host.innerHTML =
     '<div class="windows" role="group" aria-label="' + (fr ? 'Fenêtres glissantes de temps de vol' : 'Rolling flight time windows') + '">' + winsHtml + '</div>' +
     legend +
+    _dutyWorkFloorHtml(fr) +
     _dutyDetailHtml(wins[0], fr);
 }
 
