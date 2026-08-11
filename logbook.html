@@ -26585,6 +26585,24 @@ function groupPairings(flights, baseIcao) {
 
 // ── per diem for one pairing ────────────────────────────────────────
 // Returns { awayHours, usHours, cdnHours }. US = ground time at US layovers.
+// A REAL LAYOVER vs A TURN. Martin, 2026-08-02, verbatim: "le us per diem est
+// seulement paye pour un vrai layover la cetait un turn donc paye en cad". So
+// the country of the station only matters when the crew actually laid over
+// there; the ground time of a turn is paid at the Canadian rate wherever the
+// airplane happens to be parked.
+//
+// The discriminator is read from his own roster, never guessed: a layover ends
+// with a NEW duty period, and the leg out of it carries its own check-in
+// (PD1326 out of the YLW layover publishes CI 1330Z). The return leg of a turn
+// is the same duty period and carries none (PD326 of the Aug 4 YLW turn has
+// no CI). No duration threshold is invented; the feed's own check-in is the
+// whole test. A layover whose outbound leg was logged without its check-in
+// falls back to the Canadian rate — the honest default, since without a fresh
+// report the data cannot tell it apart from a turn.
+function _payIsLayoverStop(legOut) {
+  return !!(legOut && legOut.ci_utc);
+}
+
 function pairingPerDiem(pairing) {
   if (!pairing || !pairing.length) return { awayHours: 0, usHours: 0, cdnHours: 0 };
   const report = _payReportMs(pairing[0]);
@@ -26592,6 +26610,12 @@ function pairingPerDiem(pairing) {
   let awayMin = (isNaN(report) || isNaN(release)) ? 0 : Math.max(0, (release - report) / 60000);
   let usMin = 0, unknownMin = 0, unknownStations = 0;
   for (let i = 0; i < pairing.length - 1; i++) {
+    // A turn's ground time stays in the Canadian pool no matter the station:
+    // the country split below only applies to a real layover, and a turn at an
+    // unknown station needs no country at all. (Martin 2026-08-02 — a KBOS
+    // turn was being priced as US hours, manufacturing a per-diem discrepancy
+    // against a stub that had correctly paid the whole day in CAD.)
+    if (!_payIsLayoverStop(pairing[i + 1])) continue;
     // A station this app cannot place in a country is counted as neither.
     // Treating it as Canadian paid a Fort Myers overnight at the domestic
     // rate and produced a phantom shortfall. (Audit 2026-07-27.)
@@ -26724,6 +26748,9 @@ function usPerDiemDays(flights, baseIcao) {
     // fabricated 126-hour US layover.
     if (p.openEnded) return;
     for (let i = 0; i < p.length - 1; i++) {
+      // A turn is not a US layover day, whatever the station (see
+      // _payIsLayoverStop). Listing one here would contradict the totals.
+      if (!_payIsLayoverStop(p[i + 1])) continue;
       if (!_payIsUS(p[i].arr_icao)) continue;
       const start = _payReleaseMs(p[i]);       // check-out of the flight into the US
       const end = _payReportMs(p[i + 1]);       // check-in of the flight out of the US
@@ -26797,9 +26824,11 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
     if (away <= 0) return;
     n++; awayMs += away;
     for (let i = 0; i < p.length - 1; i++) {
-      // Same three-state rule as pairingPerDiem. This path is the one that runs
-      // whenever a stub is loaded, so leaving it out made the whole fix inert
-      // exactly where the comparison happens.
+      // Same three-state rule as pairingPerDiem — including the layover gate:
+      // a turn's ground time is Canadian wherever it happens. This path is the
+      // one that runs whenever a stub is loaded, so leaving it out made the
+      // whole fix inert exactly where the comparison happens.
+      if (!_payIsLayoverStop(p[i + 1])) continue;
       if (_payIsUnknownCountry(p[i].arr_icao)) {
         const g = clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
         if (g > 0) { unkSt++; unkMs += g; }
@@ -28757,7 +28786,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-02-f68ecb7';
+const BUILD_VERSION = '2026-08-11-1e1cec1';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

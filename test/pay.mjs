@@ -247,6 +247,36 @@ chk('an old open trip followed by a logged trip does NOT disqualify July',
 chk('an old open trip with nothing logged since stays honest',
   pay.computePerDiemInPeriod([staleThenClosed[0]], 'CYOW', { cdn: 4.25 }, JUL[0], JUL[1]).openPairings === 1);
 
+
+// ── A TURN at a US station is paid in CAD (Martin 2026-08-02, verbatim: ──
+// "le us per diem est seulement paye pour un vrai layover la cetait un turn
+// donc paye en cad"). The discriminator is the feed's own check-in: the leg
+// out of a layover starts a new duty period and carries CI (his PD1326 out
+// of the YLW layover publishes CI 1330Z); the return leg of a turn is the
+// same duty period and carries none (his PD326 of the Aug 4 turn has no CI).
+const usTurn = [
+  { date: '2026-07-10', dep_icao: 'CYOW', arr_icao: 'KBOS', dtstart_utc: '2026-07-10T13:00:00.000Z', block: 1.5, ci_utc: '1200' },
+  { date: '2026-07-10', dep_icao: 'KBOS', arr_icao: 'CYOW', dtstart_utc: '2026-07-10T16:00:00.000Z', block: 1.5, co_utc: '1745' },
+];
+const turnPd = pay.computePerDiem(usTurn, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1.37 });
+chk('US turn: no US hours', near(turnPd.usHours, 0));
+chk('US turn: the whole away time stays in the CAD pool', near(turnPd.cdnHours, turnPd.awayHours));
+chk('US turn: paid at the CAD rate only', near(turnPd.total, turnPd.awayHours * 4.25, 0.02));
+chk('US turn: no US layover day is listed', pay.usPerDiemDays(usTurn, 'CYOW').length === 0);
+// The stub-comparison path applies the same rule (it is the one that runs).
+chk('US turn in-period: no US hours either',
+  near(pay.computePerDiemInPeriod(usTurn, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1.37 }, JUL[0], JUL[1]).usHours, 0));
+// A turn needs no country at all: an unknown station raises no flag.
+const unkTurn = [
+  { date: '2026-07-12', dep_icao: 'CYOW', arr_icao: 'RSW', dtstart_utc: '2026-07-12T13:00:00.000Z', block: 3, ci_utc: '1200' },
+  { date: '2026-07-12', dep_icao: 'RSW', arr_icao: 'CYOW', dtstart_utc: '2026-07-12T18:00:00.000Z', block: 3, co_utc: '2115' },
+];
+const unkTurnPd = pay.computePerDiem(unkTurn, 'CYOW', { cdn: 4.25, usUsd: 4.25, fx: 1.37 });
+chk('unknown-station turn: no unknown-station flag', unkTurnPd.unknownStations === 0);
+chk('unknown-station turn: all hours CAD', near(unkTurnPd.cdnHours, unkTurnPd.awayHours));
+// …and the real layover is untouched: the fresh check-in is what makes it one.
+chk('layover control: US layover hours unchanged by the turn rule', near(pd.usHours, 22.5));
+
 if (failures.length) { console.error('pay FAIL:', failures); process.exit(1); }
-console.log('pay: all checks passed (pairings, per diem CDN/US split, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
+console.log('pay: all checks passed (pairings, per diem CDN/US split incl. turn-vs-layover, credit rig, base pay + OT, guarantee, LOA, seat-year rate, derived US fx, per-US-day, negative-fx guard, multi-US-day, date fallback, month-straddle pairing, tz-boundary, clipped-per-diem)');
 process.exit(0);
