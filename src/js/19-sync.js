@@ -1164,12 +1164,10 @@ const Sync = {
       return;
     }
 
-    // Re-prompt cool-down: if the user already said "later" within the
-    // last 24h, skip re-asking. Avoids the modal on every signin.
-    if (state && state.deferredAt) {
-      const elapsedH = (Date.now() - new Date(state.deferredAt).getTime()) / 3.6e6;
-      if (elapsedH < 24) return;
-    }
+    // The consent prompt + 24h cool-down were removed 2026-08-02 (Martin’s
+    // go): both of his devices migrated long ago, and a signed-in device
+    // holding local rows has exactly one right answer. The migration still
+    // snapshots first and keeps its independent pre-migration backup.
 
     const migrationOk = await confirmDialog({
       title: getLang && getLang() === 'fr' ? 'Associer les vols au nuage' : 'Link flights to cloud',

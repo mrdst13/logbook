@@ -301,10 +301,6 @@ const AuthUI = {
         <label class="auth-label">${t('auth.password.label')}
           <input type="password" id="auth-password" autocomplete="current-password" required class="auth-input">
         </label>
-        <label class="auth-checkbox">
-          <input type="checkbox" id="auth-trust-device">
-          <span>${t('auth.trustDevice.label')}</span>
-        </label>
         <div id="auth-err" class="auth-err"></div>
         <button type="submit" class="btn btn-primary auth-submit">${t('auth.signin.btn')}</button>
         <div class="auth-links">

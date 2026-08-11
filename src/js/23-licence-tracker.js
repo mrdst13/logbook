@@ -44,28 +44,11 @@ function _licenceTotals() {
 
 // Requirement sets. `key` maps to a computed total; `key: null` = a real TC
 // requirement Cumulo does not track (shown, never filled with a fake number).
+// Trimmed to the ATPL on 2026-08-02 (Martin's go on the audit suggestions):
+// PPL, CPL, night and IFR are licences and ratings he already holds, and a
+// page of green Met bars for them was decoration. The register keeps every
+// verified figure should another target ever matter again.
 const LICENCE_TARGETS = [
-  { id: 'ppl', label: { fr: 'PPL', en: 'PPL' }, title: { fr: 'Licence de pilote privé — avion', en: 'Private Pilot Licence — Aeroplane' }, cite: 'Norme 421.26(4)', reqs: [
-    { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 45, key: 'total' },
-    { label: { fr: 'Instruction reçue (double)', en: 'Dual instruction received' }, need: 17, key: 'dualRcvd' },
-    { label: { fr: 'En solo', en: 'Solo' }, need: 12, key: null },
-    { label: { fr: 'Vol-voyage en solo', en: 'Solo cross-country' }, sub: { fr: 'vol ≥ 150 NM', en: 'flight ≥ 150 NM' }, need: 5, key: null },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 3 h sim/sol', en: 'max 3 h sim/ground' }, need: 5, key: 'instrument', simCap: 3 }
-  ] },
-  { id: 'cpl', label: { fr: 'CPL', en: 'CPL' }, title: { fr: 'Licence de pilote professionnel — avion', en: 'Commercial Pilot Licence — Aeroplane' }, cite: 'Norme 421.30(4)', reqs: [
-    { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 200, key: 'total' },
-    { label: { fr: 'Commandant de bord (PIC)', en: 'Pilot-in-command (PIC)' }, need: 100, key: 'pic' },
-    { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 20, key: 'xcPic' }
-  ] },
-  { id: 'ifr', label: { fr: 'Qualif. IFR', en: 'IFR rating' }, title: { fr: 'Qualification de vol aux instruments (groupe 1)', en: 'Instrument rating (Group 1)' }, cite: 'Norme 421.46(2)', reqs: [
-    { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 50, key: 'xcPic' },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 20 h au sol', en: 'max 20 h ground' }, need: 40, key: 'instrument', simCap: 20 }
-  ] },
-  { id: 'night', label: { fr: 'Qualif. nuit', en: 'Night rating' }, title: { fr: 'Qualification de vol de nuit — avion', en: 'Night rating — Aeroplane' }, cite: 'CAR 401.42 / Norme 421.42', reqs: [
-    { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 20, key: 'total' },
-    { label: { fr: 'Temps de nuit', en: 'Night time' }, need: 10, key: 'night' },
-    { label: { fr: 'Instruments en double', en: 'Dual instrument time' }, need: 10, key: null }
-  ] },
   { id: 'atpl', label: { fr: 'ATPL', en: 'ATPL' }, title: { fr: 'Licence de pilote de ligne — avion', en: 'Airline Transport Pilot Licence — Aeroplane' }, cite: 'CAR 421.34(4)', reqs: [
     { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 1500, key: 'total' },
     { label: { fr: 'Commandant de bord (PIC)', en: 'Pilot-in-command (PIC)' }, need: 250, key: 'pic' },

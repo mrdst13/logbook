@@ -4866,8 +4866,9 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
 :is(#page-duty, #page-pay) .delta-bad { color: var(--v2-danger-ink); font-weight: 600; }
 :is(#page-duty, #page-pay) .tbl-note { font-size: 13px; color: var(--v2-muted); margin: 10px 0 6px; max-width: 72ch; }
 
-:is(#page-duty, #page-pay) :is(.pill-ok, .pill-info) { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; padding: 2px 9px; border-radius: 999px; }
+:is(#page-duty, #page-pay) :is(.pill-ok, .pill-info, .pill-bad) { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; padding: 2px 9px; border-radius: 999px; }
 :is(#page-duty, #page-pay) .pill-ok { color: var(--v2-success-ink); background: var(--v2-success-tint); }
+:is(#page-duty, #page-pay) .pill-bad { color: var(--v2-danger-ink, #8a1f1f); background: var(--v2-danger-tint, rgba(200,60,60,.14)); }
 :is(#page-duty, #page-pay) .pill-info { color: var(--v2-muted); background: var(--v2-track); }
 
 /* Visually hidden, read by screen readers */
@@ -5980,8 +5981,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
      <div class="import-tile-tag" data-i18n="import.pdfCard.tag">Frequent</div>
    </div>
    <input type="file" id="navbluePdfUnified" accept=".pdf,application/pdf" style="display:none" onchange="if(this.files[0])handleMonthlyRosterPDF(this.files[0])">
-   <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
-   <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
+     <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
 
    <!-- CSV migrate tile -->
    <div class="import-tile" id="csvDropZone" onclick="document.getElementById('csvFileInput').click()"
@@ -6172,7 +6172,6 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <button type="button" data-dur="lt30" aria-pressed="false" data-i18n="fdp.dur.lt30">&lt; 30 min</button>
  <button type="button" data-dur="30to50" aria-pressed="false" data-i18n="fdp.dur.mid">30 to &lt; 50 min</button>
  <button type="button" data-dur="ge50" aria-pressed="true" data-i18n="fdp.dur.ge50">50 min and more</button>
- <button type="button" data-dur="vfr" aria-pressed="false" data-i18n="fdp.dur.vfr">Day VFR</button>
  </div>
  </div>
  <div class="field span2 split-row">
@@ -10675,31 +10674,8 @@ function wireFlightFormValidation() {
 // until TURNSTILE_SECRET is provisioned, so this is safe to ship inert.
 // Spec: private/SPEC-ANTI-ABUS-2026-06-27.md (layer A).
 // ─────────────────────────────────────────────────────────────────
-const TURNSTILE_SITE_KEY = ''; // ← Martin: paste the Turnstile SITE key here to activate
-let _tsWidgetId = null;
-function getTurnstileToken() {
-  return new Promise((resolve) => {
-    if (!TURNSTILE_SITE_KEY || typeof window === 'undefined' || !window.turnstile) return resolve('');
-    try {
-      if (_tsWidgetId === null) {
-        let host = document.getElementById('cf-turnstile-host');
-        if (!host) {
-          host = document.createElement('div');
-          host.id = 'cf-turnstile-host';
-          host.style.display = 'none';
-          document.body.appendChild(host);
-        }
-        _tsWidgetId = window.turnstile.render(host, {
-          sitekey: TURNSTILE_SITE_KEY, size: 'invisible',
-          callback: () => {}, 'error-callback': () => {}
-        });
-      } else {
-        window.turnstile.reset(_tsWidgetId);
-      }
-      window.turnstile.execute(_tsWidgetId).then(resolve).catch(() => resolve(''));
-    } catch (_) { resolve(''); }
-  });
-}
+// Turnstile anti-abuse stub removed 2026-08-02: personal tool, endpoint
+// gone with the paid AI path. (Martin’s go on the audit suggestions.)
 
 // ─────────────────────────────────────────────────────────────────
 // IMPORT PAGE — recent-imports strip
@@ -10793,16 +10769,14 @@ function handleMonthlyRosterPDF(file) {
     catch { return false; }
   })();
 
+  // The paid AI extraction path (parseNavbluePDF + worker round trip) was
+  // removed 2026-08-02 on Martin's go: the client-side parser reads the same
+  // Porter PDF locally, backfills crew and OFFERS missing legs in the shared
+  // preview (test/pdf-roster-add.mjs), fresh install included — and it costs
+  // nothing and sends nothing anywhere.
   if (!hasFlights || !hasICalUrl) {
-    // Fresh install or pilot hasn't set up iCal yet → initial import path.
-    void('[ImportRouter] Monthly PDF → initial import (parseNavbluePDF)');
-    const inputEl = document.getElementById('navbluePdf');
-    if (inputEl) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      inputEl.files = dt.files;
-      parseNavbluePDF(inputEl);
-    }
+    void('[ImportRouter] Monthly PDF → client-side parse (fresh install)');
+    handleRosterFile(file);
     return;
   }
 
@@ -10824,166 +10798,8 @@ function handleMonthlyRosterPDF(file) {
 // through Brought-forward (Profile). PDF roster (parseNavbluePDF below) and
 // CSV import remain. The shared preview UI (showImportPreview) is untouched.
 
-async function parseNavbluePDF(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-
-  const box = document.getElementById('aiBox');
-  const msg = document.getElementById('aiMsg');
-  box.classList.add('show');
-  msg.textContent = t('import.aiBox.reading');
-
-  const b64 = await new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(',')[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-
-  try {
-    msg.textContent = t('import.aiBox.extracting');
-    // Layer A (anti-abuse): attach a fresh Turnstile token. '' when Turnstile
-    // isn't configured yet → the worker no-ops, so this changes nothing today.
-    const turnstileToken = await getTurnstileToken();
-    const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 8000,
-        turnstileToken,
-        // Note: the system prompt is pinned server-side in the worker
-        // (data-extraction-API persona) — anything sent here is ignored.
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-            { type: 'text', text: `This is an airline crew roster (e.g. Navblue HrRosterReport) PDF. Extract ONLY the real flight legs the pilot operated as crew.
-
-SKIP these — the pilot did NOT operate them:
-- Activity codes (not flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, DHD, RDG, PAX.
-- Positioning: P##### (P followed by 5 digits).
-- ANY leg the pilot DEADHEADS (rides as a passenger, does not operate) — even when it carries a normal revenue flight number (e.g. PD167, PD163). A deadhead is shown by a "D" deadhead designator in the leftmost activity/designator column of that row, AND/OR the pilot's crew function marked "(D)" in the crew list (e.g. "FO(D): Daoust, Martin"). If the pilot's own role on a leg is a deadhead, DO NOT extract it, whatever the flight number.
-
-KEEP only revenue flights (airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) that the pilot OPERATED — i.e. their crew function is FO or CA WITHOUT a "(D)" deadhead marker.
-
-Output a JSON array. If nothing to extract, output [].
-One object per leg with EXACTLY these fields:
-{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain name or empty","copilot":"F/O name or empty","route":"YOW-YYZ","block":1.10,"duty":1.50,"atd_utc":"1230","sta_utc":"1345","ldg":1}
-
-RULES:
-- Only completed flights (date <= today).
-- block = BLH column, HH:MM → decimal (e.g. 4:30 → 4.50).
-- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"). If the document shows ONLY a scheduled/planned time (not the actual), leave atd_utc as "" — never put a scheduled time in atd_utc. sta_utc = ACTUAL arrival UTC "HHMM" if shown, else "" (same rule — no scheduled times).
-- route = departure-arrival as 3-letter IATA (e.g. "YOW-YYZ").
-- ldg = number of landings ONLY if the document explicitly states it; otherwise omit the field entirely. Never assume or default to 1 (a multi-crew F/O does not land every leg).
-- type: "E195-E2" for 295, "DH4" for Dash 8 Q400.
-- DO NOT compute day vs night, PIC vs SIC, or cross-country — leave those out entirely. The app computes them from the real UTC times and the pilot's own profile (never assumed).` }
-          ]
-        }]
-      })
-    });
-
-    const rawText = await resp.text();
-    void('[Navblue] Worker HTTP status:', resp.status);
-    void('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
-
-    // Parse first so a normalized capacity / daily-cap signal is caught even on
-    // a non-2xx status: the worker returns 503 + {error:{code:'capacity'}} when
-    // Anthropic is rate-limited / overloaded / at the spend cap. Detect it
-    // BEFORE the generic !resp.ok throw so the pilot gets a graceful fallback
-    // (their hours aren't lost) instead of a raw "extraction failed".
-    let data = null;
-    try { data = JSON.parse(rawText); } catch (e) { /* non-JSON handled below */ }
-
-    if (data && data.error && (data.error.code === 'capacity' || data.error.code === 'daily_cap')) {
-      box.classList.remove('show');
-      showImportFallback(data.error.code);
-      return;
-    }
-
-    if (!resp.ok) {
-      throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
-    }
-    if (!data) {
-      throw new Error('Worker did not return JSON. Response: ' + rawText.substring(0, 200));
-    }
-
-    // Anthropic API error inside the worker response?
-    if (data.error) {
-      throw new Error(`Anthropic API error: ${data.error.message || JSON.stringify(data.error)}`);
-    }
-
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    void('[Navblue] AI response text (first 800 chars):', text.substring(0, 800));
-
-    if (!text.trim()) {
-      throw new Error('AI returned empty response. Check worker logs / API key.');
-    }
-
-    // Strip markdown fences if present
-    const clean = text.replace(/```(?:json)?/gi, '').trim();
-
-    // Find a JSON array — prefer the largest [...] block (handles nested objects)
-    let match = clean.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (!match) match = clean.match(/\[\s*\]/);  // empty array fallback
-    if (!match) {
-      // The AI replied with text instead of JSON — surface what it said
-      throw new Error(`AI did not return JSON. It said: "${clean.substring(0, 250)}"`);
-    }
-
-    let extracted;
-    try { extracted = JSON.parse(match[0]); } catch(e) {
-      throw new Error('Malformed JSON from AI: ' + match[0].substring(0, 200));
-    }
-
-    if (!Array.isArray(extracted) || extracted.length === 0) {
-      box.classList.remove('show');
-      showToast(t('import.ai.noFlights'), 'error');
-      return;
-    }
-
-    // Local civil date — the UTC date (toISOString) reads tomorrow in the
-    // evening, which would let today's in-progress flight slip through.
-    const today = localTodayStr();
-    // Strict: only flights from BEFORE today (today's flight may still be in progress)
-    const filtered = extracted.filter(f => f.date && f.date < today && f.block > 0);
-    void(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
-
-    if (filtered.length === 0) {
-      box.classList.remove('show');
-      showToast(t('import.ai.noFlights'), 'error');
-      return;
-    }
-
-    // Compute the REAL day/night/XC split + role attribution from the actual
-    // UTC times and the pilot's profile — never fabricated from the landing.
-    // Legs the app can't anchor (unknown airport / no usable time) are left
-    // empty and flagged so the preview shows "night to confirm" instead of
-    // silently logging 0. (Audit panel 2026-06-25 must-fix #3 + #5.)
-    const processed = filtered.map(f => {
-      const flight = { ...f };
-      if (!(+flight.total) && +flight.block) flight.total = +flight.block;
-      if (flight.atd_utc != null && flight.atd_utc !== '') {
-        flight.atd_utc = String(flight.atd_utc).replace(/\D/g, '').padStart(4, '0').slice(0, 4);
-      }
-      const out = (typeof recalculateFlightDayNightXC === 'function')
-        ? recalculateFlightDayNightXC(flight, { skipLandingFill: true }) : flight;
-      const attributed = (typeof nightHoursOf === 'function')
-        && (nightHoursOf(out) > 0 || dayHoursOf(out) > 0);
-      if (!attributed && (+out.block > 0)) out._needsDayNight = true;
-      return out;
-    });
-
-    box.classList.remove('show');
-    showImportPreview(processed, t('import.preview.subtitle', { n: processed.length }));
-  } catch(e) {
-    box.classList.remove('show');
-    showToast(t('import.ai.failed'), 'error');
-    console.error('[Roster] Error:', e);
-  }
-}
+// parseNavbluePDF (the paid AI extraction round trip) removed 2026-08-02 —
+// handleRosterFile (10-pdf-roster.js) parses the same PDF locally.
 
 function showImportPreview(list, subtitle, opts) {
   // Flag every entry that already exists in the logbook so we never silently
@@ -15166,17 +14982,21 @@ function exportPDF() {
     document.querySelectorAll('#extractedList input[type="checkbox"][data-col-key]').forEach(input => {
       selected[input.getAttribute('data-col-key')] = input.checked;
     });
-    // Save as prefs (so the Logbook table updates too — consistent)
-    saveColumnPrefs(selected);
-    if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
+    // The selection drives THIS export only. Persisting it as the logbook's
+    // column prefs meant printing a one-off subset silently rewrote the
+    // on-screen table — a side effect nobody asked for. (Martin's go,
+    // 2026-08-02.)
+    const chosen = LOGBOOK_COLUMNS.filter(c =>
+      c.key === 'total' || (selected[c.key] !== undefined ? selected[c.key] : c.default));
+    if (!chosen.find(c => c.key === 'total')) chosen.push(LOGBOOK_COLUMNS.find(c => c.key === 'total'));
     closeImportOverlay();
-    _generatePDF();
+    _generatePDF(chosen);
   };
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
-function _generatePDF() {
+function _generatePDF(colsOverride) {
   if (typeof window.jspdf === 'undefined') { showToast(t('toast.pdfLibLoading'), 'error'); return; }
   const { jsPDF } = window.jspdf;
   const p = DB.loadProfile();
@@ -15201,7 +15021,7 @@ function _generatePDF() {
   const bookletExp = p.bookletExpiry || '-';
   const fleet = p.fleet || '—';
 
-  const cols = getVisibleColumns('pdf');
+  const cols = (Array.isArray(colsOverride) && colsOverride.length) ? colsOverride : getVisibleColumns('pdf');
   const sorted = [...flights].sort((a,b) => (a.date || '').localeCompare(b.date || ''));
 
   // ════════════════════════════════════════════
@@ -15782,14 +15602,10 @@ function _generatePDF() {
         requirement: 'Interval set by your Civil Aviation Medical Examiner',
         current: p.ecg ? `Next due ${p.ecg}` : 'Not set in profile',
         ok: p.ecg ? (p.ecg >= localTodayStr()) : null
-      },
-      {
-        title: '90-day recency',
-        reg: 'Operator best practice',
-        requirement: 'Recent flying activity',
-        current: `${recent90.length} flight${recent90.length !== 1 ? 's' : ''} in last 90 days`,
-        ok: recent90.length > 0
       }
+      // The '90-day recency / Operator best practice' card was removed
+      // 2026-08-02: it cited no regulation and could badge NOT CURRENT on a
+      // document whose regulatory items were all green. (Martin's go.)
     ];
 
     items.forEach(item => {
@@ -17889,9 +17705,7 @@ const STRINGS = {
  'fdp.dur': 'Average flight length',
  'fdp.dur.lt30': '< 30 min',
  'fdp.dur.mid': '30 to < 50 min',
- 'fdp.dur.ge50': '50 min and more',
- 'fdp.dur.vfr': 'Day VFR',
- 'fdp.legs': 'Number of flights',
+ 'fdp.dur.ge50': '50 min and more', 'fdp.legs': 'Number of flights',
  'fdp.split': 'Split duty (break in suitable accommodation)',
  'fdp.brk': 'Break (minutes)',
  'fdp.night': 'Break falls between 00:00 and 05:59',
@@ -18889,9 +18703,7 @@ const STRINGS = {
  'auth.email.label': 'Email',
  'auth.password.label': 'Password',
  'auth.password.help': 'At least 12 characters.',
- 'auth.password.newLabel': 'New password',
- 'auth.trustDevice.label': 'Trust this device for 60 days',
- 'auth.forgot.link': 'Forgot password?',
+ 'auth.password.newLabel': 'New password', 'auth.forgot.link': 'Forgot password?',
  'auth.forgot.title': 'Reset password',
  'auth.forgot.sub': 'We will send you a reset link.',
  'auth.forgot.btn': 'Send reset link',
@@ -19073,9 +18885,7 @@ const STRINGS = {
  'fdp.dur': 'Durée moyenne des vols',
  'fdp.dur.lt30': '< 30 min',
  'fdp.dur.mid': '30 à < 50 min',
- 'fdp.dur.ge50': '50 min et plus',
- 'fdp.dur.vfr': 'VFR de jour',
- 'fdp.legs': 'Nombre de vols',
+ 'fdp.dur.ge50': '50 min et plus', 'fdp.legs': 'Nombre de vols',
  'fdp.split': 'Service fractionné (pause en poste de repos approprié)',
  'fdp.brk': 'Pause (minutes)',
  'fdp.night': 'Pause comprise entre 00:00 et 05:59',
@@ -20077,9 +19887,7 @@ const STRINGS = {
  'auth.email.label': 'Courriel',
  'auth.password.label': 'Mot de passe',
  'auth.password.help': 'Au moins 12 caractères.',
- 'auth.password.newLabel': 'Nouveau mot de passe',
- 'auth.trustDevice.label': 'Faire confiance à cet appareil 60 jours',
- 'auth.forgot.link': 'Mot de passe oublié ?',
+ 'auth.password.newLabel': 'Nouveau mot de passe', 'auth.forgot.link': 'Mot de passe oublié ?',
  'auth.forgot.title': 'Réinitialiser le mot de passe',
  'auth.forgot.sub': 'Nous vous enverrons un lien de réinitialisation.',
  'auth.forgot.btn': 'Envoyer le lien',
@@ -20596,10 +20404,6 @@ const AuthUI = {
         </label>
         <label class="auth-label">${t('auth.password.label')}
           <input type="password" id="auth-password" autocomplete="current-password" required class="auth-input">
-        </label>
-        <label class="auth-checkbox">
-          <input type="checkbox" id="auth-trust-device">
-          <span>${t('auth.trustDevice.label')}</span>
         </label>
         <div id="auth-err" class="auth-err"></div>
         <button type="submit" class="btn btn-primary auth-submit">${t('auth.signin.btn')}</button>
@@ -22129,12 +21933,10 @@ const Sync = {
       return;
     }
 
-    // Re-prompt cool-down: if the user already said "later" within the
-    // last 24h, skip re-asking. Avoids the modal on every signin.
-    if (state && state.deferredAt) {
-      const elapsedH = (Date.now() - new Date(state.deferredAt).getTime()) / 3.6e6;
-      if (elapsedH < 24) return;
-    }
+    // The consent prompt + 24h cool-down were removed 2026-08-02 (Martin’s
+    // go): both of his devices migrated long ago, and a signed-in device
+    // holding local rows has exactly one right answer. The migration still
+    // snapshots first and keeps its independent pre-migration backup.
 
     const migrationOk = await confirmDialog({
       title: getLang && getLang() === 'fr' ? 'Associer les vols au nuage' : 'Link flights to cloud',
@@ -24545,28 +24347,11 @@ function _licenceTotals() {
 
 // Requirement sets. `key` maps to a computed total; `key: null` = a real TC
 // requirement Cumulo does not track (shown, never filled with a fake number).
+// Trimmed to the ATPL on 2026-08-02 (Martin's go on the audit suggestions):
+// PPL, CPL, night and IFR are licences and ratings he already holds, and a
+// page of green Met bars for them was decoration. The register keeps every
+// verified figure should another target ever matter again.
 const LICENCE_TARGETS = [
-  { id: 'ppl', label: { fr: 'PPL', en: 'PPL' }, title: { fr: 'Licence de pilote privé — avion', en: 'Private Pilot Licence — Aeroplane' }, cite: 'Norme 421.26(4)', reqs: [
-    { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 45, key: 'total' },
-    { label: { fr: 'Instruction reçue (double)', en: 'Dual instruction received' }, need: 17, key: 'dualRcvd' },
-    { label: { fr: 'En solo', en: 'Solo' }, need: 12, key: null },
-    { label: { fr: 'Vol-voyage en solo', en: 'Solo cross-country' }, sub: { fr: 'vol ≥ 150 NM', en: 'flight ≥ 150 NM' }, need: 5, key: null },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 3 h sim/sol', en: 'max 3 h sim/ground' }, need: 5, key: 'instrument', simCap: 3 }
-  ] },
-  { id: 'cpl', label: { fr: 'CPL', en: 'CPL' }, title: { fr: 'Licence de pilote professionnel — avion', en: 'Commercial Pilot Licence — Aeroplane' }, cite: 'Norme 421.30(4)', reqs: [
-    { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 200, key: 'total' },
-    { label: { fr: 'Commandant de bord (PIC)', en: 'Pilot-in-command (PIC)' }, need: 100, key: 'pic' },
-    { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 20, key: 'xcPic' }
-  ] },
-  { id: 'ifr', label: { fr: 'Qualif. IFR', en: 'IFR rating' }, title: { fr: 'Qualification de vol aux instruments (groupe 1)', en: 'Instrument rating (Group 1)' }, cite: 'Norme 421.46(2)', reqs: [
-    { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 50, key: 'xcPic' },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 20 h au sol', en: 'max 20 h ground' }, need: 40, key: 'instrument', simCap: 20 }
-  ] },
-  { id: 'night', label: { fr: 'Qualif. nuit', en: 'Night rating' }, title: { fr: 'Qualification de vol de nuit — avion', en: 'Night rating — Aeroplane' }, cite: 'CAR 401.42 / Norme 421.42', reqs: [
-    { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 20, key: 'total' },
-    { label: { fr: 'Temps de nuit', en: 'Night time' }, need: 10, key: 'night' },
-    { label: { fr: 'Instruments en double', en: 'Dual instrument time' }, need: 10, key: null }
-  ] },
   { id: 'atpl', label: { fr: 'ATPL', en: 'ATPL' }, title: { fr: 'Licence de pilote de ligne — avion', en: 'Airline Transport Pilot Licence — Aeroplane' }, cite: 'CAR 421.34(4)', reqs: [
     { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 1500, key: 'total' },
     { label: { fr: 'Commandant de bord (PIC)', en: 'Pilot-in-command (PIC)' }, need: 250, key: 'pic' },
@@ -26613,8 +26398,10 @@ function _fdpOffLabel(mins) {
 function _fdpHM(dec) { const t = Math.round(dec * 60); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 function _fdpClock(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
 function _fdpColIndex(band, flights) {
-  if (band === 'vfr') return 0;                     // 700.28(9) single column = column-2 values
-  const th = FDP_COLS[band]; return flights <= th[0] ? 0 : (flights <= th[1] ? 1 : 2);
+  // The day-VFR band (700.28(9)) was removed from the UI 2026-08-02: a 705
+  // multi-crew F/O can never use it, and offering it invited a wrong maximum.
+  const th = FDP_COLS[band] || FDP_COLS.ge50;
+  return flights <= th[0] ? 0 : (flights <= th[1] ? 1 : 2);
 }
 function _fdpRowLabel(row) { return _fdpClock(row.s) + ' – ' + _fdpClock(row.e); }
 // Duration display per the approved mockups (duty-final.html): "13 h" and
@@ -26638,7 +26425,6 @@ function _fdpColRange(band, col, fr) {
 }
 // Average-flight-duration wording used in the result breakdown line.
 function _fdpBandLabel(band, fr) {
-  if (band === 'vfr') return fr ? 'VFR de jour' : 'day VFR';
   if (band === 'lt30') return fr ? 'vols de moins de 30 min' : 'flights under 30 min';
   if (band === '30to50') return fr ? 'vols de 30 à moins de 50 min' : 'flights 30 to under 50 min';
   return fr ? 'vols de 50 min et plus' : 'flights 50 min and more';
@@ -26710,7 +26496,7 @@ function fdpCompute() {
     ? 'Présentation entre ' + _fdpClock(row.s) + ' et ' + _fdpClock(row.e)
     : 'Report between ' + _fdpClock(row.s) + ' and ' + _fdpClock(row.e);
   const parts = [rowPart];
-  if (band !== 'vfr') parts.push(_fdpColRange(band, col, fr));
+  parts.push(_fdpColRange(band, col, fr));
   parts.push(_fdpBandLabel(band, fr));
   const cell = g('fdp-cell');
   if (cell) cell.textContent = parts.join(' · ') + ' → ' + _fdpHLabel(baseH) + (capped ? T('fdp.capped') : '');
@@ -26808,12 +26594,9 @@ function _fdpRenderRefTable(band, row, col, acclimMin, fr) {
   const tbl = document.getElementById('dutyRefTable');
   const note = document.getElementById('dutyRefNote');
   if (!tbl) return;
-  const single = band === 'vfr';
-  const cols = single ? [0] : [0, 1, 2];
-  const heads = single
-    ? [fr ? 'VFR de jour' : 'Day VFR']
-    : cols.map(c => _fdpColRange(band, c, fr));
-  const activeCol = single ? 0 : col;
+  const cols = [0, 1, 2];
+  const heads = cols.map(c => _fdpColRange(band, c, fr));
+  const activeCol = col;
 
   let html = '<table><thead><tr><th>' + (fr ? 'Présentation (heure acclimatée)' : 'Report (acclimatized time)') + '</th>';
   heads.forEach((h, c) => { html += '<th class="r' + (c === activeCol ? ' active-col' : '') + '">' + h + '</th>'; });
@@ -26830,14 +26613,12 @@ function _fdpRenderRefTable(band, row, col, acclimMin, fr) {
   tbl.innerHTML = html;
 
   if (note) {
-    const durTxt = band === 'vfr' ? (fr ? 'VFR de jour' : 'day VFR')
-      : band === 'lt30' ? '< 30 min'
+    const durTxt = band === 'lt30' ? '< 30 min'
       : band === '30to50' ? (fr ? '30 à < 50 min' : '30 to < 50 min')
       : (fr ? '50 min et plus' : '50 min and more');
-    const yourBand = single
-      ? (fr ? 'Ta bande : présentation à ' + _fdpClock(acclimMin) + '.' : 'Your row: report at ' + _fdpClock(acclimMin) + '.')
-      : (fr ? 'Ta bande : présentation à ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.'
-            : 'Your row: report at ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.');
+    const yourBand = fr
+      ? 'Ta bande : présentation à ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.'
+      : 'Your row: report at ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.';
     note.textContent = (fr
       ? 'Service maximum selon l’heure de présentation acclimatée et le nombre de vols. Durée moyenne : ' + durTxt + '. '
       : 'Maximum duty by acclimatized report time and the number of flights. Average length: ' + durTxt + '. ') + yourBand;
@@ -27800,7 +27581,9 @@ function payRender() {
 
   const pill = s => s === 'ok'
     ? '<span class="pill-ok">' + (fr ? 'Conforme' : 'Pass') + '</span>'
-    : '<span class="pill-info">' + (fr ? 'À titre indicatif' : 'Reference') + '</span>';
+    : s === 'bad'
+      ? '<span class="pill-bad">' + (fr ? 'Problème' : 'Issue') + '</span>'
+      : '<span class="pill-info">' + (fr ? 'À titre indicatif' : 'Reference') + '</span>';
   const sgnH = v => (v < 0 ? '−' : '+') + hL(Math.abs(v)) + ' h';
   const sgn$ = v => (v > 0 ? '+' : '') + money(v);
   const tr = (label, tds, badRow) => '<tr' + (badRow ? ' class="row-bad"' : '') + '><td>' + label + '</td>' + tds + '</tr>';
@@ -27985,6 +27768,17 @@ function payRender() {
     const paidCell = paidUsAmt != null ? tdN(money(paidUsAmt) + (paidUsH != null ? ' · ' + hL(paidUsH) + ' h' : '')) : tdM(fr ? 'aucun' : 'none');
     usCheck.rows = [tr(usCheck.name, compCell + paidCell + tdP(pill(usCheck.status === 'bad' ? 'info' : usCheck.status)), usCheck.status === 'bad')];
     if (usCheck.status === 'bad') usCheck.rows = [tr(usCheck.name, compCell + paidCell + tdBad(fr ? 'Problème' : 'Issue'), true)];
+    // The per-US-day breakdown (usPerDiemDays) — the view this helper was
+    // written for and never wired to. One sub-row per confirmed US layover
+    // day, so a wrong total is traceable to the day that caused it.
+    // (Martin's go, 2026-08-02.)
+    if (pd.usHours > 0 && typeof usPerDiemDays === 'function') {
+      const _usDays = usPerDiemDays(allFls || [], st.base);
+      _usDays.forEach(d => {
+        usCheck.rows.push(tr('<span class="sub">' + esc(d.icao) + ' · ' + esc(d.date) + '</span>',
+          tdN(hL(d.hours) + ' h') + tdM(DASH) + tdM(''), false));
+      });
+    }
   }
 
   // 5. Recurring items — needs the previous stored stub (2+ stubs).
@@ -28016,18 +27810,89 @@ function payRender() {
     }
   }
 
-  // 6. Flight pay + overtime — for reference only (semi-monthly rules to confirm).
+  // 6. Flight pay + overtime — a REAL check now (Martin's go, 2026-08-02),
+  // built only from what is verifiable without inventing semi-monthly rules:
+  //
+  //   a) CREDITED HOURS. The stub prints the hours it paid (regular units +
+  //      overtime units); the schedule yields the period's credits
+  //      (computeCredits: max(flight, duty/2, 4:00) per day — the FOAG rig
+  //      already pinned by test/pay.mjs). Fewer hours PAID than flown is the
+  //      error this page exists to catch and flags red. MORE hours paid than
+  //      computed is NOT flagged: the monthly guarantee, credits from legs not
+  //      in the logbook, and semi-monthly proration all legitimately land
+  //      there, and none of them is a rule this app may guess at.
+  //   b) OVERTIME PRICING. OT units × hourly rate × multiplier must equal the
+  //      OT amount on the stub. The multiplier is 1.5, or 2.0 inside the
+  //      summer LOA window (isSummerLOA — the 2.0x rule the tests have pinned
+  //      since the FOAG extraction). Only compared when the rate itself is
+  //      comparable (same gate as the rate check).
   const baseCheck = {
-    id: 'base', status: 'info',
+    id: 'base',
     name: fr ? 'Base et temps supplémentaire' : 'Flight pay and overtime',
-    desc: fr ? 'À titre indicatif : les règles semi-mensuelles restent à confirmer.' : 'For reference: the semi-monthly rules remain to be confirmed.',
-    rows: [
-      tr((fr ? 'Base et temps supp. (base)' : 'Flight pay and overtime (flight pay)') + '<span class="sub">' + (fr ? 'Règles semi-mensuelles à confirmer' : 'Semi-monthly rules to confirm') + '</span>',
-        tdM(DASH) + tdN(baseAmt != null ? money(baseAmt) : DASH) + tdP(pill('info')), false),
-      tr(fr ? 'Base et temps supp. (temps supp.)' : 'Flight pay and overtime (overtime)',
-        tdM(DASH) + tdN(otAmt != null ? money(otAmt) : DASH) + tdP(pill('info')), false)
-    ]
+    rows: []
   };
+  {
+    const paidStraightU = (bk.regular && bk.regular.units != null) ? +bk.regular.units : null;
+    const paidOtU = (bk.overtime && bk.overtime.ot10Units != null) ? +bk.overtime.ot10Units : null;
+    const paidHours = (paidStraightU == null && paidOtU == null) ? null : (+(paidStraightU || 0) + +(paidOtU || 0));
+    const scopedLegs = (range && Array.isArray(allFls))
+      ? allFls.filter(f => f.date && f.date >= range.start && f.date <= range.end) : [];
+    const credits = scopedLegs.length ? computeCredits(scopedLegs) : null;
+    const creditH = credits ? +credits.total || 0 : null;
+    const problems = [];
+    const notes = [];
+
+    if (paidHours != null && creditH != null && scopedLegs.length) {
+      if (paidHours + 1.0 < creditH) {
+        problems.push(fr
+          ? 'Ton horaire donne <strong>' + hL(creditH) + ' h</strong> de crédits pour la période, mais le talon n’en paie que <strong>' + hL(paidHours) + ' h</strong>.'
+          : 'Your schedule gives <strong>' + hL(creditH) + ' h</strong> of credits for the period, but the stub pays only <strong>' + hL(paidHours) + ' h</strong>.');
+      } else if (paidHours > creditH + 1.0) {
+        notes.push(fr
+          ? 'Le talon paie ' + hL(paidHours) + ' h contre ' + hL(creditH) + ' h calculées : la garantie mensuelle ou des vols pas encore au carnet expliquent normalement cet écart, il n’est pas signalé.'
+          : 'The stub pays ' + hL(paidHours) + ' h against ' + hL(creditH) + ' h computed: the monthly guarantee or legs not yet in the logbook normally explain this direction, so it is not flagged.');
+      }
+    }
+
+    if (paidOtU != null && paidOtU > 0 && bk.overtime.ot10 != null && st.rate && _rateComparable) {
+      const otMult = (typeof isSummerLOA === 'function' && range && isSummerLOA(range.end)) ? 2.0 : 1.5;
+      const expectedOt = paidOtU * st.rate * otMult;
+      const tol = 0.02 + 1.0 * st.rate;
+      if (Math.abs(expectedOt - bk.overtime.ot10) > tol) {
+        problems.push(fr
+          ? hL(paidOtU) + ' h de temps supplémentaire à ' + money(st.rate) + '/h × ' + otMult + ' devraient donner <strong>' + money(expectedOt) + '</strong> ; le talon montre <strong>' + money(bk.overtime.ot10) + '</strong>.'
+          : hL(paidOtU) + ' h of overtime at ' + money(st.rate) + '/h × ' + otMult + ' should come to <strong>' + money(expectedOt) + '</strong>; the stub shows <strong>' + money(bk.overtime.ot10) + '</strong>.');
+      }
+    }
+
+    if (paidHours == null) {
+      baseCheck.status = 'info';
+      baseCheck.desc = fr ? 'Heures payées non lues sur le talon.' : 'Paid hours not read from the stub.';
+    } else if (!scopedLegs.length) {
+      baseCheck.status = 'info';
+      baseCheck.desc = fr ? 'Aucun vol enregistré dans cette période : rien à comparer.' : 'No logged flights in this period: nothing to compare against.';
+    } else if (problems.length) {
+      baseCheck.status = 'bad';
+      baseCheck.desc = problems.join(' ');
+    } else if (notes.length) {
+      baseCheck.status = 'ok';
+      baseCheck.desc = notes.join(' ');
+    } else {
+      baseCheck.status = 'ok';
+      baseCheck.desc = fr
+        ? 'Heures payées et crédits concordent (' + hL(paidHours) + ' h payées, ' + hL(creditH) + ' h calculées).'
+        : 'Paid hours and credits agree (' + hL(paidHours) + ' h paid, ' + hL(creditH) + ' h computed).';
+    }
+
+    const _hoursBad = baseCheck.status === 'bad' && paidHours != null && creditH != null && paidHours + 1.0 < creditH;
+    baseCheck.rows = [
+      tr(fr ? 'Heures créditées' : 'Credited hours',
+        tdN(creditH != null ? hL(creditH) + ' h' : DASH) + tdN(paidHours != null ? hL(paidHours) + ' h' : DASH) +
+        (_hoursBad ? tdBad(sgnH(Math.round((paidHours - creditH) * 100) / 100)) : tdP(pill(baseCheck.status))), _hoursBad),
+      tr(fr ? 'Base et temps supp. (montants)' : 'Flight pay and overtime (amounts)',
+        tdM(DASH) + tdN((baseAmt != null || otAmt != null) ? money(+(baseAmt || 0) + +(otAmt || 0)) : DASH) + tdP(pill(baseCheck.status)), false)
+    ];
+  }
 
   const checks = [pdCheck, rateCheck, pdRateCheck, usCheck, recurCheck, baseCheck];
   const badChecks = checks.filter(c => c.status === 'bad');
@@ -28556,7 +28421,10 @@ function payStubBuckets(parsed) {
   return {
     period: p.period || '',
     regular: by['001'] ? { amount: by['001'].amount, units: by['001'].units, rate: by['001'].rate } : null,
-    overtime: { amount: sum(amt('005'), amt('030')), ot10: amt('005'), draft: amt('030') },
+    overtime: { amount: sum(amt('005'), amt('030')), ot10: amt('005'), draft: amt('030'),
+      ot10Units: (by['005'] && by['005'].units != null) ? by['005'].units : null,
+      ot10Rate: (by['005'] && by['005'].rate != null) ? by['005'].rate : null,
+      draftUnits: (by['030'] && by['030'].units != null) ? by['030'].units : null },
     perDiemCdn: by['252'] ? { amount: by['252'].amount, units: by['252'].units, rate: by['252'].rate } : null,
     perDiemUs: by['250'] ? { amount: by['250'].amount, units: by['250'].units } : null,
     totalDeposit: p.totalDeposit != null ? p.totalDeposit : null
@@ -29316,7 +29184,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-11-3901681';
+const BUILD_VERSION = '2026-08-11-3354f3c';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

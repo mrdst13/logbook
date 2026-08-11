@@ -108,7 +108,10 @@ function payStubBuckets(parsed) {
   return {
     period: p.period || '',
     regular: by['001'] ? { amount: by['001'].amount, units: by['001'].units, rate: by['001'].rate } : null,
-    overtime: { amount: sum(amt('005'), amt('030')), ot10: amt('005'), draft: amt('030') },
+    overtime: { amount: sum(amt('005'), amt('030')), ot10: amt('005'), draft: amt('030'),
+      ot10Units: (by['005'] && by['005'].units != null) ? by['005'].units : null,
+      ot10Rate: (by['005'] && by['005'].rate != null) ? by['005'].rate : null,
+      draftUnits: (by['030'] && by['030'].units != null) ? by['030'].units : null },
     perDiemCdn: by['252'] ? { amount: by['252'].amount, units: by['252'].units, rate: by['252'].rate } : null,
     perDiemUs: by['250'] ? { amount: by['250'].amount, units: by['250'].units } : null,
     totalDeposit: p.totalDeposit != null ? p.totalDeposit : null

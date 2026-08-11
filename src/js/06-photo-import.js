@@ -6,31 +6,8 @@
 // until TURNSTILE_SECRET is provisioned, so this is safe to ship inert.
 // Spec: private/SPEC-ANTI-ABUS-2026-06-27.md (layer A).
 // ─────────────────────────────────────────────────────────────────
-const TURNSTILE_SITE_KEY = ''; // ← Martin: paste the Turnstile SITE key here to activate
-let _tsWidgetId = null;
-function getTurnstileToken() {
-  return new Promise((resolve) => {
-    if (!TURNSTILE_SITE_KEY || typeof window === 'undefined' || !window.turnstile) return resolve('');
-    try {
-      if (_tsWidgetId === null) {
-        let host = document.getElementById('cf-turnstile-host');
-        if (!host) {
-          host = document.createElement('div');
-          host.id = 'cf-turnstile-host';
-          host.style.display = 'none';
-          document.body.appendChild(host);
-        }
-        _tsWidgetId = window.turnstile.render(host, {
-          sitekey: TURNSTILE_SITE_KEY, size: 'invisible',
-          callback: () => {}, 'error-callback': () => {}
-        });
-      } else {
-        window.turnstile.reset(_tsWidgetId);
-      }
-      window.turnstile.execute(_tsWidgetId).then(resolve).catch(() => resolve(''));
-    } catch (_) { resolve(''); }
-  });
-}
+// Turnstile anti-abuse stub removed 2026-08-02: personal tool, endpoint
+// gone with the paid AI path. (Martin’s go on the audit suggestions.)
 
 // ─────────────────────────────────────────────────────────────────
 // IMPORT PAGE — recent-imports strip
@@ -124,16 +101,14 @@ function handleMonthlyRosterPDF(file) {
     catch { return false; }
   })();
 
+  // The paid AI extraction path (parseNavbluePDF + worker round trip) was
+  // removed 2026-08-02 on Martin's go: the client-side parser reads the same
+  // Porter PDF locally, backfills crew and OFFERS missing legs in the shared
+  // preview (test/pdf-roster-add.mjs), fresh install included — and it costs
+  // nothing and sends nothing anywhere.
   if (!hasFlights || !hasICalUrl) {
-    // Fresh install or pilot hasn't set up iCal yet → initial import path.
-    console.log('[ImportRouter] Monthly PDF → initial import (parseNavbluePDF)');
-    const inputEl = document.getElementById('navbluePdf');
-    if (inputEl) {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      inputEl.files = dt.files;
-      parseNavbluePDF(inputEl);
-    }
+    console.log('[ImportRouter] Monthly PDF → client-side parse (fresh install)');
+    handleRosterFile(file);
     return;
   }
 
@@ -155,166 +130,8 @@ function handleMonthlyRosterPDF(file) {
 // through Brought-forward (Profile). PDF roster (parseNavbluePDF below) and
 // CSV import remain. The shared preview UI (showImportPreview) is untouched.
 
-async function parseNavbluePDF(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-
-  const box = document.getElementById('aiBox');
-  const msg = document.getElementById('aiMsg');
-  box.classList.add('show');
-  msg.textContent = t('import.aiBox.reading');
-
-  const b64 = await new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(',')[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-
-  try {
-    msg.textContent = t('import.aiBox.extracting');
-    // Layer A (anti-abuse): attach a fresh Turnstile token. '' when Turnstile
-    // isn't configured yet → the worker no-ops, so this changes nothing today.
-    const turnstileToken = await getTurnstileToken();
-    const resp = await fetch('https://logbook-api.martindaoust33.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 8000,
-        turnstileToken,
-        // Note: the system prompt is pinned server-side in the worker
-        // (data-extraction-API persona) — anything sent here is ignored.
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-            { type: 'text', text: `This is an airline crew roster (e.g. Navblue HrRosterReport) PDF. Extract ONLY the real flight legs the pilot operated as crew.
-
-SKIP these — the pilot did NOT operate them:
-- Activity codes (not flights): VAC, GD, SDO, REAX, HTL, PER, LM, BO, DH, DHD, RDG, PAX.
-- Positioning: P##### (P followed by 5 digits).
-- ANY leg the pilot DEADHEADS (rides as a passenger, does not operate) — even when it carries a normal revenue flight number (e.g. PD167, PD163). A deadhead is shown by a "D" deadhead designator in the leftmost activity/designator column of that row, AND/OR the pilot's crew function marked "(D)" in the crew list (e.g. "FO(D): Daoust, Martin"). If the pilot's own role on a leg is a deadhead, DO NOT extract it, whatever the flight number.
-
-KEEP only revenue flights (airline-prefix + 2-4 digit number, e.g. PD###, AC###, WS###) that the pilot OPERATED — i.e. their crew function is FO or CA WITHOUT a "(D)" deadhead marker.
-
-Output a JSON array. If nothing to extract, output [].
-One object per leg with EXACTLY these fields:
-{"date":"YYYY-MM-DD","flightNum":"PD150","type":"E195-E2","reg":"C-XXXX","pic":"Captain name or empty","copilot":"F/O name or empty","route":"YOW-YYZ","block":1.10,"duty":1.50,"atd_utc":"1230","sta_utc":"1345","ldg":1}
-
-RULES:
-- Only completed flights (date <= today).
-- block = BLH column, HH:MM → decimal (e.g. 4:30 → 4.50).
-- atd_utc = ACTUAL off-blocks time in UTC as 4-digit "HHMM" (e.g. "1230"). If the document shows ONLY a scheduled/planned time (not the actual), leave atd_utc as "" — never put a scheduled time in atd_utc. sta_utc = ACTUAL arrival UTC "HHMM" if shown, else "" (same rule — no scheduled times).
-- route = departure-arrival as 3-letter IATA (e.g. "YOW-YYZ").
-- ldg = number of landings ONLY if the document explicitly states it; otherwise omit the field entirely. Never assume or default to 1 (a multi-crew F/O does not land every leg).
-- type: "E195-E2" for 295, "DH4" for Dash 8 Q400.
-- DO NOT compute day vs night, PIC vs SIC, or cross-country — leave those out entirely. The app computes them from the real UTC times and the pilot's own profile (never assumed).` }
-          ]
-        }]
-      })
-    });
-
-    const rawText = await resp.text();
-    console.log('[Navblue] Worker HTTP status:', resp.status);
-    console.log('[Navblue] Worker raw response (first 500 chars):', rawText.substring(0, 500));
-
-    // Parse first so a normalized capacity / daily-cap signal is caught even on
-    // a non-2xx status: the worker returns 503 + {error:{code:'capacity'}} when
-    // Anthropic is rate-limited / overloaded / at the spend cap. Detect it
-    // BEFORE the generic !resp.ok throw so the pilot gets a graceful fallback
-    // (their hours aren't lost) instead of a raw "extraction failed".
-    let data = null;
-    try { data = JSON.parse(rawText); } catch (e) { /* non-JSON handled below */ }
-
-    if (data && data.error && (data.error.code === 'capacity' || data.error.code === 'daily_cap')) {
-      box.classList.remove('show');
-      showImportFallback(data.error.code);
-      return;
-    }
-
-    if (!resp.ok) {
-      throw new Error(`Worker error ${resp.status}: ${rawText.substring(0, 200)}`);
-    }
-    if (!data) {
-      throw new Error('Worker did not return JSON. Response: ' + rawText.substring(0, 200));
-    }
-
-    // Anthropic API error inside the worker response?
-    if (data.error) {
-      throw new Error(`Anthropic API error: ${data.error.message || JSON.stringify(data.error)}`);
-    }
-
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    console.log('[Navblue] AI response text (first 800 chars):', text.substring(0, 800));
-
-    if (!text.trim()) {
-      throw new Error('AI returned empty response. Check worker logs / API key.');
-    }
-
-    // Strip markdown fences if present
-    const clean = text.replace(/```(?:json)?/gi, '').trim();
-
-    // Find a JSON array — prefer the largest [...] block (handles nested objects)
-    let match = clean.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (!match) match = clean.match(/\[\s*\]/);  // empty array fallback
-    if (!match) {
-      // The AI replied with text instead of JSON — surface what it said
-      throw new Error(`AI did not return JSON. It said: "${clean.substring(0, 250)}"`);
-    }
-
-    let extracted;
-    try { extracted = JSON.parse(match[0]); } catch(e) {
-      throw new Error('Malformed JSON from AI: ' + match[0].substring(0, 200));
-    }
-
-    if (!Array.isArray(extracted) || extracted.length === 0) {
-      box.classList.remove('show');
-      showToast(t('import.ai.noFlights'), 'error');
-      return;
-    }
-
-    // Local civil date — the UTC date (toISOString) reads tomorrow in the
-    // evening, which would let today's in-progress flight slip through.
-    const today = localTodayStr();
-    // Strict: only flights from BEFORE today (today's flight may still be in progress)
-    const filtered = extracted.filter(f => f.date && f.date < today && f.block > 0);
-    console.log(`[Navblue] Extracted ${extracted.length} entries, ${filtered.length} after filtering completed flights (date < today, block > 0).`);
-
-    if (filtered.length === 0) {
-      box.classList.remove('show');
-      showToast(t('import.ai.noFlights'), 'error');
-      return;
-    }
-
-    // Compute the REAL day/night/XC split + role attribution from the actual
-    // UTC times and the pilot's profile — never fabricated from the landing.
-    // Legs the app can't anchor (unknown airport / no usable time) are left
-    // empty and flagged so the preview shows "night to confirm" instead of
-    // silently logging 0. (Audit panel 2026-06-25 must-fix #3 + #5.)
-    const processed = filtered.map(f => {
-      const flight = { ...f };
-      if (!(+flight.total) && +flight.block) flight.total = +flight.block;
-      if (flight.atd_utc != null && flight.atd_utc !== '') {
-        flight.atd_utc = String(flight.atd_utc).replace(/\D/g, '').padStart(4, '0').slice(0, 4);
-      }
-      const out = (typeof recalculateFlightDayNightXC === 'function')
-        ? recalculateFlightDayNightXC(flight, { skipLandingFill: true }) : flight;
-      const attributed = (typeof nightHoursOf === 'function')
-        && (nightHoursOf(out) > 0 || dayHoursOf(out) > 0);
-      if (!attributed && (+out.block > 0)) out._needsDayNight = true;
-      return out;
-    });
-
-    box.classList.remove('show');
-    showImportPreview(processed, t('import.preview.subtitle', { n: processed.length }));
-  } catch(e) {
-    box.classList.remove('show');
-    showToast(t('import.ai.failed'), 'error');
-    console.error('[Roster] Error:', e);
-  }
-}
+// parseNavbluePDF (the paid AI extraction round trip) removed 2026-08-02 —
+// handleRosterFile (10-pdf-roster.js) parses the same PDF locally.
 
 function showImportPreview(list, subtitle, opts) {
   // Flag every entry that already exists in the logbook so we never silently

@@ -753,8 +753,7 @@
      <div class="import-tile-tag" data-i18n="import.pdfCard.tag">Frequent</div>
    </div>
    <input type="file" id="navbluePdfUnified" accept=".pdf,application/pdf" style="display:none" onchange="if(this.files[0])handleMonthlyRosterPDF(this.files[0])">
-   <input type="file" id="navbluePdf" accept=".pdf,application/pdf" style="display:none" onchange="parseNavbluePDF(this)">
-   <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
+     <input type="file" id="rosterPdfInput" accept=".pdf" style="display:none" onchange="handleRosterFile(this.files[0])">
 
    <!-- CSV migrate tile -->
    <div class="import-tile" id="csvDropZone" onclick="document.getElementById('csvFileInput').click()"
@@ -945,7 +944,6 @@
  <button type="button" data-dur="lt30" aria-pressed="false" data-i18n="fdp.dur.lt30">&lt; 30 min</button>
  <button type="button" data-dur="30to50" aria-pressed="false" data-i18n="fdp.dur.mid">30 to &lt; 50 min</button>
  <button type="button" data-dur="ge50" aria-pressed="true" data-i18n="fdp.dur.ge50">50 min and more</button>
- <button type="button" data-dur="vfr" aria-pressed="false" data-i18n="fdp.dur.vfr">Day VFR</button>
  </div>
  </div>
  <div class="field span2 split-row">

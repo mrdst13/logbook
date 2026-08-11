@@ -341,6 +341,33 @@ chk('sim instrument time still prints in ITS column',
   chk('the paged pull orders its pages', syncSrc.indexOf(String.fromCharCode(113) + '.order(' + String.fromCharCode(39) + 'id' + String.fromCharCode(39) + ')') >= 0);
 }
 
+
+// ═══ GO ROUND (Martin: "oui go" on the audit suggestions) ══════════════
+{
+  const has = (src, needle) => src.indexOf(needle) >= 0;
+  const pay28 = readFileSync(join(root, 'src/js/28-pay.js'), 'utf8');
+  chk('the base check flags fewer hours PAID than flown', has(pay28, 'paidHours + 1.0 < creditH'));
+  chk('overpayment is explained, never flagged', has(pay28, 'guarantee or legs not yet in the logbook'));
+  chk('overtime pricing uses the summer LOA multiplier', has(pay28, 'isSummerLOA(range.end)) ? 2.0 : 1.5'));
+  chk('the per-US-day view is finally wired', has(pay28, 'usPerDiemDays(allFls || [], st.base)'));
+  const photo = readFileSync(join(root, 'src/js/06-photo-import.js'), 'utf8');
+  chk('the paid AI PDF path is gone', !has(photo, 'async function parseNavbluePDF'));
+  chk('the Turnstile stub is gone', !has(photo, 'TURNSTILE_SITE_KEY'));
+  chk('monthly PDFs route to the client-side parser', has(photo, 'client-side parse (fresh install)'));
+  const lic = readFileSync(join(root, 'src/js/23-licence-tracker.js'), 'utf8');
+  chk('the licence tracker keeps only the ATPL target',
+    has(lic, "{ id: 'atpl'") && !has(lic, "{ id: 'ppl'"));
+  const pdf = readFileSync(join(root, 'src/js/12-pdf-export.js'), 'utf8');
+  chk('the uncited 90-day card is off the annexe', !has(pdf, "title: '90-day recency'"));
+  chk('the export picker no longer rewrites the screen columns',
+    !has(pdf, 'saveColumnPrefs(selected)') && has(pdf, '_generatePDF(chosen)'));
+  const supa = readFileSync(join(root, 'src/js/18-supabase.js'), 'utf8');
+  chk('the dead trust-device checkbox is gone', !has(supa, 'auth-trust-device'));
+  const fdp = readFileSync(join(root, 'src/js/27-fdp-calc.js'), 'utf8');
+  chk('the day-VFR band is out of the calculator', !has(fdp, "=== 'vfr'"));
+}
+
+
 if (failures.length) {
   console.error(`\n✗ audit-2026-08-02 regressions: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);

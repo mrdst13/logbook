@@ -169,17 +169,21 @@ function exportPDF() {
     document.querySelectorAll('#extractedList input[type="checkbox"][data-col-key]').forEach(input => {
       selected[input.getAttribute('data-col-key')] = input.checked;
     });
-    // Save as prefs (so the Logbook table updates too — consistent)
-    saveColumnPrefs(selected);
-    if (typeof renderLogbook === 'function') renderLogbook(filterVal || '');
+    // The selection drives THIS export only. Persisting it as the logbook's
+    // column prefs meant printing a one-off subset silently rewrote the
+    // on-screen table — a side effect nobody asked for. (Martin's go,
+    // 2026-08-02.)
+    const chosen = LOGBOOK_COLUMNS.filter(c =>
+      c.key === 'total' || (selected[c.key] !== undefined ? selected[c.key] : c.default));
+    if (!chosen.find(c => c.key === 'total')) chosen.push(LOGBOOK_COLUMNS.find(c => c.key === 'total'));
     closeImportOverlay();
-    _generatePDF();
+    _generatePDF(chosen);
   };
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
-function _generatePDF() {
+function _generatePDF(colsOverride) {
   if (typeof window.jspdf === 'undefined') { showToast(t('toast.pdfLibLoading'), 'error'); return; }
   const { jsPDF } = window.jspdf;
   const p = DB.loadProfile();
@@ -204,7 +208,7 @@ function _generatePDF() {
   const bookletExp = p.bookletExpiry || '-';
   const fleet = p.fleet || '—';
 
-  const cols = getVisibleColumns('pdf');
+  const cols = (Array.isArray(colsOverride) && colsOverride.length) ? colsOverride : getVisibleColumns('pdf');
   const sorted = [...flights].sort((a,b) => (a.date || '').localeCompare(b.date || ''));
 
   // ════════════════════════════════════════════
@@ -785,14 +789,10 @@ function _generatePDF() {
         requirement: 'Interval set by your Civil Aviation Medical Examiner',
         current: p.ecg ? `Next due ${p.ecg}` : 'Not set in profile',
         ok: p.ecg ? (p.ecg >= localTodayStr()) : null
-      },
-      {
-        title: '90-day recency',
-        reg: 'Operator best practice',
-        requirement: 'Recent flying activity',
-        current: `${recent90.length} flight${recent90.length !== 1 ? 's' : ''} in last 90 days`,
-        ok: recent90.length > 0
       }
+      // The '90-day recency / Operator best practice' card was removed
+      // 2026-08-02: it cited no regulation and could badge NOT CURRENT on a
+      // document whose regulatory items were all green. (Martin's go.)
     ];
 
     items.forEach(item => {

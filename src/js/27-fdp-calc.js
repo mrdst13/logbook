@@ -61,8 +61,10 @@ function _fdpOffLabel(mins) {
 function _fdpHM(dec) { const t = Math.round(dec * 60); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 function _fdpClock(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
 function _fdpColIndex(band, flights) {
-  if (band === 'vfr') return 0;                     // 700.28(9) single column = column-2 values
-  const th = FDP_COLS[band]; return flights <= th[0] ? 0 : (flights <= th[1] ? 1 : 2);
+  // The day-VFR band (700.28(9)) was removed from the UI 2026-08-02: a 705
+  // multi-crew F/O can never use it, and offering it invited a wrong maximum.
+  const th = FDP_COLS[band] || FDP_COLS.ge50;
+  return flights <= th[0] ? 0 : (flights <= th[1] ? 1 : 2);
 }
 function _fdpRowLabel(row) { return _fdpClock(row.s) + ' – ' + _fdpClock(row.e); }
 // Duration display per the approved mockups (duty-final.html): "13 h" and
@@ -86,7 +88,6 @@ function _fdpColRange(band, col, fr) {
 }
 // Average-flight-duration wording used in the result breakdown line.
 function _fdpBandLabel(band, fr) {
-  if (band === 'vfr') return fr ? 'VFR de jour' : 'day VFR';
   if (band === 'lt30') return fr ? 'vols de moins de 30 min' : 'flights under 30 min';
   if (band === '30to50') return fr ? 'vols de 30 à moins de 50 min' : 'flights 30 to under 50 min';
   return fr ? 'vols de 50 min et plus' : 'flights 50 min and more';
@@ -158,7 +159,7 @@ function fdpCompute() {
     ? 'Présentation entre ' + _fdpClock(row.s) + ' et ' + _fdpClock(row.e)
     : 'Report between ' + _fdpClock(row.s) + ' and ' + _fdpClock(row.e);
   const parts = [rowPart];
-  if (band !== 'vfr') parts.push(_fdpColRange(band, col, fr));
+  parts.push(_fdpColRange(band, col, fr));
   parts.push(_fdpBandLabel(band, fr));
   const cell = g('fdp-cell');
   if (cell) cell.textContent = parts.join(' · ') + ' → ' + _fdpHLabel(baseH) + (capped ? T('fdp.capped') : '');
@@ -256,12 +257,9 @@ function _fdpRenderRefTable(band, row, col, acclimMin, fr) {
   const tbl = document.getElementById('dutyRefTable');
   const note = document.getElementById('dutyRefNote');
   if (!tbl) return;
-  const single = band === 'vfr';
-  const cols = single ? [0] : [0, 1, 2];
-  const heads = single
-    ? [fr ? 'VFR de jour' : 'Day VFR']
-    : cols.map(c => _fdpColRange(band, c, fr));
-  const activeCol = single ? 0 : col;
+  const cols = [0, 1, 2];
+  const heads = cols.map(c => _fdpColRange(band, c, fr));
+  const activeCol = col;
 
   let html = '<table><thead><tr><th>' + (fr ? 'Présentation (heure acclimatée)' : 'Report (acclimatized time)') + '</th>';
   heads.forEach((h, c) => { html += '<th class="r' + (c === activeCol ? ' active-col' : '') + '">' + h + '</th>'; });
@@ -278,14 +276,12 @@ function _fdpRenderRefTable(band, row, col, acclimMin, fr) {
   tbl.innerHTML = html;
 
   if (note) {
-    const durTxt = band === 'vfr' ? (fr ? 'VFR de jour' : 'day VFR')
-      : band === 'lt30' ? '< 30 min'
+    const durTxt = band === 'lt30' ? '< 30 min'
       : band === '30to50' ? (fr ? '30 à < 50 min' : '30 to < 50 min')
       : (fr ? '50 min et plus' : '50 min and more');
-    const yourBand = single
-      ? (fr ? 'Ta bande : présentation à ' + _fdpClock(acclimMin) + '.' : 'Your row: report at ' + _fdpClock(acclimMin) + '.')
-      : (fr ? 'Ta bande : présentation à ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.'
-            : 'Your row: report at ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.');
+    const yourBand = fr
+      ? 'Ta bande : présentation à ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.'
+      : 'Your row: report at ' + _fdpClock(acclimMin) + ', ' + _fdpColRange(band, col, fr) + '.';
     note.textContent = (fr
       ? 'Service maximum selon l’heure de présentation acclimatée et le nombre de vols. Durée moyenne : ' + durTxt + '. '
       : 'Maximum duty by acclimatized report time and the number of flights. Average length: ' + durTxt + '. ') + yourBand;
