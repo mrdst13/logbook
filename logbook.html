@@ -10666,14 +10666,6 @@ function wireFlightFormValidation() {
   validateFlightForm();
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Cloudflare Turnstile — invisible bot gate for the paid AI import path.
-// getTurnstileToken() renders the (invisible) widget once, then returns a FRESH
-// token per call. Resolves to '' when Turnstile isn't configured (empty site
-// key / library not loaded) — the worker treats a missing token as a no-op
-// until TURNSTILE_SECRET is provisioned, so this is safe to ship inert.
-// Spec: private/SPEC-ANTI-ABUS-2026-06-27.md (layer A).
-// ─────────────────────────────────────────────────────────────────
 // Turnstile anti-abuse stub removed 2026-08-02: personal tool, endpoint
 // gone with the paid AI path. (Martin’s go on the audit suggestions.)
 
@@ -29184,7 +29176,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-11-3354f3c';
+const BUILD_VERSION = '2026-08-11-2c50067';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

@@ -1,11 +1,3 @@
-// ─────────────────────────────────────────────────────────────────
-// Cloudflare Turnstile — invisible bot gate for the paid AI import path.
-// getTurnstileToken() renders the (invisible) widget once, then returns a FRESH
-// token per call. Resolves to '' when Turnstile isn't configured (empty site
-// key / library not loaded) — the worker treats a missing token as a no-op
-// until TURNSTILE_SECRET is provisioned, so this is safe to ship inert.
-// Spec: private/SPEC-ANTI-ABUS-2026-06-27.md (layer A).
-// ─────────────────────────────────────────────────────────────────
 // Turnstile anti-abuse stub removed 2026-08-02: personal tool, endpoint
 // gone with the paid AI path. (Martin’s go on the audit suggestions.)
 
