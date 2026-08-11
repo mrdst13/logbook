@@ -89,7 +89,10 @@ function _schedKind(ev) {
     if (/\bTRAINING\b|\bSIMULATOR\b|\bMEETING\b|\bGROUND\b/.test(note)) return 'ground';
   }
   if (/^(SDO|DO|OFF|RD|VAC)\b/.test(s)) return 'off';
-  if (/\bSTBY|STANDBY|RESERVE|RES\b/.test(s)) return 'standby';
+  // APS = Airport Standby (Martin, 2026-08-02: paid the original credit of
+  // the day). SNG (Show No Go) stays neutral on purpose: it is neither a day
+  // off nor standby, and its own wording says what it is.
+  if (/\bSTBY|STANDBY|RESERVE|RES\b|^APS\b/.test(s)) return 'standby';
   if (/^HTL\b/.test(s)) return 'hotel';
   if (/^(GND|TRG|TRAINING|SIM|CBT|MTG)\b/.test(s)) return 'ground';
   if (/\b[A-Z]{3}-[A-Z]{3}\b/.test(s)) return 'flight';
