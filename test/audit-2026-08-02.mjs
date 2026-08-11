@@ -302,6 +302,33 @@ chk('a recorded take-off still prints',
     /isTombstoned\(enriched\)/.test(readFileSync(join(root, 'src/js/16-csv-import.js'), 'utf8')));
 }
 
+
+// ═══ ROUND 3 ═══════════════════════════════════════════════════════════
+
+// ── 13. Sim hours out of the PDF class/role columns too ─────────────────
+chk('a sim row prints blank in ME SIC on the grid',
+  w.eval("pdfCellValue({ isSim: true, meDayCop: 3 }, 'meDayCop')") === '');
+chk('a sim row prints blank in XC on the grid',
+  w.eval("pdfCellValue({ isSim: true, xcDayCop: 3 }, 'xcDayCop')") === '');
+chk('an aircraft row still prints its ME SIC hours',
+  w.eval("pdfCellValue({ meDayCop: 3 }, 'meDayCop')") === 3);
+chk('sim instrument time still prints in ITS column',
+  w.eval("pdfCellValue({ isSim: true, instSim: 3 }, 'instSim')") === 3);
+
+// ── 14. Paper honesty details ───────────────────────────────────────────
+{
+  const pdfSrc = readFileSync(join(root, 'src/js/12-pdf-export.js'), 'utf8');
+  chk('the medical badge compares date strings, never Date parsing',
+    /p.medical >= localTodayStr()/.test(pdfSrc) && /p.ecg >= localTodayStr()/.test(pdfSrc));
+  chk('the attestation line prints the local date, not the UTC slice',
+    !/const bfDate = ob.attestedAt ? ob.attestedAt.slice/.test(pdfSrc));
+  const rosterSrc = readFileSync(join(root, 'src/js/10-pdf-roster.js'), 'utf8');
+  chk('an ATA-only roster enrichment reaches the save gate',
+    /atdAdded > 0 || ataAdded > 0/.test(rosterSrc));
+  const syncSrc = readFileSync(join(root, 'src/js/19-sync.js'), 'utf8');
+  chk('the paged pull orders its pages', syncSrc.indexOf(String.fromCharCode(113) + '.order(' + String.fromCharCode(39) + 'id' + String.fromCharCode(39) + ')') >= 0);
+}
+
 if (failures.length) {
   console.error(`\n✗ audit-2026-08-02 regressions: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);

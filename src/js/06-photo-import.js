@@ -449,7 +449,7 @@ function confirmImport() {
   // Track the new flight IDs so we can offer quick crew-fill after save
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
-  let imported = 0, skipped = 0;
+  let imported = 0, skipped = 0, skippedTombstoned = 0;
   // Clicking Import IS accepting these rows. One instant for the whole batch so
   // every row the pilot accepted in this click carries the same stamp.
   const _acceptedAt = new Date().toISOString();
@@ -471,7 +471,7 @@ function confirmImport() {
     // (Final audit 2026-08-02.) Manual re-entry through the form stays
     // possible on purpose — the tombstone only suppresses imports.
     if (typeof isTombstoned === 'function' && isTombstoned(flightData)) {
-      skipped++;
+      skippedTombstoned++;
       return;
     }
     // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
@@ -523,6 +523,14 @@ function confirmImport() {
       : t(imported === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count: imported }),
     'success'
   );
+  // A deliberately deleted flight held back here is NOT "already in your
+  // logbook" — saying so was a falsehood the CSV path was fixed to avoid.
+  if (skippedTombstoned > 0) {
+    const frT = (typeof getLang === 'function') && getLang() === 'fr';
+    showToast(frT
+      ? skippedTombstoned + ' vol' + (skippedTombstoned === 1 ? '' : 's') + ' que vous aviez supprimé' + (skippedTombstoned === 1 ? '' : 's') + ' n’' + (skippedTombstoned === 1 ? 'a' : 'ont') + ' pas été réimporté' + (skippedTombstoned === 1 ? '' : 's') + '. Saisissez-le' + (skippedTombstoned === 1 ? '' : 's') + ' à la main pour le' + (skippedTombstoned === 1 ? '' : 's') + ' rétablir.'
+      : skippedTombstoned + ' flight' + (skippedTombstoned === 1 ? '' : 's') + ' you had deleted ' + (skippedTombstoned === 1 ? 'was' : 'were') + ' not re-imported. Add ' + (skippedTombstoned === 1 ? 'it' : 'them') + ' by hand to restore.');
+  }
 
   // Quick crew-fill — opens automatically if any of the new flights lack
   // crew names. Returns true if it opened the modal (which navigates the

@@ -429,7 +429,11 @@ const Sync = {
     let data = [];
     try {
       for (let from = 0; ; from += PULL_PAGE) {
-        const q = Auth.client.from('flights').select('*');
+        let q = Auth.client.from('flights').select('*');
+        // Stable order across the per-page requests: without it a concurrent
+        // write can shift a row across a page boundary and drop it from this
+        // pull (self-healing, but a needless transient divergence).
+        if (q && typeof q.order === 'function') q = q.order('id');
         // A builder without .range (older client, test double) gets one full
         // select and no paging — the pre-cap behaviour, never worse.
         const resp = (q && typeof q.range === 'function')

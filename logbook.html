@@ -11118,7 +11118,7 @@ function confirmImport() {
   // Track the new flight IDs so we can offer quick crew-fill after save
   // for any of them that landed crewless (typical for iCal-only imports).
   const newIds = [];
-  let imported = 0, skipped = 0;
+  let imported = 0, skipped = 0, skippedTombstoned = 0;
   // Clicking Import IS accepting these rows. One instant for the whole batch so
   // every row the pilot accepted in this click carries the same stamp.
   const _acceptedAt = new Date().toISOString();
@@ -11140,7 +11140,7 @@ function confirmImport() {
     // (Final audit 2026-08-02.) Manual re-entry through the form stays
     // possible on purpose — the tombstone only suppresses imports.
     if (typeof isTombstoned === 'function' && isTombstoned(flightData)) {
-      skipped++;
+      skippedTombstoned++;
       return;
     }
     // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
@@ -11192,6 +11192,14 @@ function confirmImport() {
       : t(imported === 1 ? 'toast.flightsImportedCount' : 'toast.flightsImportedCountPl', { count: imported }),
     'success'
   );
+  // A deliberately deleted flight held back here is NOT "already in your
+  // logbook" — saying so was a falsehood the CSV path was fixed to avoid.
+  if (skippedTombstoned > 0) {
+    const frT = (typeof getLang === 'function') && getLang() === 'fr';
+    showToast(frT
+      ? skippedTombstoned + ' vol' + (skippedTombstoned === 1 ? '' : 's') + ' que vous aviez supprimé' + (skippedTombstoned === 1 ? '' : 's') + ' n’' + (skippedTombstoned === 1 ? 'a' : 'ont') + ' pas été réimporté' + (skippedTombstoned === 1 ? '' : 's') + '. Saisissez-le' + (skippedTombstoned === 1 ? '' : 's') + ' à la main pour le' + (skippedTombstoned === 1 ? '' : 's') + ' rétablir.'
+      : skippedTombstoned + ' flight' + (skippedTombstoned === 1 ? '' : 's') + ' you had deleted ' + (skippedTombstoned === 1 ? 'was' : 'were') + ' not re-imported. Add ' + (skippedTombstoned === 1 ? 'it' : 'them') + ' by hand to restore.');
+  }
 
   // Quick crew-fill — opens automatically if any of the new flights lack
   // crew names. Returns true if it opened the modal (which navigates the
@@ -14139,7 +14147,7 @@ async function handleRosterFile(file) {
     // Strict rule (2026-05-14): only write atd_utc/ata_utc when (a) the PDF
     // is in UTC TimeMode and (b) the values are non-zero. Local-time PDFs
     // are NOT silently converted — we refuse to approximate.
-    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0;
+    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0, ataAdded = 0;
     const stillMissing = [];
     // Each logbook row may be claimed by ONE extracted leg. The old matcher's
     // route fallback let both legs of an out-and-back day (YOW-YYZ then
@@ -14185,6 +14193,7 @@ async function handleRosterFile(file) {
       if (isUTCConfirmed && item.ata_utc && item.ata_utc !== '0000' && !existing.ata_utc) {
         merged.ata_utc = item.ata_utc;
         changed = true;
+        ataAdded++;   // an ATA-only batch must still hit DB.save below
       }
       if (changed) {
         if (typeof stampFlightAccepted === 'function') stampFlightAccepted(merged, _rosterAcceptedAt, rosterProfile);
@@ -14192,7 +14201,11 @@ async function handleRosterFile(file) {
       }
     });
 
-    if (matched > 0 || atdAdded > 0) {
+    // ataAdded gates the save too: a re-import whose ONLY news is the actual
+    // arrival of a leg that was airborne last time mutated the array in memory
+    // and never persisted — the recorded ATA vanished on reload.
+    // (Final audit r3, 2026-08-02.)
+    if (matched > 0 || atdAdded > 0 || ataAdded > 0) {
       DB.save(flights);
       renderDashboard();
     }
@@ -15047,6 +15060,17 @@ function pdfBroughtForwardTotal(balances) {
 }
 // The integer tally columns the PDF sums into PAGE and CUMULATIVE TOTALS.
 const PDF_INT_TALLY_KEYS = new Set(['ldgDay', 'ldgNight', 'approaches']);
+// Class/role columns a SIMULATOR row must not feed: calcStats excludes sim
+// rows from exactly these career buckets, so the printed CUMULATIVE row would
+// otherwise contradict the cover of the same PDF (final audit r3, 2026-08-02).
+// Sim time still prints in its own columns (instSim, sim type/session).
+const PDF_SIM_ZERO_KEYS = new Set([
+  'meDayPic','meDayCop','meDayDual','meNightPic','meNightCop','meNightDual',
+  'seDay','seNight','seDayDual','seNightDual',
+  'heliDayPic','heliDayCop','heliDayDual','heliNightPic','heliNightCop','heliNightDual','hoverTime',
+  'xcDayPic','xcDayCop','xcDayDual','xcNightPic','xcNightCop','xcNightDual',
+  'picus','dualGivenDay','dualGivenNight','toDay','toNight',
+]);
 
 function pdfCellValue(f, key) {
   if (key === 'total' || key === 'block') {
@@ -15058,6 +15082,9 @@ function pdfCellValue(f, key) {
   // from the certifiable cumulative row while still printing on its own line.
   // Coercing at this seam fixes the cell and the total together, and repairs
   // values already stored. (Audit 2026-07-27.)
+  // A sim row prints blank in every aircraft class/role column, and blank
+  // accumulates as zero — cell, column sum and cover stay consistent.
+  if (f && f.isSim && PDF_SIM_ZERO_KEYS.has(key)) return '';
   if (PDF_INT_TALLY_KEYS.has(key)) {
     // The landing/approach columns of the TC grid are AIRCRAFT figures: the
     // cover's career "Landings" excludes simulators (calcStats), and a sim
@@ -15331,7 +15358,15 @@ function _generatePDF() {
       // page 1 of the same PDF printed 2781.0. That is exactly the shape of
       // Martin own record. (Audit 2026-07-27.)
       const bfTotal = pdfBroughtForwardTotal(ob.balances);
-      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
+      // Local civil date of the attestation instant — slicing the ISO string
+      // printed the UTC date, one day late for an evening signature in Toronto.
+      const bfDate = (function () {
+        if (!ob.attestedAt) return '—';
+        const d = new Date(ob.attestedAt);
+        if (isNaN(d.getTime())) return String(ob.attestedAt).slice(0, 10);
+        const p2 = n => (n < 10 ? '0' : '') + n;
+        return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+      })();
       attestationLines.push(
         `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(2)(h))`
       );
@@ -15715,7 +15750,10 @@ function _generatePDF() {
         // same PDF and, on the expiry date itself, badging a valid medical
         // NOT CURRENT. (Audit 2026-07-27.)
         current: p.medical ? `Expires ${p.medical}` : 'Not set in profile',
-        ok: p.medical ? (new Date(p.medical) >= today) : null
+        // STRING comparison against the local civil date: new Date('YYYY-MM-DD')
+        // parses as UTC midnight and badged a valid medical NOT CURRENT on its
+        // own expiry date in Toronto. (Final audit r3, 2026-08-02.)
+        ok: p.medical ? (p.medical >= localTodayStr()) : null
       },
       {
         title: 'ECG due date',
@@ -15727,7 +15765,7 @@ function _generatePDF() {
         reg: 'Category 1 medical standard',
         requirement: 'Interval set by your Civil Aviation Medical Examiner',
         current: p.ecg ? `Next due ${p.ecg}` : 'Not set in profile',
-        ok: p.ecg ? (new Date(p.ecg) >= today) : null
+        ok: p.ecg ? (p.ecg >= localTodayStr()) : null
       },
       {
         title: '90-day recency',
@@ -21340,7 +21378,11 @@ const Sync = {
     let data = [];
     try {
       for (let from = 0; ; from += PULL_PAGE) {
-        const q = Auth.client.from('flights').select('*');
+        let q = Auth.client.from('flights').select('*');
+        // Stable order across the per-page requests: without it a concurrent
+        // write can shift a row across a page boundary and drop it from this
+        // pull (self-healing, but a needless transient divergence).
+        if (q && typeof q.order === 'function') q = q.order('id');
         // A builder without .range (older client, test double) gets one full
         // select and no paging — the pre-cap behaviour, never worse.
         const resp = (q && typeof q.range === 'function')
@@ -29258,7 +29300,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-11-d379859';
+const BUILD_VERSION = '2026-08-11-dc58e4d';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

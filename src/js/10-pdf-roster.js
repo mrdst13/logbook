@@ -72,7 +72,7 @@ async function handleRosterFile(file) {
     // Strict rule (2026-05-14): only write atd_utc/ata_utc when (a) the PDF
     // is in UTC TimeMode and (b) the values are non-zero. Local-time PDFs
     // are NOT silently converted — we refuse to approximate.
-    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0;
+    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0, ataAdded = 0;
     const stillMissing = [];
     // Each logbook row may be claimed by ONE extracted leg. The old matcher's
     // route fallback let both legs of an out-and-back day (YOW-YYZ then
@@ -118,6 +118,7 @@ async function handleRosterFile(file) {
       if (isUTCConfirmed && item.ata_utc && item.ata_utc !== '0000' && !existing.ata_utc) {
         merged.ata_utc = item.ata_utc;
         changed = true;
+        ataAdded++;   // an ATA-only batch must still hit DB.save below
       }
       if (changed) {
         if (typeof stampFlightAccepted === 'function') stampFlightAccepted(merged, _rosterAcceptedAt, rosterProfile);
@@ -125,7 +126,11 @@ async function handleRosterFile(file) {
       }
     });
 
-    if (matched > 0 || atdAdded > 0) {
+    // ataAdded gates the save too: a re-import whose ONLY news is the actual
+    // arrival of a leg that was airborne last time mutated the array in memory
+    // and never persisted — the recorded ATA vanished on reload.
+    // (Final audit r3, 2026-08-02.)
+    if (matched > 0 || atdAdded > 0 || ataAdded > 0) {
       DB.save(flights);
       renderDashboard();
     }

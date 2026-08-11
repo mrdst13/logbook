@@ -63,6 +63,17 @@ function pdfBroughtForwardTotal(balances) {
 }
 // The integer tally columns the PDF sums into PAGE and CUMULATIVE TOTALS.
 const PDF_INT_TALLY_KEYS = new Set(['ldgDay', 'ldgNight', 'approaches']);
+// Class/role columns a SIMULATOR row must not feed: calcStats excludes sim
+// rows from exactly these career buckets, so the printed CUMULATIVE row would
+// otherwise contradict the cover of the same PDF (final audit r3, 2026-08-02).
+// Sim time still prints in its own columns (instSim, sim type/session).
+const PDF_SIM_ZERO_KEYS = new Set([
+  'meDayPic','meDayCop','meDayDual','meNightPic','meNightCop','meNightDual',
+  'seDay','seNight','seDayDual','seNightDual',
+  'heliDayPic','heliDayCop','heliDayDual','heliNightPic','heliNightCop','heliNightDual','hoverTime',
+  'xcDayPic','xcDayCop','xcDayDual','xcNightPic','xcNightCop','xcNightDual',
+  'picus','dualGivenDay','dualGivenNight','toDay','toNight',
+]);
 
 function pdfCellValue(f, key) {
   if (key === 'total' || key === 'block') {
@@ -74,6 +85,9 @@ function pdfCellValue(f, key) {
   // from the certifiable cumulative row while still printing on its own line.
   // Coercing at this seam fixes the cell and the total together, and repairs
   // values already stored. (Audit 2026-07-27.)
+  // A sim row prints blank in every aircraft class/role column, and blank
+  // accumulates as zero — cell, column sum and cover stay consistent.
+  if (f && f.isSim && PDF_SIM_ZERO_KEYS.has(key)) return '';
   if (PDF_INT_TALLY_KEYS.has(key)) {
     // The landing/approach columns of the TC grid are AIRCRAFT figures: the
     // cover's career "Landings" excludes simulators (calcStats), and a sim
@@ -347,7 +361,15 @@ function _generatePDF() {
       // page 1 of the same PDF printed 2781.0. That is exactly the shape of
       // Martin own record. (Audit 2026-07-27.)
       const bfTotal = pdfBroughtForwardTotal(ob.balances);
-      const bfDate = ob.attestedAt ? ob.attestedAt.slice(0, 10) : '—';
+      // Local civil date of the attestation instant — slicing the ISO string
+      // printed the UTC date, one day late for an evening signature in Toronto.
+      const bfDate = (function () {
+        if (!ob.attestedAt) return '—';
+        const d = new Date(ob.attestedAt);
+        if (isNaN(d.getTime())) return String(ob.attestedAt).slice(0, 10);
+        const p2 = n => (n < 10 ? '0' : '') + n;
+        return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+      })();
       attestationLines.push(
         `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(2)(h))`
       );
@@ -731,7 +753,10 @@ function _generatePDF() {
         // same PDF and, on the expiry date itself, badging a valid medical
         // NOT CURRENT. (Audit 2026-07-27.)
         current: p.medical ? `Expires ${p.medical}` : 'Not set in profile',
-        ok: p.medical ? (new Date(p.medical) >= today) : null
+        // STRING comparison against the local civil date: new Date('YYYY-MM-DD')
+        // parses as UTC midnight and badged a valid medical NOT CURRENT on its
+        // own expiry date in Toronto. (Final audit r3, 2026-08-02.)
+        ok: p.medical ? (p.medical >= localTodayStr()) : null
       },
       {
         title: 'ECG due date',
@@ -743,7 +768,7 @@ function _generatePDF() {
         reg: 'Category 1 medical standard',
         requirement: 'Interval set by your Civil Aviation Medical Examiner',
         current: p.ecg ? `Next due ${p.ecg}` : 'Not set in profile',
-        ok: p.ecg ? (new Date(p.ecg) >= today) : null
+        ok: p.ecg ? (p.ecg >= localTodayStr()) : null
       },
       {
         title: '90-day recency',
