@@ -1127,7 +1127,7 @@ function commitCsvImport() {
   // they were PIC. We translate that into crewPosition + clear the field
   // so the user's own name never sits in their own logbook's PIC column.
   const csvImportProfile = DB.loadProfile();
-  let added = 0, merged = 0;
+  let added = 0, merged = 0, skippedTombstoned = 0;
   flightsToImport.forEach(raw => {
     const incoming = (typeof resolveSelfReferences === 'function')
       ? resolveSelfReferences(raw, csvImportProfile)
@@ -1169,8 +1169,15 @@ function commitCsvImport() {
         ? recalculateFlightDayNightXC(incoming, { skipLandingFill: true })
         : incoming;
       if (typeof stampFlightAccepted === 'function') stampFlightAccepted(enriched, _csvAcceptedAt);
-      flights.push(enriched);
-      added++;
+      // A flight he deliberately deleted must not resurrect through a CSV
+      // re-import either — same gate as confirmImport and the iCal sync.
+      // (Final audit r2, 2026-08-02.)
+      if (typeof isTombstoned === 'function' && isTombstoned(enriched)) {
+        skippedTombstoned++;
+      } else {
+        flights.push(enriched);
+        added++;
+      }
     }
   });
 
@@ -1199,6 +1206,14 @@ function commitCsvImport() {
   renderDashboard();
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
   showToast(t('toast.csvImported', { source: csvImportState.parsed.source, added, merged }), 'success');
+  // Say when deleted flights were held back, out loud — a silent skip is how
+  // trust dies. Reuses the pending-review wording pattern.
+  if (skippedTombstoned > 0 && typeof showToast === 'function') {
+    const frT = (typeof getLang === 'function') && getLang() === 'fr';
+    showToast(frT
+      ? skippedTombstoned + ' vol' + (skippedTombstoned === 1 ? '' : 's') + ' que vous aviez supprimé' + (skippedTombstoned === 1 ? '' : 's') + ' n’' + (skippedTombstoned === 1 ? 'a' : 'ont') + ' pas été réimporté' + (skippedTombstoned === 1 ? '' : 's') + '. Saisissez-le' + (skippedTombstoned === 1 ? '' : 's') + ' à la main pour le' + (skippedTombstoned === 1 ? '' : 's') + ' rétablir.'
+      : skippedTombstoned + ' flight' + (skippedTombstoned === 1 ? '' : 's') + ' you had deleted ' + (skippedTombstoned === 1 ? 'was' : 'were') + ' not re-imported. Add ' + (skippedTombstoned === 1 ? 'it' : 'them') + ' by hand to restore.');
+  }
   csvImportState = null;
   cancelImport();
 }

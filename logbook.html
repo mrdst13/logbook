@@ -11873,8 +11873,14 @@ function computeCellValue(f, key) {
       return '—';
     }
     case 'multiCrew':   return f.multiCrew ? '✓' : '—';
-    case 'toDay':       return f.toDay !== undefined ? f.toDay : (f.ldgDay || 0);
-    case 'toNight':     return f.toNight !== undefined ? f.toNight : (f.ldgNight || 0);
+    // Recorded value ONLY. The old fallback printed the LANDING count as a
+    // take-off count on any row where take-offs were never typed — a guessed
+    // number on a certifiable grid (PF/PM swaps make the two genuinely
+    // differ), and the currency annexe of the same PDF, summing the raw
+    // field, contradicted it row by row. Empty beats guessed.
+    // (Final audit r2, 2026-08-02.)
+    case 'toDay':       return f.toDay !== undefined ? f.toDay : '';
+    case 'toNight':     return f.toNight !== undefined ? f.toNight : '';
     default:            return f[key];
   }
 }
@@ -17566,7 +17572,7 @@ function commitCsvImport() {
   // they were PIC. We translate that into crewPosition + clear the field
   // so the user's own name never sits in their own logbook's PIC column.
   const csvImportProfile = DB.loadProfile();
-  let added = 0, merged = 0;
+  let added = 0, merged = 0, skippedTombstoned = 0;
   flightsToImport.forEach(raw => {
     const incoming = (typeof resolveSelfReferences === 'function')
       ? resolveSelfReferences(raw, csvImportProfile)
@@ -17608,8 +17614,15 @@ function commitCsvImport() {
         ? recalculateFlightDayNightXC(incoming, { skipLandingFill: true })
         : incoming;
       if (typeof stampFlightAccepted === 'function') stampFlightAccepted(enriched, _csvAcceptedAt);
-      flights.push(enriched);
-      added++;
+      // A flight he deliberately deleted must not resurrect through a CSV
+      // re-import either — same gate as confirmImport and the iCal sync.
+      // (Final audit r2, 2026-08-02.)
+      if (typeof isTombstoned === 'function' && isTombstoned(enriched)) {
+        skippedTombstoned++;
+      } else {
+        flights.push(enriched);
+        added++;
+      }
     }
   });
 
@@ -17638,6 +17651,14 @@ function commitCsvImport() {
   renderDashboard();
   if (typeof renderLogbook === 'function') renderLogbook(typeof filterVal !== 'undefined' ? filterVal : '');
   showToast(t('toast.csvImported', { source: csvImportState.parsed.source, added, merged }), 'success');
+  // Say when deleted flights were held back, out loud — a silent skip is how
+  // trust dies. Reuses the pending-review wording pattern.
+  if (skippedTombstoned > 0 && typeof showToast === 'function') {
+    const frT = (typeof getLang === 'function') && getLang() === 'fr';
+    showToast(frT
+      ? skippedTombstoned + ' vol' + (skippedTombstoned === 1 ? '' : 's') + ' que vous aviez supprimé' + (skippedTombstoned === 1 ? '' : 's') + ' n’' + (skippedTombstoned === 1 ? 'a' : 'ont') + ' pas été réimporté' + (skippedTombstoned === 1 ? '' : 's') + '. Saisissez-le' + (skippedTombstoned === 1 ? '' : 's') + ' à la main pour le' + (skippedTombstoned === 1 ? '' : 's') + ' rétablir.'
+      : skippedTombstoned + ' flight' + (skippedTombstoned === 1 ? '' : 's') + ' you had deleted ' + (skippedTombstoned === 1 ? 'was' : 'were') + ' not re-imported. Add ' + (skippedTombstoned === 1 ? 'it' : 'them') + ' by hand to restore.');
+  }
   csvImportState = null;
   cancelImport();
 }
@@ -21308,15 +21329,32 @@ const Sync = {
   // flight but the cloud soft-delete is still queued offline.
   async pullFlights(opts) {
     if (!Auth.isAuthenticated()) return;
-    let data, error;
+    // PAGED, because a single select is capped by the server's max-rows
+    // setting (1000 on a default Supabase project) and nothing in this repo
+    // raises it. One call worked while the logbook was small; a lifetime
+    // logbook crosses the cap, and from that day a second device silently
+    // stops receiving an arbitrary subset of flights. Page until a short
+    // page; any page failing aborts the pull (partial adoption would look
+    // like deletions to the reconciler). (Final audit r2, 2026-08-02.)
+    const PULL_PAGE = 1000;
+    let data = [];
     try {
-      const resp = await Auth.client.from('flights').select('*');
-      data = resp.data; error = resp.error;
+      for (let from = 0; ; from += PULL_PAGE) {
+        const q = Auth.client.from('flights').select('*');
+        // A builder without .range (older client, test double) gets one full
+        // select and no paging — the pre-cap behaviour, never worse.
+        const resp = (q && typeof q.range === 'function')
+          ? await q.range(from, from + PULL_PAGE - 1)
+          : await q;
+        if (resp.error) { console.warn('[Sync] pullFlights failed:', resp.error.message); return; }
+        const page = resp.data || [];
+        data = data.concat(page);
+        if (page.length < PULL_PAGE || typeof q.range !== 'function') break;
+      }
     } catch (e) {
       console.warn('[Sync] pullFlights threw:', e);
       return;
     }
-    if (error) { console.warn('[Sync] pullFlights failed:', error.message); return; }
     if (!data || !data.length) return;
 
     const byId = new Map(flights.map(f => [f.id, f]));
@@ -22971,7 +23009,14 @@ function totalsWithOpening(flightsTotals) {
 // Short human-readable summary (Dashboard hero sub-line + Settings card).
 function openingBalanceSummary() {
   const { balances, attestedAt, cutoffDate } = loadOpeningBalances();
-  const total = +balances.total || +balances.block || 0;
+  // Same derivation as the PDF cover: a grid-only attestation has no stored
+  // total/block, and the raw read blanked this line everywhere it shows.
+  // (Final audit r2, 2026-08-02.)
+  let total = +balances.total || +balances.block || 0;
+  if (total <= 0 && Object.keys(balances || {}).length && typeof totalsWithOpening === 'function') {
+    const d = totalsWithOpening({});
+    total = +d.total || +d.block || 0;
+  }
   if (total <= 0) return null;
   const fmtted = typeof fmt === 'function' ? fmt(total) : total.toFixed(1);
   const lang = (typeof getLang === 'function') ? getLang() : 'en';
@@ -23672,7 +23717,17 @@ function _drillPPC(profile, fr, settingsBtn) {
 function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
   const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
   const bfTotal = (() => {
-    if (!hasBF || typeof loadOpeningBalances !== 'function') return 0;
+    if (!hasBF) return 0;
+    // DERIVED, like the PDF cover (pdfBroughtForwardTotal): a grid-only
+    // attestation stores no total/block key, and the raw read returned 0 —
+    // the drill-down then presented the whole 2781 h paper career as
+    // \"logged in Cumulo\". (Final audit r2, 2026-08-02.)
+    if (typeof totalsWithOpening === 'function') {
+      const d = totalsWithOpening({});
+      const v = +d.total || +d.block || 0;
+      if (v) return v;
+    }
+    if (typeof loadOpeningBalances !== 'function') return 0;
     const ob = loadOpeningBalances();
     return (+ob.balances.total || +ob.balances.block || 0);
   })();
@@ -26419,9 +26474,16 @@ function deleteCustomValidity(id) {
   // to be undone by the next pull. (Final audit 2026-08-02.)
   const all = _allCustomValidities();
   const gone = all.find(v => v && v.id === id);
-  const list = all.filter(v => v && v.id !== id && !v.deleted);
+  // Keep the LIVE entries minus the one going, AND every existing tombstone:
+  // the round-1 filter dropped prior tombstones on each delete, so deleting a
+  // second validity un-deleted the first one cross-device. (Final audit r2,
+  // 2026-08-02.)
+  const list = all.filter(v => v && ((v.deleted && v.name) || (v.id !== id && !v.deleted)));
   if (gone && gone.name) {
-    list.push({ name: gone.name, deleted: true, deletedAt: new Date().toISOString() });
+    const k = String(gone.name).toLowerCase().trim();
+    if (!list.some(v => v.deleted && String(v.name).toLowerCase().trim() === k)) {
+      list.push({ name: gone.name, deleted: true, deletedAt: new Date().toISOString() });
+    }
   }
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
   p.customValidities = list;
@@ -29196,7 +29258,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-11-64c623f';
+const BUILD_VERSION = '2026-08-11-d379859';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

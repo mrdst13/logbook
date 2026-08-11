@@ -485,7 +485,14 @@ function totalsWithOpening(flightsTotals) {
 // Short human-readable summary (Dashboard hero sub-line + Settings card).
 function openingBalanceSummary() {
   const { balances, attestedAt, cutoffDate } = loadOpeningBalances();
-  const total = +balances.total || +balances.block || 0;
+  // Same derivation as the PDF cover: a grid-only attestation has no stored
+  // total/block, and the raw read blanked this line everywhere it shows.
+  // (Final audit r2, 2026-08-02.)
+  let total = +balances.total || +balances.block || 0;
+  if (total <= 0 && Object.keys(balances || {}).length && typeof totalsWithOpening === 'function') {
+    const d = totalsWithOpening({});
+    total = +d.total || +d.block || 0;
+  }
   if (total <= 0) return null;
   const fmtted = typeof fmt === 'function' ? fmt(total) : total.toFixed(1);
   const lang = (typeof getLang === 'function') ? getLang() : 'en';

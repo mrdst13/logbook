@@ -264,9 +264,16 @@ function deleteCustomValidity(id) {
   // to be undone by the next pull. (Final audit 2026-08-02.)
   const all = _allCustomValidities();
   const gone = all.find(v => v && v.id === id);
-  const list = all.filter(v => v && v.id !== id && !v.deleted);
+  // Keep the LIVE entries minus the one going, AND every existing tombstone:
+  // the round-1 filter dropped prior tombstones on each delete, so deleting a
+  // second validity un-deleted the first one cross-device. (Final audit r2,
+  // 2026-08-02.)
+  const list = all.filter(v => v && ((v.deleted && v.name) || (v.id !== id && !v.deleted)));
   if (gone && gone.name) {
-    list.push({ name: gone.name, deleted: true, deletedAt: new Date().toISOString() });
+    const k = String(gone.name).toLowerCase().trim();
+    if (!list.some(v => v.deleted && String(v.name).toLowerCase().trim() === k)) {
+      list.push({ name: gone.name, deleted: true, deletedAt: new Date().toISOString() });
+    }
   }
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
   p.customValidities = list;

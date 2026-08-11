@@ -220,6 +220,88 @@ w.eval('showToast = function () {}; window.confirm = () => true;');
   chk('a non-C non-K ICAO is unknown, never silently Canadian', pay._payCountry('PANC') === 'unknown');
 }
 
+
+// ═══ ROUND 2 (same audit, fresh eyes after the round-1 fixes) ═══════════
+
+// ── 8. NEVER a fabricated take-off on the certifiable grid ──────────────
+chk('a row with landings but no recorded take-offs prints EMPTY, never a guess',
+  w.eval("computeCellValue({ ldgDay: 2 }, 'toDay')") === '');
+chk('a recorded take-off still prints',
+  w.eval("computeCellValue({ toDay: 1, ldgDay: 2 }, 'toDay')") === 1);
+
+// ── 9. Deleting a SECOND validity keeps the FIRST deletion ──────────────
+{
+  w.eval(`
+    Sync._suppressAutoSync = true;
+    DB.saveProfile({ fname: 'M', customValidities: [
+      { id: 'ka', name: 'RAIC', date: '2030-01-01' },
+      { id: 'kb', name: 'Line check', date: '2030-06-01' }
+    ] });
+    deleteCustomValidity('ka');
+    deleteCustomValidity('kb');
+  `);
+  const cv = JSON.parse(w.localStorage.getItem(w.eval('DB.profileKey'))).customValidities || [];
+  chk('both tombstones survive a second delete',
+    cv.filter(v => v.deleted).length === 2);
+  chk('no live entry remains', w.eval('getCustomValidities().length') === 0);
+}
+
+// ── 10. The hero drill-down derives the brought-forward like the cover ──
+{
+  // Grid-only attestation: no stored total/block, only engine-class detail.
+  w.eval(`
+    localStorage.setItem('cumulo_opening_balances_v1', JSON.stringify({
+      balances: { meDayCop: 2000, meNightCop: 781 }, cutoffDate: '2025-11-27',
+      attestedBy: 'M', attestedAt: '2026-07-07T00:00:00Z', hash: 'h'
+    }));
+    localStorage.setItem('logbook_v1', JSON.stringify([
+      { id: 'hz1', date: '2026-06-01', route: 'YOW-YYZ', block: 5, total: 5, meDayCop: 5 }
+    ]));
+    flights = DB.load();
+  `);
+  const body = w.eval("_dashDrillBuild('hero', false).body");
+  chk('a grid-only attestation is not called logged-in-Cumulo',
+    /2[s,  ]*781/.test(body));
+}
+
+// ── 11. The pull pages: 1000 rows is a page boundary, not a ceiling ─────
+{
+  w.eval(`
+    localStorage.setItem('logbook_v1', JSON.stringify([]));
+    flights = DB.load();
+    Sync._saveSyncedSig({});
+    window.__pages = [];
+    (function () {
+      const mk = (n, off) => Array.from({ length: n }, (x, i) => ({
+        id: '00000000-0000-4000-8000-' + String(off + i).padStart(12, '0'),
+        date: '2026-01-01', route: 'YOW-YYZ', block: 1, total: 1,
+        client_updated_at: '2026-01-02T00:00:00.000Z'
+      }));
+      const all = mk(1000, 0).concat(mk(3, 1000));
+      Auth.isAuthenticated = () => true;
+      Auth.currentUserId = () => 'u1';
+      Auth.client = { from: () => ({
+        select: () => ({
+          range: async (a, b) => { window.__pages.push([a, b]); return { data: all.slice(a, b + 1), error: null }; },
+          eq: () => Promise.resolve({ data: [], error: null })
+        }),
+        upsert: async () => ({ error: null }),
+        update: () => ({ eq: async () => ({ error: null }) }),
+      }) };
+    })();
+  `);
+  await w.eval('Sync.pullFlights({ silent: true })');
+  chk('the pull asked for a second page', w.eval('window.__pages.length') >= 2);
+  chk('all 1003 rows arrived',
+    JSON.parse(w.localStorage.getItem('logbook_v1')).length === 1003);
+}
+
+// ── 12. A deleted flight does not resurrect through a CSV re-import ─────
+{
+  chk('the CSV commit consults the tombstones',
+    /isTombstoned\(enriched\)/.test(readFileSync(join(root, 'src/js/16-csv-import.js'), 'utf8')));
+}
+
 if (failures.length) {
   console.error(`\n✗ audit-2026-08-02 regressions: ${failures.length} failure(s)`);
   for (const f of failures) console.error('  • ' + f);

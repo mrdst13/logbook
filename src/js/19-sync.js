@@ -418,15 +418,32 @@ const Sync = {
   // flight but the cloud soft-delete is still queued offline.
   async pullFlights(opts) {
     if (!Auth.isAuthenticated()) return;
-    let data, error;
+    // PAGED, because a single select is capped by the server's max-rows
+    // setting (1000 on a default Supabase project) and nothing in this repo
+    // raises it. One call worked while the logbook was small; a lifetime
+    // logbook crosses the cap, and from that day a second device silently
+    // stops receiving an arbitrary subset of flights. Page until a short
+    // page; any page failing aborts the pull (partial adoption would look
+    // like deletions to the reconciler). (Final audit r2, 2026-08-02.)
+    const PULL_PAGE = 1000;
+    let data = [];
     try {
-      const resp = await Auth.client.from('flights').select('*');
-      data = resp.data; error = resp.error;
+      for (let from = 0; ; from += PULL_PAGE) {
+        const q = Auth.client.from('flights').select('*');
+        // A builder without .range (older client, test double) gets one full
+        // select and no paging — the pre-cap behaviour, never worse.
+        const resp = (q && typeof q.range === 'function')
+          ? await q.range(from, from + PULL_PAGE - 1)
+          : await q;
+        if (resp.error) { console.warn('[Sync] pullFlights failed:', resp.error.message); return; }
+        const page = resp.data || [];
+        data = data.concat(page);
+        if (page.length < PULL_PAGE || typeof q.range !== 'function') break;
+      }
     } catch (e) {
       console.warn('[Sync] pullFlights threw:', e);
       return;
     }
-    if (error) { console.warn('[Sync] pullFlights failed:', error.message); return; }
     if (!data || !data.length) return;
 
     const byId = new Map(flights.map(f => [f.id, f]));

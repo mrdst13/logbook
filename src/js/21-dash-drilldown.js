@@ -114,7 +114,17 @@ function _drillPPC(profile, fr, settingsBtn) {
 function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
   const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
   const bfTotal = (() => {
-    if (!hasBF || typeof loadOpeningBalances !== 'function') return 0;
+    if (!hasBF) return 0;
+    // DERIVED, like the PDF cover (pdfBroughtForwardTotal): a grid-only
+    // attestation stores no total/block key, and the raw read returned 0 —
+    // the drill-down then presented the whole 2781 h paper career as
+    // \"logged in Cumulo\". (Final audit r2, 2026-08-02.)
+    if (typeof totalsWithOpening === 'function') {
+      const d = totalsWithOpening({});
+      const v = +d.total || +d.block || 0;
+      if (v) return v;
+    }
+    if (typeof loadOpeningBalances !== 'function') return 0;
     const ob = loadOpeningBalances();
     return (+ob.balances.total || +ob.balances.block || 0);
   })();

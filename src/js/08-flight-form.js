@@ -270,8 +270,14 @@ function computeCellValue(f, key) {
       return '—';
     }
     case 'multiCrew':   return f.multiCrew ? '✓' : '—';
-    case 'toDay':       return f.toDay !== undefined ? f.toDay : (f.ldgDay || 0);
-    case 'toNight':     return f.toNight !== undefined ? f.toNight : (f.ldgNight || 0);
+    // Recorded value ONLY. The old fallback printed the LANDING count as a
+    // take-off count on any row where take-offs were never typed — a guessed
+    // number on a certifiable grid (PF/PM swaps make the two genuinely
+    // differ), and the currency annexe of the same PDF, summing the raw
+    // field, contradicted it row by row. Empty beats guessed.
+    // (Final audit r2, 2026-08-02.)
+    case 'toDay':       return f.toDay !== undefined ? f.toDay : '';
+    case 'toNight':     return f.toNight !== undefined ? f.toNight : '';
     default:            return f[key];
   }
 }
