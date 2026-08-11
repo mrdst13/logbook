@@ -46,7 +46,11 @@ function showPage(id) {
   if (id === 'pay' && typeof payInit === 'function') payInit();
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();
-  if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();
+  if (id === 'bf' && typeof renderBroughtForwardPage === 'function') {
+    renderBroughtForwardPage();
+    // The seal actually verifies whenever the page it protects is opened.
+    if (typeof checkOpeningBalancesSeal === 'function') checkOpeningBalancesSeal();
+  }
   if (id === 'add' && !editingId) {
     document.getElementById('formTitle').textContent = t('form.title.logFlight');
     clearForm();

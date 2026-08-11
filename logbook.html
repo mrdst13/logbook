@@ -6147,6 +6147,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  </div>
  </div>
  <p class="hint" id="fdp-prefill-note" style="display:none;"></p>
+ <p class="hint" data-i18n="fdp.programNote">This is the CAR 700.28 maximum. Your operator's approved fatigue program can only be more restrictive, and the result assumes the duty period began at the report time entered.</p>
  <div class="field">
  <label for="fdp-legs" data-i18n="fdp.legs">Number of flights</label>
  <input type="number" id="fdp-legs" value="2" min="1" step="1" inputmode="numeric">
@@ -7556,7 +7557,11 @@ function showPage(id) {
   if (id === 'pay' && typeof payInit === 'function') payInit();
   if (id === 'glossary') renderGlossary();
   if (id === 'qa') renderQA();
-  if (id === 'bf' && typeof renderBroughtForwardPage === 'function') renderBroughtForwardPage();
+  if (id === 'bf' && typeof renderBroughtForwardPage === 'function') {
+    renderBroughtForwardPage();
+    // The seal actually verifies whenever the page it protects is opened.
+    if (typeof checkOpeningBalancesSeal === 'function') checkOpeningBalancesSeal();
+  }
   if (id === 'add' && !editingId) {
     document.getElementById('formTitle').textContent = t('form.title.logFlight');
     clearForm();
@@ -7794,33 +7799,42 @@ function calcStats() {
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
     total += flightTimeOf(f);
-    // PIC includes single-engine time (seDay/seNight): per Transport Canada,
-    // PIC is PIC regardless of engine count. The app has a single SE bucket
-    // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
-    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
-         + (+f.seDay||0) + (+f.seNight||0);
-    sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
-    // Night = all night flying, every aircraft class/role — shared helper.
-    night += nightHoursOf(f);
-    // Career landing total = aircraft landings only. Sim landings are recorded
-    // for recency (CAR 401.05(2)(b)) but are not real-aircraft landings.
-    if (!f.isSim) ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
-    me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
-    heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
-          + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
-    hover += +f.hoverTime || 0;
-    dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
-    // Dual RECEIVED (student's own instruction) — every *Dual bucket. Surfaced
-    // so students/PPL see their hours (their PIC total is ~0 early on).
-    dualRcvd += (+f.seDayDual||0) + (+f.seNightDual||0)
-              + (+f.meDayDual||0) + (+f.meNightDual||0)
-              + (+f.heliDayDual||0) + (+f.heliNightDual||0);
-    // PICUS (PIC under supervision) — its own ATPL-creditable total. Collected
-    // and stored but previously never summed, so it vanished from career
-    // figures. Kept SEPARATE from PIC, never folded in. (Opus audit.)
-    picus += +f.picus || 0;
-    xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
-        + (+f.xcDayCop||0)+(+f.xcNightCop||0);
+    // A simulator session is NOT flight time (same rule flightTimeOf applies
+    // to `total`), so none of its HOUR buckets may reach the career PIC / SIC /
+    // ME / XC / night figures. The landing total already excluded sims; the
+    // hour buckets did not, so a sim row that carried ME or XC values (typed,
+    // or converted from a real leg) quietly inflated certifiable career
+    // totals. (Final audit 2026-08-02.) Landings on qualifying sims still
+    // count toward RECENCY — that is countsTowardRecency's job, not this sum.
+    if (!f.isSim) {
+      // PIC includes single-engine time (seDay/seNight): per Transport Canada,
+      // PIC is PIC regardless of engine count. The app has a single SE bucket
+      // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
+      pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
+           + (+f.seDay||0) + (+f.seNight||0);
+      sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
+      // Night = all night flying, every aircraft class/role — shared helper.
+      night += nightHoursOf(f);
+      // Career landing total = aircraft landings only. Sim landings are recorded
+      // for recency (CAR 401.05(2)(b)) but are not real-aircraft landings.
+      ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
+      me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
+      heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
+            + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
+      hover += +f.hoverTime || 0;
+      dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
+      // Dual RECEIVED (student's own instruction) — every *Dual bucket. Surfaced
+      // so students/PPL see their hours (their PIC total is ~0 early on).
+      dualRcvd += (+f.seDayDual||0) + (+f.seNightDual||0)
+                + (+f.meDayDual||0) + (+f.meNightDual||0)
+                + (+f.heliDayDual||0) + (+f.heliNightDual||0);
+      // PICUS (PIC under supervision) — its own ATPL-creditable total. Collected
+      // and stored but previously never summed, so it vanished from career
+      // figures. Kept SEPARATE from PIC, never folded in. (Opus audit.)
+      picus += +f.picus || 0;
+      xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
+          + (+f.xcDayCop||0)+(+f.xcNightCop||0);
+    }
     // Through flightTimeOf, like `total` above: a simulator session is not
     // flight time. Reading the raw block here made the 30-day delta pill and
     // the sparkline contradict the hero printed directly above them, and the
@@ -8306,23 +8320,6 @@ function recalculateAllFlights() {
   // recalculateAllFlightsInternal() directly.
   console.warn('[Recalc] Manual bulk-recalc is disabled (TC compliance). Edit individual flights via Add/Edit instead.');
   return;
-  // ─── former body (kept for git-blame reference only, never executes) ───
-  snapshotBeforeOperation('Recalculate Night & XC');
-  updateUndoButton();
-  const result = recalculateAllFlightsInternal();
-  DB.save(flights);
-  renderDashboard();
-  // Build honest detailed message
-  const parts = [];
-  parts.push(`${result.updated} recalculated`);
-  if (result.skippedNoUTC) parts.push(`${result.skippedNoUTC} skipped (no UTC time — use "Clean & re-sync" below)`);
-  if (result.skippedNoCoords) parts.push(`${result.skippedNoCoords} skipped (unknown airport coords)`);
-  if (result.skippedNoBlock) parts.push(`${result.skippedNoBlock} skipped (zero block hours)`);
-  const totalSkipped = result.skippedNoUTC + result.skippedNoCoords + result.skippedNoBlock;
-  const toastType = result.updated > 0 && totalSkipped === 0 ? 'success'
-                  : totalSkipped > 0 ? 'error' : 'success';
-  showToast(parts.join(' · '), toastType);
-  void('[Recalc] Details:', result, 'flights:', flights.length);
 }
 
 function recalculateAllFlightsInternal() {
@@ -10285,20 +10282,40 @@ function saveFlight(options) {
     if (flight[k] === '' || flight[k] === undefined || flight[k] === null) delete flight[k];
   });
 
-  // Diversion handling : if the pilot edited the route on an existing
-  // flight, the old XC/Night auto-values were computed for the old route
-  // and are now stale. Clear them so the recalc can refill with the new
-  // route's coordinates. We preserve any value that DIFFERS from the
-  // existing flight's stored value (treat as explicit pilot edit).
+  // Diversion handling: if the pilot edited the route on an existing flight,
+  // the old XC/Night auto-values were computed for the old route and are now
+  // stale. A value the pilot CHANGED in this edit (differs from the stored
+  // one) is an explicit entry and survives; a value he left alone is the old
+  // route's arithmetic and must not outlive the route it was computed for.
+  //
+  // The original guard here was `if (flight[k] === undefined) delete flight[k]`
+  // — deleting keys that are already undefined, a no-op — so a diversion
+  // (YOW-YYZ edited to YOW-YUL) silently kept the old destination's night/XC
+  // split and airports in a certifiable logbook. Found by the 2026-08-02 final
+  // audit; the fix compares against the STORED row and, when the recalc cannot
+  // refill a cleared slot (no anchor, unknown airport), writes an explicit
+  // empty — empty beats a number computed for a route that was not flown.
+  let _divertCleared = null;
   if (editingId) {
     const existing = flights.find(f => f.id === editingId);
+    // The recalc needs the stored UTC anchor and seat to recompute a split,
+    // and neither is a form field: without them an edited flight could only
+    // ever be cleared, never recomputed. Copying them in is not approximation
+    // — they are this flight’s own stored values, untouched by the edit.
+    if (existing) {
+      if (flight.dtstart_utc === undefined && existing.dtstart_utc) flight.dtstart_utc = existing.dtstart_utc;
+      if (!flight.crewPosition && existing.crewPosition) flight.crewPosition = existing.crewPosition;
+    }
     if (existing && existing.route !== flight.route) {
-      // Route changed (e.g. diversion YYZ-YYT → YYZ-YOW). Drop the cached
-      // ICAO codes and the auto-calculated XC/Night slots so the new route
-      // drives the next recalc pass.
-      delete flight.dep_icao;
+      delete flight.dep_icao;   // recalc re-derives both from the NEW route
       delete flight.arr_icao;
-      AUTO_SLOTS.forEach(k => { if (flight[k] === undefined) delete flight[k]; });
+      _divertCleared = [];
+      AUTO_SLOTS.forEach(k => {
+        const untouched = (flight[k] === undefined)
+          ? true                                          // form slot empty
+          : ((+flight[k] || 0) === (+existing[k] || 0));  // pilot left the old value as-is
+        if (untouched) { delete flight[k]; _divertCleared.push(k); }
+      });
     }
   }
 
@@ -10308,6 +10325,18 @@ function saveFlight(options) {
   const finalFlight = (typeof recalculateFlightDayNightXC === 'function')
     ? recalculateFlightDayNightXC(flight)
     : flight;
+
+  // Second half of the diversion fix: the edit path MERGES onto the stored row
+  // ({...existingRow, ...finalFlight}), so a slot the recalc could not refill
+  // (no UTC anchor, unknown airport) would silently resurrect the old route's
+  // number from the stored row. Write an explicit empty into every cleared
+  // slot the recalc left unfilled — and into the ICAOs — so the merge carries
+  // the clear through. Empty beats a value computed for a route not flown.
+  if (_divertCleared) {
+    _divertCleared.forEach(k => { if (finalFlight[k] === undefined) finalFlight[k] = ''; });
+    if (finalFlight.dep_icao === undefined) finalFlight.dep_icao = '';
+    if (finalFlight.arr_icao === undefined) finalFlight.arr_icao = '';
+  }
 
   // Pressing Save IS accepting this row: stamp when, and by whom. Placed after
   // the recalc so the stamp covers the values actually written.
@@ -11103,6 +11132,16 @@ function confirmImport() {
     for (const k of Object.keys(f)) {
       if (k === 'selected' || k.charAt(0) === '_') continue;
       flightData[k] = f[k];
+    }
+    // A flight the pilot deliberately DELETED must not come back through this
+    // path. The iCal sync already consults the tombstones before building its
+    // preview; the PDF and photo paths land here without that check, so a
+    // deleted leg arrived PRESELECTED and one confirm resurrected it.
+    // (Final audit 2026-08-02.) Manual re-entry through the form stays
+    // possible on purpose — the tombstone only suppresses imports.
+    if (typeof isTombstoned === 'function' && isTombstoned(flightData)) {
+      skipped++;
+      return;
     }
     // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
     // that already exists, NEVER create a duplicate (a single duplicate makes a
@@ -12436,7 +12475,11 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   // against real samples without breaking anything.
   const navblueCrew = extractNavblueCrew(desc);
   if (!navblueCrew.pic && !navblueCrew.copilot && desc.length > 0) {
-    void('[Navblue] No crew extracted from DESCRIPTION for', summary, '— sample:', desc.substring(0, 300));
+    // Log THAT extraction missed, never the text itself: the raw DESCRIPTION
+    // carries crew names, and this fired on every miss of every sync. The
+    // Diagnostic button is the sanctioned way to inspect the raw feed.
+    // (Final audit 2026-08-02.)
+    void('[Navblue] No crew extracted from DESCRIPTION for', summary, '(' + desc.length + ' chars)');
   }
 
   // Map crew to logbook fields based on the user's seat.
@@ -12812,7 +12855,22 @@ const CUMULO_PENDING_TODAY_KEY = 'cumulo_roster_pending_today_v1';
 function persistOutstandingLegs(patch) {
   try {
     const cur = JSON.parse(localStorage.getItem(CUMULO_PENDING_TODAY_KEY) || 'null') || {};
+    const prevEligible = Array.isArray(cur.eligible) ? cur.eligible : [];
     Object.assign(cur, patch || {});
+    // The eligible list is a UNION with what was already outstanding, not a
+    // replacement: the feed is a rolling window, so a leg that aged out of it
+    // was silently aging out of the safety net too — the exact decay the July
+    // card was built to prevent. Old entries that have since been logged or
+    // deleted are filtered out at READ time (_dashFilterAgainstLogbook), so
+    // keeping them here costs nothing. Keyed by date+flight+route. Today's
+    // unproven list ('flights') stays a replacement on purpose: it ages out
+    // at midnight by design. (Final audit 2026-08-02.)
+    if (patch && Array.isArray(patch.eligible)) {
+      const key = g => (g.date || '') + '|' + (g.flightNum || '') + '|' + String(g.route || '').toUpperCase();
+      const have = new Set(patch.eligible.map(key));
+      const carried = prevEligible.filter(g => g && g.date && !have.has(key(g)));
+      cur.eligible = patch.eligible.concat(carried).slice(0, 200);
+    }
     cur.ts = Date.now();
     localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify(cur));
   } catch (e) { /* storage full or unavailable — the next sync retries */ }
@@ -14077,13 +14135,29 @@ async function handleRosterFile(file) {
     // are NOT silently converted — we refuse to approximate.
     let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0;
     const stillMissing = [];
-    extracted.forEach(item => {
-      // Find existing flight : exact match on date + flightNum
-      const idx = flights.findIndex(f =>
-        f.date === item.date &&
-        (f.flightNum === item.flightNum || (f.route && f.route.toUpperCase() === item.route))
-      );
+    // Each logbook row may be claimed by ONE extracted leg. The old matcher's
+    // route fallback let both legs of an out-and-back day (YOW-YYZ then
+    // YYZ-YOW, or two same-route rotations) land on the FIRST row: the second
+    // leg's crew and actuals were silently swallowed or misfiled onto the
+    // wrong leg. Flight number matches are tried for the WHOLE batch first,
+    // so a route-fallback from one leg can never steal a row whose own
+    // flight number match is coming. (Final audit 2026-08-02.)
+    const _claimed = new Set();
+    const _findRow = (item, allowRouteFallback) => {
+      for (let i = 0; i < flights.length; i++) {
+        const f = flights[i];
+        if (_claimed.has(i) || !f || f.date !== item.date) continue;
+        if (f.flightNum === item.flightNum) return i;
+        if (allowRouteFallback && !item.flightNum && f.route && f.route.toUpperCase() === item.route) return i;
+      }
+      return -1;
+    };
+    const _byNum = [], _byRoute = [];
+    extracted.forEach(item => { (item.flightNum ? _byNum : _byRoute).push(item); });
+    _byNum.concat(_byRoute).forEach(item => {
+      const idx = _findRow(item, !item.flightNum);
       if (idx === -1) { noMatch++; stillMissing.push(item); return; }
+      _claimed.add(idx);
       const existing = flights[idx];
       const merged = { ...existing };
       let changed = false;
@@ -14908,7 +14982,7 @@ async function deleteAccountPurge() {
 // ─────────────────────────────────────────────────────────────────
 //  EXPORT PDF — Transport Canada compliant (CAR 401.08 + Standard 421)
 //  - Cover page (pilot identity, license, medical, type ratings)
-//  - Log pages : 22 flights/page, page totals + cumulative running totals
+//  - Log pages : 24 flights/page (ROWS_PER_PAGE), page totals + cumulative running totals
 //  - Signature line on EVERY page (TC inspector expectation)
 //  - Single-line strike-through for corrections (audit best practice)
 //  - Decimal hours 0.1h (TC standard)
@@ -14979,6 +15053,14 @@ function pdfCellValue(f, key) {
   // Coercing at this seam fixes the cell and the total together, and repairs
   // values already stored. (Audit 2026-07-27.)
   if (PDF_INT_TALLY_KEYS.has(key)) {
+    // The landing/approach columns of the TC grid are AIRCRAFT figures: the
+    // cover's career "Landings" excludes simulators (calcStats), and a sim
+    // session's landings counting into the printed CUMULATIVE row contradicted
+    // the cover of the same PDF. Zero here keeps cell, column sum and cover
+    // consistent; qualifying sim landings still reach the RECENCY annexe
+    // through countsTowardRecency, which is that page's own filter.
+    // (Final audit 2026-08-02.)
+    if (f && f.isSim) return 0;
     const n = +computeCellValue(f, key);
     return Number.isFinite(n) ? n : 0;
   }
@@ -15321,7 +15403,18 @@ function _generatePDF() {
   // log-page running totals agree with it. PAGE TOTALS stay flights-only by
   // design (they are per-page, not career cumulative).
   const _pdfHasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
-  const _openingSeed = (_pdfHasBF && typeof totalsWithOpening === 'function') ? totalsWithOpening({}) : {};
+  // totalsWithOpening({}) speaks in AGGREGATE keys (total, pic, night, xc...)
+  // while the grid's cumulative columns are per-slot keys (xcDayPic,
+  // instActual...). Seeding from the aggregates alone left every attested
+  // detail column at 0, so the CARRIED FORWARD row silently printed a floor
+  // as if it were the career figure. The raw attested balances already live
+  // in per-slot key space (the licence tracker reads them that way); merge
+  // them underneath so both key spaces seed. (Final audit 2026-08-02.)
+  const _rawBal = (_pdfHasBF && typeof loadOpeningBalances === 'function')
+    ? (loadOpeningBalances().balances || {}) : {};
+  const _openingSeed = _pdfHasBF
+    ? Object.assign({}, _rawBal, (typeof totalsWithOpening === 'function') ? totalsWithOpening({}) : {})
+    : {};
   if (_pdfHasBF) {
     Object.assign(runTotals, openingSeedForCumulative(cols, _openingSeed));
   }
@@ -15568,19 +15661,29 @@ function _generatePDF() {
     const instHours6m = _in6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
     const items = [
+      // Take-offs are logged far more sparsely than landings in this logbook
+      // (imports fill landings; take-offs are hand-typed). A shortfall of
+      // RECORDED take-offs cannot prove the pilot is not current — it proves
+      // the logging is incomplete — so it renders UNKNOWN, never a false
+      // NOT CURRENT on a paper an inspector reads. Landings CAN fail the item
+      // definitively. Detection stays positive-only. (Final audit 2026-08-02.)
       {
         title: 'Passenger-carrying currency (Day)',
         reg: 'CAR 401.05(2)(a)',
         requirement: '5 take-offs and 5 landings within preceding 6 months',
-        current: `${to6m} take-off${to6m !== 1 ? 's' : ''} · ${ldg6mTotal} landing${ldg6mTotal !== 1 ? 's' : ''} in last 6 months`,
-        ok: to6m >= 5 && ldg6mTotal >= 5
+        current: ldg6mTotal >= 5 && to6m < 5
+          ? `${ldg6mTotal} landings · ${to6m} take-off${to6m !== 1 ? 's' : ''} recorded (take-off logging may be incomplete)`
+          : `${to6m} take-off${to6m !== 1 ? 's' : ''} · ${ldg6mTotal} landing${ldg6mTotal !== 1 ? 's' : ''} in last 6 months`,
+        ok: ldg6mTotal < 5 ? false : (to6m >= 5 ? true : null)
       },
       {
         title: 'Passenger-carrying currency (Night)',
         reg: 'CAR 401.05(2)(b)',
         requirement: '5 night take-offs and 5 night landings within preceding 6 months',
-        current: `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
-        ok: to6mNight >= 5 && ldg6mNight >= 5
+        current: ldg6mNight >= 5 && to6mNight < 5
+          ? `${ldg6mNight} night landings · ${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} recorded (take-off logging may be incomplete)`
+          : `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
+        ok: ldg6mNight < 5 ? false : (to6mNight >= 5 ? true : null)
       },
       {
         title: 'IFR currency — approaches',
@@ -17660,6 +17763,7 @@ const STRINGS = {
  'nav.licence': 'Licence progress',
  'nav.duty': 'Duty',
  'nav.schedule': 'Schedule',
+ 'fdp.programNote': 'This is the CAR 700.28 maximum. Your operator’s approved fatigue program can only be more restrictive, and the result assumes the duty period began at the report time entered.',
  'page.schedule.title': 'Schedule',
  'page.schedule.sub': 'Your published roster, month by month.',
  'sched.today': 'Today',
@@ -18843,6 +18947,7 @@ const STRINGS = {
  'nav.licence': 'Progression de licence',
  'nav.duty': 'Service',
  'nav.schedule': 'Horaire',
+ 'fdp.programNote': 'Ceci est le maximum du RAC 700.28. Le programme de gestion de la fatigue approuvé de ton exploitant ne peut être que plus restrictif, et le résultat suppose que la période de service a commencé à l’heure de présentation saisie.',
  'page.schedule.title': 'Horaire',
  'page.schedule.sub': 'Ton horaire publié, mois par mois.',
  'sched.today': 'Aujourd’hui',
@@ -21170,37 +21275,6 @@ function rowSyncSig(row) {
 // 08-flight-form.js, 99-init.js.
 // ─────────────────────────────────────────────────────────────────
 const Sync = {
-  // Called from saveFlight() after the local write succeeds.
-  async pushFlight(flight) {
-    if (!Auth.isAuthenticated()) return;
-    const row = localFlightToRow(flight, Auth.currentUserId());
-    try {
-      const { error } = await Auth.client.from('flights').upsert(row, { onConflict: 'id' });
-      if (error) {
-        console.warn('[Sync] pushFlight failed, queuing:', error.message);
-        this._enqueue({ type: 'upsert_flight', payload: row });
-        return;
-      }
-    } catch (e) {
-      console.warn('[Sync] pushFlight threw, queuing:', e);
-      this._enqueue({ type: 'upsert_flight', payload: row });
-      return;
-    }
-    // Persist the (possibly minted) id and stamp the LWW marker so a
-    // subsequent pullFlights doesn't clobber this fresh local write.
-    let dirty = false;
-    if (!flight.id) { flight.id = row.id; dirty = true; }
-    flight._updated_at = row.client_updated_at;
-    // Record the synced fingerprint so the bulk auto-sync won't re-push this
-    // same row (which would re-stamp it over another device's later edit).
-    const _sm = this._loadSyncedSig();
-    _sm[flight.id] = rowSyncSig(row);
-    this._saveSyncedSig(_sm);
-    if (dirty) {
-      this._suppressAutoSync = true;
-      try { DB.save(flights); } finally { this._suppressAutoSync = false; }
-    }
-  },
 
   // Soft delete (deleted_at) instead of hard DELETE: other devices still
   // hold this flight locally and would re-upsert it on their next auto-sync,
@@ -21744,14 +21818,30 @@ const Sync = {
     // Custom validities (Passport / RAIC / Line check…): UNION by name so every
     // device's entries appear on the others. Device-generated ids differ, so we
     // dedup on name rather than id. (Martin 2026-07-08.)
+    //
+    // A DELETED validity travels as a tombstone ({name, deleted, deletedAt})
+    // and the tombstone WINS the union — that is the whole point: deleting on
+    // one device used to resurrect from the other within one pull. The single
+    // exception: a live entry re-added AFTER the deletion (addedAt newer than
+    // deletedAt) wins back, so delete-then-recreate behaves. (2026-08-02.)
     if (Array.isArray(row.custom_validities) && row.custom_validities.length) {
       const localCV = Array.isArray(local.customValidities) ? local.customValidities : [];
       const byName = new Map();
-      [...localCV, ...row.custom_validities].forEach(v => {
-        if (v && v.name) { const k = String(v.name).toLowerCase().trim(); if (!byName.has(k)) byName.set(k, v); }
-      });
+      const consider = (v) => {
+        if (!v || !v.name) return;
+        const k = String(v.name).toLowerCase().trim();
+        const cur = byName.get(k);
+        if (!cur) { byName.set(k, v); return; }
+        const curDel = !!cur.deleted, vDel = !!v.deleted;
+        if (curDel === vDel) return;                    // same kind: first (local) wins
+        const tomb = curDel ? cur : v, live = curDel ? v : cur;
+        const reAdded = live.addedAt && (!tomb.deletedAt || live.addedAt > tomb.deletedAt);
+        byName.set(k, reAdded ? live : tomb);
+      };
+      localCV.forEach(consider);
+      row.custom_validities.forEach(consider);
       const merged = [...byName.values()];
-      if (merged.length !== localCV.length) { local.customValidities = merged; changed = true; }
+      if (JSON.stringify(merged) !== JSON.stringify(localCV)) { local.customValidities = merged; changed = true; }
     }
     // Per-type goal brought-forward (e.g. 782.7 h on E195-E2) — fill-empty.
     if (isBlank(local.personalGoalBroughtForward) && !isBlank(row.personal_goal_bf)) {
@@ -21866,11 +21956,22 @@ const Sync = {
       user_id: Auth.currentUserId(),
       balances: rec.balances,
       attested_at: rec.attestedAt || null,
+      // The signer is part of what the SHA-256 seal binds. Without it a record
+      // adopted on a second device could never re-verify its own seal — the
+      // exact false tamper alarm the 2026-08-01 newest-attestation rule was
+      // rolled back over. Carried end to end since 2026-08-02
+      // (supabase/add-attested-by-2026-08-02.sql).
+      attested_by: rec.attestedBy || null,
       cutoff_date: rec.cutoffDate || null,
       hash: rec.hash || null,
       updated_at: new Date().toISOString(),
     };
-    const { error } = await Auth.client.from('opening_balances').upsert(row, { onConflict: 'user_id' });
+    let { error } = await Auth.client.from('opening_balances').upsert(row, { onConflict: 'user_id' });
+    if (error && isMissingColumnError(error)) {
+      // Database not yet migrated: push everything else rather than nothing.
+      const { attested_by, ...safe } = row;
+      ({ error } = await Auth.client.from('opening_balances').upsert(safe, { onConflict: 'user_id' }));
+    }
     if (error) {
       console.warn('[Sync] pushOpeningBalances failed, queuing:', error.message);
       this._enqueue({ type: 'upsert_opening_balances', payload: row });
@@ -21907,6 +22008,11 @@ const Sync = {
       balances: row.balances,
       cutoffDate: row.cutoff_date || null,
       attestedAt: row.attested_at || null,
+      // Without the signer the seal cannot re-verify on this device (it binds
+      // the signer). Adopt it when the cloud has it; when it does not, the
+      // launch-time seal check names the missing signer instead of crying
+      // tamper. (Audit 2026-08-02.)
+      attestedBy: row.attested_by || null,
       hash: row.hash || null,
     };
     try {
@@ -22132,6 +22238,41 @@ const Sync = {
       try {
         if (op.type === 'upsert_flight') {
           coerceRowTypes(op.payload);
+          // A queued op is a FROZEN snapshot from when this device was
+          // offline. If the cloud row is NEWER than the snapshot, the pilot
+          // corrected this flight on another device after the snapshot was
+          // taken — replaying it would silently revert his newer correction
+          // in a certifiable logbook (the documented tie-break, previously
+          // never implemented; final audit 2026-08-02). Cloud wins: drop the
+          // op and let the next pull adopt the newer row. Read failures keep
+          // the op queued rather than guessing.
+          if (op.payload.id && op.payload.client_updated_at) {
+            try {
+              const { data: curRows, error: curErr } = await Auth.client.from('flights')
+                .select('id, client_updated_at').eq('id', op.payload.id);
+              if (curErr) { requeue(op); continue; }
+              const cur = curRows && curRows[0];
+              if (cur && cur.client_updated_at &&
+                  new Date(cur.client_updated_at).getTime() > new Date(op.payload.client_updated_at).getTime()) {
+                console.warn('[Sync] dropping stale queued edit for', op.payload.id, '- the cloud row is newer');
+                // Mark the LOCAL copy clean at its CURRENT content, so the
+                // pull's dirty-by-fingerprint guard lets the newer cloud row
+                // in. Deleting the baseline instead would do the opposite:
+                // pushAllFlights treats a missing baseline as dirty and would
+                // re-push the stale content with a fresh timestamp — the very
+                // failure this guard exists to close.
+                try {
+                  const lf = (typeof flights !== 'undefined' && Array.isArray(flights))
+                    ? flights.find(x => x && x.id === op.payload.id) : null;
+                  const sig = this._loadSyncedSig() || {};
+                  if (lf) sig[op.payload.id] = rowSyncSig(localFlightToRow(lf, Auth.currentUserId()));
+                  else delete sig[op.payload.id];
+                  this._saveSyncedSig(sig);
+                } catch (e2) { /* non-fatal: worst case one extra push/pull cycle */ }
+                continue;
+              }
+            } catch (e2) { requeue(op); continue; }
+          }
           let { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
           if (error && error.code === '23505' && op.payload.navblue_uid) {
             // Dedup-index collision — same fallback as pushAllFlights:
@@ -22638,6 +22779,39 @@ async function verifyOpeningBalances(rec) {
   }
 }
 
+// Run the seal check and SAY SO only when it fails. Removing the standing
+// "sealed and verified" dashboard card (5c2f897, at Martin's request) also
+// removed the only caller of verifyOpeningBalances — a regression of audit
+// item 8: the seal existed, was stored, was promised in the pre-sign copy, and
+// was never checked again. Caught by the 2026-08-02 final audit. This restores
+// the CHECK without restoring the card he asked to remove: silence when the
+// seal holds, a toast plus a red line on the brought-forward page when it does
+// not. Runs at launch (99-init.js) and on every brought-forward page open.
+let _sealAlarmShown = false;
+function checkOpeningBalancesSeal() {
+  return verifyOpeningBalances().then(res => {
+    if (res.ok) return res;
+    const fr = (typeof getLang === 'function') && getLang() === 'fr';
+    // The one legitimate benign cause: a record adopted from the cloud before
+    // attested_by was carried end-to-end has no signer, and the seal binds the
+    // signer. Say WHICH problem it is rather than crying tamper.
+    const rec = loadOpeningBalances();
+    const noSigner = !!(rec && rec.hash && !rec.attestedBy);
+    const msg = noSigner
+      ? (fr ? 'Heures reportées : le sceau ne peut pas être vérifié (signataire absent du dossier adopté). Rouvre la page Heures reportées et atteste de nouveau pour resceller.'
+            : 'Brought-forward hours: the seal cannot be verified (no signer on the adopted record). Reopen the Brought forward page and attest again to re-seal.')
+      : (fr ? 'Heures reportées : la vérification du sceau a échoué. Une valeur a changé depuis la signature. Rouvre la page Heures reportées pour revoir et resceller.'
+            : 'Brought-forward hours: the seal check failed. A value changed since signing. Reopen the Brought forward page to review and re-seal.');
+    if (!_sealAlarmShown && typeof showToast === 'function') {
+      _sealAlarmShown = true;             // once per session — a warning, not a nag
+      showToast(msg, 'error');
+    }
+    const slot = document.getElementById('bfSealAlarm');
+    if (slot) slot.innerHTML = '<div style="margin-top:8px;font-size:12px;color:var(--danger-text,#8a1f1f);background:var(--danger-soft,rgba(200,60,60,.12));border:0.5px solid var(--danger,#c04545);border-radius:8px;padding:8px 10px;">' + msg + '</div>';
+    return res;
+  }).catch(() => ({ sealed: true, ok: true }));
+}
+
 // Persist the balances + attestation metadata + append to audit log.
 async function saveOpeningBalances(balances, cutoffDate, attestedBy) {
   const clean = {};
@@ -23094,6 +23268,7 @@ function renderBroughtForwardPage() {
           ? 'La plupart des pilotes n\'ont besoin que de la section <em>Totaux carrière</em> ci-dessous. Les sections de détail sont optionnelles — ouvrez seulement ce que votre carnet papier suivait.'
           : 'Most pilots only need the <em>Career totals</em> section below. The detail sections are optional — only open what your paper logbook actually tracked.'}</p>
         ${hasAny && attestedStr ? `<div class="bf-attest-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${fr ? `Attestées le ${attestedStr}` : `Attested ${attestedStr}`}</div>` : ''}
+        <div id="bfSealAlarm"></div>
         ${_useDraft ? `<div style="margin-top:8px;font-size:12px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:8px 10px;">${fr ? 'Vous reprenez un brouillon — pas encore attesté. Vos valeurs sont conservées ; rien n\'est attesté tant que vous n\'avez pas signé.' : 'You\'re resuming a draft — not yet attested. Your values are kept; nothing is attested until you sign.'}</div>` : ''}
       </div>
     </div>
@@ -23805,7 +23980,10 @@ function _dashGoalAchievedHours(kind, context, s) {
     const needle = context.toUpperCase().trim();
     const logged = flights.reduce((sum, f) => {
       const type = (f.type || '').toUpperCase();
-      return type.includes(needle) ? sum + (+f.block || 0) : sum;
+      // Through flightTimeOf like every other total: a raw block read counted
+      // simulator sessions into an aircraft-type goal and gave zero credit to
+      // a total-only row. (Final audit 2026-08-02.)
+      return type.includes(needle) ? sum + flightTimeOf(f) : sum;
     }, 0);
     // Hours already flown on this type BEFORE Cumulo (from the paper logbook).
     // Without it a type goal starts at zero and ignores a career already flown
@@ -24230,21 +24408,25 @@ function _licenceTotals() {
     ? totalsWithOpening(calcStats())
     : (typeof calcStats === 'function' ? calcStats() : {});
   const bal = (typeof loadOpeningBalances === 'function') ? (loadOpeningBalances().balances || {}) : {};
-  let xcPic = 0, xcNightPic = 0, instrument = 0;
+  let xcPic = 0, xcNightPic = 0, instrAir = 0, instrSim = 0;
   (Array.isArray(flights) ? flights : []).forEach(function (f) {
     xcPic      += (+f.xcDayPic || 0) + (+f.xcNightPic || 0);
     xcNightPic += (+f.xcNightPic || 0);
-    instrument += (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0);
+    instrAir   += (+f.instActual || 0) + (+f.instHood || 0);
+    instrSim   += (+f.instSim || 0);
   });
   xcPic      += (+bal.xcDayPic || 0) + (+bal.xcNightPic || 0);
   xcNightPic += (+bal.xcNightPic || 0);
-  instrument += (+bal.instActual || 0) + (+bal.instHood || 0) + (+bal.instSim || 0);
+  instrAir   += (+bal.instActual || 0) + (+bal.instHood || 0);
+  instrSim   += (+bal.instSim || 0);
+  const instrument = instrAir + instrSim;
   return {
     total: +merged.total || +merged.block || 0,
     pic: +merged.pic || 0,
     night: +merged.night || 0,
     dualRcvd: +merged.dualRcvd || 0,
-    xcPic: xcPic, xcNightPic: xcNightPic, instrument: instrument
+    xcPic: xcPic, xcNightPic: xcNightPic, instrument: instrument,
+    instrAir: instrAir, instrSim: instrSim
   };
 }
 
@@ -24256,7 +24438,7 @@ const LICENCE_TARGETS = [
     { label: { fr: 'Instruction reçue (double)', en: 'Dual instruction received' }, need: 17, key: 'dualRcvd' },
     { label: { fr: 'En solo', en: 'Solo' }, need: 12, key: null },
     { label: { fr: 'Vol-voyage en solo', en: 'Solo cross-country' }, sub: { fr: 'vol ≥ 150 NM', en: 'flight ≥ 150 NM' }, need: 5, key: null },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, need: 5, key: 'instrument' }
+    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 3 h sim/sol', en: 'max 3 h sim/ground' }, need: 5, key: 'instrument', simCap: 3 }
   ] },
   { id: 'cpl', label: { fr: 'CPL', en: 'CPL' }, title: { fr: 'Licence de pilote professionnel — avion', en: 'Commercial Pilot Licence — Aeroplane' }, cite: 'Norme 421.30(4)', reqs: [
     { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 200, key: 'total' },
@@ -24265,7 +24447,7 @@ const LICENCE_TARGETS = [
   ] },
   { id: 'ifr', label: { fr: 'Qualif. IFR', en: 'IFR rating' }, title: { fr: 'Qualification de vol aux instruments (groupe 1)', en: 'Instrument rating (Group 1)' }, cite: 'Norme 421.46(2)', reqs: [
     { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 50, key: 'xcPic' },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 20 h au sol', en: 'max 20 h ground' }, need: 40, key: 'instrument' }
+    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 20 h au sol', en: 'max 20 h ground' }, need: 40, key: 'instrument', simCap: 20 }
   ] },
   { id: 'night', label: { fr: 'Qualif. nuit', en: 'Night rating' }, title: { fr: 'Qualification de vol de nuit — avion', en: 'Night rating — Aeroplane' }, cite: 'CAR 401.42 / Norme 421.42', reqs: [
     { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 20, key: 'total' },
@@ -24278,7 +24460,7 @@ const LICENCE_TARGETS = [
     { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 100, key: 'xcPic' },
     { label: { fr: 'Vol-voyage de nuit en PIC', en: 'Night PIC cross-country' }, need: 25, key: 'xcNightPic' },
     { label: { fr: 'Temps de nuit', en: 'Night time' }, need: 100, key: 'night' },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 25 h sim', en: 'max 25 h sim' }, need: 75, key: 'instrument' }
+    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 25 h sim', en: 'max 25 h sim' }, need: 75, key: 'instrument', simCap: 25 }
   ] }
 ];
 
@@ -24298,7 +24480,11 @@ function renderLicenceTracker() {
 
   const pills = LICENCE_TARGETS.map(function (tg) {
     const tracked = tg.reqs.filter(function (r) { return r.key; });
-    const allMet = tracked.length > 0 && tracked.every(function (r) { return (totals[r.key] || 0) >= r.need; });
+    const allMet = tracked.length > 0 && tracked.every(function (r) {
+      let v = totals[r.key] || 0;
+      if (r.simCap != null && r.key === 'instrument') v = (totals.instrAir || 0) + Math.min(totals.instrSim || 0, r.simCap);
+      return v >= r.need;
+    });
     const on = tg.id === cur.id;
     return '<button type="button" class="lic-pill' + (on ? ' on' : '') + (allMet ? ' done' : '') +
       '" onclick="setLicenceTarget(\'' + tg.id + '\')">' + (allMet ? '<span aria-hidden="true">✓</span> ' : '') + esc(L(tg.label)) + '</button>';
@@ -24321,7 +24507,10 @@ function renderLicenceTracker() {
         '</div><div class="lic-val">' + fh(r.need) + ' h</div></div><div class="lic-foot"><span class="lic-note">' +
         (fr ? 'Non suivi par Cumulo — voir vos relevés de formation' : 'Not tracked by Cumulo — see your training records') + '</span></div></div>';
     }
-    const have = totals[r.key] || 0;
+    let have = totals[r.key] || 0;
+    if (r.simCap != null && r.key === 'instrument') {
+      have = (totals.instrAir || 0) + Math.min(totals.instrSim || 0, r.simCap);
+    }
     const pct = Math.min(100, Math.round(have / r.need * 100));
     const met = have >= r.need;
     const togo = Math.max(0, r.need - have);
@@ -24598,13 +24787,13 @@ function _dutyWorkFloorHtml(fr) {
   if (wf.hours >= 70) {
     sev = 'over';
     sevLine = fr
-      ? 'Ce plancher dépasse déjà les DEUX plafonds possibles du RAC 700.29 (60 h et 70 h sur 7 jours). À signaler.'
-      : 'This floor already exceeds BOTH possible RAC 700.29 ceilings (60 h and 70 h in 7 days). Worth flagging.';
+      ? 'Ce plancher dépasse déjà les DEUX plafonds possibles du RAC 700.29 (60 h et 70 h sur 7 jours). Le RAC 700.26(4) demande d’en informer l’exploitant dès que possible.'
+      : 'This floor already exceeds BOTH possible RAC 700.29 ceilings (60 h and 70 h in 7 days). CAR 700.26(4) requires advising your operator as soon as possible.';
   } else if (wf.hours >= 60) {
     sev = 'watch';
     sevLine = fr
-      ? 'Ce plancher atteint 60 h. Si ton plafond est 60 h (le cas le plus courant), il est atteint avec tes seules périodes enregistrées.'
-      : 'This floor reaches 60 h. If your ceiling is 60 h (the usual case), it is reached on your recorded duty alone.';
+      ? 'Ce plancher atteint 60 h. Si ton plafond est 60 h, il est atteint avec tes seules périodes enregistrées; le RAC 700.26(4) demande d’en informer l’exploitant dès que possible.'
+      : 'This floor reaches 60 h. If your ceiling is 60 h, it is reached on your recorded duty alone; CAR 700.26(4) requires advising your operator as soon as possible.';
   }
   const skipped = wf.skippedLegs > 0
     ? (fr
@@ -26005,14 +26194,29 @@ let _pendingValidityName = '';
 function _valFr() { return (typeof getLang === 'function') && getLang() === 'fr'; }
 
 // Read/normalise the pilot's custom validities from the profile object.
+// LIVE entries only: a deleted validity stays in the stored array as a
+// tombstone ({name, deleted:true, deletedAt}) so the deletion can SYNC.
+// Filtering it out on delete just re-imported it: the cloud row still held
+// the entry, the union-by-name pull put it straight back, and "Validité
+// supprimée" was a lie within ten seconds. (Final audit 2026-08-02.)
 function getCustomValidities() {
+  return _allCustomValidities().filter(v => v && !v.deleted);
+}
+
+function _allCustomValidities() {
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
   return Array.isArray(p.customValidities) ? p.customValidities : [];
 }
 
+// Persist a LIVE list, carrying forward every tombstone whose name is not in
+// it — so an ordinary edit can never silently drop a recorded deletion, and
+// re-adding a name clears its tombstone.
 function _saveCustomValidities(list) {
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
-  p.customValidities = list;
+  const liveNames = new Set(list.filter(v => v && v.name).map(v => String(v.name).toLowerCase().trim()));
+  const tombs = _allCustomValidities().filter(v =>
+    v && v.deleted && v.name && !liveNames.has(String(v.name).toLowerCase().trim()));
+  p.customValidities = list.concat(tombs);
   DB.saveProfile(p);
 }
 
@@ -26197,7 +26401,7 @@ function saveValidityFromModal(ref) {
       else list.push({ id, name, date, issued });
     } else {
       const id = 'cv_' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
-      list.push({ id, name, date, issued });
+      list.push({ id, name, date, issued, addedAt: new Date().toISOString() });
     }
     _saveCustomValidities(list);
   }
@@ -26209,8 +26413,19 @@ function saveValidityFromModal(ref) {
 
 function deleteCustomValidity(id) {
   const fr = _valFr();
-  const list = getCustomValidities().filter(v => v.id !== id);
-  _saveCustomValidities(list);
+  // The deleted entry becomes a tombstone rather than vanishing: the array
+  // stays non-empty, so the push gate sends it, the cloud learns the deletion,
+  // and the union merge on every device lets the tombstone win. Deleting used
+  // to be undone by the next pull. (Final audit 2026-08-02.)
+  const all = _allCustomValidities();
+  const gone = all.find(v => v && v.id === id);
+  const list = all.filter(v => v && v.id !== id && !v.deleted);
+  if (gone && gone.name) {
+    list.push({ name: gone.name, deleted: true, deletedAt: new Date().toISOString() });
+  }
+  const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  p.customValidities = list;
+  DB.saveProfile(p);
   if (typeof closeDashDrill === 'function') closeDashDrill();
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof showToast === 'function') showToast(fr ? 'Validité supprimée' : 'Validity removed', 'success');
@@ -26539,6 +26754,22 @@ function fdpPrefillFromRoster() {
     const mSel = document.getElementById('fdp-report-m');
     const legsIn = document.getElementById('fdp-legs');
     if (!hSel || !mSel || !legsIn) return false;
+    // The check-in time is STATION-local, so the station select must point at
+    // a zone with the SAME offset — pairing a Kelowna 06:00 check-in with the
+    // Toronto default read it as an 06:00 Toronto start and overstated the
+    // day's maximum. No matching zone in the list = no prefill at all, never a
+    // wrong pairing. Acclimatized-to stays where the pilot set it: that is
+    // about HIM, not about today's station. (Final audit 2026-08-02.)
+    const evOff = (typeof todays[0].offMin === 'number') ? todays[0].offMin : null;
+    const stSel = document.getElementById('fdp-station');
+    let stIdx = -1;
+    if (evOff !== null && stSel) {
+      for (let ci = 0; ci < FDP_CITIES.length; ci++) {
+        if (_fdpOffMin(FDP_CITIES[ci].tz) === evOff) { stIdx = ci; break; }
+      }
+      if (stIdx < 0) return false;   // unknown zone: keep defaults, say nothing
+      stSel.value = String(stIdx);
+    }
     hSel.value = String(+hhmm.slice(0, 2));
     mSel.value = String(+hhmm.slice(2, 4));
     legsIn.value = String(todays.length);
@@ -26672,7 +26903,14 @@ function _payCountry(code) {
   const icao = u.length === 4 ? u
     : ((typeof iataToIcao === 'function') ? String(iataToIcao(u) || '').toUpperCase() : u);
   if (icao.length !== 4) return 'unknown';
-  return /^K/.test(icao) ? 'us' : 'other';
+  // Only claim what is actually known: K = contiguous US, C = Canada. The old
+  // rule called EVERY other 4-letter ICAO "not US", which silently priced an
+  // Alaska (PA), Hawaii (PH) or any overseas station into the Canadian pool.
+  // Anything else is unknown, and unknown makes the period incomparable
+  // rather than wrong. (Final audit 2026-08-02.)
+  if (/^K/.test(icao)) return 'us';
+  if (/^C/.test(icao)) return 'other';
+  return 'unknown';
 }
 const _payIsUS = code => _payCountry(code) === 'us';
 const _payIsUnknownCountry = code => _payCountry(code) === 'unknown';
@@ -26729,8 +26967,18 @@ function groupPairings(flights, baseIcao) {
 // whole test. A layover whose outbound leg was logged without its check-in
 // falls back to the Canadian rate — the honest default, since without a fresh
 // report the data cannot tell it apart from a turn.
-function _payIsLayoverStop(legOut) {
-  return !!(legOut && legOut.ci_utc);
+function _payStopKind(legIn, legOut) {
+  if (legOut && legOut.ci_utc) return 'layover';         // fresh duty period: definitive
+  // No recorded check-in on the leg out. Same calendar date as the arrival =
+  // the same duty day = a turn, structurally (a duty period does not span
+  // days without a rest). Different dates with no check-in recorded = the
+  // data genuinely cannot tell a layover from a midnight-crossing turn, and
+  // the split must say so instead of picking a side: defaulting to "turn"
+  // priced real pre-CI-capture US layovers in CAD and manufactured the exact
+  // kind of false discrepancy the turn rule was built to kill.
+  // (Final audit 2026-08-02.)
+  if (legIn && legOut && legIn.date && legOut.date && legIn.date === legOut.date) return 'turn';
+  return 'unknown';
 }
 
 function pairingPerDiem(pairing) {
@@ -26741,11 +26989,20 @@ function pairingPerDiem(pairing) {
   let usMin = 0, unknownMin = 0, unknownStations = 0;
   for (let i = 0; i < pairing.length - 1; i++) {
     // A turn's ground time stays in the Canadian pool no matter the station:
-    // the country split below only applies to a real layover, and a turn at an
-    // unknown station needs no country at all. (Martin 2026-08-02 — a KBOS
-    // turn was being priced as US hours, manufacturing a per-diem discrepancy
-    // against a stub that had correctly paid the whole day in CAD.)
-    if (!_payIsLayoverStop(pairing[i + 1])) continue;
+    // The country split below only applies to a real layover: a turn's ground
+    // time is Canadian wherever the airplane is parked (Martin 2026-08-02). An
+    // UNKNOWN stop (no check-in, dates differ) at a Canadian station is still
+    // Canadian either way; at any other station the hours leave both pools and
+    // the period is flagged incomparable rather than guessed.
+    const _stop = _payStopKind(pairing[i], pairing[i + 1]);
+    if (_stop === 'turn') continue;
+    if (_stop === 'unknown' && _payCountry(pairing[i].arr_icao) !== 'other') {
+      unknownStations++;
+      const us = _payReleaseMs(pairing[i]), ue = _payReportMs(pairing[i + 1]);
+      if (!isNaN(us) && !isNaN(ue)) unknownMin += Math.max(0, (ue - us) / 60000);
+      continue;
+    }
+    if (_stop === 'unknown') continue;                   // Canadian station: CAD either way
     // A station this app cannot place in a country is counted as neither.
     // Treating it as Canadian paid a Fort Myers overnight at the domestic
     // rate and produced a phantom shortfall. (Audit 2026-07-27.)
@@ -26775,7 +27032,7 @@ function pairingPerDiem(pairing) {
 function computePerDiem(flights, baseIcao, rates) {
   const r = rates || {};
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
-  let awayH = 0, usH = 0, cdnH = 0, openP = 0, unknownSt = 0;
+  let awayH = 0, usH = 0, cdnH = 0, unkH = 0, openP = 0, unknownSt = 0;
   const pairings = groupPairings(flights, baseIcao);
   // An open-ended pairing is skipped, never priced. Its release time is
   // genuinely unknown, and counting it to the last logged check-out would
@@ -26784,7 +27041,7 @@ function computePerDiem(flights, baseIcao, rates) {
   // discrepancy it cannot support.
   pairings.forEach(p => {
     if (p.openEnded) { openP++; return; }
-    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours; unknownSt += (d.unknownStations || 0);
+    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours; unkH += (d.unknownHours || 0); unknownSt += (d.unknownStations || 0);
   });
   const round2 = n => Math.round(n * 100) / 100;
   return {
@@ -26792,6 +27049,7 @@ function computePerDiem(flights, baseIcao, rates) {
     openPairings: openP,
     unknownStations: unknownSt,
     awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
+    unknownHours: round2(unkH),
     cdnAmount: round2(cdnH * cdnRate),
     usAmount: round2(usH * usUsd * fx),
     total: round2(cdnH * cdnRate + usH * usUsd * fx)
@@ -26878,9 +27136,10 @@ function usPerDiemDays(flights, baseIcao) {
     // fabricated 126-hour US layover.
     if (p.openEnded) return;
     for (let i = 0; i < p.length - 1; i++) {
-      // A turn is not a US layover day, whatever the station (see
-      // _payIsLayoverStop). Listing one here would contradict the totals.
-      if (!_payIsLayoverStop(p[i + 1])) continue;
+      // Only a confirmed layover is a US layover day; a turn or an unknown
+      // stop is not (see _payStopKind). Listing one here would contradict
+      // the totals.
+      if (_payStopKind(p[i], p[i + 1]) !== 'layover') continue;
       if (!_payIsUS(p[i].arr_icao)) continue;
       const start = _payReleaseMs(p[i]);       // check-out of the flight into the US
       const end = _payReportMs(p[i + 1]);       // check-in of the flight out of the US
@@ -26954,11 +27213,20 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
     if (away <= 0) return;
     n++; awayMs += away;
     for (let i = 0; i < p.length - 1; i++) {
-      // Same three-state rule as pairingPerDiem — including the layover gate:
-      // a turn's ground time is Canadian wherever it happens. This path is the
-      // one that runs whenever a stub is loaded, so leaving it out made the
-      // whole fix inert exactly where the comparison happens.
-      if (!_payIsLayoverStop(p[i + 1])) continue;
+      // Same three-state rule as pairingPerDiem — including the stop
+      // classifier: a turn's ground time is Canadian wherever it happens, and
+      // an unknown stop at a non-Canadian station makes the period
+      // incomparable. This path is the one that runs whenever a stub is
+      // loaded, so leaving it out made the whole fix inert exactly where the
+      // comparison happens.
+      const _stop = _payStopKind(p[i], p[i + 1]);
+      if (_stop === 'turn') continue;
+      if (_stop === 'unknown' && _payCountry(p[i].arr_icao) !== 'other') {
+        const g = clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
+        unkSt++; if (g > 0) unkMs += g;
+        continue;
+      }
+      if (_stop === 'unknown') continue;
       if (_payIsUnknownCountry(p[i].arr_icao)) {
         const g = clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
         if (g > 0) { unkSt++; unkMs += g; }
@@ -27266,6 +27534,20 @@ function _paySparkSvg(items, fr, money) {
 // Quick per-period verdict for the statement rows: the per-diem HOURS check
 // (the error detector) run against a stored stub. 'none' = honestly not
 // comparable (no readable paid hours, or no flights logged in that window).
+// One comparison for the per-diem verdict, shared by the main check and the
+// period quick check. 1.0 h covers timing slop across a period; the dollar
+// gate is that same hour tolerance at the configured rate. The main page used
+// a bare $0.02 gate while history used the derived one, so the same stub
+// could be red on one page and "Verified" on the other. (Final audit
+// 2026-08-02.)
+const PD_TOL_H = 1.0;
+function _pdMatch(computedH, computedAmt, paidH, paidAmt, rate) {
+  const hOk = paidH == null || Math.abs(computedH - paidH) <= PD_TOL_H;
+  const amtTol = 0.02 + Math.abs(PD_TOL_H * (+rate || 0));
+  const aOk = paidAmt == null || Math.abs(computedAmt - paidAmt) <= amtTol;
+  return hOk && aOk;
+}
+
 function _payQuickCheck(stub, bkx, range, allFls, st) {
   if (!range) return 'none';
   const paidH = (bkx.perDiemCdn && bkx.perDiemCdn.units != null) ? bkx.perDiemCdn.units : null;
@@ -27279,15 +27561,13 @@ function _payQuickCheck(stub, bkx, range, allFls, st) {
   // app cannot place in a country, means the computed figure is knowingly
   // incomplete. Badging that Verified would vouch for a comparison never made.
   if (pdx.openPairings > 0 || pdx.unknownStations > 0) return 'none';
-  if (Math.abs(pdx.cdnHours - paidH) > 1.0) return 'issue';
   // Hours alone are not enough. A period can match to the hour and still be
-  // paid at the wrong RATE, which used to come back badged Verified.
+  // paid at the wrong RATE, which used to come back badged Verified. Same
+  // shared comparison as the main page (_pdMatch), so the two can never
+  // disagree about the same stub.
   const paidAmt = (bkx.perDiemCdn && bkx.perDiemCdn.amount != null) ? bkx.perDiemCdn.amount : null;
-  if (paidAmt != null && +st.cdn > 0) {
-    const expected = pdx.cdnHours * (+st.cdn);
-    if (Math.abs(expected - paidAmt) > 0.02 + Math.abs(1.0 * (+st.cdn))) return 'issue';
-  }
-  return 'ok';
+  return _pdMatch(pdx.cdnHours, pdx.cdnHours * (+st.cdn || 0), paidH, (+st.cdn > 0) ? paidAmt : null, st.cdn)
+    ? 'ok' : 'issue';
 }
 
 function payRender() {
@@ -27423,8 +27703,8 @@ function payRender() {
     // is incomplete. Name the gap instead of asserting a shortfall.
     pdCheck.status = 'info';
     pdCheck.desc = fr
-      ? 'Une escale de cette période est à un aéroport que Cumulo ne sait pas situer, donc ni canadienne ni américaine. Le per diem de cette période ne peut pas être comparé au talon.'
-      : 'A layover in this period is at an airport Cumulo cannot place in a country, so it counts as neither Canadian nor US. The per diem for this period cannot be compared against the stub.';
+      ? 'Une escale de cette période ne peut pas être classée : aéroport que Cumulo ne sait pas situer, ou arrêt hors base sans heure de présentation enregistrée. Le per diem de cette période ne peut pas être comparé au talon.'
+      : 'A stop in this period cannot be classified: an airport Cumulo cannot place in a country, or an away stop with no recorded report time. The per diem for this period cannot be compared against the stub.';
   } else if (pd.openPairings > 0) {
     // A trip with no logged return to base has an unknown release time, so
     // its per diem is not counted at all. Comparing a deliberately partial
@@ -27450,9 +27730,7 @@ function payRender() {
       pdCheck.desc = fr ? 'Rien d’attendu, rien de payé.' : 'Nothing expected, nothing paid.';
     }
   } else {
-    const hOk = paidCdnH == null || Math.abs(pd.cdnHours - paidCdnH) <= 1.0;
-    const aOk = paidCdnAmt == null || Math.abs(pd.cdnAmount - paidCdnAmt) < 0.02;
-    if (hOk && aOk) {
+    if (_pdMatch(pd.cdnHours, pd.cdnAmount, paidCdnH, paidCdnAmt, st.cdn)) {
       pdCheck.status = 'ok';
       pdCheck.desc = fr
         ? 'Heures et montant concordent' + C + ' ' + hL(pd.cdnHours) + ' h · ' + money(paidCdnAmt != null ? paidCdnAmt : pd.cdnAmount) + '.'
@@ -28020,7 +28298,10 @@ function payStubHistory(all, curYm, allFls, st, fr, money, hL, cur) {
       badges.push('<span class="badge badge-issue"><span class="bdot"></span>' +
         (nIss ? nIss + ' ' + (fr ? 'problème' + (nIss > 1 ? 's' : '') : 'issue' + (nIss > 1 ? 's' : '')) : (fr ? 'Écart per diem' : 'Per diem gap')) + '</span>');
     } else if (it.status === 'ok') {
-      badges.push('<span class="badge badge-ok"><span class="bdot"></span>' + (fr ? 'Vérifié' : 'Verified') + '</span>');
+      // Named for what the quick check actually compares — the Canadian per
+      // diem — never an unqualified "Verified" vouching for the whole deposit.
+      // (Final audit 2026-08-02.)
+      badges.push('<span class="badge badge-ok"><span class="bdot"></span>' + (fr ? 'Per diem vérifié' : 'Per diem checked') + '</span>');
     } else {
       badges.push('<span class="badge badge-neutral">' + (fr ? 'Non comparé' : 'Not compared') + '</span>');
     }
@@ -28461,7 +28742,6 @@ function buildNightRecheckPlan(anchorMap) {
 
     const meChanges = Math.abs(fixed.dayHours - curDay) > NIGHT_RECHECK_EPS ||
                       Math.abs(fixed.nightHours - curNight) > NIGHT_RECHECK_EPS;
-    if (!meChanges && !xcChanges && !anchorFixed) continue;
     if (!meChanges && !xcChanges) continue;
 
     rows.push({
@@ -28916,7 +29196,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-11-fe52de5';
+const BUILD_VERSION = '2026-08-11-64c623f';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
@@ -29179,6 +29459,10 @@ function injectDemoBanner() {
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();
+ // Verify the brought-forward seal once per launch (quiet unless it fails).
+ // The check lost its only caller when the dashboard card was removed at
+ // Martin's request; the CHECK comes back, the card does not. (Audit 2026-08-02.)
+ if (typeof checkOpeningBalancesSeal === 'function') checkOpeningBalancesSeal();
  // First-launch onboarding (only if no profile name set)
  if (shouldShowOnboarding()) {
  setTimeout(startOnboarding, 400);

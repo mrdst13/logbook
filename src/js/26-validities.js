@@ -39,14 +39,29 @@ let _pendingValidityName = '';
 function _valFr() { return (typeof getLang === 'function') && getLang() === 'fr'; }
 
 // Read/normalise the pilot's custom validities from the profile object.
+// LIVE entries only: a deleted validity stays in the stored array as a
+// tombstone ({name, deleted:true, deletedAt}) so the deletion can SYNC.
+// Filtering it out on delete just re-imported it: the cloud row still held
+// the entry, the union-by-name pull put it straight back, and "Validité
+// supprimée" was a lie within ten seconds. (Final audit 2026-08-02.)
 function getCustomValidities() {
+  return _allCustomValidities().filter(v => v && !v.deleted);
+}
+
+function _allCustomValidities() {
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
   return Array.isArray(p.customValidities) ? p.customValidities : [];
 }
 
+// Persist a LIVE list, carrying forward every tombstone whose name is not in
+// it — so an ordinary edit can never silently drop a recorded deletion, and
+// re-adding a name clears its tombstone.
 function _saveCustomValidities(list) {
   const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
-  p.customValidities = list;
+  const liveNames = new Set(list.filter(v => v && v.name).map(v => String(v.name).toLowerCase().trim()));
+  const tombs = _allCustomValidities().filter(v =>
+    v && v.deleted && v.name && !liveNames.has(String(v.name).toLowerCase().trim()));
+  p.customValidities = list.concat(tombs);
   DB.saveProfile(p);
 }
 
@@ -231,7 +246,7 @@ function saveValidityFromModal(ref) {
       else list.push({ id, name, date, issued });
     } else {
       const id = 'cv_' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
-      list.push({ id, name, date, issued });
+      list.push({ id, name, date, issued, addedAt: new Date().toISOString() });
     }
     _saveCustomValidities(list);
   }
@@ -243,8 +258,19 @@ function saveValidityFromModal(ref) {
 
 function deleteCustomValidity(id) {
   const fr = _valFr();
-  const list = getCustomValidities().filter(v => v.id !== id);
-  _saveCustomValidities(list);
+  // The deleted entry becomes a tombstone rather than vanishing: the array
+  // stays non-empty, so the push gate sends it, the cloud learns the deletion,
+  // and the union merge on every device lets the tombstone win. Deleting used
+  // to be undone by the next pull. (Final audit 2026-08-02.)
+  const all = _allCustomValidities();
+  const gone = all.find(v => v && v.id === id);
+  const list = all.filter(v => v && v.id !== id && !v.deleted);
+  if (gone && gone.name) {
+    list.push({ name: gone.name, deleted: true, deletedAt: new Date().toISOString() });
+  }
+  const p = (typeof DB !== 'undefined' && DB.loadProfile) ? (DB.loadProfile() || {}) : {};
+  p.customValidities = list;
+  DB.saveProfile(p);
   if (typeof closeDashDrill === 'function') closeDashDrill();
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof showToast === 'function') showToast(fr ? 'Validité supprimée' : 'Validity removed', 'success');

@@ -97,6 +97,7 @@ create trigger profiles_updated_at
 -- ───────────────────────────────────────────────────────────────────
 create table if not exists public.opening_balances (
   user_id uuid primary key references auth.users on delete cascade,
+  attested_by text,
   balances jsonb not null default '{}'::jsonb,
   attested_at timestamptz,
   cutoff_date text,

@@ -464,6 +464,16 @@ function confirmImport() {
       if (k === 'selected' || k.charAt(0) === '_') continue;
       flightData[k] = f[k];
     }
+    // A flight the pilot deliberately DELETED must not come back through this
+    // path. The iCal sync already consults the tombstones before building its
+    // preview; the PDF and photo paths land here without that check, so a
+    // deleted leg arrived PRESELECTED and one confirm resurrected it.
+    // (Final audit 2026-08-02.) Manual re-entry through the form stays
+    // possible on purpose — the tombstone only suppresses imports.
+    if (typeof isTombstoned === 'function' && isTombstoned(flightData)) {
+      skipped++;
+      return;
+    }
     // Belt-and-suspenders dedup: even if the pilot manually re-checked a flight
     // that already exists, NEVER create a duplicate (a single duplicate makes a
     // certifiable logbook invalid). Enrich the existing row's empty fields and

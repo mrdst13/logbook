@@ -243,20 +243,40 @@ function saveFlight(options) {
     if (flight[k] === '' || flight[k] === undefined || flight[k] === null) delete flight[k];
   });
 
-  // Diversion handling : if the pilot edited the route on an existing
-  // flight, the old XC/Night auto-values were computed for the old route
-  // and are now stale. Clear them so the recalc can refill with the new
-  // route's coordinates. We preserve any value that DIFFERS from the
-  // existing flight's stored value (treat as explicit pilot edit).
+  // Diversion handling: if the pilot edited the route on an existing flight,
+  // the old XC/Night auto-values were computed for the old route and are now
+  // stale. A value the pilot CHANGED in this edit (differs from the stored
+  // one) is an explicit entry and survives; a value he left alone is the old
+  // route's arithmetic and must not outlive the route it was computed for.
+  //
+  // The original guard here was `if (flight[k] === undefined) delete flight[k]`
+  // — deleting keys that are already undefined, a no-op — so a diversion
+  // (YOW-YYZ edited to YOW-YUL) silently kept the old destination's night/XC
+  // split and airports in a certifiable logbook. Found by the 2026-08-02 final
+  // audit; the fix compares against the STORED row and, when the recalc cannot
+  // refill a cleared slot (no anchor, unknown airport), writes an explicit
+  // empty — empty beats a number computed for a route that was not flown.
+  let _divertCleared = null;
   if (editingId) {
     const existing = flights.find(f => f.id === editingId);
+    // The recalc needs the stored UTC anchor and seat to recompute a split,
+    // and neither is a form field: without them an edited flight could only
+    // ever be cleared, never recomputed. Copying them in is not approximation
+    // — they are this flight’s own stored values, untouched by the edit.
+    if (existing) {
+      if (flight.dtstart_utc === undefined && existing.dtstart_utc) flight.dtstart_utc = existing.dtstart_utc;
+      if (!flight.crewPosition && existing.crewPosition) flight.crewPosition = existing.crewPosition;
+    }
     if (existing && existing.route !== flight.route) {
-      // Route changed (e.g. diversion YYZ-YYT → YYZ-YOW). Drop the cached
-      // ICAO codes and the auto-calculated XC/Night slots so the new route
-      // drives the next recalc pass.
-      delete flight.dep_icao;
+      delete flight.dep_icao;   // recalc re-derives both from the NEW route
       delete flight.arr_icao;
-      AUTO_SLOTS.forEach(k => { if (flight[k] === undefined) delete flight[k]; });
+      _divertCleared = [];
+      AUTO_SLOTS.forEach(k => {
+        const untouched = (flight[k] === undefined)
+          ? true                                          // form slot empty
+          : ((+flight[k] || 0) === (+existing[k] || 0));  // pilot left the old value as-is
+        if (untouched) { delete flight[k]; _divertCleared.push(k); }
+      });
     }
   }
 
@@ -266,6 +286,18 @@ function saveFlight(options) {
   const finalFlight = (typeof recalculateFlightDayNightXC === 'function')
     ? recalculateFlightDayNightXC(flight)
     : flight;
+
+  // Second half of the diversion fix: the edit path MERGES onto the stored row
+  // ({...existingRow, ...finalFlight}), so a slot the recalc could not refill
+  // (no UTC anchor, unknown airport) would silently resurrect the old route's
+  // number from the stored row. Write an explicit empty into every cleared
+  // slot the recalc left unfilled — and into the ICAOs — so the merge carries
+  // the clear through. Empty beats a value computed for a route not flown.
+  if (_divertCleared) {
+    _divertCleared.forEach(k => { if (finalFlight[k] === undefined) finalFlight[k] = ''; });
+    if (finalFlight.dep_icao === undefined) finalFlight.dep_icao = '';
+    if (finalFlight.arr_icao === undefined) finalFlight.arr_icao = '';
+  }
 
   // Pressing Save IS accepting this row: stamp when, and by whom. Placed after
   // the recalc so the stamp covers the values actually written.

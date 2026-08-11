@@ -20,21 +20,25 @@ function _licenceTotals() {
     ? totalsWithOpening(calcStats())
     : (typeof calcStats === 'function' ? calcStats() : {});
   const bal = (typeof loadOpeningBalances === 'function') ? (loadOpeningBalances().balances || {}) : {};
-  let xcPic = 0, xcNightPic = 0, instrument = 0;
+  let xcPic = 0, xcNightPic = 0, instrAir = 0, instrSim = 0;
   (Array.isArray(flights) ? flights : []).forEach(function (f) {
     xcPic      += (+f.xcDayPic || 0) + (+f.xcNightPic || 0);
     xcNightPic += (+f.xcNightPic || 0);
-    instrument += (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0);
+    instrAir   += (+f.instActual || 0) + (+f.instHood || 0);
+    instrSim   += (+f.instSim || 0);
   });
   xcPic      += (+bal.xcDayPic || 0) + (+bal.xcNightPic || 0);
   xcNightPic += (+bal.xcNightPic || 0);
-  instrument += (+bal.instActual || 0) + (+bal.instHood || 0) + (+bal.instSim || 0);
+  instrAir   += (+bal.instActual || 0) + (+bal.instHood || 0);
+  instrSim   += (+bal.instSim || 0);
+  const instrument = instrAir + instrSim;
   return {
     total: +merged.total || +merged.block || 0,
     pic: +merged.pic || 0,
     night: +merged.night || 0,
     dualRcvd: +merged.dualRcvd || 0,
-    xcPic: xcPic, xcNightPic: xcNightPic, instrument: instrument
+    xcPic: xcPic, xcNightPic: xcNightPic, instrument: instrument,
+    instrAir: instrAir, instrSim: instrSim
   };
 }
 
@@ -46,7 +50,7 @@ const LICENCE_TARGETS = [
     { label: { fr: 'Instruction reçue (double)', en: 'Dual instruction received' }, need: 17, key: 'dualRcvd' },
     { label: { fr: 'En solo', en: 'Solo' }, need: 12, key: null },
     { label: { fr: 'Vol-voyage en solo', en: 'Solo cross-country' }, sub: { fr: 'vol ≥ 150 NM', en: 'flight ≥ 150 NM' }, need: 5, key: null },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, need: 5, key: 'instrument' }
+    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 3 h sim/sol', en: 'max 3 h sim/ground' }, need: 5, key: 'instrument', simCap: 3 }
   ] },
   { id: 'cpl', label: { fr: 'CPL', en: 'CPL' }, title: { fr: 'Licence de pilote professionnel — avion', en: 'Commercial Pilot Licence — Aeroplane' }, cite: 'Norme 421.30(4)', reqs: [
     { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 200, key: 'total' },
@@ -55,7 +59,7 @@ const LICENCE_TARGETS = [
   ] },
   { id: 'ifr', label: { fr: 'Qualif. IFR', en: 'IFR rating' }, title: { fr: 'Qualification de vol aux instruments (groupe 1)', en: 'Instrument rating (Group 1)' }, cite: 'Norme 421.46(2)', reqs: [
     { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 50, key: 'xcPic' },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 20 h au sol', en: 'max 20 h ground' }, need: 40, key: 'instrument' }
+    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 20 h au sol', en: 'max 20 h ground' }, need: 40, key: 'instrument', simCap: 20 }
   ] },
   { id: 'night', label: { fr: 'Qualif. nuit', en: 'Night rating' }, title: { fr: 'Qualification de vol de nuit — avion', en: 'Night rating — Aeroplane' }, cite: 'CAR 401.42 / Norme 421.42', reqs: [
     { label: { fr: 'Temps de vol total', en: 'Total flight time' }, need: 20, key: 'total' },
@@ -68,7 +72,7 @@ const LICENCE_TARGETS = [
     { label: { fr: 'Vol-voyage en PIC', en: 'PIC cross-country' }, need: 100, key: 'xcPic' },
     { label: { fr: 'Vol-voyage de nuit en PIC', en: 'Night PIC cross-country' }, need: 25, key: 'xcNightPic' },
     { label: { fr: 'Temps de nuit', en: 'Night time' }, need: 100, key: 'night' },
-    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 25 h sim', en: 'max 25 h sim' }, need: 75, key: 'instrument' }
+    { label: { fr: 'Temps aux instruments', en: 'Instrument time' }, sub: { fr: 'max 25 h sim', en: 'max 25 h sim' }, need: 75, key: 'instrument', simCap: 25 }
   ] }
 ];
 
@@ -88,7 +92,11 @@ function renderLicenceTracker() {
 
   const pills = LICENCE_TARGETS.map(function (tg) {
     const tracked = tg.reqs.filter(function (r) { return r.key; });
-    const allMet = tracked.length > 0 && tracked.every(function (r) { return (totals[r.key] || 0) >= r.need; });
+    const allMet = tracked.length > 0 && tracked.every(function (r) {
+      let v = totals[r.key] || 0;
+      if (r.simCap != null && r.key === 'instrument') v = (totals.instrAir || 0) + Math.min(totals.instrSim || 0, r.simCap);
+      return v >= r.need;
+    });
     const on = tg.id === cur.id;
     return '<button type="button" class="lic-pill' + (on ? ' on' : '') + (allMet ? ' done' : '') +
       '" onclick="setLicenceTarget(\'' + tg.id + '\')">' + (allMet ? '<span aria-hidden="true">✓</span> ' : '') + esc(L(tg.label)) + '</button>';
@@ -111,7 +119,10 @@ function renderLicenceTracker() {
         '</div><div class="lic-val">' + fh(r.need) + ' h</div></div><div class="lic-foot"><span class="lic-note">' +
         (fr ? 'Non suivi par Cumulo — voir vos relevés de formation' : 'Not tracked by Cumulo — see your training records') + '</span></div></div>';
     }
-    const have = totals[r.key] || 0;
+    let have = totals[r.key] || 0;
+    if (r.simCap != null && r.key === 'instrument') {
+      have = (totals.instrAir || 0) + Math.min(totals.instrSim || 0, r.simCap);
+    }
     const pct = Math.min(100, Math.round(have / r.need * 100));
     const met = have >= r.need;
     const togo = Math.max(0, r.need - have);

@@ -74,13 +74,29 @@ async function handleRosterFile(file) {
     // are NOT silently converted — we refuse to approximate.
     let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0;
     const stillMissing = [];
-    extracted.forEach(item => {
-      // Find existing flight : exact match on date + flightNum
-      const idx = flights.findIndex(f =>
-        f.date === item.date &&
-        (f.flightNum === item.flightNum || (f.route && f.route.toUpperCase() === item.route))
-      );
+    // Each logbook row may be claimed by ONE extracted leg. The old matcher's
+    // route fallback let both legs of an out-and-back day (YOW-YYZ then
+    // YYZ-YOW, or two same-route rotations) land on the FIRST row: the second
+    // leg's crew and actuals were silently swallowed or misfiled onto the
+    // wrong leg. Flight number matches are tried for the WHOLE batch first,
+    // so a route-fallback from one leg can never steal a row whose own
+    // flight number match is coming. (Final audit 2026-08-02.)
+    const _claimed = new Set();
+    const _findRow = (item, allowRouteFallback) => {
+      for (let i = 0; i < flights.length; i++) {
+        const f = flights[i];
+        if (_claimed.has(i) || !f || f.date !== item.date) continue;
+        if (f.flightNum === item.flightNum) return i;
+        if (allowRouteFallback && !item.flightNum && f.route && f.route.toUpperCase() === item.route) return i;
+      }
+      return -1;
+    };
+    const _byNum = [], _byRoute = [];
+    extracted.forEach(item => { (item.flightNum ? _byNum : _byRoute).push(item); });
+    _byNum.concat(_byRoute).forEach(item => {
+      const idx = _findRow(item, !item.flightNum);
       if (idx === -1) { noMatch++; stillMissing.push(item); return; }
+      _claimed.add(idx);
       const existing = flights[idx];
       const merged = { ...existing };
       let changed = false;

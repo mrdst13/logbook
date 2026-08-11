@@ -68,7 +68,14 @@ function _payCountry(code) {
   const icao = u.length === 4 ? u
     : ((typeof iataToIcao === 'function') ? String(iataToIcao(u) || '').toUpperCase() : u);
   if (icao.length !== 4) return 'unknown';
-  return /^K/.test(icao) ? 'us' : 'other';
+  // Only claim what is actually known: K = contiguous US, C = Canada. The old
+  // rule called EVERY other 4-letter ICAO "not US", which silently priced an
+  // Alaska (PA), Hawaii (PH) or any overseas station into the Canadian pool.
+  // Anything else is unknown, and unknown makes the period incomparable
+  // rather than wrong. (Final audit 2026-08-02.)
+  if (/^K/.test(icao)) return 'us';
+  if (/^C/.test(icao)) return 'other';
+  return 'unknown';
 }
 const _payIsUS = code => _payCountry(code) === 'us';
 const _payIsUnknownCountry = code => _payCountry(code) === 'unknown';
@@ -125,8 +132,18 @@ function groupPairings(flights, baseIcao) {
 // whole test. A layover whose outbound leg was logged without its check-in
 // falls back to the Canadian rate — the honest default, since without a fresh
 // report the data cannot tell it apart from a turn.
-function _payIsLayoverStop(legOut) {
-  return !!(legOut && legOut.ci_utc);
+function _payStopKind(legIn, legOut) {
+  if (legOut && legOut.ci_utc) return 'layover';         // fresh duty period: definitive
+  // No recorded check-in on the leg out. Same calendar date as the arrival =
+  // the same duty day = a turn, structurally (a duty period does not span
+  // days without a rest). Different dates with no check-in recorded = the
+  // data genuinely cannot tell a layover from a midnight-crossing turn, and
+  // the split must say so instead of picking a side: defaulting to "turn"
+  // priced real pre-CI-capture US layovers in CAD and manufactured the exact
+  // kind of false discrepancy the turn rule was built to kill.
+  // (Final audit 2026-08-02.)
+  if (legIn && legOut && legIn.date && legOut.date && legIn.date === legOut.date) return 'turn';
+  return 'unknown';
 }
 
 function pairingPerDiem(pairing) {
@@ -137,11 +154,20 @@ function pairingPerDiem(pairing) {
   let usMin = 0, unknownMin = 0, unknownStations = 0;
   for (let i = 0; i < pairing.length - 1; i++) {
     // A turn's ground time stays in the Canadian pool no matter the station:
-    // the country split below only applies to a real layover, and a turn at an
-    // unknown station needs no country at all. (Martin 2026-08-02 — a KBOS
-    // turn was being priced as US hours, manufacturing a per-diem discrepancy
-    // against a stub that had correctly paid the whole day in CAD.)
-    if (!_payIsLayoverStop(pairing[i + 1])) continue;
+    // The country split below only applies to a real layover: a turn's ground
+    // time is Canadian wherever the airplane is parked (Martin 2026-08-02). An
+    // UNKNOWN stop (no check-in, dates differ) at a Canadian station is still
+    // Canadian either way; at any other station the hours leave both pools and
+    // the period is flagged incomparable rather than guessed.
+    const _stop = _payStopKind(pairing[i], pairing[i + 1]);
+    if (_stop === 'turn') continue;
+    if (_stop === 'unknown' && _payCountry(pairing[i].arr_icao) !== 'other') {
+      unknownStations++;
+      const us = _payReleaseMs(pairing[i]), ue = _payReportMs(pairing[i + 1]);
+      if (!isNaN(us) && !isNaN(ue)) unknownMin += Math.max(0, (ue - us) / 60000);
+      continue;
+    }
+    if (_stop === 'unknown') continue;                   // Canadian station: CAD either way
     // A station this app cannot place in a country is counted as neither.
     // Treating it as Canadian paid a Fort Myers overnight at the domestic
     // rate and produced a phantom shortfall. (Audit 2026-07-27.)
@@ -171,7 +197,7 @@ function pairingPerDiem(pairing) {
 function computePerDiem(flights, baseIcao, rates) {
   const r = rates || {};
   const cdnRate = +r.cdn || 0, usUsd = +r.usUsd || 0, fx = +r.fx || 1;
-  let awayH = 0, usH = 0, cdnH = 0, openP = 0, unknownSt = 0;
+  let awayH = 0, usH = 0, cdnH = 0, unkH = 0, openP = 0, unknownSt = 0;
   const pairings = groupPairings(flights, baseIcao);
   // An open-ended pairing is skipped, never priced. Its release time is
   // genuinely unknown, and counting it to the last logged check-out would
@@ -180,7 +206,7 @@ function computePerDiem(flights, baseIcao, rates) {
   // discrepancy it cannot support.
   pairings.forEach(p => {
     if (p.openEnded) { openP++; return; }
-    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours; unknownSt += (d.unknownStations || 0);
+    const d = pairingPerDiem(p); awayH += d.awayHours; usH += d.usHours; cdnH += d.cdnHours; unkH += (d.unknownHours || 0); unknownSt += (d.unknownStations || 0);
   });
   const round2 = n => Math.round(n * 100) / 100;
   return {
@@ -188,6 +214,7 @@ function computePerDiem(flights, baseIcao, rates) {
     openPairings: openP,
     unknownStations: unknownSt,
     awayHours: round2(awayH), cdnHours: round2(cdnH), usHours: round2(usH),
+    unknownHours: round2(unkH),
     cdnAmount: round2(cdnH * cdnRate),
     usAmount: round2(usH * usUsd * fx),
     total: round2(cdnH * cdnRate + usH * usUsd * fx)
@@ -274,9 +301,10 @@ function usPerDiemDays(flights, baseIcao) {
     // fabricated 126-hour US layover.
     if (p.openEnded) return;
     for (let i = 0; i < p.length - 1; i++) {
-      // A turn is not a US layover day, whatever the station (see
-      // _payIsLayoverStop). Listing one here would contradict the totals.
-      if (!_payIsLayoverStop(p[i + 1])) continue;
+      // Only a confirmed layover is a US layover day; a turn or an unknown
+      // stop is not (see _payStopKind). Listing one here would contradict
+      // the totals.
+      if (_payStopKind(p[i], p[i + 1]) !== 'layover') continue;
       if (!_payIsUS(p[i].arr_icao)) continue;
       const start = _payReleaseMs(p[i]);       // check-out of the flight into the US
       const end = _payReportMs(p[i + 1]);       // check-in of the flight out of the US
@@ -350,11 +378,20 @@ function computePerDiemInPeriod(flights, baseIcao, rates, startMs, endMs) {
     if (away <= 0) return;
     n++; awayMs += away;
     for (let i = 0; i < p.length - 1; i++) {
-      // Same three-state rule as pairingPerDiem — including the layover gate:
-      // a turn's ground time is Canadian wherever it happens. This path is the
-      // one that runs whenever a stub is loaded, so leaving it out made the
-      // whole fix inert exactly where the comparison happens.
-      if (!_payIsLayoverStop(p[i + 1])) continue;
+      // Same three-state rule as pairingPerDiem — including the stop
+      // classifier: a turn's ground time is Canadian wherever it happens, and
+      // an unknown stop at a non-Canadian station makes the period
+      // incomparable. This path is the one that runs whenever a stub is
+      // loaded, so leaving it out made the whole fix inert exactly where the
+      // comparison happens.
+      const _stop = _payStopKind(p[i], p[i + 1]);
+      if (_stop === 'turn') continue;
+      if (_stop === 'unknown' && _payCountry(p[i].arr_icao) !== 'other') {
+        const g = clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
+        unkSt++; if (g > 0) unkMs += g;
+        continue;
+      }
+      if (_stop === 'unknown') continue;
       if (_payIsUnknownCountry(p[i].arr_icao)) {
         const g = clip(_payReleaseMs(p[i]), _payReportMs(p[i + 1]));
         if (g > 0) { unkSt++; unkMs += g; }
@@ -662,6 +699,20 @@ function _paySparkSvg(items, fr, money) {
 // Quick per-period verdict for the statement rows: the per-diem HOURS check
 // (the error detector) run against a stored stub. 'none' = honestly not
 // comparable (no readable paid hours, or no flights logged in that window).
+// One comparison for the per-diem verdict, shared by the main check and the
+// period quick check. 1.0 h covers timing slop across a period; the dollar
+// gate is that same hour tolerance at the configured rate. The main page used
+// a bare $0.02 gate while history used the derived one, so the same stub
+// could be red on one page and "Verified" on the other. (Final audit
+// 2026-08-02.)
+const PD_TOL_H = 1.0;
+function _pdMatch(computedH, computedAmt, paidH, paidAmt, rate) {
+  const hOk = paidH == null || Math.abs(computedH - paidH) <= PD_TOL_H;
+  const amtTol = 0.02 + Math.abs(PD_TOL_H * (+rate || 0));
+  const aOk = paidAmt == null || Math.abs(computedAmt - paidAmt) <= amtTol;
+  return hOk && aOk;
+}
+
 function _payQuickCheck(stub, bkx, range, allFls, st) {
   if (!range) return 'none';
   const paidH = (bkx.perDiemCdn && bkx.perDiemCdn.units != null) ? bkx.perDiemCdn.units : null;
@@ -675,15 +726,13 @@ function _payQuickCheck(stub, bkx, range, allFls, st) {
   // app cannot place in a country, means the computed figure is knowingly
   // incomplete. Badging that Verified would vouch for a comparison never made.
   if (pdx.openPairings > 0 || pdx.unknownStations > 0) return 'none';
-  if (Math.abs(pdx.cdnHours - paidH) > 1.0) return 'issue';
   // Hours alone are not enough. A period can match to the hour and still be
-  // paid at the wrong RATE, which used to come back badged Verified.
+  // paid at the wrong RATE, which used to come back badged Verified. Same
+  // shared comparison as the main page (_pdMatch), so the two can never
+  // disagree about the same stub.
   const paidAmt = (bkx.perDiemCdn && bkx.perDiemCdn.amount != null) ? bkx.perDiemCdn.amount : null;
-  if (paidAmt != null && +st.cdn > 0) {
-    const expected = pdx.cdnHours * (+st.cdn);
-    if (Math.abs(expected - paidAmt) > 0.02 + Math.abs(1.0 * (+st.cdn))) return 'issue';
-  }
-  return 'ok';
+  return _pdMatch(pdx.cdnHours, pdx.cdnHours * (+st.cdn || 0), paidH, (+st.cdn > 0) ? paidAmt : null, st.cdn)
+    ? 'ok' : 'issue';
 }
 
 function payRender() {
@@ -819,8 +868,8 @@ function payRender() {
     // is incomplete. Name the gap instead of asserting a shortfall.
     pdCheck.status = 'info';
     pdCheck.desc = fr
-      ? 'Une escale de cette période est à un aéroport que Cumulo ne sait pas situer, donc ni canadienne ni américaine. Le per diem de cette période ne peut pas être comparé au talon.'
-      : 'A layover in this period is at an airport Cumulo cannot place in a country, so it counts as neither Canadian nor US. The per diem for this period cannot be compared against the stub.';
+      ? 'Une escale de cette période ne peut pas être classée : aéroport que Cumulo ne sait pas situer, ou arrêt hors base sans heure de présentation enregistrée. Le per diem de cette période ne peut pas être comparé au talon.'
+      : 'A stop in this period cannot be classified: an airport Cumulo cannot place in a country, or an away stop with no recorded report time. The per diem for this period cannot be compared against the stub.';
   } else if (pd.openPairings > 0) {
     // A trip with no logged return to base has an unknown release time, so
     // its per diem is not counted at all. Comparing a deliberately partial
@@ -846,9 +895,7 @@ function payRender() {
       pdCheck.desc = fr ? 'Rien d’attendu, rien de payé.' : 'Nothing expected, nothing paid.';
     }
   } else {
-    const hOk = paidCdnH == null || Math.abs(pd.cdnHours - paidCdnH) <= 1.0;
-    const aOk = paidCdnAmt == null || Math.abs(pd.cdnAmount - paidCdnAmt) < 0.02;
-    if (hOk && aOk) {
+    if (_pdMatch(pd.cdnHours, pd.cdnAmount, paidCdnH, paidCdnAmt, st.cdn)) {
       pdCheck.status = 'ok';
       pdCheck.desc = fr
         ? 'Heures et montant concordent' + C + ' ' + hL(pd.cdnHours) + ' h · ' + money(paidCdnAmt != null ? paidCdnAmt : pd.cdnAmount) + '.'
@@ -1416,7 +1463,10 @@ function payStubHistory(all, curYm, allFls, st, fr, money, hL, cur) {
       badges.push('<span class="badge badge-issue"><span class="bdot"></span>' +
         (nIss ? nIss + ' ' + (fr ? 'problème' + (nIss > 1 ? 's' : '') : 'issue' + (nIss > 1 ? 's' : '')) : (fr ? 'Écart per diem' : 'Per diem gap')) + '</span>');
     } else if (it.status === 'ok') {
-      badges.push('<span class="badge badge-ok"><span class="bdot"></span>' + (fr ? 'Vérifié' : 'Verified') + '</span>');
+      // Named for what the quick check actually compares — the Canadian per
+      // diem — never an unqualified "Verified" vouching for the whole deposit.
+      // (Final audit 2026-08-02.)
+      badges.push('<span class="badge badge-ok"><span class="bdot"></span>' + (fr ? 'Per diem vérifié' : 'Per diem checked') + '</span>');
     } else {
       badges.push('<span class="badge badge-neutral">' + (fr ? 'Non comparé' : 'Not compared') + '</span>');
     }

@@ -265,6 +265,10 @@ function injectDemoBanner() {
  // Wire form validation + HHMM masks on the Add Flight form. Safe to call
  // even before the page is visible — listeners attach to existing IDs.
  if (typeof wireFlightFormValidation === 'function') wireFlightFormValidation();
+ // Verify the brought-forward seal once per launch (quiet unless it fails).
+ // The check lost its only caller when the dashboard card was removed at
+ // Martin's request; the CHECK comes back, the card does not. (Audit 2026-08-02.)
+ if (typeof checkOpeningBalancesSeal === 'function') checkOpeningBalancesSeal();
  // First-launch onboarding (only if no profile name set)
  if (shouldShowOnboarding()) {
  setTimeout(startOnboarding, 400);

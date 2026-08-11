@@ -422,7 +422,10 @@ function _dashGoalAchievedHours(kind, context, s) {
     const needle = context.toUpperCase().trim();
     const logged = flights.reduce((sum, f) => {
       const type = (f.type || '').toUpperCase();
-      return type.includes(needle) ? sum + (+f.block || 0) : sum;
+      // Through flightTimeOf like every other total: a raw block read counted
+      // simulator sessions into an aircraft-type goal and gave zero credit to
+      // a total-only row. (Final audit 2026-08-02.)
+      return type.includes(needle) ? sum + flightTimeOf(f) : sum;
     }, 0);
     // Hours already flown on this type BEFORE Cumulo (from the paper logbook).
     // Without it a type goal starts at zero and ignores a career already flown

@@ -293,6 +293,39 @@ async function verifyOpeningBalances(rec) {
   }
 }
 
+// Run the seal check and SAY SO only when it fails. Removing the standing
+// "sealed and verified" dashboard card (5c2f897, at Martin's request) also
+// removed the only caller of verifyOpeningBalances — a regression of audit
+// item 8: the seal existed, was stored, was promised in the pre-sign copy, and
+// was never checked again. Caught by the 2026-08-02 final audit. This restores
+// the CHECK without restoring the card he asked to remove: silence when the
+// seal holds, a toast plus a red line on the brought-forward page when it does
+// not. Runs at launch (99-init.js) and on every brought-forward page open.
+let _sealAlarmShown = false;
+function checkOpeningBalancesSeal() {
+  return verifyOpeningBalances().then(res => {
+    if (res.ok) return res;
+    const fr = (typeof getLang === 'function') && getLang() === 'fr';
+    // The one legitimate benign cause: a record adopted from the cloud before
+    // attested_by was carried end-to-end has no signer, and the seal binds the
+    // signer. Say WHICH problem it is rather than crying tamper.
+    const rec = loadOpeningBalances();
+    const noSigner = !!(rec && rec.hash && !rec.attestedBy);
+    const msg = noSigner
+      ? (fr ? 'Heures reportées : le sceau ne peut pas être vérifié (signataire absent du dossier adopté). Rouvre la page Heures reportées et atteste de nouveau pour resceller.'
+            : 'Brought-forward hours: the seal cannot be verified (no signer on the adopted record). Reopen the Brought forward page and attest again to re-seal.')
+      : (fr ? 'Heures reportées : la vérification du sceau a échoué. Une valeur a changé depuis la signature. Rouvre la page Heures reportées pour revoir et resceller.'
+            : 'Brought-forward hours: the seal check failed. A value changed since signing. Reopen the Brought forward page to review and re-seal.');
+    if (!_sealAlarmShown && typeof showToast === 'function') {
+      _sealAlarmShown = true;             // once per session — a warning, not a nag
+      showToast(msg, 'error');
+    }
+    const slot = document.getElementById('bfSealAlarm');
+    if (slot) slot.innerHTML = '<div style="margin-top:8px;font-size:12px;color:var(--danger-text,#8a1f1f);background:var(--danger-soft,rgba(200,60,60,.12));border:0.5px solid var(--danger,#c04545);border-radius:8px;padding:8px 10px;">' + msg + '</div>';
+    return res;
+  }).catch(() => ({ sealed: true, ok: true }));
+}
+
 // Persist the balances + attestation metadata + append to audit log.
 async function saveOpeningBalances(balances, cutoffDate, attestedBy) {
   const clean = {};
@@ -749,6 +782,7 @@ function renderBroughtForwardPage() {
           ? 'La plupart des pilotes n\'ont besoin que de la section <em>Totaux carrière</em> ci-dessous. Les sections de détail sont optionnelles — ouvrez seulement ce que votre carnet papier suivait.'
           : 'Most pilots only need the <em>Career totals</em> section below. The detail sections are optional — only open what your paper logbook actually tracked.'}</p>
         ${hasAny && attestedStr ? `<div class="bf-attest-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${fr ? `Attestées le ${attestedStr}` : `Attested ${attestedStr}`}</div>` : ''}
+        <div id="bfSealAlarm"></div>
         ${_useDraft ? `<div style="margin-top:8px;font-size:12px;color:var(--warning-text);background:var(--warning-soft);border:0.5px solid var(--warning);border-radius:8px;padding:8px 10px;">${fr ? 'Vous reprenez un brouillon — pas encore attesté. Vos valeurs sont conservées ; rien n\'est attesté tant que vous n\'avez pas signé.' : 'You\'re resuming a draft — not yet attested. Your values are kept; nothing is attested until you sign.'}</div>` : ''}
       </div>
     </div>

@@ -385,37 +385,6 @@ function rowSyncSig(row) {
 // 08-flight-form.js, 99-init.js.
 // ─────────────────────────────────────────────────────────────────
 const Sync = {
-  // Called from saveFlight() after the local write succeeds.
-  async pushFlight(flight) {
-    if (!Auth.isAuthenticated()) return;
-    const row = localFlightToRow(flight, Auth.currentUserId());
-    try {
-      const { error } = await Auth.client.from('flights').upsert(row, { onConflict: 'id' });
-      if (error) {
-        console.warn('[Sync] pushFlight failed, queuing:', error.message);
-        this._enqueue({ type: 'upsert_flight', payload: row });
-        return;
-      }
-    } catch (e) {
-      console.warn('[Sync] pushFlight threw, queuing:', e);
-      this._enqueue({ type: 'upsert_flight', payload: row });
-      return;
-    }
-    // Persist the (possibly minted) id and stamp the LWW marker so a
-    // subsequent pullFlights doesn't clobber this fresh local write.
-    let dirty = false;
-    if (!flight.id) { flight.id = row.id; dirty = true; }
-    flight._updated_at = row.client_updated_at;
-    // Record the synced fingerprint so the bulk auto-sync won't re-push this
-    // same row (which would re-stamp it over another device's later edit).
-    const _sm = this._loadSyncedSig();
-    _sm[flight.id] = rowSyncSig(row);
-    this._saveSyncedSig(_sm);
-    if (dirty) {
-      this._suppressAutoSync = true;
-      try { DB.save(flights); } finally { this._suppressAutoSync = false; }
-    }
-  },
 
   // Soft delete (deleted_at) instead of hard DELETE: other devices still
   // hold this flight locally and would re-upsert it on their next auto-sync,
@@ -959,14 +928,30 @@ const Sync = {
     // Custom validities (Passport / RAIC / Line check…): UNION by name so every
     // device's entries appear on the others. Device-generated ids differ, so we
     // dedup on name rather than id. (Martin 2026-07-08.)
+    //
+    // A DELETED validity travels as a tombstone ({name, deleted, deletedAt})
+    // and the tombstone WINS the union — that is the whole point: deleting on
+    // one device used to resurrect from the other within one pull. The single
+    // exception: a live entry re-added AFTER the deletion (addedAt newer than
+    // deletedAt) wins back, so delete-then-recreate behaves. (2026-08-02.)
     if (Array.isArray(row.custom_validities) && row.custom_validities.length) {
       const localCV = Array.isArray(local.customValidities) ? local.customValidities : [];
       const byName = new Map();
-      [...localCV, ...row.custom_validities].forEach(v => {
-        if (v && v.name) { const k = String(v.name).toLowerCase().trim(); if (!byName.has(k)) byName.set(k, v); }
-      });
+      const consider = (v) => {
+        if (!v || !v.name) return;
+        const k = String(v.name).toLowerCase().trim();
+        const cur = byName.get(k);
+        if (!cur) { byName.set(k, v); return; }
+        const curDel = !!cur.deleted, vDel = !!v.deleted;
+        if (curDel === vDel) return;                    // same kind: first (local) wins
+        const tomb = curDel ? cur : v, live = curDel ? v : cur;
+        const reAdded = live.addedAt && (!tomb.deletedAt || live.addedAt > tomb.deletedAt);
+        byName.set(k, reAdded ? live : tomb);
+      };
+      localCV.forEach(consider);
+      row.custom_validities.forEach(consider);
       const merged = [...byName.values()];
-      if (merged.length !== localCV.length) { local.customValidities = merged; changed = true; }
+      if (JSON.stringify(merged) !== JSON.stringify(localCV)) { local.customValidities = merged; changed = true; }
     }
     // Per-type goal brought-forward (e.g. 782.7 h on E195-E2) — fill-empty.
     if (isBlank(local.personalGoalBroughtForward) && !isBlank(row.personal_goal_bf)) {
@@ -1081,11 +1066,22 @@ const Sync = {
       user_id: Auth.currentUserId(),
       balances: rec.balances,
       attested_at: rec.attestedAt || null,
+      // The signer is part of what the SHA-256 seal binds. Without it a record
+      // adopted on a second device could never re-verify its own seal — the
+      // exact false tamper alarm the 2026-08-01 newest-attestation rule was
+      // rolled back over. Carried end to end since 2026-08-02
+      // (supabase/add-attested-by-2026-08-02.sql).
+      attested_by: rec.attestedBy || null,
       cutoff_date: rec.cutoffDate || null,
       hash: rec.hash || null,
       updated_at: new Date().toISOString(),
     };
-    const { error } = await Auth.client.from('opening_balances').upsert(row, { onConflict: 'user_id' });
+    let { error } = await Auth.client.from('opening_balances').upsert(row, { onConflict: 'user_id' });
+    if (error && isMissingColumnError(error)) {
+      // Database not yet migrated: push everything else rather than nothing.
+      const { attested_by, ...safe } = row;
+      ({ error } = await Auth.client.from('opening_balances').upsert(safe, { onConflict: 'user_id' }));
+    }
     if (error) {
       console.warn('[Sync] pushOpeningBalances failed, queuing:', error.message);
       this._enqueue({ type: 'upsert_opening_balances', payload: row });
@@ -1122,6 +1118,11 @@ const Sync = {
       balances: row.balances,
       cutoffDate: row.cutoff_date || null,
       attestedAt: row.attested_at || null,
+      // Without the signer the seal cannot re-verify on this device (it binds
+      // the signer). Adopt it when the cloud has it; when it does not, the
+      // launch-time seal check names the missing signer instead of crying
+      // tamper. (Audit 2026-08-02.)
+      attestedBy: row.attested_by || null,
       hash: row.hash || null,
     };
     try {
@@ -1347,6 +1348,41 @@ const Sync = {
       try {
         if (op.type === 'upsert_flight') {
           coerceRowTypes(op.payload);
+          // A queued op is a FROZEN snapshot from when this device was
+          // offline. If the cloud row is NEWER than the snapshot, the pilot
+          // corrected this flight on another device after the snapshot was
+          // taken — replaying it would silently revert his newer correction
+          // in a certifiable logbook (the documented tie-break, previously
+          // never implemented; final audit 2026-08-02). Cloud wins: drop the
+          // op and let the next pull adopt the newer row. Read failures keep
+          // the op queued rather than guessing.
+          if (op.payload.id && op.payload.client_updated_at) {
+            try {
+              const { data: curRows, error: curErr } = await Auth.client.from('flights')
+                .select('id, client_updated_at').eq('id', op.payload.id);
+              if (curErr) { requeue(op); continue; }
+              const cur = curRows && curRows[0];
+              if (cur && cur.client_updated_at &&
+                  new Date(cur.client_updated_at).getTime() > new Date(op.payload.client_updated_at).getTime()) {
+                console.warn('[Sync] dropping stale queued edit for', op.payload.id, '- the cloud row is newer');
+                // Mark the LOCAL copy clean at its CURRENT content, so the
+                // pull's dirty-by-fingerprint guard lets the newer cloud row
+                // in. Deleting the baseline instead would do the opposite:
+                // pushAllFlights treats a missing baseline as dirty and would
+                // re-push the stale content with a fresh timestamp — the very
+                // failure this guard exists to close.
+                try {
+                  const lf = (typeof flights !== 'undefined' && Array.isArray(flights))
+                    ? flights.find(x => x && x.id === op.payload.id) : null;
+                  const sig = this._loadSyncedSig() || {};
+                  if (lf) sig[op.payload.id] = rowSyncSig(localFlightToRow(lf, Auth.currentUserId()));
+                  else delete sig[op.payload.id];
+                  this._saveSyncedSig(sig);
+                } catch (e2) { /* non-fatal: worst case one extra push/pull cycle */ }
+                continue;
+              }
+            } catch (e2) { requeue(op); continue; }
+          }
           let { error } = await Auth.client.from('flights').upsert(op.payload, { onConflict: 'id' });
           if (error && error.code === '23505' && op.payload.navblue_uid) {
             // Dedup-index collision — same fallback as pushAllFlights:

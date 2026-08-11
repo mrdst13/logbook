@@ -144,7 +144,16 @@ await w.eval('syncNavblueNow({ silent: true })');
   `);
   const note = JSON.parse(w.localStorage.getItem('cumulo_roster_pending_today_v1'));
   chk('updating one field keeps the other', Array.isArray(note.flights) && note.flights.length === 1);
-  chk('and records the new one', Array.isArray(note.eligible) && note.eligible.length === 1);
+  chk('and records the new one', Array.isArray(note.eligible) &&
+    note.eligible.some(function (g) { return g.date === '2026-07-19' && g.flightNum === 'PD100'; }));
+  // The eligible list is a UNION: a leg outstanding from an earlier sync must
+  // survive a later write that no longer carries it — the feed is a rolling
+  // window and the safety net must not decay with it.
+  w.eval("persistOutstandingLegs({ eligible: [{ date: '2026-07-21', flightNum: 'PD200', route: 'YOW-YHZ' }] });");
+  const note2 = JSON.parse(w.localStorage.getItem('cumulo_roster_pending_today_v1'));
+  chk('a leg that aged out of the feed stays outstanding',
+    note2.eligible.some(function (g) { return g.flightNum === 'PD100'; }) &&
+    note2.eligible.some(function (g) { return g.flightNum === 'PD200'; }));
 }
 
 

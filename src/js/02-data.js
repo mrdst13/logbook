@@ -208,33 +208,42 @@ function calcStats() {
   const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 30);
   flights.forEach(f => {
     total += flightTimeOf(f);
-    // PIC includes single-engine time (seDay/seNight): per Transport Canada,
-    // PIC is PIC regardless of engine count. The app has a single SE bucket
-    // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
-    pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
-         + (+f.seDay||0) + (+f.seNight||0);
-    sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
-    // Night = all night flying, every aircraft class/role — shared helper.
-    night += nightHoursOf(f);
-    // Career landing total = aircraft landings only. Sim landings are recorded
-    // for recency (CAR 401.05(2)(b)) but are not real-aircraft landings.
-    if (!f.isSim) ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
-    me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
-    heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
-          + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
-    hover += +f.hoverTime || 0;
-    dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
-    // Dual RECEIVED (student's own instruction) — every *Dual bucket. Surfaced
-    // so students/PPL see their hours (their PIC total is ~0 early on).
-    dualRcvd += (+f.seDayDual||0) + (+f.seNightDual||0)
-              + (+f.meDayDual||0) + (+f.meNightDual||0)
-              + (+f.heliDayDual||0) + (+f.heliNightDual||0);
-    // PICUS (PIC under supervision) — its own ATPL-creditable total. Collected
-    // and stored but previously never summed, so it vanished from career
-    // figures. Kept SEPARATE from PIC, never folded in. (Opus audit.)
-    picus += +f.picus || 0;
-    xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
-        + (+f.xcDayCop||0)+(+f.xcNightCop||0);
+    // A simulator session is NOT flight time (same rule flightTimeOf applies
+    // to `total`), so none of its HOUR buckets may reach the career PIC / SIC /
+    // ME / XC / night figures. The landing total already excluded sims; the
+    // hour buckets did not, so a sim row that carried ME or XC values (typed,
+    // or converted from a real leg) quietly inflated certifiable career
+    // totals. (Final audit 2026-08-02.) Landings on qualifying sims still
+    // count toward RECENCY — that is countsTowardRecency's job, not this sum.
+    if (!f.isSim) {
+      // PIC includes single-engine time (seDay/seNight): per Transport Canada,
+      // PIC is PIC regardless of engine count. The app has a single SE bucket
+      // (no SE PIC/dual split), so SE time is treated as PIC per the app's model.
+      pic += (+f.meDayPic||0) + (+f.meNightPic||0) + (+f.heliDayPic||0) + (+f.heliNightPic||0)
+           + (+f.seDay||0) + (+f.seNight||0);
+      sic += (+f.meDayCop||0) + (+f.meNightCop||0) + (+f.heliDayCop||0) + (+f.heliNightCop||0);
+      // Night = all night flying, every aircraft class/role — shared helper.
+      night += nightHoursOf(f);
+      // Career landing total = aircraft landings only. Sim landings are recorded
+      // for recency (CAR 401.05(2)(b)) but are not real-aircraft landings.
+      ldg += (+f.ldgDay||0) + (+f.ldgNight||0);
+      me += (+f.meDayPic||0)+(+f.meDayDual||0)+(+f.meDayCop||0)+(+f.meNightPic||0)+(+f.meNightDual||0)+(+f.meNightCop||0);
+      heli += (+f.heliDayPic||0)+(+f.heliDayDual||0)+(+f.heliDayCop||0)
+            + (+f.heliNightPic||0)+(+f.heliNightDual||0)+(+f.heliNightCop||0);
+      hover += +f.hoverTime || 0;
+      dualGiven += (+f.dualGivenDay||0) + (+f.dualGivenNight||0);
+      // Dual RECEIVED (student's own instruction) — every *Dual bucket. Surfaced
+      // so students/PPL see their hours (their PIC total is ~0 early on).
+      dualRcvd += (+f.seDayDual||0) + (+f.seNightDual||0)
+                + (+f.meDayDual||0) + (+f.meNightDual||0)
+                + (+f.heliDayDual||0) + (+f.heliNightDual||0);
+      // PICUS (PIC under supervision) — its own ATPL-creditable total. Collected
+      // and stored but previously never summed, so it vanished from career
+      // figures. Kept SEPARATE from PIC, never folded in. (Opus audit.)
+      picus += +f.picus || 0;
+      xc += (+f.xcDayPic||0)+(+f.xcDayDual||0)+(+f.xcNightPic||0)+(+f.xcNightDual||0)
+          + (+f.xcDayCop||0)+(+f.xcNightCop||0);
+    }
     // Through flightTimeOf, like `total` above: a simulator session is not
     // flight time. Reading the raw block here made the 30-day delta pill and
     // the sparkline contradict the hero printed directly above them, and the
@@ -720,23 +729,6 @@ function recalculateAllFlights() {
   // recalculateAllFlightsInternal() directly.
   console.warn('[Recalc] Manual bulk-recalc is disabled (TC compliance). Edit individual flights via Add/Edit instead.');
   return;
-  // ─── former body (kept for git-blame reference only, never executes) ───
-  snapshotBeforeOperation('Recalculate Night & XC');
-  updateUndoButton();
-  const result = recalculateAllFlightsInternal();
-  DB.save(flights);
-  renderDashboard();
-  // Build honest detailed message
-  const parts = [];
-  parts.push(`${result.updated} recalculated`);
-  if (result.skippedNoUTC) parts.push(`${result.skippedNoUTC} skipped (no UTC time — use "Clean & re-sync" below)`);
-  if (result.skippedNoCoords) parts.push(`${result.skippedNoCoords} skipped (unknown airport coords)`);
-  if (result.skippedNoBlock) parts.push(`${result.skippedNoBlock} skipped (zero block hours)`);
-  const totalSkipped = result.skippedNoUTC + result.skippedNoCoords + result.skippedNoBlock;
-  const toastType = result.updated > 0 && totalSkipped === 0 ? 'success'
-                  : totalSkipped > 0 ? 'error' : 'success';
-  showToast(parts.join(' · '), toastType);
-  console.log('[Recalc] Details:', result, 'flights:', flights.length);
 }
 
 function recalculateAllFlightsInternal() {

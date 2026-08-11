@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────
 //  EXPORT PDF — Transport Canada compliant (CAR 401.08 + Standard 421)
 //  - Cover page (pilot identity, license, medical, type ratings)
-//  - Log pages : 22 flights/page, page totals + cumulative running totals
+//  - Log pages : 24 flights/page (ROWS_PER_PAGE), page totals + cumulative running totals
 //  - Signature line on EVERY page (TC inspector expectation)
 //  - Single-line strike-through for corrections (audit best practice)
 //  - Decimal hours 0.1h (TC standard)
@@ -75,6 +75,14 @@ function pdfCellValue(f, key) {
   // Coercing at this seam fixes the cell and the total together, and repairs
   // values already stored. (Audit 2026-07-27.)
   if (PDF_INT_TALLY_KEYS.has(key)) {
+    // The landing/approach columns of the TC grid are AIRCRAFT figures: the
+    // cover's career "Landings" excludes simulators (calcStats), and a sim
+    // session's landings counting into the printed CUMULATIVE row contradicted
+    // the cover of the same PDF. Zero here keeps cell, column sum and cover
+    // consistent; qualifying sim landings still reach the RECENCY annexe
+    // through countsTowardRecency, which is that page's own filter.
+    // (Final audit 2026-08-02.)
+    if (f && f.isSim) return 0;
     const n = +computeCellValue(f, key);
     return Number.isFinite(n) ? n : 0;
   }
@@ -417,7 +425,18 @@ function _generatePDF() {
   // log-page running totals agree with it. PAGE TOTALS stay flights-only by
   // design (they are per-page, not career cumulative).
   const _pdfHasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
-  const _openingSeed = (_pdfHasBF && typeof totalsWithOpening === 'function') ? totalsWithOpening({}) : {};
+  // totalsWithOpening({}) speaks in AGGREGATE keys (total, pic, night, xc...)
+  // while the grid's cumulative columns are per-slot keys (xcDayPic,
+  // instActual...). Seeding from the aggregates alone left every attested
+  // detail column at 0, so the CARRIED FORWARD row silently printed a floor
+  // as if it were the career figure. The raw attested balances already live
+  // in per-slot key space (the licence tracker reads them that way); merge
+  // them underneath so both key spaces seed. (Final audit 2026-08-02.)
+  const _rawBal = (_pdfHasBF && typeof loadOpeningBalances === 'function')
+    ? (loadOpeningBalances().balances || {}) : {};
+  const _openingSeed = _pdfHasBF
+    ? Object.assign({}, _rawBal, (typeof totalsWithOpening === 'function') ? totalsWithOpening({}) : {})
+    : {};
   if (_pdfHasBF) {
     Object.assign(runTotals, openingSeedForCumulative(cols, _openingSeed));
   }
@@ -664,19 +683,29 @@ function _generatePDF() {
     const instHours6m = _in6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
     const items = [
+      // Take-offs are logged far more sparsely than landings in this logbook
+      // (imports fill landings; take-offs are hand-typed). A shortfall of
+      // RECORDED take-offs cannot prove the pilot is not current — it proves
+      // the logging is incomplete — so it renders UNKNOWN, never a false
+      // NOT CURRENT on a paper an inspector reads. Landings CAN fail the item
+      // definitively. Detection stays positive-only. (Final audit 2026-08-02.)
       {
         title: 'Passenger-carrying currency (Day)',
         reg: 'CAR 401.05(2)(a)',
         requirement: '5 take-offs and 5 landings within preceding 6 months',
-        current: `${to6m} take-off${to6m !== 1 ? 's' : ''} · ${ldg6mTotal} landing${ldg6mTotal !== 1 ? 's' : ''} in last 6 months`,
-        ok: to6m >= 5 && ldg6mTotal >= 5
+        current: ldg6mTotal >= 5 && to6m < 5
+          ? `${ldg6mTotal} landings · ${to6m} take-off${to6m !== 1 ? 's' : ''} recorded (take-off logging may be incomplete)`
+          : `${to6m} take-off${to6m !== 1 ? 's' : ''} · ${ldg6mTotal} landing${ldg6mTotal !== 1 ? 's' : ''} in last 6 months`,
+        ok: ldg6mTotal < 5 ? false : (to6m >= 5 ? true : null)
       },
       {
         title: 'Passenger-carrying currency (Night)',
         reg: 'CAR 401.05(2)(b)',
         requirement: '5 night take-offs and 5 night landings within preceding 6 months',
-        current: `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
-        ok: to6mNight >= 5 && ldg6mNight >= 5
+        current: ldg6mNight >= 5 && to6mNight < 5
+          ? `${ldg6mNight} night landings · ${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} recorded (take-off logging may be incomplete)`
+          : `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
+        ok: ldg6mNight < 5 ? false : (to6mNight >= 5 ? true : null)
       },
       {
         title: 'IFR currency — approaches',

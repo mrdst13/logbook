@@ -322,6 +322,22 @@ function fdpPrefillFromRoster() {
     const mSel = document.getElementById('fdp-report-m');
     const legsIn = document.getElementById('fdp-legs');
     if (!hSel || !mSel || !legsIn) return false;
+    // The check-in time is STATION-local, so the station select must point at
+    // a zone with the SAME offset — pairing a Kelowna 06:00 check-in with the
+    // Toronto default read it as an 06:00 Toronto start and overstated the
+    // day's maximum. No matching zone in the list = no prefill at all, never a
+    // wrong pairing. Acclimatized-to stays where the pilot set it: that is
+    // about HIM, not about today's station. (Final audit 2026-08-02.)
+    const evOff = (typeof todays[0].offMin === 'number') ? todays[0].offMin : null;
+    const stSel = document.getElementById('fdp-station');
+    let stIdx = -1;
+    if (evOff !== null && stSel) {
+      for (let ci = 0; ci < FDP_CITIES.length; ci++) {
+        if (_fdpOffMin(FDP_CITIES[ci].tz) === evOff) { stIdx = ci; break; }
+      }
+      if (stIdx < 0) return false;   // unknown zone: keep defaults, say nothing
+      stSel.value = String(stIdx);
+    }
     hSel.value = String(+hhmm.slice(0, 2));
     mSel.value = String(+hhmm.slice(2, 4));
     legsIn.value = String(todays.length);

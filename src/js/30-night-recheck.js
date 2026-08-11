@@ -190,7 +190,6 @@ function buildNightRecheckPlan(anchorMap) {
 
     const meChanges = Math.abs(fixed.dayHours - curDay) > NIGHT_RECHECK_EPS ||
                       Math.abs(fixed.nightHours - curNight) > NIGHT_RECHECK_EPS;
-    if (!meChanges && !xcChanges && !anchorFixed) continue;
     if (!meChanges && !xcChanges) continue;
 
     rows.push({

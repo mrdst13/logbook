@@ -118,13 +118,13 @@ function _dutyWorkFloorHtml(fr) {
   if (wf.hours >= 70) {
     sev = 'over';
     sevLine = fr
-      ? 'Ce plancher dépasse déjà les DEUX plafonds possibles du RAC 700.29 (60 h et 70 h sur 7 jours). À signaler.'
-      : 'This floor already exceeds BOTH possible RAC 700.29 ceilings (60 h and 70 h in 7 days). Worth flagging.';
+      ? 'Ce plancher dépasse déjà les DEUX plafonds possibles du RAC 700.29 (60 h et 70 h sur 7 jours). Le RAC 700.26(4) demande d’en informer l’exploitant dès que possible.'
+      : 'This floor already exceeds BOTH possible RAC 700.29 ceilings (60 h and 70 h in 7 days). CAR 700.26(4) requires advising your operator as soon as possible.';
   } else if (wf.hours >= 60) {
     sev = 'watch';
     sevLine = fr
-      ? 'Ce plancher atteint 60 h. Si ton plafond est 60 h (le cas le plus courant), il est atteint avec tes seules périodes enregistrées.'
-      : 'This floor reaches 60 h. If your ceiling is 60 h (the usual case), it is reached on your recorded duty alone.';
+      ? 'Ce plancher atteint 60 h. Si ton plafond est 60 h, il est atteint avec tes seules périodes enregistrées; le RAC 700.26(4) demande d’en informer l’exploitant dès que possible.'
+      : 'This floor reaches 60 h. If your ceiling is 60 h, it is reached on your recorded duty alone; CAR 700.26(4) requires advising your operator as soon as possible.';
   }
   const skipped = wf.skippedLegs > 0
     ? (fr

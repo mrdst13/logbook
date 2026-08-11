@@ -872,7 +872,11 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   // against real samples without breaking anything.
   const navblueCrew = extractNavblueCrew(desc);
   if (!navblueCrew.pic && !navblueCrew.copilot && desc.length > 0) {
-    console.log('[Navblue] No crew extracted from DESCRIPTION for', summary, '— sample:', desc.substring(0, 300));
+    // Log THAT extraction missed, never the text itself: the raw DESCRIPTION
+    // carries crew names, and this fired on every miss of every sync. The
+    // Diagnostic button is the sanctioned way to inspect the raw feed.
+    // (Final audit 2026-08-02.)
+    console.log('[Navblue] No crew extracted from DESCRIPTION for', summary, '(' + desc.length + ' chars)');
   }
 
   // Map crew to logbook fields based on the user's seat.
@@ -1248,7 +1252,22 @@ const CUMULO_PENDING_TODAY_KEY = 'cumulo_roster_pending_today_v1';
 function persistOutstandingLegs(patch) {
   try {
     const cur = JSON.parse(localStorage.getItem(CUMULO_PENDING_TODAY_KEY) || 'null') || {};
+    const prevEligible = Array.isArray(cur.eligible) ? cur.eligible : [];
     Object.assign(cur, patch || {});
+    // The eligible list is a UNION with what was already outstanding, not a
+    // replacement: the feed is a rolling window, so a leg that aged out of it
+    // was silently aging out of the safety net too — the exact decay the July
+    // card was built to prevent. Old entries that have since been logged or
+    // deleted are filtered out at READ time (_dashFilterAgainstLogbook), so
+    // keeping them here costs nothing. Keyed by date+flight+route. Today's
+    // unproven list ('flights') stays a replacement on purpose: it ages out
+    // at midnight by design. (Final audit 2026-08-02.)
+    if (patch && Array.isArray(patch.eligible)) {
+      const key = g => (g.date || '') + '|' + (g.flightNum || '') + '|' + String(g.route || '').toUpperCase();
+      const have = new Set(patch.eligible.map(key));
+      const carried = prevEligible.filter(g => g && g.date && !have.has(key(g)));
+      cur.eligible = patch.eligible.concat(carried).slice(0, 200);
+    }
     cur.ts = Date.now();
     localStorage.setItem(CUMULO_PENDING_TODAY_KEY, JSON.stringify(cur));
   } catch (e) { /* storage full or unavailable — the next sync retries */ }
