@@ -359,8 +359,10 @@ chk('sim instrument time still prints in ITS column',
     has(lic, "{ id: 'atpl'") && !has(lic, "{ id: 'ppl'"));
   const pdf = readFileSync(join(root, 'src/js/12-pdf-export.js'), 'utf8');
   chk('the uncited 90-day card is off the annexe', !has(pdf, "title: '90-day recency'"));
+  // The picked columns drive THIS export only. (The call now also carries the
+  // cover-section choices, so the pin matches the call, not its arity.)
   chk('the export picker no longer rewrites the screen columns',
-    !has(pdf, 'saveColumnPrefs(selected)') && has(pdf, '_generatePDF(chosen)'));
+    !has(pdf, 'saveColumnPrefs(selected)') && has(pdf, '_generatePDF(chosen'));
   const supa = readFileSync(join(root, 'src/js/18-supabase.js'), 'utf8');
   chk('the dead trust-device checkbox is gone', !has(supa, 'auth-trust-device'));
   const fdp = readFileSync(join(root, 'src/js/27-fdp-calc.js'), 'utf8');

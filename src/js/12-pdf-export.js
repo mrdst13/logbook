@@ -62,6 +62,56 @@ function pdfLocalDateOf(iso) {
   return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
 }
 
+// Hours flown per aircraft type — the figure an operator, an insurer or a
+// type-rating application asks for ("how much on the E2"). Aircraft time and
+// simulator time are counted apart, exactly like every other career figure in
+// this PDF (calcStats excludes simulators from the cover), and hours DECLARED
+// on a type (flown before Cumulo, from the paper logbook) are carried in their
+// own field so the printed figure is never a silent merge of measured and
+// declared. `declared` is { TYPE: hours }.
+// Rows with no aircraft type are grouped under their own heading rather than
+// dropped: dropping them would make the strip disagree with the career total
+// on the same page, with nothing on the sheet to explain the gap.
+function pdfHoursByType(list, declared) {
+  const map = new Map();
+  const put = (key) => {
+    if (!map.has(key)) map.set(key, { type: key, air: 0, sim: 0, paper: 0 });
+    return map.get(key);
+  };
+  (list || []).forEach(f => {
+    if (!f) return;
+    const key = String(f.type || '').trim().toUpperCase() || 'TYPE NOT RECORDED';
+    if (f.isSim) {
+      // A simulator session is not flight time — flightTimeOf returns 0 for it
+      // by design — so its hours are read where they actually live (instSim),
+      // with total/block as the fallback a legacy or imported row may carry.
+      const s = +f.instSim || +f.total || +f.block || 0;
+      if (s > 0) put(key).sim += s;
+      return;
+    }
+    const h = (typeof flightTimeOf === 'function') ? flightTimeOf(f) : (+f.total || +f.block || 0);
+    if (h > 0) put(key).air += h;
+  });
+  // Declared hours attach to the type they name. Matched loosely (either string
+  // containing the other) the same way the dashboard's aircraft goal matches
+  // rows, so "E195-E2" declared against rows typed "E195-E2 " lands on one
+  // entry instead of printing the same aeroplane twice.
+  Object.keys(declared || {}).forEach(k => {
+    const key = String(k || '').trim().toUpperCase();
+    const v = +declared[k] || 0;
+    if (!key || !(v > 0)) return;
+    let hit = null;
+    for (const e of map.values()) {
+      if (e.type === 'TYPE NOT RECORDED') continue;
+      if (e.type.includes(key) || key.includes(e.type)) { hit = e; break; }
+    }
+    (hit || put(key)).paper += v;
+  });
+  return [...map.values()]
+    .map(e => Object.assign(e, { total: e.air + e.paper }))
+    .sort((a, b) => (b.total + b.sim) - (a.total + a.sim));
+}
+
 function pdfBroughtForwardTotal(balances) {
   const b = balances || {};
   if (typeof totalsWithOpening === 'function') {
@@ -137,7 +187,22 @@ function exportPDF() {
       if (!groups[c.group]) groups[c.group] = [];
       groups[c.group].push(c);
     });
-    return Object.keys(groups).map(group => `
+    // Sections are not columns of the grid — they are blocks of the cover, so
+    // they get their own group at the top of the picker instead of hiding among
+    // 38 column checkboxes. (Martin 2026-08-12: hours on type must be pickable.)
+    const sections = `
+      <div class="col-group">
+        <div class="col-group-title">${esc(t('pdf.picker.sections'))}</div>
+        <div class="col-group-grid">
+          <label class="col-option is-on">
+            <input type="checkbox" id="pdfOptHoursByType" checked
+                   onchange="this.closest('label').classList.toggle('is-on', this.checked)" />
+            <span class="col-option-label">${esc(t('pdf.picker.hoursByType'))}</span>
+          </label>
+        </div>
+      </div>
+    `;
+    return sections + Object.keys(groups).map(group => `
       <div class="col-group">
         <div class="col-group-title">${esc(colGroup({ group }))}</div>
         <div class="col-group-grid">
@@ -176,14 +241,15 @@ function exportPDF() {
     const chosen = LOGBOOK_COLUMNS.filter(c =>
       c.key === 'total' || (selected[c.key] !== undefined ? selected[c.key] : c.default));
     if (!chosen.find(c => c.key === 'total')) chosen.push(LOGBOOK_COLUMNS.find(c => c.key === 'total'));
+    const _htEl = document.getElementById('pdfOptHoursByType');
     closeImportOverlay();
-    _generatePDF(chosen);
+    _generatePDF(chosen, { hoursByType: !_htEl || _htEl.checked });
   };
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
-function _generatePDF(colsOverride) {
+function _generatePDF(colsOverride, opts) {
   if (typeof window.jspdf === 'undefined') { showToast(t('toast.pdfLibLoading'), 'error'); return; }
   const { jsPDF } = window.jspdf;
   const p = DB.loadProfile();
@@ -211,6 +277,27 @@ function _generatePDF(colsOverride) {
   const cols = (Array.isArray(colsOverride) && colsOverride.length) ? colsOverride : getVisibleColumns('pdf');
   const sorted = [...flights].sort((a,b) => (a.date || '').localeCompare(b.date || ''));
 
+  // Hours-by-type block: on unless the picker turned it off, so an export
+  // launched without the picker still carries it.
+  const wantHoursByType = !opts || opts.hoursByType !== false;
+  // The one place a pilot has declared hours flown on a type BEFORE Cumulo:
+  // the dashboard's aircraft goal. Read as declared, printed as declared.
+  const _declaredOnType = {};
+  if (p.personalGoalKind === 'aircraft' && p.personalGoalContext && +p.personalGoalBroughtForward > 0) {
+    _declaredOnType[String(p.personalGoalContext).trim().toUpperCase()] = +p.personalGoalBroughtForward;
+  }
+
+  // Trim a string to the room actually available IN THE CURRENT FONT. Used
+  // wherever a value shares a row with another one: without it a long value
+  // simply overprinted its neighbour instead of stopping at its own column.
+  function pdfFit(str, room) {
+    let s = String(str == null ? '' : str).replace(/[\r\n]+/g, ' ').trim();
+    if (!s) return '';
+    if (doc.getTextWidth(s) <= room) return s;
+    while (s.length > 1 && doc.getTextWidth(s + '...') > room) s = s.slice(0, -1);
+    return s + '...';
+  }
+
   // ════════════════════════════════════════════
   // PAGE 1 — COVER (pilot identity)
   // ════════════════════════════════════════════
@@ -228,25 +315,44 @@ function _generatePDF(colsOverride) {
     doc.setFont('helvetica', 'normal');
     doc.text('Personal log maintained pursuant to CAR 401.08', 18, 22);
 
-    // Pilot identity card (centered, large)
-    const cardX = 30, cardY = 50, cardW = W - 60, cardH = 110;
+    const rawTotals = calcStats();
+    const totals = (typeof totalsWithOpening === 'function') ? totalsWithOpening(rawTotals) : rawTotals;
+    const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
+
+    // Hours flown per type, printed inside the card under the career total.
+    // Martin 2026-08-12: "je veux pouvoir dans le choix des choses a exporter
+    // que hours on type soit la, surtout pour le e2".
+    const typeAll   = wantHoursByType ? pdfHoursByType(sorted, _declaredOnType) : [];
+    const typeShown = typeAll.slice(0, 10);
+    const typePerRow  = Math.min(5, Math.max(1, typeShown.length));
+    const typeRowCount = Math.ceil(typeShown.length / typePerRow);
+
+    // ── Card geometry ──────────────────────────────────────────────
+    // EVERY band below is derived from cardY, so no two can overlap. Until
+    // 2026-08-12 the hero band was pinned to the bottom of the SHEET (H - 70)
+    // while the card was sized from the top: the grey band painted straight
+    // over the card's bottom border and over the last identity row, which is
+    // what Martin saw on his phone ("les lignes en haut ... on voit a moitier
+    // dans le total"). Identity now sits on ONE row of five, so the block
+    // above the hero can never grow into it either.
+    const cardX = 30, cardY = 38, cardW = W - 60, padX = 15;
+    const heroY = cardY + 56, heroH = 46;
+    const typeTitleY = cardY + 110;                 // 8 mm under the hero band
+    const cardH = typeShown.length ? (114 + typeRowCount * 16 + 3) : (heroY + heroH + 6 - cardY);
     doc.setDrawColor(...border);
     doc.setLineWidth(0.3);
     doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'S');
 
-    // Left column : photo placeholder + name
+    // Identity — name, operator, then the five reference fields on one row.
     doc.setTextColor(...textPrimary);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
-    doc.text(fullTitle, cardX + 15, cardY + 22);
+    doc.text(pdfFit(fullTitle, cardW - padX * 2), cardX + padX, cardY + 18);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(...muted);
-    doc.text(`${airline} · Base ${base}`, cardX + 15, cardY + 30);
+    doc.text(pdfFit(`${airline} · Base ${base}`, cardW - padX * 2), cardX + padX, cardY + 27);
 
-    // Identity grid
-    const idGridY = cardY + 50;
-    const labelColor = muted, valueColor = textPrimary;
     const fields = [
       ['License Number', license],
       ['Medical Expiry', medical],
@@ -254,39 +360,33 @@ function _generatePDF(colsOverride) {
       ['Type Rating(s)', fleet],
       ['Total Entries',  String(flights.length)],
     ];
+    const idSlotW = (cardW - padX * 2) / fields.length;
     fields.forEach((row, i) => {
-      const x = cardX + 15 + (i % 2) * ((cardW - 30) / 2);
-      const y = idGridY + Math.floor(i / 2) * 20;
+      const x = cardX + padX + i * idSlotW;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
-      doc.setTextColor(...labelColor);
-      doc.text(row[0].toUpperCase(), x, y);
+      doc.setTextColor(...muted);
+      doc.text(pdfFit(row[0].toUpperCase(), idSlotW - 4), x, cardY + 42);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.setTextColor(...valueColor);
-      doc.text(row[1], x, y + 6);
+      doc.setTextColor(...textPrimary);
+      doc.text(pdfFit(row[1], idSlotW - 4), x, cardY + 49);
     });
 
-    // ── Q6 — Hero career total + headline grid ─────────────────────
+    // ── Hero career total + headline grid ──────────────────────────
     // Cover-page hierarchy goes from largest (career total in big numerals)
     // down to the breakdown grid. Attestation legalese is demoted to the
     // footer band so the inspector reads identity → totals first, fine print
     // last (TP 14052 §6.3 — totals must be conspicuous on the cover sheet).
-    const rawTotals = calcStats();
-    const totals = (typeof totalsWithOpening === 'function') ? totalsWithOpening(rawTotals) : rawTotals;
-    const hasBF = (typeof hasOpeningBalances === 'function') && hasOpeningBalances();
-
-    // Hero block: starts a bit higher to make room for the breakdown grid.
-    const heroY = H - 70;
     doc.setFillColor(...light);
-    doc.rect(cardX, heroY, cardW, 40, 'F');
+    doc.rect(cardX + 1, heroY, cardW - 2, heroH, 'F');
 
     // Eyebrow + giant total on the left third
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...muted);
     const eyebrow = 'CAREER FLIGHT TIME · AS OF ' + new Date().toLocaleDateString('en-CA').toUpperCase();
-    doc.text(eyebrow, cardX + 6, heroY + 7);
+    doc.text(eyebrow, cardX + 6, heroY + 9);
 
     // The "48px hero" — at 1pt ≈ 0.353mm, ~30pt PDF font reads visually
     // like 48px on screen. Bold helvetica + tabular feel via monospace
@@ -294,7 +394,7 @@ function _generatePDF(colsOverride) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(30);
     doc.setTextColor(...textPrimary);
-    doc.text(`${fmt(totals.total || totals.block)} hrs`, cardX + 6, heroY + 24);
+    doc.text(`${fmt(totals.total || totals.block)} hrs`, cardX + 6, heroY + 29);
 
     // Breakdown line under the hero — shows brought-forward + logged-in-Cumulo
     // composition. Inspector sees instantly where the cumulative comes from.
@@ -316,12 +416,14 @@ function _generatePDF(colsOverride) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...muted);
-    doc.text(breakdown, cardX + 6, heroY + 32);
+    doc.text(pdfFit(breakdown, cardW - 12), cardX + 6, heroY + 40);
 
-    // Headline breakdown grid — six columns on the right side of the hero.
-    // PIC / SIC / Night / Multi-Engine / Cross-Country / Landings.
-    // Heli + Dual Given inserted only when > 0 (avoids diluting line-pilot
-    // covers with empty-zero columns).
+    // Headline breakdown grid on the right side of the hero.
+    // PIC / SIC / Night / Multi-Engine / Cross-Country. Heli + Dual Given
+    // inserted only when > 0 (avoids diluting line-pilot covers with
+    // empty-zero columns). No landing count: it is a tally, not experience,
+    // and it sat in the row of career hour figures pretending to be one
+    // (Martin 2026-08-12: "on se fou tu du nombre de landing").
     const breakdownCols = [
       ['PIC',           fmt(totals.pic)],
       ['SIC',           fmt(totals.sic)],
@@ -331,7 +433,6 @@ function _generatePDF(colsOverride) {
     if ((totals.heli || 0) > 0)      breakdownCols.push(['Helicopter',  fmt(totals.heli)]);
     if ((totals.dualGiven || 0) > 0) breakdownCols.push(['Dual Given',  fmt(totals.dualGiven)]);
     breakdownCols.push(['Cross-Country', fmt(totals.xc)]);
-    breakdownCols.push(['Landings',      String(totals.ldg)]);
 
     // Lay grid in the right ~58% of the hero band.
     const gridStartX = cardX + cardW * 0.42;
@@ -342,12 +443,52 @@ function _generatePDF(colsOverride) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...muted);
-      doc.text(h[0].toUpperCase(), x, heroY + 14);
+      doc.text(pdfFit(h[0].toUpperCase(), slotW - 3), x, heroY + 15);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
       doc.setTextColor(...textPrimary);
-      doc.text(h[1], x, heroY + 24);
+      doc.text(pdfFit(h[1], slotW - 3), x, heroY + 28);
     });
+
+    // ── Hours by aircraft type ─────────────────────────────────────
+    if (typeShown.length) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(...muted);
+      // The heading carries the cap when there are more types than fit, so a
+      // reader is never shown a partial list that looks complete.
+      doc.text(
+        'HOURS BY AIRCRAFT TYPE' + (typeAll.length > typeShown.length
+          ? ` · LARGEST ${typeShown.length} OF ${typeAll.length}` : ''),
+        cardX + padX, typeTitleY);
+      const typeSlotW = (cardW - padX * 2) / typePerRow;
+      typeShown.forEach((e, i) => {
+        const rowTop = cardY + 114 + Math.floor(i / typePerRow) * 16;
+        const x = cardX + padX + (i % typePerRow) * typeSlotW;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(...muted);
+        doc.text(pdfFit(e.type, typeSlotW - 4), x, rowTop + 4);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(...textPrimary);
+        // A type flown only in the simulator says so in the headline rather
+        // than printing "0.0 h" over a footnote nobody reads.
+        const simOnly = !(e.total > 0) && e.sim > 0;
+        doc.text(simOnly ? `${fmt(e.sim)} h sim` : `${fmt(e.total)} h`, x, rowTop + 11);
+        // Composition, only when there is something to explain: a total that
+        // mixes logged and declared hours never prints bare.
+        const bits = [];
+        if (e.paper > 0) bits.push(`${fmt(e.air)} logged + ${fmt(e.paper)} declared`);
+        if (e.sim > 0 && !simOnly) bits.push(`sim ${fmt(e.sim)}`);
+        if (bits.length) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(5.5);
+          doc.setTextColor(...muted);
+          doc.text(pdfFit(bits.join(' · '), typeSlotW - 4), x, rowTop + 15);
+        }
+      });
+    }
 
     // Footer (cover) — includes import provenance notice if any flights
     // came from a CSV import. CAR 401.08(2)(h) requires an attestation
@@ -397,29 +538,16 @@ function _generatePDF(colsOverride) {
     if (importedSet.size > 0) {
       [...importedSet.values()].forEach(e => {
         attestationLines.push(
-          `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + e.signedBy : ''}${e.firstAt ? ' · ' + pdfLocalDateOf(e.firstAt) : ''}`
+          `Imported ${e.count} flight${e.count !== 1 ? 's' : ''} from ${e.source}${e.signedBy ? ' · certified by ' + displayCrewName(e.signedBy, p) : ''}${e.firstAt ? ' · ' + pdfLocalDateOf(e.firstAt) : ''}`
         );
       });
     }
-    // Acceptance stamps (2026-08-01). Summarised here rather than added as a
-    // 39th column: the log grid is the TC 38-column layout an inspector reads
-    // at a ramp check, and it is not widened for provenance. Counted, never
-    // estimated — entries logged before the stamp existed carry none and are
-    // simply not counted.
-    const _accepted = sorted.filter(f => f && f.acceptedAt);
-    if (_accepted.length > 0) {
-      let newest = null;
-      for (const f of _accepted) {
-        const t = Date.parse(f.acceptedAt);
-        if (!isNaN(t) && (!newest || t > newest.t)) newest = { t: t, f: f };
-      }
-      const who = newest && newest.f.acceptedBy ? ' · ' + newest.f.acceptedBy : '';
-      const when = newest ? pdfLocalDateOf(new Date(newest.t).toISOString()) : '';
-      attestationLines.push(
-        `${_accepted.length} of ${sorted.length} entries carry an acceptance stamp` +
-        (when ? ` · most recent ${when}${who}` : '')
-      );
-    }
+    // No acceptance-stamp tally here. It used to print "8 of 110 entries carry
+    // an acceptance stamp", which reads as "102 entries are unverified" when it
+    // only ever meant "102 predate the stamp". Martin 2026-08-12: "enleve les
+    // affaire de stamp 8 sur 110, ces juste melangeant pour rien". The stamps
+    // themselves are untouched — every row keeps acceptedAt/acceptedBy and the
+    // logbook shows them per flight, which is where he asked for them.
 
     if (attestationLines.length === 0) {
       doc.text(baseFooter, W / 2, H - 8, { align: 'center' });
@@ -453,6 +581,28 @@ function _generatePDF(colsOverride) {
   const totalWidthUnits = cols.reduce((sum, c) => sum + (c.width || 12), 0);
   const widthScale = tableW / totalWidthUnits;
   const colWidths = cols.map(c => (c.width || 12) * widthScale);
+
+  // A FIGURE IS NEVER TRIMMED — a clipped number is a wrong number on a page
+  // an inspector reads — so when the grid gets narrow (many columns ticked) the
+  // table's own font shrinks until the widest figure that can print still fits
+  // its column. The career total is that worst case: no cell or totals row can
+  // exceed it. With the default column set 6.5pt already fits and nothing here
+  // changes. (Martin 2026-08-12, exporting from his phone.)
+  let bodyPt = 6.5;
+  {
+    const _worst = (function () {
+      const s = (typeof calcStats === 'function') ? calcStats() : {};
+      const c = (typeof totalsWithOpening === 'function') ? totalsWithOpening(s) : s;
+      return fmt(c.total || c.block || 0);
+    })();
+    doc.setFont('helvetica', 'bold');
+    while (bodyPt > 4.5) {
+      doc.setFontSize(bodyPt);
+      const wNum = doc.getTextWidth(_worst);
+      if (!cols.some((c, i) => _isCumulativePdfCol(c) && wNum > colWidths[i] - 2)) break;
+      bodyPt -= 0.25;
+    }
+  }
 
   // Running cumulative totals across pages
   const runTotals = {};
@@ -513,13 +663,25 @@ function _generatePDF(colsOverride) {
     doc.line(tableMargin, y + 6, tableMargin + tableW, y + 6);
     doc.setTextColor(...muted);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6);
+    // Headers shrink to fit before they clip. At 6pt fixed, ticking many
+    // columns made every header wider than its own column, so they overprinted
+    // each other into an unreadable band across the top of the page — the
+    // "lignes en haut on voit mal, sont pas alignees" Martin reported from his
+    // phone on 2026-08-12. The floor keeps them legible; anything still too
+    // long is trimmed to its column rather than allowed to run into the next.
+    let headPt = 6;
+    while (headPt > 4.2) {
+      doc.setFontSize(headPt);
+      if (!cols.some((c, i) => doc.getTextWidth(String(c.short).toUpperCase()) > colWidths[i] - 1.5)) break;
+      headPt -= 0.2;
+    }
+    doc.setFontSize(headPt);
     let x = tableMargin;
     cols.forEach((c, i) => {
       const tx = c.align === 'right' ? x + colWidths[i] - 1
               : c.align === 'center' ? x + colWidths[i] / 2
               : x + 1;
-      doc.text(c.short.toUpperCase(), tx, y + 4, { align: c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : 'left' });
+      doc.text(pdfFit(String(c.short).toUpperCase(), colWidths[i] - 1.5), tx, y + 4, { align: c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : 'left' });
       x += colWidths[i];
     });
     y += 7;
@@ -541,7 +703,7 @@ function _generatePDF(colsOverride) {
 
     // Data rows
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(bodyPt);
     rows.forEach((f, i) => {
       if (i % 2 === 0) { doc.setFillColor(252, 253, 255); doc.rect(tableMargin, y - 3, tableW, 5.5, 'F'); }
       doc.setTextColor(...textPrimary);
@@ -622,16 +784,25 @@ function _generatePDF(colsOverride) {
     doc.rect(tableMargin, y, tableW, 6, 'F');
     doc.setTextColor(...txtColor);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6);
+    doc.setFontSize(Math.min(6, bodyPt));
     // Same ASCII rule the data cells use: jsPDF's Helvetica renders an em-dash
     // as a garbage glyph, so the "CUMULATIVE TOTALS — CARRIED FORWARD" label
     // would print a stray character. Normalise em-/en-dashes to a hyphen here so
     // any label passed to this row is safe.
     const safeLabel = String(label).replace(/[–—]/g, '-');
+    // The label owns the columns BEFORE the first printed figure. Drawn at full
+    // length it ran straight through those figures whenever the grid was
+    // narrow (many columns ticked), so the row read as overlapping garbage.
+    let labelRoom = tableW - 2;
+    let probeX = tableMargin;
+    for (let i = 0; i < cols.length; i++) {
+      if (i > 0 && totals.hasOwnProperty(cols[i].key)) { labelRoom = probeX - tableMargin - 2; break; }
+      probeX += colWidths[i];
+    }
     let x = tableMargin;
     cols.forEach((c, i) => {
       if (i === 0) {
-        doc.text(safeLabel, x + 1, y + 4);
+        doc.text(pdfFit(safeLabel, Math.max(10, labelRoom)), x + 1, y + 4);
       } else if (totals.hasOwnProperty(c.key)) {
         const display = c.decimal ? fmt(totals[c.key]) : String(Math.round(totals[c.key] * 100) / 100);
         const tx = c.align === 'right' ? x + colWidths[i] - 1

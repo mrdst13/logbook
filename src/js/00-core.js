@@ -134,6 +134,41 @@ function _isSelfReference(token, profile) {
   return false;
 }
 
+// ───────────────────────────────────────────────────────────────────
+//  The owner's own name, ONE spelling everywhere Cumulo prints it short:
+//  first initial + last name, e.g. "M.Daoust".
+//
+//  Martin 2026-08-12: "jai vu defois tu met self defois m.d defois m.daoust,
+//  je veux toujours m.daoust". The three came from three unrelated places —
+//  a roster import writing "self" when the profile had no name yet, the old
+//  two-letter acceptance stamp, and his own typing. Rather than rewrite what
+//  is stored (the record keeps what the pilot wrote — see the recalc rule),
+//  every place that DISPLAYS a name resolves it through here.
+//
+//  Returns '' when the profile carries no name: a short name is never invented.
+// ───────────────────────────────────────────────────────────────────
+function selfShortName(profile) {
+  const p = profile || {};
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const fn = String(p.fname || '').trim();
+  const ln = String(p.lname || '').trim();
+  if (fn && ln) return fn.charAt(0).toUpperCase() + '.' + cap(ln);
+  if (ln) return cap(ln);
+  if (fn) return cap(fn);
+  return '';
+}
+
+// Render a crew-field value. A SELF-reference ("self", "moi", "Martin Daoust",
+// "M. Daoust", "MDaoust"...) becomes that one spelling; anything else is
+// another pilot's name and is returned untouched — this never rewrites a third
+// party, and never touches storage.
+function displayCrewName(value, profile) {
+  if (!value || typeof value !== 'string') return value;
+  const canon = selfShortName(profile);
+  if (!canon) return value;
+  return _isSelfReference(value, profile) ? canon : value;
+}
+
 function resolveSelfReferences(flight, profile) {
   if (!flight || typeof flight !== 'object') return flight;
   const out = { ...flight };

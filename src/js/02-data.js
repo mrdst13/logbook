@@ -110,16 +110,16 @@ function approachCountsTowardIFR(f) {
 //  silently frozen the whole logbook against its own repair tools.
 // ─────────────────────────────────────────────────────────────────
 
-// The pilot's initials from their profile. Returns '' when the profile has no
-// name — initials are never invented, and an empty string is a real "unknown"
-// that propagates, rather than leaving stale initials beside a fresh timestamp.
-function pilotInitials(profile) {
+// The name the stamp is signed with, from the profile: "M.Daoust" — the same
+// spelling every other part of Cumulo uses for the owner (selfShortName).
+// It was two bare letters ("MD") until 2026-08-12; Martin asked for one form
+// everywhere. Returns '' when the profile has no name — a signature is never
+// invented, and an empty string is a real "unknown" that propagates, rather
+// than leaving a stale name beside a fresh timestamp.
+function pilotShortName(profile) {
   let p = profile;
   if (!p) { try { p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null; } catch (e) { p = null; } }
-  p = p || {};
-  const a = String(p.fname || '').trim().charAt(0);
-  const b = String(p.lname || '').trim().charAt(0);
-  return (a + b).toUpperCase();
+  return selfShortName(p || {});
 }
 
 // Stamp one flight as accepted now (or at `whenISO`, so a batch shares one
@@ -127,13 +127,32 @@ function pilotInitials(profile) {
 function stampFlightAccepted(flight, whenISO, profile) {
   if (!flight || typeof flight !== 'object') return flight;
   flight.acceptedAt = whenISO || new Date().toISOString();
-  flight.acceptedBy = pilotInitials(profile);
+  flight.acceptedBy = pilotShortName(profile);
   return flight;
 }
 
-// "2026-08-01 14:32 · MD" for display. Local time: the pilot accepted it on
-// their own clock, and this is a provenance note, not certifiable flight data
-// (which stays UTC). Returns '' when nothing was ever stamped.
+// How a stored stamp signature is shown. Rows stamped before 2026-08-12 carry
+// the old two-letter initials ("MD"): same pilot, same stamp, only the spelling
+// changed, so they render as the current one instead of showing two forms in
+// one list. Only the owner's own initials are rewritten — the stamp is written
+// by stampFlightAccepted and never carries anyone else's name — and nothing
+// stored is modified.
+function acceptedByDisplay(v, profile) {
+  const raw = String(v == null ? '' : v).trim();
+  if (!raw) return '';
+  let p = profile;
+  if (!p) { try { p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null; } catch (e) { p = null; } }
+  p = p || {};
+  const canon = selfShortName(p);
+  if (!canon) return raw;
+  const legacy = (String(p.fname || '').trim().charAt(0) + String(p.lname || '').trim().charAt(0)).toUpperCase();
+  if (legacy && raw.replace(/[.\s]/g, '').toUpperCase() === legacy) return canon;
+  return (typeof _isSelfReference === 'function' && _isSelfReference(raw, p)) ? canon : raw;
+}
+
+// "2026-08-01 14:32 · M.Daoust" for display. Local time: the pilot accepted it
+// on their own clock, and this is a provenance note, not certifiable flight
+// data (which stays UTC). Returns '' when nothing was ever stamped.
 function acceptedStampText(f, fr) {
   if (!f || !f.acceptedAt) return '';
   const d = new Date(f.acceptedAt);
@@ -141,7 +160,8 @@ function acceptedStampText(f, fr) {
   const p2 = (n) => (n < 10 ? '0' : '') + n;
   const stamp = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) +
                 ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
-  return f.acceptedBy ? (stamp + ' · ' + f.acceptedBy) : stamp;
+  const who = acceptedByDisplay(f.acceptedBy);
+  return who ? (stamp + ' · ' + who) : stamp;
 }
 
 // ─────────────────────────────────────────────────────────────────

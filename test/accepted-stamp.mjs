@@ -46,19 +46,40 @@ w.eval(`
   window.confirm = () => true;
 `);
 
-// ── 1. Initials come from the profile, and are never invented ───────────
+// ── 1. The signature comes from the profile, and is never invented ──────
+//     ONE spelling everywhere (Martin 2026-08-12: "defois tu met self defois
+//     m.d defois m.daoust, je veux toujours m.daoust").
 w.localStorage.setItem(PKEY, JSON.stringify({ fname: 'Martin', lname: 'Daoust' }));
-chk('initials are built from the profile name', w.eval('pilotInitials()') === 'MD');
-chk('a profile with no name yields no initials, never a guess',
-  w.eval("pilotInitials({ fname: '', lname: '' })") === '');
+chk('the signature is built from the profile name', w.eval('pilotShortName()') === 'M.Daoust');
+chk('a profile with no name yields no signature, never a guess',
+  w.eval("pilotShortName({ fname: '', lname: '' })") === '');
 chk('a half-filled name yields what is actually known',
-  w.eval("pilotInitials({ fname: 'Martin', lname: '' })") === 'M');
+  w.eval("pilotShortName({ fname: 'Martin', lname: '' })") === 'Martin');
 
-// ── 2. The stamp records an instant and the initials ────────────────────
+// Whatever spelling a row carries, the owner reads one way — and a third
+// party is never rewritten into it.
+const MP = "{ fname: 'Martin', lname: 'Daoust' }";
+chk('"self" reads as the owner', w.eval(`displayCrewName('self', ${MP})`) === 'M.Daoust');
+chk('"moi" reads as the owner', w.eval(`displayCrewName('moi', ${MP})`) === 'M.Daoust');
+chk('the full name reads as the owner', w.eval(`displayCrewName('Martin Daoust', ${MP})`) === 'M.Daoust');
+chk('a spaced initial reads as the owner', w.eval(`displayCrewName('M. Daoust', ${MP})`) === 'M.Daoust');
+chk('another pilot is never renamed', w.eval(`displayCrewName('BOUCHARD', ${MP})`) === 'BOUCHARD');
+chk('with no profile name nothing is rewritten', w.eval("displayCrewName('self', { fname: '', lname: '' })") === 'self');
+chk('the crew column of the logbook resolves it too',
+  w.eval("computeCellValue({ pic: 'self' }, 'pic')") === 'M.Daoust');
+chk('the crew column leaves another pilot alone',
+  w.eval("computeCellValue({ pic: 'BOUCHARD' }, 'pic')") === 'BOUCHARD');
+// Rows stamped before 2026-08-12 carry two bare letters: same pilot, shown the
+// current way — but a third party's stored name is still never touched.
+chk('a legacy two-letter stamp reads as the owner', w.eval(`acceptedByDisplay('MD', ${MP})`) === 'M.Daoust');
+chk('a dotted legacy stamp reads as the owner', w.eval(`acceptedByDisplay('M.D.', ${MP})`) === 'M.Daoust');
+chk('a stamp that is not the owner is left alone', w.eval(`acceptedByDisplay('ZZ', ${MP})`) === 'ZZ');
+
+// ── 2. The stamp records an instant and the signature ───────────────────
 {
   const r = JSON.parse(w.eval("JSON.stringify(stampFlightAccepted({ id: 'x' }, '2026-08-01T18:32:00.000Z'))"));
   chk('the stamp records the instant it was given', r.acceptedAt === '2026-08-01T18:32:00.000Z');
-  chk('the stamp records the initials', r.acceptedBy === 'MD');
+  chk('the stamp records the signature', r.acceptedBy === 'M.Daoust');
 }
 {
   // A pilot with no name still gets a timestamp; acceptedBy is an explicit
@@ -106,7 +127,7 @@ w.eval(`
 {
   const saved = JSON.parse(w.localStorage.getItem('logbook_v1') || '[]')[0] || {};
   chk('saving the form stamps the row', !!saved.acceptedAt);
-  chk('saving the form records the initials', saved.acceptedBy === 'MD');
+  chk('saving the form records the signature', saved.acceptedBy === 'M.Daoust');
   chk('the stamp is a real instant', !isNaN(Date.parse(saved.acceptedAt || '')));
 }
 
@@ -125,7 +146,7 @@ w.eval(`
   chk('every imported row is stamped', rows.length === 2 && rows.every(f => !!f.acceptedAt));
   chk('an import shares one instant across the batch',
     rows.length === 2 && rows[0].acceptedAt === rows[1].acceptedAt);
-  chk('imported rows carry the initials', rows.every(f => f.acceptedBy === 'MD'));
+  chk('imported rows carry the signature', rows.every(f => f.acceptedBy === 'M.Daoust'));
 }
 
 // ── 6. The stamp is shown, and only once there is one ───────────────────
@@ -139,11 +160,17 @@ chk('a zero stamp renders nothing, never 1970',
   w.eval('acceptedStampText({ acceptedAt: 0 })') === '');
 chk('a malformed stamp renders nothing rather than Invalid Date',
   w.eval("acceptedStampText({ acceptedAt: 'not-a-date' })") === '');
-chk('the stamp reads as date, time and initials', (() => {
-  const s = w.eval("acceptedStampText({ acceptedAt: '2026-08-01T18:32:00.000Z', acceptedBy: 'MD' })");
-  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2} · MD$/.test(s);
+chk('the stamp reads as date, time and signature', (() => {
+  const s = w.eval("acceptedStampText({ acceptedAt: '2026-08-01T18:32:00.000Z', acceptedBy: 'M.Daoust' })");
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2} · M\.Daoust$/.test(s);
 })());
-chk('with no initials the stamp is just the moment', (() => {
+// A row stamped before the spelling changed shows the current one, so a list
+// never mixes two signatures for the same pilot.
+chk('a legacy stamp is shown the current way', (() => {
+  const s = w.eval("acceptedStampText({ acceptedAt: '2026-08-01T18:32:00.000Z', acceptedBy: 'MD' })");
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2} · M\.Daoust$/.test(s);
+})());
+chk('with no signature the stamp is just the moment', (() => {
   const s = w.eval("acceptedStampText({ acceptedAt: '2026-08-01T18:32:00.000Z', acceptedBy: '' })");
   return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s);
 })());
@@ -158,7 +185,7 @@ chk('with no initials the stamp is just the moment', (() => {
     openFlightDetail('det1');
   `);
   const body = w.eval("document.getElementById('flightDetailBody').textContent");
-  chk('the flight detail shows the acceptance stamp', /·\s*MD/.test(body) && /2026-08-01/.test(body));
+  chk('the flight detail shows the acceptance stamp', /·\s*M\.Daoust/.test(body) && /2026-08-01/.test(body));
   w.eval('closeFlightDetail();');
 }
 
@@ -252,7 +279,7 @@ w.eval(`
 {
   const after = JSON.parse(w.localStorage.getItem('logbook_v1'))[0] || {};
   chk('quick crew fill stamps the row it changed', !!after.acceptedAt);
-  chk('quick crew fill records the initials', after.acceptedBy === 'MD');
+  chk('quick crew fill records the signature', after.acceptedBy === 'M.Daoust');
   chk('quick crew fill actually wrote the name too', (after.pic || after.copilot) === 'BOUCHARD');
 }
 

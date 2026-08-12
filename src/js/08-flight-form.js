@@ -278,6 +278,17 @@ function computeCellValue(f, key) {
     // (Final audit r2, 2026-08-02.)
     case 'toDay':       return f.toDay !== undefined ? f.toDay : '';
     case 'toNight':     return f.toNight !== undefined ? f.toNight : '';
+    // The owner's own name reads ONE way in a crew column ("M.Daoust") whatever
+    // spelling the row happens to carry — "self" from an import made before the
+    // profile had a name, the full name, initials. Another pilot's name is
+    // returned untouched. Display only: the stored text is never rewritten.
+    case 'pic':
+    case 'copilot': {
+      if (typeof displayCrewName !== 'function') return f[key];
+      let _p = null;
+      try { _p = (typeof DB !== 'undefined' && DB.loadProfile) ? DB.loadProfile() : null; } catch (e) { _p = null; }
+      return displayCrewName(f[key], _p);
+    }
     default:            return f[key];
   }
 }

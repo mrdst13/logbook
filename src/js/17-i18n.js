@@ -1045,6 +1045,8 @@ const STRINGS = {
  'cols.preset.all': 'All', 'cols.preset.none': 'None',
  // ─── PDF export column-picker modal (on-screen; the PDF itself stays English)
  'pdf.picker.title': 'Export to PDF',
+ 'pdf.picker.sections': 'Cover page',
+ 'pdf.picker.hoursByType': 'Hours by aircraft type',
  'pdf.picker.subtitle': 'Choose which columns to include in your printed PDF',
  'pdf.picker.tip': '<strong>Tip:</strong> Picking fewer columns gives more space per row in landscape. Picking many makes the table denser. The cover page + currency annexe always print.',
  'pdf.picker.generate': 'Generate PDF',
@@ -2229,6 +2231,8 @@ const STRINGS = {
  'cols.preset.all': 'Tout', 'cols.preset.none': 'Aucun',
  // ─── Modal de sélection des colonnes pour le PDF (écran; le PDF reste en anglais)
  'pdf.picker.title': 'Exporter en PDF',
+ 'pdf.picker.sections': 'Page couverture',
+ 'pdf.picker.hoursByType': 'Heures par type d’aéronef',
  'pdf.picker.subtitle': 'Choisissez les colonnes à inclure dans votre PDF imprimé',
  'pdf.picker.tip': '<strong>Astuce :</strong> Moins de colonnes = plus d’espace par ligne en paysage. Plus de colonnes = tableau plus dense. La page couverture et l’annexe de validité s’impriment toujours.',
  'pdf.picker.generate': 'Générer le PDF',

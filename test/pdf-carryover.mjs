@@ -224,6 +224,62 @@ if (hasFix) {
   chk('(l) the sparkline agrees with the hero', agg.spark.every(function (v) { return v === 5; }));
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// (m) COVER PAGE — Martin 2026-08-12, generating the PDF on his phone:
+//     "les lignes en haut on voit mal, sont pas aligner, on voit a moitier
+//     dans le total en haut ... on se fou tu du nombre de landing ... enleve
+//     les affaire de stamp 8 sur 110, ces juste melangeant pour rien."
+//     jsPDF does not load under jsdom, so the drawing itself cannot be
+//     rendered here; these pin the source facts that caused what he saw.
+// ═══════════════════════════════════════════════════════════════════
+{
+  const src = readFileSync(join(root, 'src/js/12-pdf-export.js'), 'utf8');
+  // The overlap: the hero band was pinned to the bottom of the SHEET while the
+  // card was sized from the top, so the band painted over the card's bottom
+  // border and over the last identity row.
+  chk('(m) the hero band is no longer pinned to the sheet instead of the card',
+    src.indexOf('const heroY = H - 70') === -1);
+  chk('(m) every cover band is derived from the card', src.indexOf('const heroY = cardY + 56') !== -1);
+  chk('(m) the card grows to fit what it contains', src.indexOf('const cardH = typeShown.length') !== -1);
+  // Nothing on the cover may print past its own slot any more.
+  chk('(m) the cover trims values to the room they have', src.indexOf('function pdfFit(str, room)') !== -1);
+  chk('(m) log-page headers shrink before they collide', src.indexOf('let headPt = 6;') !== -1);
+  chk('(m) the totals label stops before the first figure', src.indexOf('let labelRoom = tableW - 2;') !== -1);
+  // Removed for good: the landing tally sitting in the row of career hour
+  // figures, and the stamp count that read as "102 entries are unverified".
+  chk('(m) no landing tally among the career hour figures', src.indexOf("['Landings',") === -1);
+  chk('(m) no acceptance-stamp count on the cover',
+    src.indexOf('${_accepted.length} of ${sorted.length}') === -1);
+}
+
+// (n) HOURS BY AIRCRAFT TYPE — the number he asked to be able to export
+//     ("surtout pour le e2"). Measured and declared hours are counted apart,
+//     simulator time never merges into aircraft time, and a row with no type
+//     is still reported so the strip agrees with the career total.
+{
+  const rows = JSON.stringify([
+    { id: '1', type: 'E195-E2', total: 2.5 },
+    { id: '2', type: 'e195-e2', total: 1.5 },           // same type, other case
+    { id: '3', type: 'E195-E2', isSim: true, total: 4 },// simulator, kept apart
+    { id: '4', type: 'C172',    total: 1 },
+    { id: '5', type: '',        total: 0.5 },           // no type recorded
+  ]);
+  const out = JSON.parse(w.eval(`JSON.stringify(pdfHoursByType(${rows}, { 'E195-E2': 782.7 }))`));
+  const e2 = out.filter(e => e.type === 'E195-E2')[0] || {};
+  chk('(n) the same type in another case is one entry', out.filter(e => e.type === 'E195-E2').length === 1);
+  chk('(n) aircraft hours on type are summed', near(e2.air, 4));
+  chk('(n) simulator time is reported apart, never merged', near(e2.sim, 4));
+  chk('(n) declared paper hours are carried in their own field', near(e2.paper, 782.7));
+  chk('(n) the printed total is measured + declared, and excludes the simulator', near(e2.total, 786.7));
+  chk('(n) an untyped row is reported, not dropped',
+    out.some(e => e.type === 'TYPE NOT RECORDED' && near(e.total, 0.5)));
+  chk('(n) the biggest type is printed first', out[0] && out[0].type === 'E195-E2');
+  chk('(n) declared hours for a type never flown still appear',
+    (JSON.parse(w.eval("JSON.stringify(pdfHoursByType([], { 'DHC-8-400': 120 }))"))[0] || {}).total === 120);
+  chk('(n) nothing is invented from an empty logbook',
+    JSON.parse(w.eval('JSON.stringify(pdfHoursByType([], {}))')).length === 0);
+}
+
 if (failures.length) {
   console.error('pdf-carryover: FAIL\n  - ' + failures.join('\n  - '));
   process.exit(1);
