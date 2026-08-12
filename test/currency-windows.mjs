@@ -131,8 +131,23 @@ w.eval(`document.body.insertAdjacentHTML('beforeend',
 w.eval('renderCurrencyCard()');
 eq('card approach count matches the shared counter',
   w.eval("document.getElementById('cur-app-count').textContent"), '12');
-eq('card instrument hours from the same bounded window',
-  w.eval("document.getElementById('cur-hrs-count').textContent"), '3.5');
+
+// ── CAR 401.05(3.1) is SIX APPROACHES. Full stop. ───────────────────────────
+// The "6 hours of instrument time" this app used to demand is NOT in the
+// current regulation (raw text re-read 2026-08-12; the old register entry cited
+// a DATED permalink frozen at 2025-12-17 — see registre). It badged a line
+// pilot with 62 approaches in 6 months as NOT CURRENT because his instrument
+// HOURS, which no airline import ever fills, read 0.0.
+eq('the card no longer reports instrument hours as a requirement',
+  w.eval("document.getElementById('cur-hrs-count').textContent"), '');
+eq('currency is decided by approaches alone', w.eval('_dashIFRCurrency().current'), true);
+w.eval("flights = [{date:'2026-07-17', approaches:6}];");
+eq('six approaches and zero instrument hours is CURRENT',
+  w.eval('_dashIFRCurrency().current'), true);
+eq('instrument hours are still reported, just never binding',
+  w.eval('_dashIFRCurrency().hours'), 0);
+w.eval("flights = [{date:'2026-07-17', approaches:5, instActual:99}];");
+eq('five approaches is not current, however many hours', w.eval('_dashIFRCurrency().current'), false);
 
 // ── needsIFRTracking: 12-month LOCAL window, future flights are not history ──
 eq('705 line pilot always tracks IFR', w.eval("needsIFRTracking({pilotType:'airline705'})"), true);

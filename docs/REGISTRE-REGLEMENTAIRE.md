@@ -52,7 +52,60 @@ Si le terme n'est pas ici, le vérifier (laws-lois/tc.canada.ca) PUIS l'ajouter 
 - **Vérifié** : 2026-06-25 ✓.
 
 ## ✅ Récence IFR (validité instrument)
-- **Règle (CAR 401.05(3.1))** : dans les **6 mois**, « *acquired six hours of instrument time* » **ET** « *completed six instrument approaches in an aircraft in actual or simulated instrument meteorological conditions, or in a Level B, C or D simulator **or an approved flight training device configured for the same category as the aircraft*** ».
+
+### 🛑 CORRECTION MAJEURE 2026-08-12 — « 6 heures de temps aux instruments » N'EXISTE PLUS
+Martin, F/O sur E195-E2 : « tout mes vols sont ifr, ces sur que je suis current, je
+sais pas pourquoi tu dit 0h dans les dernier 6 mois ». Il avait raison : l'app lui
+affichait **NOT CURRENT en rouge** sur une exigence que le règlement **ne contient
+plus**.
+
+**Texte ACTUEL relu au brut (curl) le 2026-08-12**, page NON datée
+https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-401.05.html
+(« Regulations are current to 2026-06-17 and last amended on 2026-06-17 ») :
+
+> **401.05(3.1)** « No holder of a pilot licence that is endorsed with an instrument
+> rating or to which instrument rating privileges are attached shall exercise the
+> privileges of the instrument rating unless, **following the first day of the seventh
+> month after the completion of a test or check referred to in subsection (3)** and
+> **within six months before the flight**, the holder has completed **six instrument
+> approaches** in accordance with the minima specified in the instrument approach
+> procedure (a) in an aircraft, in actual or simulated instrument meteorological
+> conditions; (b) in an aircraft, in actual or simulated instrument meteorological
+> conditions, while acting as a flight instructor…; (c) in a **Level B, C or D
+> full-flight simulator of the same group** as the aircraft indicated on the pilot's
+> licence; or (d) in a **flight training device under the supervision** of a person who
+> holds the qualifications referred to in subsection 425.21(9)… »
+
+Recherche littérale dans la page courante : `six hours of instrument time` → **0
+occurrence**. L'exigence d'heures a disparu ; il ne reste que les **6 approches**.
+
+> **401.05(3)** — le test/vérification de base : privilèges de la qualification aux
+> instruments interdits sauf si, **dans les 24 mois précédents**, le titulaire a réussi
+> l'un de : (a) test en vol de qualification aux instruments ; (b) test des FAC ;
+> (c) contrôle de compétence aux instruments ; ou **(d)(iv)(G) « Schedule I, II or III
+> to section 725.106 of Standard 725 — Airline Operations — Aeroplanes, in the case of
+> aeroplanes operated under Subpart 5 of Part VII »**.
+> ⇒ **Le PPC 705 de Martin (Porter) satisfait 401.05(3).** C'est exactement ce qu'il
+> disait : « il est renew a chaques ppc ».
+
+> **401.05(3.2)** — conserver le dossier de récence **3 ans**.
+
+**Conséquence de lecture** : pendant les **6 mois qui suivent** un test/check de (3),
+la récence des 6 approches **ne s'applique pas** (« following the first day of the
+seventh month after »). L'app ne calcule PAS cette date : le profil ne contient que la
+date d'**échéance** du PPC (`ppcDueDate`), pas sa date de **réussite**, et déduire
+l'une de l'autre serait une supposition. Elle nomme donc la règle et laisse le pilote
+juger.
+
+- 🛑 **LEÇON DE MÉTHODE (2026-08-12) — NE JAMAIS citer un permalien DATÉ.** L'entrée
+  fautive s'appuyait sur `section-401.05-**20251217**.html`, un instantané figé au
+  2025-12-17. Le règlement a changé depuis (dernière modif. 2026-06-17 ; SOR/2025-241
+  dans la liste des modifications) et l'instantané, lui, ne bouge jamais : la
+  vérification restait « verte » sur du droit périmé. **Toujours la page NON datée**,
+  et relire la ligne « current to … / last amended on … ».
+- **Ancienne citation (PÉRIMÉE, gardée pour l'histoire — ne plus jamais l'utiliser)** :
+  « *acquired six hours of instrument time* » **ET** « *completed six instrument
+  approaches…* ».
 - 🛑 **CORRIGÉ 2026-07-17 — la citation ci-dessus était TRONQUÉE depuis le 2026-06-25, et le CODE agissait sur la troncature.** Les mots « or an approved flight training device configured for the same category as the aircraft » manquaient. Conséquence réelle : `_dashApproachesIn6mo` filtrait par `countsTowardRecency` (le filtre des ATTERRISSAGES, 401.05(2)b), qui n'admet que FFS B/C/D) et jetait les approches faites sur FTD → **récence IFR sous-comptée**. Corrigé par un prédicat distinct `approachCountsTowardIFR` (FFS, FFS-C, FTD). **La règle des approches (3.1)b) est PLUS LARGE que celle des atterrissages (2)b) : ne JAMAIS réutiliser le même filtre pour les deux.**
 - Le texte exige « approved » et « configured for the same category » : l'app ne peut vérifier ni l'un ni l'autre ⇒ elle compte le FTD et laisse ce jugement au pilote, plutôt que de jeter silencieusement une approche légitime.
 - **Relu au texte BRUT (curl, PAS WebFetch) le 2026-07-17** : https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-401.05.html

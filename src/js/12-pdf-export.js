@@ -287,6 +287,41 @@ function _generatePDF(colsOverride, opts) {
     _declaredOnType[String(p.personalGoalContext).trim().toUpperCase()] = +p.personalGoalBroughtForward;
   }
 
+  // The pilot's saved signature (Settings > Signature), drawn on the signature
+  // line of EVERY page. Martin 2026-08-12: "comment je fais pour mettre ma
+  // signature electronique en bas de chaques page ?" — nothing to do per page,
+  // it is applied wherever a signature line is printed, and the lines stay
+  // blank for hand-signing when none is saved. The date beside it is the day
+  // the document was produced, which is the day it is being signed.
+  const _sigData = (function () {
+    try {
+      const s = localStorage.getItem('logbook_signature');
+      return (s && /^data:image\/(png|jpeg);base64,/.test(s)) ? s : '';
+    } catch (e) { return ''; }
+  })();
+  let _sigRatio = 0;   // height / width, read once from the image itself
+  if (_sigData) {
+    try {
+      const props = doc.getImageProperties(_sigData);
+      if (props && props.width > 0) _sigRatio = props.height / props.width;
+    } catch (e) { _sigRatio = 0; }
+  }
+  // Draws the signature sitting ON the line that starts at (x, y), plus the
+  // date and licence number on their own lines. Returns false when there is
+  // nothing saved, so the caller keeps the blank lines.
+  function drawSavedSignature(x, y, lineW, dateX, licX) {
+    if (!_sigData) return false;
+    const h = 9;
+    const w = Math.min(lineW - 4, _sigRatio > 0 ? (h / _sigRatio) : 45);
+    try { doc.addImage(_sigData, 'PNG', x + 1, y - h - 0.5, w, h); } catch (e) { return false; }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...textPrimary);
+    if (dateX != null) doc.text(localTodayStr(), dateX + 1, y - 1.5);
+    if (licX != null && license && license !== '—') doc.text(String(license), licX + 1, y - 1.5);
+    return true;
+  }
+
   // Trim a string to the room actually available IN THE CURRENT FONT. Used
   // wherever a value shares a row with another one: without it a long value
   // simply overprinted its neighbour instead of stopping at its own column.
@@ -338,7 +373,8 @@ function _generatePDF(colsOverride, opts) {
     const cardX = 30, cardY = 38, cardW = W - 60, padX = 15;
     const heroY = cardY + 56, heroH = 46;
     const typeTitleY = cardY + 110;                 // 8 mm under the hero band
-    const cardH = typeShown.length ? (114 + typeRowCount * 16 + 3) : (heroY + heroH + 6 - cardY);
+    const typeRowH = 14;                            // label + figure, no more
+    const cardH = typeShown.length ? (114 + typeRowCount * typeRowH + 1) : (heroY + heroH + 6 - cardY);
     doc.setDrawColor(...border);
     doc.setLineWidth(0.3);
     doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'S');
@@ -353,12 +389,13 @@ function _generatePDF(colsOverride, opts) {
     doc.setTextColor(...muted);
     doc.text(pdfFit(`${airline} · Base ${base}`, cardW - padX * 2), cardX + padX, cardY + 27);
 
+    // No "Total Entries": a row count is not a credential, and it sat in the
+    // row of licence and expiry dates as if it were one. (Martin 2026-08-12.)
     const fields = [
       ['License Number', license],
       ['Medical Expiry', medical],
       ['Booklet Expiry', bookletExp],
       ['Type Rating(s)', fleet],
-      ['Total Entries',  String(flights.length)],
     ];
     const idSlotW = (cardW - padX * 2) / fields.length;
     fields.forEach((row, i) => {
@@ -463,7 +500,7 @@ function _generatePDF(colsOverride, opts) {
         cardX + padX, typeTitleY);
       const typeSlotW = (cardW - padX * 2) / typePerRow;
       typeShown.forEach((e, i) => {
-        const rowTop = cardY + 114 + Math.floor(i / typePerRow) * 16;
+        const rowTop = cardY + 114 + Math.floor(i / typePerRow) * typeRowH;
         const x = cardX + padX + (i % typePerRow) * typeSlotW;
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(6.5);
@@ -473,20 +510,13 @@ function _generatePDF(colsOverride, opts) {
         doc.setFontSize(11);
         doc.setTextColor(...textPrimary);
         // A type flown only in the simulator says so in the headline rather
-        // than printing "0.0 h" over a footnote nobody reads.
+        // than printing "0.0 h". No composition line under the figure: Martin
+        // 2026-08-12, "declared et entries non je veux pas voir ca non plus".
+        // Nothing is hidden by dropping it — the hero band two lines above
+        // already states that the career total is paper hours plus logged
+        // hours, and simulator time is excluded here exactly as it is there.
         const simOnly = !(e.total > 0) && e.sim > 0;
         doc.text(simOnly ? `${fmt(e.sim)} h sim` : `${fmt(e.total)} h`, x, rowTop + 11);
-        // Composition, only when there is something to explain: a total that
-        // mixes logged and declared hours never prints bare.
-        const bits = [];
-        if (e.paper > 0) bits.push(`${fmt(e.air)} logged + ${fmt(e.paper)} declared`);
-        if (e.sim > 0 && !simOnly) bits.push(`sim ${fmt(e.sim)}`);
-        if (bits.length) {
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5.5);
-          doc.setTextColor(...muted);
-          doc.text(pdfFit(bits.join(' · '), typeSlotW - 4), x, rowTop + 15);
-        }
       });
     }
 
@@ -771,6 +801,7 @@ function _generatePDF(colsOverride, opts) {
     doc.line(tableMargin, y, tableMargin + 70, y);                // Signature
     doc.line(tableMargin + 90, y, tableMargin + 140, y);          // Date
     doc.line(tableMargin + 160, y, tableMargin + 220, y);         // License
+    drawSavedSignature(tableMargin, y, 70, tableMargin + 90, tableMargin + 160);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
     doc.setTextColor(...muted);
@@ -890,10 +921,10 @@ function _generatePDF(colsOverride, opts) {
     const to6mDay = recent6m.reduce((s, f) => s + (+f.toDay || 0), 0);
     const to6mNight = recent6m.reduce((s, f) => s + (+f.toNight || 0), 0);
     const to6m = to6mDay + to6mNight;
-    // CAR 401.05: 6 instrument approaches in 6 months. Counter is approaches only.
+    // CAR 401.05(3.1): 6 instrument approaches in 6 months. Approaches only —
+    // instrument HOURS are not a requirement of the current regulation and are
+    // no longer computed here (they were only ever used to fail this page).
     const approaches6m = recent6mAppr.reduce((s, f) => s + (+f.approaches || 0), 0);
-    // Instrument TIME carries no device restriction in 401.05(3.1)(a): unfiltered.
-    const instHours6m = _in6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
     const items = [
       // Take-offs are logged far more sparsely than landings in this logbook
@@ -920,19 +951,25 @@ function _generatePDF(colsOverride, opts) {
           : `${to6mNight} night take-off${to6mNight !== 1 ? 's' : ''} · ${ldg6mNight} night landing${ldg6mNight !== 1 ? 's' : ''} in last 6 months`,
         ok: ldg6mNight < 5 ? false : (to6mNight >= 5 ? true : null)
       },
+      // Instrument rating: the 24-month test or check, then the approach
+      // recency that follows it. There is NO instrument-time requirement —
+      // the "6 hours" item printed here until 2026-08-12 quoted a DATED
+      // permalink frozen at 2025-12-17; the words are not in the current
+      // regulation (verified against the raw text, see registre). It badged
+      // a line pilot NOT CURRENT for failing a rule that does not exist.
       {
-        title: 'IFR currency — approaches',
-        reg: 'CAR 401.05',
-        requirement: '6 instrument approaches within preceding 6 months (PIC or required pilot)',
-        current: `${Math.floor(approaches6m)} approach${approaches6m !== 1 ? 'es' : ''} logged in last 6 months`,
-        ok: approaches6m >= 6
+        title: 'Instrument rating — test or check',
+        reg: 'CAR 401.05(3)',
+        requirement: 'A flight test, instrument proficiency check or PPC within the preceding 24 months (for 705 operations, a PPC under Standard 725.106 — CAR 401.05(3)(d)(iv)(G))',
+        current: p.ppcDueDate ? `PPC recorded as valid to ${p.ppcDueDate}` : 'No PPC date in profile',
+        ok: p.ppcDueDate ? (p.ppcDueDate >= localTodayStr()) : null
       },
       {
-        title: 'IFR currency — instrument time',
-        reg: 'CAR 401.05',
-        requirement: '6 hours instrument time within preceding 6 months (actual + hood + approved sim)',
-        current: `${instHours6m.toFixed(1)} hrs instrument time logged in last 6 months`,
-        ok: instHours6m >= 6
+        title: 'IFR currency — approaches',
+        reg: 'CAR 401.05(3.1)',
+        requirement: '6 instrument approaches within the preceding 6 months. Applies only from the first day of the seventh month after the test or check above',
+        current: `${Math.floor(approaches6m)} approach${approaches6m !== 1 ? 'es' : ''} logged in last 6 months`,
+        ok: approaches6m >= 6
       },
       {
         title: 'Medical certificate',
@@ -989,12 +1026,15 @@ function _generatePDF(colsOverride, opts) {
       doc.setTextColor(...muted);
       doc.text(item.reg, tableMargin + 6, y + 9.5);
 
-      // Requirement + current state
+      // Requirement + current state. Bounded by the status badge on the right
+      // (right-aligned at W - tableMargin - 4, widest label ~26 mm) so a long
+      // requirement stops instead of running underneath it.
+      const _reqRoom = (W - tableMargin - 4) - 26 - (tableMargin + 6);
       doc.setFontSize(8);
       doc.setTextColor(...textPrimary);
-      doc.text('Requirement: ' + item.requirement, tableMargin + 6, y + 13.5);
+      doc.text(pdfFit('Requirement: ' + item.requirement, _reqRoom), tableMargin + 6, y + 13.5);
       doc.setTextColor(...muted);
-      doc.text('Current: ' + item.current, tableMargin + 6, y + 17);
+      doc.text(pdfFit('Current: ' + item.current, _reqRoom), tableMargin + 6, y + 17);
 
       // Status badge (right)
       doc.setFont('helvetica', 'bold');
@@ -1017,8 +1057,10 @@ function _generatePDF(colsOverride, opts) {
     doc.setLineWidth(0.3);
     doc.line(tableMargin, y, tableMargin + 70, y);
     doc.line(tableMargin + 90, y, tableMargin + 140, y);
+    drawSavedSignature(tableMargin, y, 70, tableMargin + 90, null);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
+    doc.setTextColor(...muted);
     doc.text('Pilot Signature', tableMargin, y + 3);
     doc.text('Date', tableMargin + 90, y + 3);
   }

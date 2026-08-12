@@ -146,11 +146,8 @@ function renderCurrencyCard() {
   const recent6m = flights.filter(f => f.date && f.date >= cut6mStr && f.date <= todayStr);
 
   // Approaches: filtered to qualifying devices (CAR 401.05(3.1)) via the shared
-  // helper, so the card matches the alert bar and the validity ring. Instrument
-  // time is NOT device-filtered — CAR 101.01 counts simulated/ground instrument
-  // time too (see _dashInstrumentTimeIn6mo + registre).
+  // helper, so the card matches the alert bar and the validity ring.
   const approachCount = _dashApproachesIn6mo();
-  const instHours = recent6m.reduce((s, f) => s + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 
   const setStatus = (elId, ok, low) => {
     const el = document.getElementById(elId);
@@ -168,9 +165,10 @@ function renderCurrencyCard() {
       ? t('curr.noFlights6mo')
       : t(recent6m.length === 1 ? 'curr.acrossFlights' : 'curr.acrossFlightsPl', { n: recent6m.length });
 
-  document.getElementById('cur-hrs-count').textContent = instHours.toFixed(1);
-  setStatus('cur-hrs-status', instHours >= 6, instHours > 0);
-  document.getElementById('cur-hrs-sub').textContent = t('curr.instTimeSub');
+  // No instrument-HOURS tile: CAR 401.05(3.1) sets no instrument-time
+  // requirement (raw current text re-read 2026-08-12 — see registre). Its
+  // markup was already gone from the page; only these writes were left, and
+  // they would have thrown on a null element if the card ever came back.
 }
 
 // ═══════════════════════════════════════════

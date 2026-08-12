@@ -250,6 +250,28 @@ if (hasFix) {
   chk('(m) no landing tally among the career hour figures', src.indexOf("['Landings',") === -1);
   chk('(m) no acceptance-stamp count on the cover',
     src.indexOf('${_accepted.length} of ${sorted.length}') === -1);
+  // Two more the cover does not carry: a row count sitting among the licence
+  // and expiry fields, and a composition line under each type figure.
+  chk('(m) no entry count among the credentials', src.indexOf("['Total Entries'") === -1);
+  chk('(m) no composition line under the type figures', src.indexOf('logged + ') === -1);
+  // (o) CAR 401.05(3.1) — raw current text re-read 2026-08-12: SIX APPROACHES,
+  // no instrument-time requirement. The old item badged a line pilot with 62
+  // approaches NOT CURRENT because instrument HOURS, which no airline import
+  // fills, read 0.0. The register entry it came from cited a DATED permalink
+  // frozen at 2025-12-17.
+  chk('(o) the phantom instrument-time requirement is gone from the annexe',
+    src.indexOf('6 hours instrument time') === -1 && src.indexOf('instHours6m') === -1);
+  chk('(o) the approach item cites the subsection it comes from',
+    src.indexOf("reg: 'CAR 401.05(3.1)'") !== -1);
+  chk('(o) the 24-month test or check is stated, with the 705 PPC path',
+    src.indexOf("reg: 'CAR 401.05(3)'") !== -1 && src.indexOf('725.106') !== -1);
+  // (p) The saved signature is applied wherever a signature line is printed.
+  chk('(p) the saved signature reaches the page', src.indexOf('drawSavedSignature(') !== -1);
+  chk('(p) a page with no saved signature keeps its blank line',
+    src.indexOf("if (!_sigData) return false;") !== -1);
+  const data02 = readFileSync(join(root, 'src/js/02-data.js'), 'utf8');
+  chk('(o) IFR status is decided by approaches alone',
+    data02.indexOf('current: approaches >= 6,') !== -1);
 }
 
 // (n) HOURS BY AIRCRAFT TYPE — the number he asked to be able to export

@@ -154,17 +154,17 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
 
 // ─── IFR currency drill-down ───────────────────────────────────────
 function _drillIFR(fr, addBtn, logbookBtn) {
-  // CAR 401.05(3.1): BOTH 6 instrument approaches AND 6 hours instrument time
-  // in the 6 months (instrument time incl. simulator per CAR 101.01).
+  // CAR 401.05(3.1), raw current text re-read 2026-08-12: SIX INSTRUMENT
+  // APPROACHES in the six months before the flight. The "6 hours of instrument
+  // time" this panel used to demand is NOT in the regulation any more.
   const ifr = (typeof _dashIFRCurrency === 'function')
     ? _dashIFRCurrency()
     : { approaches: 0, hours: 0, current: false };
   const count = ifr.approaches;
   const need = Math.max(0, 6 - count);
-  const needHrs = Math.max(0, 6 - ifr.hours);
   const status = ifr.current
     ? (fr ? 'À JOUR' : 'CURRENT')
-    : (count >= 4 && ifr.hours >= 4) ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
+    : count >= 4 ? (fr ? 'BIENTÔT' : 'EXPIRES SOON') : (fr ? 'EXPIRÉ' : 'NOT CURRENT');
 
   // Last 6 months of approaches, grouped by date — gives the pilot a visual
   // confirmation of which flights count toward the 6-in-6 minimum. Same
@@ -178,9 +178,8 @@ function _drillIFR(fr, addBtn, logbookBtn) {
 
   const rows = [
     { k: fr ? 'Approches IFR (6 mois)' : 'IFR approaches (6 months)', v: `<strong>${count}</strong> / 6` },
-    { k: fr ? 'Temps aux instruments (6 mois)' : 'Instrument time (6 months)', v: `<strong>${ifr.hours.toFixed(1)}</strong> / 6 h` },
-    { k: fr ? 'Manquant pour être à jour' : 'Needed to be current', v: (need > 0 || needHrs > 0) ? `${need > 0 ? need + (fr ? ' appr.' : ' appr') : ''}${need > 0 && needHrs > 0 ? ' + ' : ''}${needHrs > 0 ? needHrs.toFixed(1) + ' h' : ''}` : (fr ? 'aucun' : 'none') },
-    { k: fr ? 'État' : 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : (count >= 4 && ifr.hours >= 4) ? 'warn' : 'bad'}">${status}</span>` },
+    { k: fr ? 'Manquant pour être à jour' : 'Needed to be current', v: need > 0 ? `${need}${fr ? ' appr.' : ' appr'}` : (fr ? 'aucune' : 'none') },
+    { k: fr ? 'État' : 'Status', v: `<span class="dash-drill-pill ${ifr.current ? 'ok' : count >= 4 ? 'warn' : 'bad'}">${status}</span>` },
   ];
 
   let list = '';
@@ -199,8 +198,8 @@ function _drillIFR(fr, addBtn, logbookBtn) {
     eyebrow: fr ? 'VALIDITÉ AUX INSTRUMENTS' : 'INSTRUMENT CURRENCY',
     title: fr ? 'Validité IFR' : 'IFR Currency',
     body: _drillRowsHtml(rows) + list + `<div class="dash-drill-note">${fr
-      ? 'Règle (CAR 401.05(3.1)) : dans les 6 derniers mois, 6 approches IFR (ILS / RNAV / VOR / visuelle après IAP) ET 6 h de temps aux instruments (le temps en simulateur compte — CAR 101.01).'
-      : 'Rule (CAR 401.05(3.1)): in the past 6 months, 6 IFR approaches (ILS / RNAV / VOR / visual after IAP) AND 6 hours of instrument time (simulator time counts — CAR 101.01).'}</div>`,
+      ? 'Règle (RAC 401.05(3.1)) : 6 approches aux instruments dans les 6 mois précédant le vol. Elle ne s\'applique qu\'à partir du 1er jour du 7e mois suivant votre test ou contrôle de 401.05(3) — pour un pilote 705, votre PPC (norme 725.106).'
+      : 'Rule (CAR 401.05(3.1)): 6 instrument approaches in the six months before the flight. It only applies from the first day of the seventh month after your 401.05(3) test or check — for a 705 pilot, your PPC (Standard 725.106).'}</div>`,
     foot: `${logbookBtn(fr ? 'Voir le carnet' : 'See logbook')} ${addBtn(fr ? 'Enregistrer un vol' : 'Log a flight')}`
   };
 }

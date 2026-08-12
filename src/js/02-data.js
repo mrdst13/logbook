@@ -1294,20 +1294,25 @@ function _dashInstrumentTimeIn6mo() {
     .reduce((sum, f) => sum + (+f.instActual || 0) + (+f.instHood || 0) + (+f.instSim || 0), 0);
 }
 
-// IFR recency (CAR 401.05(3.1)): within 6 months, the holder must have BOTH
-// (a) six hours of instrument time AND (b) six instrument approaches. Returns
-// both counts, the limiting progress ratio, and whether the pilot is current.
+// IFR recency — CAR 401.05(3.1), re-read from the raw current text 2026-08-12:
+// SIX INSTRUMENT APPROACHES within the six months before the flight. There is
+// NO instrument-time requirement: the words "six hours of instrument time" are
+// not in the regulation any more (0 occurrences in the current page; the app
+// had been quoting a DATED permalink frozen at 2025-12-17 — see registre).
+// It cost Martin a red NOT CURRENT badge on a rule that no longer exists.
+// Instrument hours are still returned because they are real data the pilot may
+// want to see; they never gate the status.
 function _dashIFRCurrency() {
   const approaches = _dashApproachesIn6mo();
   const hours = _dashInstrumentTimeIn6mo();
-  const ratio = Math.min(approaches / 6, hours / 6);
+  const ratio = approaches / 6;
   return {
     approaches,
     hours,
-    current: approaches >= 6 && hours >= 6,
+    current: approaches >= 6,
     pct: Math.min(100, ratio * 100),
-    // The binding constraint, for a compact "X / 6" sub-label.
-    limiting: (hours / 6 < approaches / 6) ? 'hours' : 'approaches',
+    // Kept for callers that label the ring; approaches are the only requirement.
+    limiting: 'approaches',
   };
 }
 
@@ -1657,22 +1662,12 @@ function _dashRenderNextColumn() {
       onclick: "openDashDrill('ppc')" });
   } else if (!is705ForStatus && !ifr.current) {
     // IFR recency only matters for non-705 pilots (no Company PPC to supersede).
-    // CAR 401.05(3.1) needs BOTH 6 approaches AND 6 h instrument time — surface
-    // whichever is short.
+    // CAR 401.05(3.1) = six APPROACHES in six months. Nothing about hours.
     const needAppr = Math.max(0, 6 - ifr.approaches);
-    const needHrs = Math.max(0, 6 - ifr.hours);
-    const subFr = needAppr > 0 && needHrs > 0
-      ? `${needAppr} appr. + ${needHrs.toFixed(1)} h à faire · RAC 401.05(3.1)`
-      : needAppr > 0
-        ? `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · RAC 401.05(3.1)`
-        : `${needHrs.toFixed(1)} h instrument à faire · RAC 401.05(3.1)`;
-    const subEn = needAppr > 0 && needHrs > 0
-      ? `${needAppr} appr + ${needHrs.toFixed(1)} h to go · CAR 401.05(3.1)`
-      : needAppr > 0
-        ? `${needAppr} approach${needAppr !== 1 ? 'es' : ''} to go · CAR 401.05(3.1)`
-        : `${needHrs.toFixed(1)} h instrument to go · CAR 401.05(3.1)`;
+    const subFr = `${needAppr} approche${needAppr !== 1 ? 's' : ''} restante${needAppr !== 1 ? 's' : ''} · RAC 401.05(3.1)`;
+    const subEn = `${needAppr} approach${needAppr !== 1 ? 'es' : ''} to go · CAR 401.05(3.1)`;
     cards.push({ tone: 'warning', kicker: fr ? 'À RENOUVELER' : 'TO RENEW',
-      title: fr ? `Validité IFR · ${ifr.approaches}/6 appr · ${ifr.hours.toFixed(1)}/6 h` : `IFR currency · ${ifr.approaches}/6 appr · ${ifr.hours.toFixed(1)}/6 h`,
+      title: fr ? `Validité IFR · ${ifr.approaches}/6 appr` : `IFR currency · ${ifr.approaches}/6 appr`,
       sub: fr ? subFr : subEn,
       chip: 'IFR',
       onclick: "openDashDrill('ifr')" });
