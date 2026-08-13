@@ -145,6 +145,66 @@ const i18n = readFileSync(join(root, 'src/js/17-i18n.js'), 'utf8');
   chk('a continuation naming two aircraft is refused', split.indexOf('PD701=(blank)') !== -1);
 }
 
+// ── The real Porter roster row ──────────────────────────────────────────────
+// Martin dropped his monthly roster on 2026-08-13 and got "Flight legs
+// extracted from PDF: 1". A Navblue HrRosterReport dates each row by DAY OF
+// MONTH plus a weekday ("01 Fri"), the shape written in this file's own row
+// sample since 2026-05-14 — and extractDate() never handled it, so nearly every
+// leg was dropped before crew, times or registration could be read.
+{
+  const ROSTER = [
+    'HrRosterReport   Crew: DAOUST M   TimeMode Local time',
+    'Period 01May26 - 31May26',
+    'Date Des. Code Req LE CI Dep STD Arr STA CO AC WA Func Rank ATD ATA BLH Credit Pairing',
+    '01 Fri        PD448         1055 YYJ 1155 YOW 1933 2002 295   C-GZQW   FO   12:07 19:47 04:40 04:40 O3049',
+    '02 Sat        PD325         0800 YOW 0900 YLW 1400 1430 295   C-GKQA   FO   08:05 14:02 05:00 05:00 O3050',
+    '31 Sun        PD500         1300 YOW 1400 YUL 1500 1530 295   C-GKYN   FO   13:02 15:01 01:30 01:30 O3060',
+  ].join('\n');
+  const legs = JSON.parse(w.eval(`JSON.stringify(parseNavblueRosterText(${JSON.stringify(ROSTER)}))`));
+  chk('every row of a real roster month is read, not just one', legs.length === 3);
+  chk('the day column is resolved against the roster period',
+    legs[0] && legs[0].date === '2026-05-01' && legs[2] && legs[2].date === '2026-05-31');
+  chk('the registration on the row reaches the leg', legs[0] && legs[0].reg === 'C-GZQW');
+  chk('the route survives the "Dep STD Arr STA" layout', legs[0] && legs[0].route === 'YYJ-YOW');
+  chk('the actual times are still read', legs[0] && legs[0].atd_utc === '1207' && legs[0].ata_utc === '1947');
+
+  // A period must READ like a period. A lone print date must never date a
+  // month of flying — that would be a wrong date on every certifiable entry.
+  chk('a period spanning two months maps the days to the right one', (() => {
+    const p = JSON.parse(w.eval("JSON.stringify(rosterPeriodContext('Period 28Jun26 - 04Jul26'))"));
+    const d1 = w.eval("rosterRowDate('28 Sun  PD1', " + JSON.stringify(p) + ")");
+    const d2 = w.eval("rosterRowDate('02 Thu  PD2', " + JSON.stringify(p) + ")");
+    return d1 === '2026-06-28' && d2 === '2026-07-02';
+  })());
+  chk('a lone print date is not treated as a period',
+    w.eval("JSON.stringify(rosterPeriodContext('Printed 13Aug26  Crew DAOUST'))") === 'null');
+  chk('a date outside the stated period is refused', (() => {
+    const p = JSON.parse(w.eval("JSON.stringify(rosterPeriodContext('Period 01May26 - 15May26'))"));
+    return w.eval("rosterRowDate('20 Wed  PD9', " + JSON.stringify(p) + ")") === '';
+  })());
+  chk('no period means no invented date',
+    w.eval("rosterRowDate('01 Fri  PD448', null)") === '');
+
+  // The diagnostic must show the LAYOUT and none of the content.
+  const rep = JSON.parse(w.eval(`JSON.stringify(rosterParseReport(${JSON.stringify(ROSTER)}))`));
+  chk('the diagnostic counts what matters',
+    rep.withNum === 3 && rep.withDayCol === 3 && rep.withReg === 3);
+  chk('the diagnostic reports the period it read', rep.period === '2026-05-01 -> 2026-05-31');
+  const shapes = rep.header.concat(rep.samples).join(' ');
+  chk('the masked shapes keep the layout', shapes.indexOf('99 AAA') !== -1);
+  chk('the masked shapes leak no crew name', shapes.indexOf('DAOUST') === -1);
+  chk('the masked shapes leak no flight number', shapes.indexOf('PD448') === -1 && shapes.indexOf('448') === -1);
+  chk('the masked shapes leak no registration', shapes.indexOf('GZQW') === -1);
+  chk('the roster text is never persisted',
+    readFileSync(join(root, 'src/js/10-pdf-roster.js'), 'utf8').indexOf("setItem('cumulo_roster_text") === -1);
+}
+
+// Nothing in this app may send a pilot to a browser console.
+['toast.noCaptainsAdded'].forEach(k => {
+  const line = (readFileSync(join(root, 'src/js/17-i18n.js'), 'utf8').match(new RegExp("'" + k + "':[^\\n]*", 'g')) || []).join(' ');
+  chk(`${k} does not send anyone to a console`, !/console/i.test(line));
+});
+
 // The citation this feature rests on. 401.08(2)(b) is the registration mark;
 // (2)(h) is the launch method of a GLIDER and was quoted by mistake for years.
 const reg08 = readFileSync(join(root, 'docs/REGISTRE-REGLEMENTAIRE.md'), 'utf8');

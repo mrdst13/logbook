@@ -14111,7 +14111,10 @@ async function handleRosterFile(file) {
       allText += lines.join('\n') + '\n';
     }
 
-    void('[Roster] First 1500 chars of extracted text:\n' + allText.substring(0, 1500));
+    // Kept in memory for the "what Cumulo read" panel. Never persisted: the
+    // extracted text carries crew names. Not logged either — a console dump of
+    // a roster is the same PII, just somewhere else.
+    _lastRosterText = allText;
 
     // Detect TimeMode header (Navblue PDFs can be downloaded in Local or UTC).
     // We extract ATD/ATA verbatim; if Local mode, the user should re-download
@@ -14132,7 +14135,8 @@ async function handleRosterFile(file) {
     void(`[Roster] Extracted ${extracted.length} flights from PDF (TimeMode: ${pdfTimeMode})`);
 
     if (extracted.length === 0) {
-      details.innerHTML = `<span style="color:var(--danger);">${esc(t('roster.noLegs'))}</span>`;
+      details.innerHTML = `<span style="color:var(--danger);">${esc(t('roster.noLegs'))}</span>` +
+        `<br><button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="showRosterParseDiagnostic()">${esc(t('roster.diag.btn'))}</button>`;
       showToast(t('toast.noFlightsInPdf'), 'error');
       return;
     }
@@ -14268,6 +14272,9 @@ async function handleRosterFile(file) {
     // (Local-time PDF, or a leg still lacking real ATD/ATA — e.g. in progress).
     const notAdded = noMatch - newLegs.length;
     if (notAdded > 0) detailLines.push(`<span style="color:var(--warning);">${t('roster.detail.noMatch', { n: notAdded })}</span>`);
+    // A way to see what the parser actually read, without asking anyone to open
+    // a console (which this app never does) and without exposing a single name.
+    detailLines.push(`<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="showRosterParseDiagnostic()">${esc(t('roster.diag.btn'))}</button>`);
     details.innerHTML = detailLines.join('<br>');
 
     if (newLegs.length > 0) {
@@ -14328,9 +14335,13 @@ function parseNavblueRosterText(text) {
   // Crew names in Navblue PDFs : usually uppercase last name + first initial.
 
   // Build a date map : line index → ISO date (for any line that mentions a date)
+  // A full date wins; failing that, the row's own "01 Fri" day resolved against
+  // the roster period. Without this second form a Porter roster yields almost
+  // nothing (Martin 2026-08-13: 1 leg out of a whole month).
+  const period = rosterPeriodContext(text);
   const dateOnLine = {};
   for (let i = 0; i < lines.length; i++) {
-    const d = extractDate(lines[i]);
+    const d = extractDate(lines[i]) || rosterRowDate(lines[i], period);
     if (d) dateOnLine[i] = d;
   }
 
@@ -14372,8 +14383,13 @@ function parseNavblueRosterText(text) {
       if (!date) return;  // can't anchor without a date
 
       // Find route (YOW-YYZ, YYJ-YOW, etc.) — 3-letter IATAs near the flight number
+      // Third shape: the Navblue row prints "Dep STD Arr STA", so the two
+      // airports are separated by the scheduled departure time
+      // ("... YYJ 1155 YOW ..."). Without this the route came out empty on a
+      // real Porter roster and only the flight number could match a logbook row.
       const routeMatch = line.match(/\b([A-Z]{3})\s*[-\/]\s*([A-Z]{3})\b/) ||
-                         line.match(/\b([A-Z]{3})\s+([A-Z]{3})\b/);
+                         line.match(/\b([A-Z]{3})\s+([A-Z]{3})\b/) ||
+                         line.match(/\b([A-Z]{3})\s+\d{3,4}\s+([A-Z]{3})\b/);
       const route = routeMatch ? `${routeMatch[1]}-${routeMatch[2]}` : '';
 
       // Find crew names — look on this line + next 2 lines
@@ -14545,6 +14561,152 @@ function navbluePdfLegToFlight(leg, isFO, autoCountIFR) {
     source: 'navblue-pdf',
     navblueUid: ''
   };
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  WHAT CUMULO READ — a diagnostic that carries NO personal data.
+//
+//  When a roster parses badly there is no way to fix it without seeing the
+//  layout, and the extracted text is full of third-party crew names, flight
+//  numbers and times. So the panel reports COUNTS plus SHAPE-MASKED samples:
+//  every letter becomes A and every digit 9, which preserves the column layout
+//  exactly and destroys the content. "01 Fri PD448 1055 YYJ" reads
+//  "99 AAA AA999 9999 AAA" — enough to write a parser, impossible to identify
+//  a crew member, a flight or a day.
+//
+//  Held in memory only (never localStorage, never the cloud): the raw text is
+//  PII and it dies with the page.
+// ─────────────────────────────────────────────────────────────────
+let _lastRosterText = '';
+
+function maskRosterShape(line) {
+  return String(line || '').replace(/[A-Za-zÀ-ÿ]/g, 'A').replace(/[0-9]/g, '9').slice(0, 110);
+}
+
+function rosterParseReport(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  const codes = (() => {
+    try { return ((DB.loadProfile().operatorCodes || 'PD').split(',').map(c => c.trim().toUpperCase()).filter(Boolean)).join('|'); }
+    catch (e) { return 'PD'; }
+  })();
+  const numRe = new RegExp('\\b(?:' + (codes || 'PD') + ')\\d{2,4}\\b', 'i');
+  const dayRe = /^\s*(\d{1,2})\s*(MON|TUE|WED|THU|FRI|SAT|SUN)\b/i;
+  const period = rosterPeriodContext(text);
+  let withNum = 0, withFullDate = 0, withDayCol = 0, withReg = 0, deadhead = 0;
+  const samples = [];
+  lines.forEach(l => {
+    const hasNum = numRe.test(l);
+    if (hasNum) withNum++;
+    if (extractDate(l)) withFullDate++;
+    if (dayRe.test(l)) withDayCol++;
+    if (/\bC-[A-Z]{4}\b/.test(l)) withReg++;
+    if (hasNum && /\(D\)|\bDH\b|\bDHD\b|\bDEADHEAD\b/i.test(l)) deadhead++;
+    if (hasNum && samples.length < 4) samples.push(maskRosterShape(l));
+  });
+  return {
+    lines: lines.length, withNum: withNum, withFullDate: withFullDate,
+    withDayCol: withDayCol, withReg: withReg, deadhead: deadhead,
+    period: period ? (period.from ? period.from + ' -> ' + period.to
+                                  : String(period.y1) + '-' + (period.m1 < 10 ? '0' : '') + period.m1) : '',
+    header: lines.slice(0, 3).map(maskRosterShape),
+    samples: samples
+  };
+}
+
+function showRosterParseDiagnostic() {
+  const details = document.getElementById('rosterDetails');
+  if (!details) return;
+  if (!_lastRosterText) { showToast(t('roster.diag.none'), 'error'); return; }
+  const r = rosterParseReport(_lastRosterText);
+  const rows = [
+    t('roster.diag.lines', { n: r.lines }),
+    t('roster.diag.withNum', { n: r.withNum }),
+    t('roster.diag.dates', { full: r.withFullDate, day: r.withDayCol }),
+    t('roster.diag.period', { p: r.period || t('roster.diag.noPeriod') }),
+    t('roster.diag.regs', { n: r.withReg }),
+    t('roster.diag.deadhead', { n: r.deadhead }),
+  ].map(esc);
+  const shapes = r.header.concat(r.samples).map(esc).join('<br>');
+  details.style.display = 'block';
+  details.innerHTML = rows.join('<br>') +
+    '<div style="margin-top:8px;">' + esc(t('roster.diag.shapeNote')) + '</div>' +
+    '<div style="margin-top:6px; white-space:pre; overflow-x:auto;">' + shapes + '</div>';
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  THE ROSTER'S OWN PERIOD, and the "01 Fri" row date.
+//
+//  Martin 2026-08-13, dropping his monthly roster: "Flight legs extracted from
+//  PDF: 1". A Navblue HrRosterReport dates each row by DAY OF MONTH plus a
+//  weekday ("01 Fri  PD448 ..."), exactly as the row sample documented at the
+//  top of parseNavblueRosterText — a shape extractDate() never handled. With no
+//  date on the row and none in the five lines above it, nearly every leg was
+//  dropped before anything else could run.
+//
+//  The month comes from the roster's own period header, never from today's
+//  clock. When the period spans two months, a day at or after the start day
+//  belongs to the first month and a lower day to the second — and any date
+//  landing outside the stated period is refused rather than guessed, because a
+//  wrong date is a wrong logbook entry.
+// ─────────────────────────────────────────────────────────────────
+const _ROSTER_MONTHS = { JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12 };
+
+function rosterPeriodContext(text) {
+  // Header area only. A date further down is a row, not the period, and a
+  // print date picked up by accident would date a whole month of flying to the
+  // wrong month — the worst possible failure on a certifiable record.
+  const s = String(text || '').slice(0, 3000);
+  const pad = n => (n < 10 ? '0' : '') + n;
+  const iso = (y, m, d) => y + '-' + pad(m) + '-' + pad(d);
+  const found = [];
+  [...s.matchAll(/\b(\d{1,2})[\s\-]?([A-Za-z]{3})[\s\-]?(\d{2,4})\b/g)].forEach(m => {
+    const mo = _ROSTER_MONTHS[m[2].toUpperCase()];
+    if (!mo) return;
+    let y = m[3]; if (y.length === 2) y = '20' + y;
+    found.push({ at: m.index, d: +m[1], m: mo, y: +y });
+  });
+  [...s.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g)].forEach(m => {
+    found.push({ at: m.index, d: +m[3], m: +m[2], y: +m[1] });
+  });
+  found.sort((a, b) => a.at - b.at);
+  // A period is a PAIR that reads like one: ascending, and no longer than a
+  // roster month or so. The first such pair wins; a lone date (a print date,
+  // a licence expiry) is deliberately NOT treated as a period.
+  for (let i = 0; i + 1 < found.length; i++) {
+    const a = found[i], b = found[i + 1];
+    const from = iso(a.y, a.m, a.d), to = iso(b.y, b.m, b.d);
+    const days = (Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / 86400000;
+    if (days >= 0 && days <= 62) {
+      return { from: from, to: to, startDay: a.d, m1: a.m, y1: a.y, m2: b.m, y2: b.y };
+    }
+  }
+  // A titled month ("May 2026") is unambiguous on its own.
+  const named = s.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Za-z]*\s+(20\d{2})\b/i);
+  if (named) {
+    const mo = _ROSTER_MONTHS[named[1].toUpperCase()];
+    return { from: '', to: '', startDay: 1, m1: mo, y1: +named[2], m2: mo, y2: +named[2] };
+  }
+  return null;
+}
+
+// The day-of-month a roster row carries ("01 Fri", "1 Fri", "01Fri"), resolved
+// against the period. Returns an ISO date or '' — never a guess.
+function rosterRowDate(line, period) {
+  if (!period) return '';
+  const m = String(line || '').match(/^\s*(\d{1,2})\s*(MON|TUE|WED|THU|FRI|SAT|SUN)\b/i);
+  if (!m) return '';
+  const day = +m[1];
+  if (!(day >= 1 && day <= 31)) return '';
+  const spans = (period.m1 !== period.m2) || (period.y1 !== period.y2);
+  const useSecond = spans && day < period.startDay;
+  const y = useSecond ? period.y2 : period.y1;
+  const mo = useSecond ? period.m2 : period.m1;
+  const pad = n => (n < 10 ? '0' : '') + n;
+  const iso = y + '-' + pad(mo) + '-' + pad(day);
+  // Refuse anything the roster itself does not cover.
+  if (period.from && iso < period.from) return '';
+  if (period.to && iso > period.to) return '';
+  return iso;
 }
 
 // Extract an ISO date from a line of text. Handles many Navblue date formats.
@@ -18919,9 +19081,19 @@ const STRINGS = {
  'toast.pdfLibNotLoaded': 'PDF parser library not loaded yet — refresh the page and retry.',
  'toast.noFlightsInPdf': 'No flights found in this PDF',
  'roster.noLegs': 'No flight legs detected in this PDF. Make sure it is a Navblue HrRosterReport (not a different report).',
+ 'roster.diag.btn': 'What Cumulo read',
+ 'roster.diag.none': 'Import a roster PDF first.',
+ 'roster.diag.lines': 'Text lines in the PDF: {n}',
+ 'roster.diag.withNum': 'Lines carrying a flight number: {n}',
+ 'roster.diag.dates': 'Lines with a full date: {full} · lines dated by day + weekday: {day}',
+ 'roster.diag.period': 'Roster period read from the header: {p}',
+ 'roster.diag.noPeriod': 'not found',
+ 'roster.diag.regs': 'Lines carrying an aircraft registration: {n}',
+ 'roster.diag.deadhead': 'Flight lines skipped as deadhead: {n}',
+ 'roster.diag.shapeNote': 'Layout below with every letter replaced by A and every digit by 9 — it shows the column layout and no data:',
  'csv.review.noAutoDetect': 'no auto-detection — verify',
  'toast.allHadPic': 'All flights already had a PIC',
- 'toast.noCaptainsAdded': 'No new captains added — check console for details',
+ 'toast.noCaptainsAdded': 'No new captain name to add from this PDF',
  'toast.pdfParseFailed': 'Failed to parse PDF: {err}',
  'toast.pdfLibLoading': 'PDF library loading, try again',
  'toast.pdfExported': 'PDF exported ✓',
@@ -20110,9 +20282,19 @@ const STRINGS = {
  'toast.pdfLibNotLoaded': 'Bibliothèque PDF non chargée — rafraîchissez la page et réessayez.',
  'toast.noFlightsInPdf': 'Aucun vol trouvé dans ce PDF',
  'roster.noLegs': 'Aucun segment de vol détecté dans ce PDF. Assurez-vous qu\'il s\'agit d\'un rapport Navblue HrRosterReport (et non d\'un autre rapport).',
+ 'roster.diag.btn': 'Ce que Cumulo a lu',
+ 'roster.diag.none': 'Importez d’abord un PDF d’horaire.',
+ 'roster.diag.lines': 'Lignes de texte dans le PDF : {n}',
+ 'roster.diag.withNum': 'Lignes portant un numéro de vol : {n}',
+ 'roster.diag.dates': 'Lignes avec une date complète : {full} · lignes datées par jour + jour de semaine : {day}',
+ 'roster.diag.period': 'Période de l’horaire lue dans l’en-tête : {p}',
+ 'roster.diag.noPeriod': 'introuvable',
+ 'roster.diag.regs': 'Lignes portant une immatriculation : {n}',
+ 'roster.diag.deadhead': 'Lignes de vol ignorées comme mise en place : {n}',
+ 'roster.diag.shapeNote': 'Disposition ci-dessous avec chaque lettre remplacée par A et chaque chiffre par 9 — elle montre la mise en page et aucune donnée :',
  'csv.review.noAutoDetect': 'aucune détection automatique — à vérifier',
  'toast.allHadPic': 'Tous les vols avaient déjà un CDB',
- 'toast.noCaptainsAdded': 'Aucun nouveau commandant ajouté — consultez la console',
+ 'toast.noCaptainsAdded': 'Aucun nom de commandant à ajouter depuis ce PDF',
  'toast.pdfParseFailed': 'Échec de l’analyse PDF : {err}',
  'toast.pdfLibLoading': 'Chargement de la bibliothèque PDF, réessayez',
  'toast.pdfExported': 'PDF exporté ✓',
@@ -29645,7 +29827,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-13-65db93a';
+const BUILD_VERSION = '2026-08-13-293f59a';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
