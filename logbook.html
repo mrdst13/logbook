@@ -6766,6 +6766,7 @@ body.dark .alert-bar.red    { background: var(--danger-soft);   color: var(--dan
  <div style="display:flex; gap:var(--s-2); flex-wrap:wrap;">
  <button class="btn btn-primary" onclick="saveNavblueUrl()" data-i18n="sync.navblue.saveBtn">Save URL</button>
  <button class="btn btn-outline" onclick="syncNavblueNow()" id="syncNowBtn" data-i18n="sync.navblue.syncBtn">Sync now</button>
+ <button class="btn btn-outline" onclick="backfillRegistrationsFromRoster()" id="backfillRegBtn" data-i18n="sync.navblue.backfillBtn">Fill in registrations</button>
  <button class="btn btn-ghost btn-sm" onclick="showNavblueDiagnostic()" title="View raw iCal data — useful if crew names aren't appearing" data-i18n="sync.navblue.diagBtn">Diagnostic</button>
  <button class="btn btn-ghost btn-sm" onclick="clearNavblueUrl()" data-i18n="sync.navblue.clearBtn">Clear</button>
  </div>
@@ -13309,6 +13310,142 @@ function syncNavblueAuto(reason) {
 // "Copy all" button. No browser dev-tools required — Martin can copy
 // the raw DESCRIPTION sample and paste it in chat so the crew-extraction
 // regex can be refined against the real Porter format.
+// ─────────────────────────────────────────────────────────────────
+//  BACKFILL REGISTRATIONS FROM THE ROSTER FEED
+//
+//  Martin 2026-08-12: "on parle de quelque chose qui est requis dans le logbook
+//  et la je dois passer des heures a le taper a la main ? non non non ...
+//  refouille dans les flux navblue". He is right that it is required: CAR
+//  401.08(2)(b) — "the type of aircraft and its registration mark" — is part of
+//  the mandatory content of every entry, so a blank is not cosmetic.
+//  (Raw text verified 2026-08-12; the register carries the quote.)
+//
+//  Why blanks happen: the feed prints the tail on the Aircraft line
+//  ("Aircraft: 295 - 295XX - 295XX - C-GZQW") only once the aircraft is
+//  assigned. A leg imported from the published schedule carries a bare
+//  "Aircraft: 295" and no tail. The ordinary sync does fill blanks on a later
+//  pass — but only for events it accepts as FLIGHTS, and it rejects any event
+//  with no block hours or no completion proof. Those gates exist to stop an
+//  unproven leg being LOGGED; none of them apply here, because this creates
+//  nothing. It fills one empty field on a flight the pilot already has.
+//
+//  Rules: fills only empty registrations, never overwrites; matches on flight
+//  number AND route with a one-day tolerance (the feed dates events by
+//  check-in, which can fall the day before departure); and refuses when the
+//  feed offers two different tails for the same leg rather than picking one.
+// ─────────────────────────────────────────────────────────────────
+
+// Pure: given parsed VEVENTs, return { key -> Set(reg) } plus the feed's date
+// span. Exported as a global so it can be driven in tests without a network.
+function rosterRegistrationsFromEvents(events) {
+  const byLeg = {};
+  let minDate = '', maxDate = '';
+  (events || []).forEach(ev => {
+    const summary = String((ev && ev.SUMMARY) || '').trim();
+    const desc = String((ev && ev.DESCRIPTION) || '').trim();
+    const parts = summary.split(/\s+/);
+    const flightNum = (parts[0] || '').toUpperCase();
+    const routeRaw = parts[1] || '';
+    const [depIATA, arrIATA] = routeRaw.split('-');
+    if (!flightNum || !depIATA || !arrIATA) return;
+    const regMatch = desc.match(/\bC-[A-Z]{4}\b/);
+    // The local date of DTSTART: the feed dates by CHECK-IN, so this can be the
+    // civil day before the departure. The matcher allows for that; guessing a
+    // block-off here would need times this event may not carry.
+    let date = '';
+    try { date = icsLocalDate(ev.DTSTART, iataToIcao(depIATA)) || ''; } catch (e) { date = ''; }
+    if (date) {
+      if (!minDate || date < minDate) minDate = date;
+      if (!maxDate || date > maxDate) maxDate = date;
+    }
+    if (!regMatch || !date) return;
+    const key = flightNum + '|' + depIATA.toUpperCase() + '-' + arrIATA.toUpperCase();
+    if (!byLeg[key]) byLeg[key] = [];
+    byLeg[key].push({ date: date, reg: regMatch[0] });
+  });
+  return { byLeg: byLeg, from: minDate, to: maxDate };
+}
+
+// Pure: apply a feed index to a flight list. Returns the counts and mutates
+// nothing — the caller decides whether to persist.
+function applyRosterRegistrations(list, index) {
+  const out = { filled: 0, ambiguous: 0, stillMissing: 0, changedIdx: [] };
+  const byLeg = (index && index.byLeg) || {};
+  (list || []).forEach((f, idx) => {
+    if (!f) return;
+    if (f.reg !== undefined && f.reg !== null && String(f.reg).trim() !== '') return;
+    const key = String(f.flightNum || '').toUpperCase() + '|' + String(f.route || '').toUpperCase();
+    const cands = byLeg[key] || [];
+    const near = cands.filter(c => {
+      if (!f.date || !c.date) return false;
+      const a = Date.parse(f.date + 'T00:00:00Z'), b = Date.parse(c.date + 'T00:00:00Z');
+      return isFinite(a) && isFinite(b) && Math.abs(a - b) <= 86400000;
+    });
+    const regs = [...new Set(near.map(c => c.reg))];
+    if (regs.length === 1) {
+      f.reg = regs[0];
+      out.filled++;
+      out.changedIdx.push(idx);
+    } else {
+      if (regs.length > 1) out.ambiguous++;
+      out.stillMissing++;
+    }
+  });
+  return out;
+}
+
+async function backfillRegistrationsFromRoster() {
+  const url = localStorage.getItem(NAVBLUE_URL_KEY);
+  if (!url) { showToast(t('toast.saveUrlFirst'), 'error'); return; }
+  const btn = document.getElementById('backfillRegBtn');
+  const details = document.getElementById('navblueDetails');
+  if (btn) { btn.disabled = true; btn.textContent = t('sync.btn.syncing'); }
+  try {
+    const resp = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch-ics', url })
+    });
+    const rawText = await resp.text();
+    if (!resp.ok) throw new Error('Worker error ' + resp.status);
+    let icsText = rawText;
+    if (rawText.startsWith('{')) {
+      try { const j = JSON.parse(rawText); icsText = j.ics || j.body || rawText; } catch (e) {}
+    }
+    if (!icsText.includes('BEGIN:VCALENDAR')) throw new Error('not an iCal calendar');
+
+    const index = rosterRegistrationsFromEvents(parseICS(icsText));
+    const before = flights.filter(f => f && (f.reg === undefined || f.reg === null || String(f.reg).trim() === '')).length;
+    const res = applyRosterRegistrations(flights, index);
+    if (res.filled > 0) {
+      DB.save(flights);
+      if (typeof renderLogbook === 'function') renderLogbook();
+      if (typeof renderDashboard === 'function') renderDashboard();
+      try { if (typeof Sync !== 'undefined' && Sync.pushAllFlights) Sync.pushAllFlights(); } catch (e) {}
+    }
+    // Say exactly what the feed could and could not answer. When blanks remain,
+    // the pilot can see whether they are outside what the feed still publishes
+    // (nothing to recover) or inside it (the feed itself never carried a tail).
+    if (details) {
+      const outside = flights.filter(f => f && (f.reg === undefined || f.reg === null || String(f.reg).trim() === '')
+        && f.date && index.from && (f.date < index.from || f.date > index.to)).length;
+      details.style.display = 'block';
+      details.innerHTML = esc(t('sync.backfill.report', {
+        filled: res.filled, before: before, remaining: before - res.filled,
+        from: index.from || '?', to: index.to || '?', outside: outside
+      })).replace(/\n/g, '<br>');
+    }
+    showToast(res.filled > 0
+      ? t('toast.backfillFilled', { n: res.filled })
+      : t('toast.backfillNone'), res.filled > 0 ? 'success' : 'info');
+  } catch (e) {
+    console.error('[Backfill] failed', e);
+    showToast(t('toast.syncFailed'), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = t('sync.navblue.backfillBtn'); }
+  }
+}
+
 function showNavblueDiagnostic() {
   const raw = localStorage.getItem('cumulo_navblue_debug_v1');
   if (!raw) {
@@ -15385,7 +15522,7 @@ function _generatePDF(colsOverride, opts) {
     }
 
     // Footer (cover) — includes import provenance notice if any flights
-    // came from a CSV import. CAR 401.08(2)(h) requires an attestation
+    // came from a CSV import. CAR 401.08(3) requires an attestation
     // signed by the pilot; the provenance notice supports that. A TC
     // inspector reading the PDF will see which records were imported and
     // which were native to Cumulo.
@@ -15404,7 +15541,7 @@ function _generatePDF(colsOverride, opts) {
     const baseFooter = 'Generated by Cumulo · ' + localTodayStr();
 
     // Q6 — attestation lives in the footer (demoted from the body so the
-    // hero hierarchy stays clean). CAR 401.08(2)(h) is still satisfied —
+    // hero hierarchy stays clean). CAR 401.08(3) is still satisfied —
     // the same pilot attestation appears below, just at footer weight.
     let attestationLines = [];
     if (hasBF && typeof loadOpeningBalances === 'function') {
@@ -15426,7 +15563,7 @@ function _generatePDF(colsOverride, opts) {
         return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
       })();
       attestationLines.push(
-        `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(2)(h))`
+        `Brought-forward attestation: ${fmt(bfTotal)} hrs declared on ${bfDate} by ${fullTitle} (CAR 401.08(3))`
       );
     }
     if (importedSet.size > 0) {
@@ -18086,6 +18223,8 @@ const STRINGS = {
  'sync.navblue.urlHint': 'from your airline\'s crew-scheduling system',
  'sync.navblue.help': 'If you can\'t find your iCal feed URL, check your airline\'s crew-scheduling portal — most publish a "subscribe to calendar" link in the roster section.',
  'sync.navblue.diagBtn': 'Diagnostic',
+ 'sync.navblue.backfillBtn': 'Fill in registrations',
+ 'sync.backfill.report': 'Registrations filled from the feed: {filled} of {before} that were blank.\nStill blank: {remaining} — of those, {outside} are outside what the feed still publishes ({from} to {to}), so the feed holds nothing for them.\nNothing was overwritten, and a leg the feed reports under two different tails is left alone.',
  'sync.roster.title': 'Crew names from PDF roster',
  'sync.roster.desc': 'iCal feeds often skip crew names. Drop your monthly roster PDF — Cumulo extracts the crew (PIC + co-pilot) and merges them into the matching flights. 100% client-side, nothing uploaded.',
  'sync.roster.dropTitle': 'Select roster PDF or drop here',
@@ -18712,6 +18851,8 @@ const STRINGS = {
  'toast.syncInProgress': 'Syncing roster…',
  'toast.syncSuccess': 'Synced. {added} new, {merged} updated, {skipped} skipped.',
  'toast.syncFailed': 'Sync failed — check your iCal URL.',
+ 'toast.backfillFilled': '{n} registrations filled from your roster feed',
+ 'toast.backfillNone': 'No registration to fill: the feed carries none for the flights that are missing one',
  'toast.rosterParsed': '{captains} crew names extracted from PDF ✓',
  'toast.rosterFailed': 'Could not read PDF — currently Cumulo parses one specific roster format. If yours doesn’t parse, try a CSV import or add flights manually.',
  'toast.darkModeOn': 'Dark mode on',
@@ -19268,6 +19409,8 @@ const STRINGS = {
  'sync.navblue.urlHint': 'du système de planification d’équipage de votre compagnie',
  'sync.navblue.help': 'Si vous ne trouvez pas l’URL de votre flux iCal, vérifiez le portail de planification d’équipage de votre compagnie — la plupart publient un lien « s’abonner au calendrier » dans la section horaire.',
  'sync.navblue.diagBtn': 'Diagnostic',
+ 'sync.navblue.backfillBtn': 'Remplir les immatriculations',
+ 'sync.backfill.report': 'Immatriculations remplies à partir du flux : {filled} sur {before} qui étaient vides.\nEncore vides : {remaining} — dont {outside} en dehors de ce que le flux publie encore ({from} à {to}), donc le flux ne contient rien pour elles.\nRien n’a été écrasé, et une patrouille que le flux rapporte sous deux immatriculations différentes est laissée telle quelle.',
  'sync.roster.title': 'Noms d’équipage par PDF d’horaire',
  'sync.roster.desc': 'L’iCal n’inclut pas les commandants. Déposez votre PDF HrRosterReport — Cumulo extrait et fusionne les noms. 100 % côté client, rien n’est téléversé.',
  'sync.roster.dropTitle': 'Choisir le PDF d’horaire ou déposer',
@@ -19898,6 +20041,8 @@ const STRINGS = {
  'toast.syncInProgress': 'Synchronisation en cours…',
  'toast.syncSuccess': 'Synchronisé. {added} nouveaux, {merged} mis à jour, {skipped} ignorés.',
  'toast.syncFailed': 'Synchronisation échouée — vérifiez l’URL iCal.',
+ 'toast.backfillFilled': '{n} immatriculations remplies à partir de votre flux d’horaire',
+ 'toast.backfillNone': 'Aucune immatriculation à remplir : le flux n’en publie aucune pour les vols qui en manquent',
  'toast.rosterParsed': '{captains} noms d\'équipage extraits du PDF ✓',
  'toast.rosterFailed': 'Impossible de lire le PDF — Cumulo n’analyse qu’un format d’horaire spécifique pour l’instant. Si le vôtre ne fonctionne pas, essayez l’import CSV ou ajoutez vos vols manuellement.',
  'toast.darkModeOn': 'Mode sombre activé',
@@ -22660,7 +22805,7 @@ function wireSyncEvents() {
 // TC PDF cover all show "brought forward + Cumulo flights = cumulative".
 //
 // TC compliance: TP 14052 explicitly supports "brought forward" /
-// "previous balance" entries. CAR 401.08(2)(h) requires the pilot to
+// "previous balance" entries. CAR 401.08(3) requires the pilot to
 // attest the entries. We persist the attestation timestamp + a SHA-256
 // hash of the values for integrity; any change to the balances requires
 // a new attestation, and the prior one is archived in an append-only
@@ -23874,8 +24019,8 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
     title: fr ? 'D’où vient ce chiffre ?' : 'Where does this number come from?',
     body: _drillRowsHtml(rows) + (hasBF
       ? `<div class="dash-drill-note">${fr
-          ? 'Heures reportées de votre carnet papier — attestation conservée (CAR 401.08(2)(h)).'
-          : 'Carried over from your paper logbook — attestation kept on file (CAR 401.08(2)(h)).'}</div>`
+          ? 'Heures reportées de votre carnet papier — attestation conservée (CAR 401.08(3)).'
+          : 'Carried over from your paper logbook — attestation kept on file (CAR 401.08(3)).'}</div>`
       : `<div class="dash-drill-note">${fr
           ? 'Vous n’avez pas déclaré d’heures reportées. Si vous avez un carnet papier, déclarez vos totaux une fois dans Profil → Heures reportées.'
           : 'No brought-forward hours declared. If you have a paper logbook, declare cumulative totals once in Profile → Brought-forward.'}</div>`),
@@ -29454,7 +29599,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-12-12bed63';
+const BUILD_VERSION = '2026-08-12-3ea228c';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

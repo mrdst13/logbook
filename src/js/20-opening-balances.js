@@ -8,7 +8,7 @@
 // TC PDF cover all show "brought forward + Cumulo flights = cumulative".
 //
 // TC compliance: TP 14052 explicitly supports "brought forward" /
-// "previous balance" entries. CAR 401.08(2)(h) requires the pilot to
+// "previous balance" entries. CAR 401.08(3) requires the pilot to
 // attest the entries. We persist the attestation timestamp + a SHA-256
 // hash of the values for integrity; any change to the balances requires
 // a new attestation, and the prior one is archived in an append-only

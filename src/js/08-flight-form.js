@@ -1842,6 +1842,142 @@ function syncNavblueAuto(reason) {
 // "Copy all" button. No browser dev-tools required — Martin can copy
 // the raw DESCRIPTION sample and paste it in chat so the crew-extraction
 // regex can be refined against the real Porter format.
+// ─────────────────────────────────────────────────────────────────
+//  BACKFILL REGISTRATIONS FROM THE ROSTER FEED
+//
+//  Martin 2026-08-12: "on parle de quelque chose qui est requis dans le logbook
+//  et la je dois passer des heures a le taper a la main ? non non non ...
+//  refouille dans les flux navblue". He is right that it is required: CAR
+//  401.08(2)(b) — "the type of aircraft and its registration mark" — is part of
+//  the mandatory content of every entry, so a blank is not cosmetic.
+//  (Raw text verified 2026-08-12; the register carries the quote.)
+//
+//  Why blanks happen: the feed prints the tail on the Aircraft line
+//  ("Aircraft: 295 - 295XX - 295XX - C-GZQW") only once the aircraft is
+//  assigned. A leg imported from the published schedule carries a bare
+//  "Aircraft: 295" and no tail. The ordinary sync does fill blanks on a later
+//  pass — but only for events it accepts as FLIGHTS, and it rejects any event
+//  with no block hours or no completion proof. Those gates exist to stop an
+//  unproven leg being LOGGED; none of them apply here, because this creates
+//  nothing. It fills one empty field on a flight the pilot already has.
+//
+//  Rules: fills only empty registrations, never overwrites; matches on flight
+//  number AND route with a one-day tolerance (the feed dates events by
+//  check-in, which can fall the day before departure); and refuses when the
+//  feed offers two different tails for the same leg rather than picking one.
+// ─────────────────────────────────────────────────────────────────
+
+// Pure: given parsed VEVENTs, return { key -> Set(reg) } plus the feed's date
+// span. Exported as a global so it can be driven in tests without a network.
+function rosterRegistrationsFromEvents(events) {
+  const byLeg = {};
+  let minDate = '', maxDate = '';
+  (events || []).forEach(ev => {
+    const summary = String((ev && ev.SUMMARY) || '').trim();
+    const desc = String((ev && ev.DESCRIPTION) || '').trim();
+    const parts = summary.split(/\s+/);
+    const flightNum = (parts[0] || '').toUpperCase();
+    const routeRaw = parts[1] || '';
+    const [depIATA, arrIATA] = routeRaw.split('-');
+    if (!flightNum || !depIATA || !arrIATA) return;
+    const regMatch = desc.match(/\bC-[A-Z]{4}\b/);
+    // The local date of DTSTART: the feed dates by CHECK-IN, so this can be the
+    // civil day before the departure. The matcher allows for that; guessing a
+    // block-off here would need times this event may not carry.
+    let date = '';
+    try { date = icsLocalDate(ev.DTSTART, iataToIcao(depIATA)) || ''; } catch (e) { date = ''; }
+    if (date) {
+      if (!minDate || date < minDate) minDate = date;
+      if (!maxDate || date > maxDate) maxDate = date;
+    }
+    if (!regMatch || !date) return;
+    const key = flightNum + '|' + depIATA.toUpperCase() + '-' + arrIATA.toUpperCase();
+    if (!byLeg[key]) byLeg[key] = [];
+    byLeg[key].push({ date: date, reg: regMatch[0] });
+  });
+  return { byLeg: byLeg, from: minDate, to: maxDate };
+}
+
+// Pure: apply a feed index to a flight list. Returns the counts and mutates
+// nothing — the caller decides whether to persist.
+function applyRosterRegistrations(list, index) {
+  const out = { filled: 0, ambiguous: 0, stillMissing: 0, changedIdx: [] };
+  const byLeg = (index && index.byLeg) || {};
+  (list || []).forEach((f, idx) => {
+    if (!f) return;
+    if (f.reg !== undefined && f.reg !== null && String(f.reg).trim() !== '') return;
+    const key = String(f.flightNum || '').toUpperCase() + '|' + String(f.route || '').toUpperCase();
+    const cands = byLeg[key] || [];
+    const near = cands.filter(c => {
+      if (!f.date || !c.date) return false;
+      const a = Date.parse(f.date + 'T00:00:00Z'), b = Date.parse(c.date + 'T00:00:00Z');
+      return isFinite(a) && isFinite(b) && Math.abs(a - b) <= 86400000;
+    });
+    const regs = [...new Set(near.map(c => c.reg))];
+    if (regs.length === 1) {
+      f.reg = regs[0];
+      out.filled++;
+      out.changedIdx.push(idx);
+    } else {
+      if (regs.length > 1) out.ambiguous++;
+      out.stillMissing++;
+    }
+  });
+  return out;
+}
+
+async function backfillRegistrationsFromRoster() {
+  const url = localStorage.getItem(NAVBLUE_URL_KEY);
+  if (!url) { showToast(t('toast.saveUrlFirst'), 'error'); return; }
+  const btn = document.getElementById('backfillRegBtn');
+  const details = document.getElementById('navblueDetails');
+  if (btn) { btn.disabled = true; btn.textContent = t('sync.btn.syncing'); }
+  try {
+    const resp = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch-ics', url })
+    });
+    const rawText = await resp.text();
+    if (!resp.ok) throw new Error('Worker error ' + resp.status);
+    let icsText = rawText;
+    if (rawText.startsWith('{')) {
+      try { const j = JSON.parse(rawText); icsText = j.ics || j.body || rawText; } catch (e) {}
+    }
+    if (!icsText.includes('BEGIN:VCALENDAR')) throw new Error('not an iCal calendar');
+
+    const index = rosterRegistrationsFromEvents(parseICS(icsText));
+    const before = flights.filter(f => f && (f.reg === undefined || f.reg === null || String(f.reg).trim() === '')).length;
+    const res = applyRosterRegistrations(flights, index);
+    if (res.filled > 0) {
+      DB.save(flights);
+      if (typeof renderLogbook === 'function') renderLogbook();
+      if (typeof renderDashboard === 'function') renderDashboard();
+      try { if (typeof Sync !== 'undefined' && Sync.pushAllFlights) Sync.pushAllFlights(); } catch (e) {}
+    }
+    // Say exactly what the feed could and could not answer. When blanks remain,
+    // the pilot can see whether they are outside what the feed still publishes
+    // (nothing to recover) or inside it (the feed itself never carried a tail).
+    if (details) {
+      const outside = flights.filter(f => f && (f.reg === undefined || f.reg === null || String(f.reg).trim() === '')
+        && f.date && index.from && (f.date < index.from || f.date > index.to)).length;
+      details.style.display = 'block';
+      details.innerHTML = esc(t('sync.backfill.report', {
+        filled: res.filled, before: before, remaining: before - res.filled,
+        from: index.from || '?', to: index.to || '?', outside: outside
+      })).replace(/\n/g, '<br>');
+    }
+    showToast(res.filled > 0
+      ? t('toast.backfillFilled', { n: res.filled })
+      : t('toast.backfillNone'), res.filled > 0 ? 'success' : 'info');
+  } catch (e) {
+    console.error('[Backfill] failed', e);
+    showToast(t('toast.syncFailed'), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = t('sync.navblue.backfillBtn'); }
+  }
+}
+
 function showNavblueDiagnostic() {
   const raw = localStorage.getItem('cumulo_navblue_debug_v1');
   if (!raw) {

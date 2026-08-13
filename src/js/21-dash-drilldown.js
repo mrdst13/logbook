@@ -143,8 +143,8 @@ function _drillHero(s, rawS, profile, F, fr, logbookBtn, settingsBtn) {
     title: fr ? 'D’où vient ce chiffre ?' : 'Where does this number come from?',
     body: _drillRowsHtml(rows) + (hasBF
       ? `<div class="dash-drill-note">${fr
-          ? 'Heures reportées de votre carnet papier — attestation conservée (CAR 401.08(2)(h)).'
-          : 'Carried over from your paper logbook — attestation kept on file (CAR 401.08(2)(h)).'}</div>`
+          ? 'Heures reportées de votre carnet papier — attestation conservée (CAR 401.08(3)).'
+          : 'Carried over from your paper logbook — attestation kept on file (CAR 401.08(3)).'}</div>`
       : `<div class="dash-drill-note">${fr
           ? 'Vous n’avez pas déclaré d’heures reportées. Si vous avez un carnet papier, déclarez vos totaux une fois dans Profil → Heures reportées.'
           : 'No brought-forward hours declared. If you have a paper logbook, declare cumulative totals once in Profile → Brought-forward.'}</div>`),

@@ -559,5 +559,31 @@ Les `<select id="f-simType">` / `<select id="f-simSession">` (formulaire d'ajout
 - **Pas de terme TC officiel FR → GARDÉS TELS QUELS (anglais, non traduits)** — **décision Martin 2026-07-01** : IPC, FNPT, BITD, LOFT. Règle générale actée : *si TC n'a pas de traduction officielle, on garde le terme tel quel — on ne traduit pas et on n'invente pas.*
 - **Plain-language non réglementaire** (traduits) : « Renouvellement IFR », « Formation périodique », « Formation initiale », « Cours de qualification de type », « Autre » / « Autre formation ».
 
+## ✅ Contenu obligatoire du carnet — CAR 401.08(2) (verbatim, vérifié 2026-08-12)
+Relu au brut (curl) sur la page NON datée
+https://laws-lois.justice.gc.ca/eng/regulations/SOR-96-433/section-401.08.html :
+
+> **401.08(2)** « A personal log that is maintained for the purposes referred to in
+> paragraphs (1)(a) and (b) shall contain the holder's name and the following
+> information in respect of each flight: **(a)** the date of the flight; **(b) the
+> type of aircraft and its registration mark**; **(c)** the flight crew position in
+> which the holder acted; **(d)** the flight conditions with respect to day, night,
+> VFR and IFR; **(e)** in the case of a flight in an aeroplane or helicopter, the
+> place of departure and the place of arrival; **(f)** in the case of a flight in an
+> aeroplane, all of the intermediate take-offs and landings; **(g)** the flight time;
+> **(h)** … glider …; **(i)** … balloon … »
+> **401.08(3)** : seul le titulaire du carnet — ou une personne qu'il a autorisée —
+> peut y faire une inscription.
+
+- ⚠️ **L'immatriculation est au paragraphe (2)(b), PAS (2)(c)** (qui est le poste
+  occupé). J'ai écrit (2)(c) par réflexe le 2026-08-12 avant de relire le texte.
+- **Conséquence produit** : une immatriculation vide n'est pas cosmétique. D'où le
+  rattrapage `backfillRegistrationsFromRoster` — il remplit uniquement les cases
+  VIDES à partir du flux, ne devine jamais, et refuse quand le flux offre deux
+  immatriculations différentes pour la même patrouille.
+- ⚠️ Noter aussi **(2)(h)** dans l'app : c'est la méthode de lancement d'un
+  **planeur**. L'attestation du pilote citée ailleurs comme « 401.08(2)(h) » doit
+  être revérifiée avant réutilisation — le texte courant ne l'y met pas.
+
 > Tenir à jour : toute nouvelle règle réglementaire ajoutée au code DOIT apparaître ici
 > avec sa source vérifiée le jour où elle est écrite.
