@@ -98,6 +98,53 @@ const i18n = readFileSync(join(root, 'src/js/17-i18n.js'), 'utf8');
 ['sync.navblue.backfillBtn', 'sync.backfill.report', 'toast.backfillFilled', 'toast.backfillNone']
   .forEach(k => chk(`both languages carry ${k}`, (i18n.match(new RegExp("'" + k.replace(/\./g, '\\.') + "'", 'g')) || []).length === 2));
 
+// ── Second source: the monthly roster PDF ───────────────────────────────────
+// Martin's feed publishes a rolling window only (2026-08-13: 2026-07-14 to
+// 2026-08-28), so all 52 of his blanks are older than anything the feed still
+// carries. The roster PDF is the one document he still holds for those months.
+// The tail is read from the SAME row window as the crew names, and only when
+// that window names exactly one aircraft.
+{
+  const rosterSrc = readFileSync(join(root, 'src/js/10-pdf-roster.js'), 'utf8');
+  chk('the roster parser reads the tail from the flight own line first',
+    rosterSrc.indexOf('regsOnLine') !== -1 && rosterSrc.indexOf('regsOnLine.length === 1') !== -1);
+  chk('a continuation line stops at the next flight number',
+    rosterSrc.indexOf('flightNumTest.test(lines[k])) break;') !== -1);
+  chk('a continuation naming more than one aircraft is refused',
+    rosterSrc.indexOf('belowRegs.length === 1') !== -1);
+  chk('the roster import fills an empty registration',
+    rosterSrc.indexOf('merged.reg = item.reg;') !== -1);
+  chk('it never overwrites one the pilot has',
+    rosterSrc.indexOf("if (item.reg && (!existing.reg || !String(existing.reg).trim()))") !== -1);
+  chk('a registration-only import still persists', rosterSrc.indexOf('|| regAdded > 0') !== -1);
+  const parse = w.eval(`(function(){
+    const txt = [
+      '2026-05-02  PD325  YOW-YLW  FO  BOUCHARD, J  12:05 17:30 05:00 05:00  C-GZQW',
+      '',
+      '2026-05-03  PD326  YLW-YOW  FO  TREMBLAY, L  01:10 06:20 04:30 04:30  C-GKQA',
+      '',
+      '2026-05-04  PD400  YOW-YYZ  FO  GAGNON, M  13:00 14:00 01:00 01:00'
+    ].join('\\n');
+    const legs = parseNavblueRosterText(txt);
+    return JSON.stringify(legs.map(l => l.flightNum + '=' + (l.reg || '(blank)')));
+  })()`);
+  const legs = JSON.parse(parse);
+  chk('a roster row carries its tail into the leg', legs.indexOf('PD325=C-GZQW') !== -1);
+  chk('each row keeps its own tail, not its neighbour\'s', legs.indexOf('PD326=C-GKQA') !== -1);
+  chk('a row with no tail stays blank', legs.indexOf('PD400=(blank)') !== -1);
+  // A tail printed on the line BELOW its own row (pdf.js splits visual rows)
+  // is accepted only while nothing else could claim it.
+  const split = JSON.parse(w.eval(`(function(){
+    const txt = ['2026-06-01  PD700  YOW-YHZ  FO  LAVOIE, P  10:00 12:00 02:00 02:00',
+                 '            C-GKYN',
+                 '2026-06-02  PD701  YHZ-YOW  FO  ROY, S  13:00 15:00 02:00 02:00',
+                 '            C-GZQC   C-GKQZ'].join('\\n');
+    return JSON.stringify(parseNavblueRosterText(txt).map(l => l.flightNum + '=' + (l.reg || '(blank)')));
+  })()`));
+  chk('a tail on the continuation line reaches its own leg', split.indexOf('PD700=C-GKYN') !== -1);
+  chk('a continuation naming two aircraft is refused', split.indexOf('PD701=(blank)') !== -1);
+}
+
 // The citation this feature rests on. 401.08(2)(b) is the registration mark;
 // (2)(h) is the launch method of a GLIDER and was quoted by mistake for years.
 const reg08 = readFileSync(join(root, 'docs/REGISTRE-REGLEMENTAIRE.md'), 'utf8');

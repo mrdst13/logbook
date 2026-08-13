@@ -72,7 +72,7 @@ async function handleRosterFile(file) {
     // Strict rule (2026-05-14): only write atd_utc/ata_utc when (a) the PDF
     // is in UTC TimeMode and (b) the values are non-zero. Local-time PDFs
     // are NOT silently converted — we refuse to approximate.
-    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0, ataAdded = 0;
+    let matched = 0, alreadyHad = 0, noMatch = 0, atdAdded = 0, ataAdded = 0, regAdded = 0;
     const stillMissing = [];
     // Each logbook row may be claimed by ONE extracted leg. The old matcher's
     // route fallback let both legs of an out-and-back day (YOW-YYZ then
@@ -108,6 +108,16 @@ async function handleRosterFile(file) {
       } else if (item.pic) {
         alreadyHad++;
       }
+      // Registration — mandatory logbook content (CAR 401.08(2)(b)) that the
+      // iCal feed can no longer supply for an older flight: it publishes a
+      // rolling window only. Fill-empty, like every other import: a value the
+      // pilot entered is never touched. Not gated on the PDF's time mode —
+      // that gate exists for CLOCK values, and a tail number is not a time.
+      if (item.reg && (!existing.reg || !String(existing.reg).trim())) {
+        merged.reg = item.reg;
+        changed = true;
+        regAdded++;
+      }
       // ATD/ATA — only if PDF is in UTC mode AND values are non-zero AND
       // the flight doesn't already have manually-entered actuals.
       if (isUTCConfirmed && item.atd_utc && item.atd_utc !== '0000' && !existing.atd_utc) {
@@ -130,7 +140,7 @@ async function handleRosterFile(file) {
     // arrival of a leg that was airborne last time mutated the array in memory
     // and never persisted — the recorded ATA vanished on reload.
     // (Final audit r3, 2026-08-02.)
-    if (matched > 0 || atdAdded > 0 || ataAdded > 0) {
+    if (matched > 0 || atdAdded > 0 || ataAdded > 0 || regAdded > 0) {
       DB.save(flights);
       renderDashboard();
     }
@@ -162,6 +172,9 @@ async function handleRosterFile(file) {
     ];
     if (atdAdded > 0) {
       detailLines.push(t('roster.detail.times', { n: `<strong style="color:var(--success);">${atdAdded}</strong>` }));
+    }
+    if (regAdded > 0) {
+      detailLines.push(t('roster.detail.regs', { n: `<strong style="color:var(--success);">${regAdded}</strong>` }));
     }
     if (newLegs.length > 0) {
       detailLines.push(t('roster.detail.newAdded', { n: `<strong style="color:var(--success);">${newLegs.length}</strong>` }));
@@ -247,6 +260,9 @@ function parseNavblueRosterText(text) {
   const codes = (profile.operatorCodes || 'PD').split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
   const codesPattern = codes.length > 0 ? codes.join('|') : 'PD';
   const flightNumRegex = new RegExp(`\\b((?:${codesPattern})\\d{2,4})\\b`, 'gi');
+  // Same pattern without /g/: used to tell where one roster row stops and the
+  // next begins, so a continuation line is never read as the next leg's.
+  const flightNumTest = new RegExp(`\\b(?:${codesPattern})\\d{2,4}\\b`, 'i');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -309,8 +325,36 @@ function parseNavblueRosterText(text) {
         if (ataRaw !== '0000') ata_utc = ataRaw;
       }
 
-      if (pic || atd_utc || ata_utc) {
-        flights.push({ date, flightNum, route, pic, atd_utc, ata_utc });
+      // Registration, when the roster prints it. CAR 401.08(2)(b) makes it
+      // mandatory logbook content, and the iCal feed only publishes a rolling
+      // window (Martin's, 2026-08-13: from 30 days back), so a flight imported
+      // before its aircraft was assigned has no other source once it ages out.
+      // Read from the SAME row window the crew names come from, and only when
+      // that window names exactly ONE aircraft: two legs on two different tails
+      // can share a window, and a guess there would put the wrong airframe on a
+      // certifiable entry. Nothing found = left empty, exactly as before.
+      // The flight's OWN line first: the crew window spans up to three lines and
+      // routinely reaches the NEXT leg, whose aircraft is a different airframe.
+      const regsOnLine = [...new Set(line.match(/\bC-[A-Z]{4}\b/g) || [])];
+      let reg = '';
+      if (regsOnLine.length === 1) {
+        reg = regsOnLine[0];
+      } else if (regsOnLine.length === 0) {
+        // pdf.js can split one visual row across lines, so a tail may sit just
+        // below its own row. Only the lines BEFORE the next flight number can
+        // belong to this leg — stop there rather than reading the next leg's
+        // aircraft — and still refuse if those lines name more than one.
+        const contin = [];
+        for (let k = i + 1; k <= i + 2 && k < lines.length; k++) {
+          if (flightNumTest.test(lines[k])) break;
+          contin.push(lines[k]);
+        }
+        const belowRegs = [...new Set(contin.join(' ').match(/\bC-[A-Z]{4}\b/g) || [])];
+        if (belowRegs.length === 1) reg = belowRegs[0];
+      }
+
+      if (pic || atd_utc || ata_utc || reg) {
+        flights.push({ date, flightNum, route, pic, atd_utc, ata_utc, reg });
       }
     });
   }
