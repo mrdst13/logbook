@@ -12257,6 +12257,26 @@ const DEADHEAD_RE = /\(D\)|\bDH\b|\bDHD\b|\bDEADHEAD\b|\bPAX\b|\bP\d{5}\b/i;
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
 // Supports multi-airline via the user's operatorCodes profile setting.
+// Why the mapper refused an event that LOOKS like one of the pilot's flights.
+// REPORTING ONLY — it mirrors the checks inside navblueEventToFlight and decides
+// nothing. It exists because those refusals were completely silent: an event
+// dropped here never reached the decision stage, so it appeared in no preview,
+// no outstanding-legs note and no diagnostic, and the sync went on to announce
+// "already up to date" with flights missing. (Martin, two legs of 2026-08-12.)
+function rosterEventDropReason(ev) {
+  const summary = String((ev && ev.SUMMARY) || '').trim();
+  const desc = String((ev && ev.DESCRIPTION) || '').trim();
+  if (!getOperatorFlightRegex().test(summary)) return '';      // not his flying at all
+  if (DEADHEAD_RE.test(summary)) return 'deadhead';
+  const parts = summary.split(/\s+/);
+  const routeRaw = parts[1] || '';
+  const [depIATA, arrIATA] = routeRaw.split('-');
+  if (!depIATA || !arrIATA) return 'no-route';
+  const blh = desc.match(/BLH:\s*(\d{1,2}:\d{2})/);
+  if (!blh || hhmmToDecimal(blh[1]) <= 0) return 'no-block';
+  return 'unknown';
+}
+
 function navblueEventToFlight(ev, isFO, autoCountIFR) {
   const summary = (ev.SUMMARY || '').trim();
   const desc = (ev.DESCRIPTION || '').trim();
@@ -12947,9 +12967,16 @@ async function syncNavblueNow(opts) {
     const mapped = [];
     const pendingToday = [];   // flown today, unproven: shown, never logged
     const decisions = [];      // kept for the diagnostic dump
+    const dropped = [];        // published, but the mapper could not use it
     for (const ev of events) {
       const f = navblueEventToFlight(ev, isFO, autoCountIFR);
-      if (!f || !f.date) continue;
+      if (!f || !f.date) {
+        // Never silent again: if the feed published something that looks like
+        // his flight and the mapper could not build it, it gets named.
+        const why = rosterEventDropReason(ev);
+        if (why) dropped.push({ summary: String(ev.SUMMARY || '').trim(), date: icsDate(ev.DTSTART) || '', reason: why });
+        continue;
+      }
       const d = rosterImportDecision(ev, f, today, proofCtx);
       decisions.push({ date: f.date, flightNum: f.flightNum, route: f.route, block: f.block, uid: f.navblueUid, eligible: d.eligible, proof: d.proof, pending: d.pending, signal: d.signal });
       if (!d.eligible) {
@@ -13143,6 +13170,10 @@ async function syncNavblueNow(opts) {
         // (the "vols supprimés ressuscitent" bug). Audit 2026-05-29.
         if (typeof isTombstoned === 'function' && isTombstoned(f)) {
           resurrectBlocked++;
+          // Counted AND named. A leg the pilot deleted once was skipped in
+          // total silence, and the sync then reported "already up to date"
+          // with the flight still missing from the logbook.
+          dropped.push({ summary: (f.flightNum || '') + ' ' + (f.route || ''), date: f.date, reason: 'deleted-before' });
           return;
         }
         fresh.push(f);
@@ -13212,6 +13243,14 @@ async function syncNavblueNow(opts) {
       details.innerHTML = detailLines.join('<br>');
     }
 
+    // The complete drop list, written after EVERY pass (the mapper's refusals
+    // and the deleted-before skips) — the diagnostic dump above is saved earlier
+    // and would otherwise carry only half of them.
+    try {
+      const _dbg = JSON.parse(localStorage.getItem('cumulo_navblue_debug_v1') || 'null');
+      if (_dbg) { _dbg.dropped = dropped.slice(0, 40); localStorage.setItem('cumulo_navblue_debug_v1', JSON.stringify(_dbg)); }
+    } catch (e) { /* storage full: the toast and panel below still say it */ }
+
     updateNavblueStatus();
     renderDashboard();
 
@@ -13240,8 +13279,36 @@ async function syncNavblueNow(opts) {
         showToast(t('toast.syncOutstanding', { n: outstanding }));
         if (typeof openRosterNotLoggedReview === 'function') openRosterNotLoggedReview();
       }
+    } else if (dropped.length > 0) {
+      // "Already up to date" is a claim about the pilot's logbook, and it is
+      // FALSE whenever the feed published a leg this sync could not use. Say
+      // what was dropped and why, and put it on screen — being told everything
+      // is fine while two of yesterday's flights are missing is the single
+      // thing that has cost this screen its credibility. (Martin 2026-08-13.)
+      if (!silent) {
+        showToast(t('toast.syncDropped', { n: dropped.length }), 'error');
+        if (typeof showSyncDroppedPanel === 'function') showSyncDroppedPanel(dropped);
+      }
     } else if (!silent) {
       showToast(t('toast.alreadyUpToDate'));
+      // "Up to date" answers the wrong question when a pilot knows he flew.
+      // Say what the feed actually contained, so the next question — is my
+      // flying even in there? — is answered on the same screen instead of
+      // turning into another round trip. Counts only, no names.
+      try {
+        const _recentFrom = shiftDateStr(today, -7);
+        const _flightEvs = events.filter(e => getOperatorFlightRegex().test(String(e.SUMMARY || '').trim()));
+        const _recent = _flightEvs.filter(e => { const d = icsDate(e.DTSTART); return d && d >= _recentFrom && d <= today; });
+        let _last = '';
+        _flightEvs.forEach(e => { const d = icsDate(e.DTSTART); if (d && d <= today && d > _last) _last = d; });
+        if (details) {
+          details.style.display = 'block';
+          details.innerHTML = esc(t('sync.feedSummary', {
+            events: events.length, recent: _recent.length,
+            last: _last || t('sync.drop.unknownDate')
+          }));
+        }
+      } catch (e) { /* the toast already said the important part */ }
     }
 
   } catch(e) {
@@ -13444,6 +13511,32 @@ async function backfillRegistrationsFromRoster() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = t('sync.navblue.backfillBtn'); }
   }
+}
+
+// What the sync refused, in the pilot's own words. Shown the moment a leg is
+// dropped, because the alternative — the sync saying nothing — is what let two
+// of his flights go missing while the button reported "already up to date".
+function syncDropReasonText(reason) {
+  switch (reason) {
+    case 'no-block':      return t('sync.drop.noBlock');
+    case 'deadhead':      return t('sync.drop.deadhead');
+    case 'no-route':      return t('sync.drop.noRoute');
+    case 'deleted-before':return t('sync.drop.deletedBefore');
+    default:              return t('sync.drop.unknown');
+  }
+}
+
+function showSyncDroppedPanel(dropped) {
+  const details = document.getElementById('navblueDetails');
+  if (!details || !Array.isArray(dropped) || dropped.length === 0) return;
+  const rows = dropped.slice(0, 12).map(d =>
+    esc((d.date || '?') + '  ' + (d.summary || '') + '  -  ' + syncDropReasonText(d.reason))
+  ).join('<br>');
+  const more = dropped.length > 12 ? '<br>' + esc(t('sync.drop.more', { n: dropped.length - 12 })) : '';
+  details.style.display = 'block';
+  details.innerHTML = '<strong>' + esc(t('sync.drop.title', { n: dropped.length })) + '</strong><br>' +
+    '<div style="margin-top:6px; white-space:pre-wrap;">' + rows + more + '</div>' +
+    '<div style="margin-top:8px;">' + esc(t('sync.drop.help')) + '</div>';
 }
 
 function showNavblueDiagnostic() {
@@ -19075,6 +19168,17 @@ const STRINGS = {
  'toast.invalidNavblueDomain': 'URL not recognized — Cumulo currently accepts iCal feeds from one specific roster system. If yours is different, let us know which.',
  'toast.saveUrlFirst': 'Save your iCal URL first',
  'toast.alreadyUpToDate': 'Already up to date',
+ 'sync.feedSummary': 'Your roster published {events} entries, including {recent} flights in the last 7 days. Most recent flight published: {last}.',
+ 'sync.drop.unknownDate': 'none',
+ 'toast.syncDropped': '{n} legs your roster published could not be logged — see the list below',
+ 'sync.drop.title': 'Published by your roster, not logged ({n})',
+ 'sync.drop.noBlock': 'the feed carries no block time for it yet',
+ 'sync.drop.deadhead': 'marked as deadhead / positioning',
+ 'sync.drop.noRoute': 'the feed does not name both airports',
+ 'sync.drop.deletedBefore': 'you deleted this flight before, so it is not re-added',
+ 'sync.drop.unknown': 'the feed is missing something this entry needs',
+ 'sync.drop.more': 'and {n} more',
+ 'sync.drop.help': 'Nothing here was logged. A leg with no block time usually gets one once the operator closes it out — sync again later. To log a flight you deleted before, add it from the Add page.',
  'toast.syncOutstanding': 'Nothing new in your roster, but {n} flight(s) are still waiting to be added to your logbook.',
  'toast.photoParseFailed': 'Could not parse image — try a clearer photo',
  'toast.nothingSelected': 'Nothing selected to import',
@@ -20276,6 +20380,17 @@ const STRINGS = {
  'toast.invalidNavblueDomain': 'URL non reconnue — Cumulo accepte actuellement les flux iCal d’un système d’horaire spécifique. Si le vôtre est différent, dites-nous lequel.',
  'toast.saveUrlFirst': 'Enregistrez d’abord votre URL iCal',
  'toast.alreadyUpToDate': 'Déjà à jour',
+ 'sync.feedSummary': 'Votre horaire a publié {events} entrées, dont {recent} vols dans les 7 derniers jours. Vol le plus récent publié : {last}.',
+ 'sync.drop.unknownDate': 'aucun',
+ 'toast.syncDropped': '{n} segments publiés par votre horaire n’ont pas pu être inscrits — voir la liste ci-dessous',
+ 'sync.drop.title': 'Publiés par votre horaire, non inscrits ({n})',
+ 'sync.drop.noBlock': 'le flux ne porte pas encore son temps de vol',
+ 'sync.drop.deadhead': 'marqué comme mise en place',
+ 'sync.drop.noRoute': 'le flux ne nomme pas les deux aéroports',
+ 'sync.drop.deletedBefore': 'vous avez déjà supprimé ce vol, il n’est donc pas réajouté',
+ 'sync.drop.unknown': 'il manque au flux quelque chose que cette inscription exige',
+ 'sync.drop.more': 'et {n} autres',
+ 'sync.drop.help': 'Rien de tout cela n’a été inscrit. Un segment sans temps de vol en reçoit un quand l’exploitant le ferme — resynchronisez plus tard. Pour inscrire un vol que vous aviez supprimé, ajoutez-le depuis la page Ajouter.',
  'toast.syncOutstanding': 'Rien de nouveau dans ton horaire, mais {n} vol(s) attendent toujours d’être ajoutés à ton carnet.',
  'toast.photoParseFailed': 'Image non lisible — essayez une photo plus nette',
  'toast.nothingSelected': 'Rien à importer',
@@ -29827,7 +29942,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-08-13-293f59a';
+const BUILD_VERSION = '2026-09-12-b7828c1';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
