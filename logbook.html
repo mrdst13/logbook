@@ -12257,6 +12257,32 @@ const DEADHEAD_RE = /\(D\)|\bDH\b|\bDHD\b|\bDEADHEAD\b|\bPAX\b|\bP\d{5}\b/i;
 // Returns null if it's not a real flight.
 // Now performs proper RAC 101.01 night calculation + CAR 401.34 XC detection.
 // Supports multi-airline via the user's operatorCodes profile setting.
+// The flight number and the airport pair out of an iCal SUMMARY.
+//
+// The feed publishes both of these shapes:
+//   "PD274 YYC-YOW"          plain
+//   "PD325 (T) YOW-YLW"      with a duty marker between the two
+//
+// Every caller used to read the route POSITIONALLY, as the second word. On a
+// marked leg that word is "(T)", which is not an airport pair, so the leg was
+// refused for having no route — and Martin's PD325 and PD326 of 2026-09-11 were
+// dropped on exactly that, invisible to the logbook, to the duty projection and
+// to the registration backfill alike. The pair is found by SHAPE instead, so a
+// marker anywhere in the summary is harmless. Markers are returned rather than
+// interpreted: what "(T)" means is the operator's business, and this app does
+// not invent meanings for codes it has not verified.
+function icalSummaryLeg(summary) {
+  const s = String(summary || '').trim();
+  const pair = s.match(/\b([A-Z]{3})-([A-Z]{3})\b/);
+  const num = s.match(/^\s*([A-Z]{1,3}\d{2,5})\b/);
+  return {
+    flightNum: num ? num[1] : ((s.split(/\s+/)[0]) || ''),
+    depIATA: pair ? pair[1] : '',
+    arrIATA: pair ? pair[2] : '',
+    markers: (s.match(/\(([A-Za-z])\)/g) || []).map(x => x.slice(1, -1).toUpperCase())
+  };
+}
+
 // Why the mapper refused an event that LOOKS like one of the pilot's flights.
 // REPORTING ONLY — it mirrors the checks inside navblueEventToFlight and decides
 // nothing. It exists because those refusals were completely silent: an event
@@ -12268,10 +12294,8 @@ function rosterEventDropReason(ev) {
   const desc = String((ev && ev.DESCRIPTION) || '').trim();
   if (!getOperatorFlightRegex().test(summary)) return '';      // not his flying at all
   if (DEADHEAD_RE.test(summary)) return 'deadhead';
-  const parts = summary.split(/\s+/);
-  const routeRaw = parts[1] || '';
-  const [depIATA, arrIATA] = routeRaw.split('-');
-  if (!depIATA || !arrIATA) return 'no-route';
+  const _leg = icalSummaryLeg(summary);
+  if (!_leg.depIATA || !_leg.arrIATA) return 'no-route';
   const blh = desc.match(/BLH:\s*(\d{1,2}:\d{2})/);
   if (!blh || hhmmToDecimal(blh[1]) <= 0) return 'no-block';
   return 'unknown';
@@ -12290,11 +12314,10 @@ function navblueEventToFlight(ev, isFO, autoCountIFR) {
   // DEADHEAD/PAX and Navblue P##### positioning. (Audit panel 2026-06-25 #7.)
   if (DEADHEAD_RE.test(summary)) return null;
 
-  // Parse SUMMARY: "PD274 YYC-YOW"
-  const parts = summary.split(/\s+/);
-  const flightNum = parts[0];
-  const routeRaw = parts[1] || '';
-  const [depIATA, arrIATA] = routeRaw.split('-');
+  // Parse SUMMARY: "PD274 YYC-YOW" or "PD325 (T) YOW-YLW"
+  const _leg = icalSummaryLeg(summary);
+  const flightNum = _leg.flightNum;
+  const depIATA = _leg.depIATA, arrIATA = _leg.arrIATA;
   if (!depIATA || !arrIATA) return null;
 
   // Parse DESCRIPTION fields
@@ -12803,10 +12826,9 @@ function rosterForecastFromEvents(events, todayStr) {
     const summary = (ev.SUMMARY || '').trim();
     if (!getOperatorFlightRegex().test(summary)) continue;   // only the pilot's own airline(s)
     if (DEADHEAD_RE.test(summary)) continue;                 // deadhead legs are not flown time
-    const parts = summary.split(/\s+/);
-    const flightNum = parts[0];
-    const routeRaw = parts[1] || '';
-    const [depIATA, arrIATA] = routeRaw.split('-');
+    const _leg = icalSummaryLeg(summary);
+    const flightNum = _leg.flightNum;
+    const depIATA = _leg.depIATA, arrIATA = _leg.arrIATA;
     if (!depIATA || !arrIATA) continue;
     const depICAO = iataToIcao(depIATA);
     // Dated by DEPARTURE, exactly like the logbook import. The duty
@@ -13425,10 +13447,9 @@ function rosterRegistrationsFromEvents(events) {
   (events || []).forEach(ev => {
     const summary = String((ev && ev.SUMMARY) || '').trim();
     const desc = String((ev && ev.DESCRIPTION) || '').trim();
-    const parts = summary.split(/\s+/);
-    const flightNum = (parts[0] || '').toUpperCase();
-    const routeRaw = parts[1] || '';
-    const [depIATA, arrIATA] = routeRaw.split('-');
+    const _leg = icalSummaryLeg(summary);
+    const flightNum = _leg.flightNum.toUpperCase();
+    const depIATA = _leg.depIATA, arrIATA = _leg.arrIATA;
     if (!flightNum || !depIATA || !arrIATA) return;
     const regMatch = desc.match(/\bC-[A-Z]{4}\b/);
     // The local date of DTSTART: the feed dates by CHECK-IN, so this can be the
@@ -29961,7 +29982,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-09-12-3a36633';
+const BUILD_VERSION = '2026-09-12-a6499af';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

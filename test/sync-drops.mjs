@@ -202,6 +202,64 @@ async function runSync(w, ics, seed) {
   });
 }
 
+// ── E. The duty marker in the SUMMARY — his annual line check ───────────────
+// Verbatim from his diagnostic panel, 2026-09-12:
+//   2026-09-11  [vol/flight] PD325 (T) YOW-YLW
+//   2026-09-11  [vol/flight] PD326 (T) YLW-YOW
+// Both legs of his annual line check, and both missing from the logbook. Every
+// caller read the route POSITIONALLY as the second word of the summary; on a
+// marked leg that word is "(T)", so the leg was refused for having no route and
+// disappeared from the logbook, the duty projection and the registration
+// backfill at once. The pair is now found by shape, anywhere in the summary.
+{
+  const w = boot();
+  const leg = sx => JSON.parse(w.eval("JSON.stringify(icalSummaryLeg(" + JSON.stringify(sx) + "))"));
+
+  const plain = leg("PD179 YYZ-YOW");
+  chk("E a plain summary still reads", plain.flightNum === "PD179" && plain.depIATA === "YYZ" && plain.arrIATA === "YOW");
+
+  const marked = leg("PD325 (T) YOW-YLW");
+  chk("E a marked leg keeps its flight number", marked.flightNum === "PD325");
+  chk("E a marked leg keeps its route", marked.depIATA === "YOW" && marked.arrIATA === "YLW");
+  chk("E the marker is reported, not swallowed", marked.markers.join(",") === "T");
+
+  // Markers are DATA. The app must not decide what (T) means: Martin had to
+  // tell me it was his annual line check, and nothing regulatory is inferred.
+  const dh = leg("P32258 (D) YOW-YTZ");
+  chk("E a deadhead marker is read the same way", dh.depIATA === "YOW" && dh.markers.join(",") === "D");
+
+  const sim = leg("SIM (T) YYZ");
+  chk("E a summary with no airport pair yields none", sim.depIATA === "" && sim.arrIATA === "");
+
+  const src = readFileSync(join(root, "src/js/08-flight-form.js"), "utf8");
+  chk("E no caller reads the route by position any more", src.indexOf("parts[1]") === -1);
+  chk("E all callers share one reader",
+    (src.match(/icalSummaryLeg\(/g) || []).length >= 5);
+}
+
+// ── F. His feed, end to end: the line-check legs reach the review ───────────
+{
+  const w = boot();
+  const r = await runSync(w, cal(
+    ev("f1", "20260909T140000Z", "PD179 YYZ-YOW",
+       ["PD179 YYZ - YOW", "CI 1400Z / 1000L", "STD 1500Z / 1100L", "Duration: 02:00, BLH: 01:05", "Aircraft: 295 - 295XX - 295XX - C-GZQW"]),
+    ev("f2", "20260911T103000Z", "PD325 (T) YOW-YLW",
+       ["PD325 YOW - YLW", "CI 1030Z / 0630L", "STD 1130Z / 0730L", "Duration: 06:30, BLH: 05:02", "Aircraft: 295 - 295XX - 295XX - C-GZQW"]),
+    ev("f3", "20260911T170000Z", "PD326 (T) YLW-YOW",
+       ["PD326 YLW - YOW", "STD 1730Z / 1030L", "Duration: 05:30, BLH: 04:28", "Aircraft: 295 - 295XX - 295XX - C-GZQW"]),
+    ev("f4", "20260913T120000Z", "P32258 (D) YOW-YTZ",
+       ["P32258 YOW - YTZ", "Duration: 01:30, BLH: 01:00", "Aircraft: 295"]),
+    ev("f5", "20260914T130000Z", "SIM (T) YYZ", ["SIM (Simulator)", "Duration: 04:00"]),
+    ev("f6", "20260915T180000Z", "P32259 (T) YTZ-YOW",
+       ["P32259 YTZ - YOW", "Duration: 01:30, BLH: 01:00", "Aircraft: 295"])
+  ));
+  chk("F the line-check legs are offered, not refused", r.offered === 3);
+  chk("F nothing is dropped", r.dropped.length === 0);
+  chk("F positioning legs are still excluded as deadhead",
+    r.panel.indexOf("P32258") === -1 && r.panel.indexOf("P32259") === -1);
+  chk("F the panel says they are waiting, not up to date",
+    /waiting to be added/.test(r.panel) && r.panel.indexOf("up to date") === -1);
+}
 if (failures.length) {
   console.error('sync-drops: FAIL\n  - ' + failures.join('\n  - '));
   process.exit(1);
