@@ -1759,6 +1759,15 @@ async function syncNavblueNow(opts) {
 
     localStorage.setItem(NAVBLUE_LAST_SYNC_KEY, Date.now().toString());
 
+    // Counted BEFORE the panel is written. It used to be counted thirty lines
+    // later, so the panel could not know about it and printed "Logbook is up to
+    // date" with flights still waiting. The toast said the truth and vanished;
+    // the panel stayed on screen saying the opposite, and the panel is what a
+    // pilot reads. (Martin 2026-09-12: "non ca fonctionne pas".)
+    let outstanding = 0;
+    try { outstanding = (typeof _dashRosterLegsNotLogged === 'function') ? _dashRosterLegsNotLogged().length : 0; }
+    catch (e) { outstanding = 0; }
+
     if (details) {
       details.style.display = 'block';
       const _w = (n, s, p) => (n === 1 ? t(s) : t(p));
@@ -1771,7 +1780,16 @@ async function syncNavblueNow(opts) {
       if (mergedCount > 0) detailLines.push(t('sync.detail.enriched', { n: mergedCount, w: _w(mergedCount, 'word.flight', 'word.flights') }));
       if (recalcStats.updated > 0) detailLines.push(t('sync.detail.filled', { n: recalcStats.updated, w: _w(recalcStats.updated, 'word.flight', 'word.flights') }));
       if (fresh.length > 0) detailLines.push(t('sync.detail.fresh', { n: fresh.length, w: _w(fresh.length, 'word.newFlight', 'word.newFlights') }));
-      if (fresh.length === 0 && mergedCount === 0) detailLines.push(t('sync.detail.upToDate'));
+      // "Up to date" is a claim about his logbook. It may only be printed when
+      // nothing was refused by the mapper and nothing is still waiting to be
+      // added — otherwise the panel says which, and how many.
+      if (dropped.length > 0) {
+        detailLines.push(t('sync.detail.dropped', { n: dropped.length }));
+      } else if (outstanding > 0) {
+        detailLines.push(t('sync.detail.waiting', { n: outstanding }));
+      } else if (fresh.length === 0 && mergedCount === 0) {
+        detailLines.push(t('sync.detail.upToDate'));
+      }
       details.innerHTML = detailLines.join('<br>');
     }
 
@@ -1792,9 +1810,6 @@ async function syncNavblueNow(opts) {
     // through to "already up to date". Pressing Sync and being told everything
     // was fine, with today's flight sitting unlogged, is how Martin lost trust
     // in this screen twice. (2026-08-01.)
-    let outstanding = 0;
-    try { outstanding = (typeof _dashRosterLegsNotLogged === 'function') ? _dashRosterLegsNotLogged().length : 0; }
-    catch (e) { outstanding = 0; }
 
     if (fresh.length > 0) {
       // Even in silent/auto-sync mode we surface the import-preview modal —
