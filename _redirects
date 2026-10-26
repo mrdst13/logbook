@@ -1,0 +1,22 @@
+# Cloudflare Pages — keep the repository's non-public folders off the web.
+# Added 2026-10-26 after checking what the site actually serves: the app is
+# built from the repository root, so every tracked file ships with it. The
+# database schema, the Worker source, the tests and the unbundled sources were
+# all readable at their path. None of them carry a secret — that was verified
+# separately — but the Worker source states its rate limits and its origin
+# allowlist, and a reader of the schema learns the shape of every table. There
+# is no reason for any of it to answer a request.
+#
+# private/ is already safe: it is in .gitignore, so it never reaches the repo
+# or the deploy. Dotfiles such as .git are not served by Pages at all.
+#
+# The app itself is logbook.html plus assets/ — nothing below is part of it.
+/supabase/*  /404.html  404
+/worker/*    /404.html  404
+/test/*      /404.html  404
+/src/*       /404.html  404
+/docs/*      /404.html  404
+/node_modules/*  /404.html  404
+/package.json     /404.html  404
+/package-lock.json  /404.html  404
+/build.js    /404.html  404
