@@ -348,7 +348,20 @@ chk('sim instrument time still prints in ITS column',
   const pay28 = readFileSync(join(root, 'src/js/28-pay.js'), 'utf8');
   chk('the base check flags fewer hours PAID than flown', has(pay28, 'paidHours + 1.0 < creditH'));
   chk('overpayment is explained, never flagged', has(pay28, 'guarantee or legs not yet in the logbook'));
-  chk('overtime pricing uses the summer LOA multiplier', has(pay28, 'isSummerLOA(range.end)) ? 2.0 : 1.5'));
+  // Superseded 2026-10-26: imposing 1.5/2.0 on the stub was the bug. A line
+  // the stub prints as "Overtime 1.0" was called underpaid every period.
+  // The multiplier is now READ from the line; the forecast (computeBasePay)
+  // still takes one as a parameter, which is a projection, not a claim.
+  chk('overtime verification no longer imposes a multiplier on the stub',
+    !has(pay28, 'isSummerLOA(range.end)) ? 2.0 : 1.5'));
+  chk('the multiplier comes from the stub line', has(pay28, 'bk.overtime.ot10Mult'));
+  // Both stub conventions are accepted: the amount applying the stated
+  // multiplier, and a rate column that already carries it (implied 1.0).
+  // Dropping either reading brings the false alarm straight back.
+  chk('a rate column that already carries the multiplier is accepted',
+    has(pay28, 'Math.abs(implied - 1) <= 0.02'));
+  chk('entitlement is never asserted without the agreement',
+    has(pay28, 'not for this app'));
   chk('the per-US-day view is finally wired', has(pay28, 'usPerDiemDays(allFls || [], st.base)'));
   const photo = readFileSync(join(root, 'src/js/06-photo-import.js'), 'utf8');
   chk('the paid AI PDF path is gone', !has(photo, 'async function parseNavbluePDF'));

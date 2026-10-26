@@ -97,6 +97,19 @@ function parsePayStub(text) {
 // Roll the parsed earnings up into the four reconciliation buckets the pay page
 // compares against the schedule. Draft/premium OT (030) folds into overtime.
 // Values are the THIS-PERIOD amounts (null when the stub didn't show one).
+// The overtime multiplier the stub PRINTS on the line: "Overtime 1.0",
+// "Overtime 1.5", "Overtime 2.0". Martin 2026-10-26: "sur la ligne ca dit
+// bien overtime 1.0 mais ton calculateur le calcul a 1.5". The rate at which
+// overtime is owed is a contract question this app does not decide; what the
+// line states, it can read. Returns null unless the label ends in exactly
+// 1, 1.5 or 2 — so "Passport 10 yr" and "Vacation 2026" never match.
+function _psOtMultFromLabel(label) {
+  const m = String(label || "").match(/(?:^|\s)([12](?:\.\d)?)\s*$/);
+  if (!m) return null;
+  const v = parseFloat(m[1]);
+  return (v === 1 || v === 1.5 || v === 2) ? v : null;
+}
+
 function payStubBuckets(parsed) {
   const p = parsed || {};
   const by = {};
@@ -111,7 +124,11 @@ function payStubBuckets(parsed) {
     overtime: { amount: sum(amt('005'), amt('030')), ot10: amt('005'), draft: amt('030'),
       ot10Units: (by['005'] && by['005'].units != null) ? by['005'].units : null,
       ot10Rate: (by['005'] && by['005'].rate != null) ? by['005'].rate : null,
-      draftUnits: (by['030'] && by['030'].units != null) ? by['030'].units : null },
+      draftUnits: (by['030'] && by['030'].units != null) ? by['030'].units : null,
+      // What the line itself says, carried through so the check never has to
+      // assume a multiplier (see _psOtMultFromLabel).
+      ot10Label: (by['005'] && by['005'].label) ? by['005'].label : '',
+      ot10Mult: _psOtMultFromLabel(by['005'] && by['005'].label) },
     perDiemCdn: by['252'] ? { amount: by['252'].amount, units: by['252'].units, rate: by['252'].rate } : null,
     perDiemUs: by['250'] ? { amount: by['250'].amount, units: by['250'].units } : null,
     totalDeposit: p.totalDeposit != null ? p.totalDeposit : null

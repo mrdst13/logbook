@@ -146,6 +146,28 @@ const dedOnly = ps.parsePayStub('587 ALPA Union Dues 97.91 1,046.38');
 chk('deduction-only row captured', dedOnly.deductions.some(d => d.code === '587' && near(d.amount, 97.91) && near(d.ytd, 1046.38)));
 chk('deduction-only row not counted as an earning', dedOnly.earnings.length === 0);
 
+
+// 14. The multiplier the stub PRINTS on the overtime line (2026-10-26).
+//     Martin: "sur la ligne ca dit bien overtime 1.0 mais ton calculateur le
+//     calcul a 1.5". The check imposed 1.5 (2.0 in the summer window) and
+//     called a correctly-paid 1.0 line underpaid, every period. What the line
+//     states is read; what he is OWED is a contract matter the app never claims.
+chk('bucket carries the overtime label', b.overtime.ot10Label === 'Overtime 1.0');
+chk('multiplier read from the line, not assumed', b.overtime.ot10Mult === 1);
+chk('the line rate is carried through', near(b.overtime.ot10Rate, 100.00));
+// The fixture pays 600 on 4 h x 100/h, i.e. an IMPLIED 1.5 while the label says
+// 1.0 — the two readings a stub can have. Both are accepted as consistent
+// because whether the rate column already carries the multiplier differs by
+// payroll system, and guessing which would invent the very claim this check
+// must not make.
+chk('the implied multiplier is computable from the line alone',
+  near(b.overtime.ot10 / (b.overtime.ot10Units * b.overtime.ot10Rate), 1.5));
+const mult = (lbl) => ps.payStubBuckets({ earnings: [{ code: '005', label: lbl, units: 1, rate: 1, amount: 1 }] }).overtime.ot10Mult;
+chk('1.5 is read', mult('Overtime 1.5') === 1.5);
+chk('2.0 is read', mult('Overtime 2.0') === 2);
+chk('a bare label yields no multiplier', mult('Overtime') === null);
+chk('a year in a label is not a multiplier', mult('Vacation 2026') === null);
+chk('a count in a label is not a multiplier', mult('Passport 10 yr') === null);
 if (failures.length) { console.error('pay-stub FAIL:', failures); process.exit(1); }
 console.log('pay-stub: all checks passed (metadata, 2-decimal columns, label digits, YTD-only, negatives, per-diem, earning/deduction split, buckets, robustness, checksum, split-thousands, dedup, US-null, anti-hang)');
 process.exit(0);

@@ -28648,14 +28648,50 @@ function payRender() {
       }
     }
 
-    if (paidOtU != null && paidOtU > 0 && bk.overtime.ot10 != null && st.rate && _rateComparable) {
-      const otMult = (typeof isSummerLOA === 'function' && range && isSummerLOA(range.end)) ? 2.0 : 1.5;
-      const expectedOt = paidOtU * st.rate * otMult;
-      const tol = 0.02 + 1.0 * st.rate;
-      if (Math.abs(expectedOt - bk.overtime.ot10) > tol) {
+    // OVERTIME — checked against the stub ITSELF, never against an assumption.
+    //
+    // This block used to impose 1.5 (2.0 in the summer LOA window) on every
+    // overtime line, so a line the stub prints as "Overtime 1.0" and pays
+    // correctly was reported as underpaid every single period.
+    // (Martin 2026-10-26: "sur la ligne ca dit bien overtime 1.0 mais ton
+    // calculateur le calcul a 1.5".)
+    //
+    // Two things are knowable from the stub alone: the multiplier it PRINTS on
+    // the line, and the multiplier its own numbers IMPLY (amount / units x rate).
+    // Whether the rate column already carries the multiplier or states the base
+    // rate differs between payroll systems, so BOTH readings are accepted as
+    // consistent and neither is assumed. What rate he is OWED is a contract
+    // question that needs the FOAG text; this app does not have it and will not
+    // claim an underpayment it cannot source. Hours are checked separately,
+    // above, where paid hours are compared against computed credits.
+    if (paidOtU != null && paidOtU > 0 && bk.overtime.ot10 != null) {
+      const lineRate = (bk.overtime.ot10Rate != null) ? +bk.overtime.ot10Rate : null;
+      const lineMult = (bk.overtime.ot10Mult != null) ? +bk.overtime.ot10Mult : null;
+      const base = (lineRate != null) ? paidOtU * lineRate : 0;
+      const implied = base > 0 ? (bk.overtime.ot10 / base) : null;
+      const isOtMult = (v) => v != null && (Math.abs(v - 1) <= 0.02 || Math.abs(v - 1.5) <= 0.02 || Math.abs(v - 2) <= 0.02);
+
+      if (lineMult != null && implied != null) {
+        // Consistent either way: the amount applies the stated multiplier, or
+        // the rate column already carried it (implied 1.0).
+        const ok = Math.abs(implied - lineMult) <= 0.02 || Math.abs(implied - 1) <= 0.02;
+        if (ok) {
+          notes.push(fr
+            ? "Temps supplémentaire : " + hL(paidOtU) + " h à " + money(lineRate) + "/h, multiplicateur " + lineMult + " × inscrit sur la ligne, total " + money(bk.overtime.ot10) + " — cohérent. À quel multiplicateur tu as droit relève de ta convention, pas de cette app."
+            : "Overtime: " + hL(paidOtU) + " h at " + money(lineRate) + "/h, multiplier " + lineMult + "x as printed on the line, total " + money(bk.overtime.ot10) + " — consistent. Which multiplier you are entitled to is a matter for your agreement, not for this app.");
+        } else {
+          problems.push(fr
+            ? "La ligne annonce " + lineMult + " × mais ses propres chiffres en donnent " + (Math.round(implied * 100) / 100) + " × : " + hL(paidOtU) + " h × " + money(lineRate) + "/h = " + money(base) + ", et le talon paie " + money(bk.overtime.ot10) + "."
+            : "The line states " + lineMult + "x but its own figures imply " + (Math.round(implied * 100) / 100) + "x: " + hL(paidOtU) + " h x " + money(lineRate) + "/h = " + money(base) + ", and the stub pays " + money(bk.overtime.ot10) + ".");
+        }
+      } else if (implied != null && !isOtMult(implied)) {
         problems.push(fr
-          ? hL(paidOtU) + ' h de temps supplémentaire à ' + money(st.rate) + '/h × ' + otMult + ' devraient donner <strong>' + money(expectedOt) + '</strong> ; le talon montre <strong>' + money(bk.overtime.ot10) + '</strong>.'
-          : hL(paidOtU) + ' h of overtime at ' + money(st.rate) + '/h × ' + otMult + ' should come to <strong>' + money(expectedOt) + '</strong>; the stub shows <strong>' + money(bk.overtime.ot10) + '</strong>.');
+          ? "Ligne de temps supplémentaire incohérente : " + hL(paidOtU) + " h × " + money(lineRate) + "/h = " + money(base) + ", mais le talon paie " + money(bk.overtime.ot10) + "."
+          : "Overtime line does not add up: " + hL(paidOtU) + " h x " + money(lineRate) + "/h = " + money(base) + ", but the stub pays " + money(bk.overtime.ot10) + ".");
+      } else if (lineRate == null && lineMult == null) {
+        notes.push(fr
+          ? "Le talon ne montre ni taux ni multiplicateur sur la ligne de temps supplémentaire : son montant ne peut pas être vérifié."
+          : "The stub shows neither a rate nor a multiplier on the overtime line, so its amount cannot be checked.");
       }
     }
 
@@ -29204,6 +29240,19 @@ function parsePayStub(text) {
 // Roll the parsed earnings up into the four reconciliation buckets the pay page
 // compares against the schedule. Draft/premium OT (030) folds into overtime.
 // Values are the THIS-PERIOD amounts (null when the stub didn't show one).
+// The overtime multiplier the stub PRINTS on the line: "Overtime 1.0",
+// "Overtime 1.5", "Overtime 2.0". Martin 2026-10-26: "sur la ligne ca dit
+// bien overtime 1.0 mais ton calculateur le calcul a 1.5". The rate at which
+// overtime is owed is a contract question this app does not decide; what the
+// line states, it can read. Returns null unless the label ends in exactly
+// 1, 1.5 or 2 — so "Passport 10 yr" and "Vacation 2026" never match.
+function _psOtMultFromLabel(label) {
+  const m = String(label || "").match(/(?:^|\s)([12](?:\.\d)?)\s*$/);
+  if (!m) return null;
+  const v = parseFloat(m[1]);
+  return (v === 1 || v === 1.5 || v === 2) ? v : null;
+}
+
 function payStubBuckets(parsed) {
   const p = parsed || {};
   const by = {};
@@ -29218,7 +29267,11 @@ function payStubBuckets(parsed) {
     overtime: { amount: sum(amt('005'), amt('030')), ot10: amt('005'), draft: amt('030'),
       ot10Units: (by['005'] && by['005'].units != null) ? by['005'].units : null,
       ot10Rate: (by['005'] && by['005'].rate != null) ? by['005'].rate : null,
-      draftUnits: (by['030'] && by['030'].units != null) ? by['030'].units : null },
+      draftUnits: (by['030'] && by['030'].units != null) ? by['030'].units : null,
+      // What the line itself says, carried through so the check never has to
+      // assume a multiplier (see _psOtMultFromLabel).
+      ot10Label: (by['005'] && by['005'].label) ? by['005'].label : '',
+      ot10Mult: _psOtMultFromLabel(by['005'] && by['005'].label) },
     perDiemCdn: by['252'] ? { amount: by['252'].amount, units: by['252'].units, rate: by['252'].rate } : null,
     perDiemUs: by['250'] ? { amount: by['250'].amount, units: by['250'].units } : null,
     totalDeposit: p.totalDeposit != null ? p.totalDeposit : null
@@ -29981,7 +30034,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-10-26-d623eed';
+const BUILD_VERSION = '2026-10-26-0362f79';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html
