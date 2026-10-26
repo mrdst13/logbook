@@ -10,6 +10,11 @@
 # private/ is already safe: it is in .gitignore, so it never reaches the repo
 # or the deploy. Dotfiles such as .git are not served by Pages at all.
 #
+# NOTE 2026-10-26: these rules alone do NOT work. Pages serves an existing
+# static asset BEFORE consulting _redirects, so the real blocking is done by
+# functions/_middleware.js plus _routes.json. These stay as a second line for
+# paths that do not exist at all.
+#
 # The app itself is logbook.html plus assets/ — nothing below is part of it.
 /supabase/*  /404.html  404
 /worker/*    /404.html  404

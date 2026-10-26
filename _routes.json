@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Functions run ONLY on the repository paths the site must not serve; everything else stays a plain static asset.",
+  "include": [
+    "/supabase/*",
+    "/worker/*",
+    "/test/*",
+    "/src/*",
+    "/docs/*",
+    "/node_modules/*",
+    "/package.json",
+    "/package-lock.json",
+    "/build.js"
+  ],
+  "exclude": []
+}
