@@ -7273,9 +7273,23 @@ const DB = {
     try { return JSON.parse(localStorage.getItem(this.profileKey) || '{}'); }
     catch { return {}; }
   },
-  saveProfile(p) {
+  // `profileUpdatedAt` records WHEN this device last wrote the profile, so a
+  // pull can tell which side is newer. Without it the cloud could only fill
+  // BLANK fields, and two devices holding different PPC dates stayed that way
+  // for good: the laptop said the check was expired while the phone said
+  // nothing, and nothing could ever reconcile them. (Martin 2026-10-26.)
+  //
+  // Always re-stamped to now, because callers routinely spread an existing
+  // profile ({...DB.loadProfile(), ppcDueDate: v}) and would otherwise carry
+  // the OLD stamp onto a brand-new edit. pullProfile adopting cloud values is
+  // the one caller that passes keepStamp, so the device records the age of the
+  // CONTENT it adopted rather than the moment it happened to sync.
+  saveProfile(p, opts) {
     if (DEMO_MODE) return true;
-    return this._persist(this.profileKey, p, 'profil', 'profile');
+    const keep = !!(opts && opts.keepStamp);
+    const next = Object.assign({}, p || {});
+    if (!(keep && next.profileUpdatedAt)) next.profileUpdatedAt = new Date().toISOString();
+    return this._persist(this.profileKey, next, 'profil', 'profile');
   },
 
   // Write to localStorage, but NEVER fail silently. A certifiable logbook
@@ -22475,21 +22489,52 @@ const Sync = {
     const fillStr = (localKey, remoteVal) => {
       if (!isBlank(remoteVal) && isBlank(local[localKey])) { local[localKey] = remoteVal; changed = true; }
     };
-    fillStr('fname', row.fname);
-    fillStr('lname', row.lname);
-    fillStr('rank', row.rank);
-    fillStr('airline', row.airline);
-    fillStr('license', row.license);
-    fillStr('medical', row.medical);
-    fillStr('ecg', row.ecg);
-    fillStr('bookletExpiry', row.booklet_expiry);
-    fillStr('base', row.base);
-    fillStr('fleet', row.fleet);
-    fillStr('operatorCodes', row.operator_codes);
-    fillStr('pilotType', row.pilot_type);
+
+    // WHICH SIDE IS NEWER. profiles.updated_at is maintained by a database
+    // trigger on every write, so the cloud timestamp is trustworthy; the local
+    // side stamps profileUpdatedAt on each save (see DB.saveProfile).
+    //
+    // Until now every pilot-entered field was fill-empty-only: once BOTH
+    // devices held a value, neither could ever correct the other. Martin's
+    // laptop reported his PPC expired while his phone showed nothing, and no
+    // amount of syncing could resolve it. Flights have always been last-write
+    // -wins on updated_at; the profile now follows the same rule.
+    //
+    // A field is only ADOPTED when the cloud is strictly newer AND the value
+    // actually differs, so a pilot never loses an edit he just made, and an
+    // unchanged pull writes nothing (which also stops two devices echoing the
+    // same content back and forth).
+    const _cloudTs = row.updated_at || '';
+    const _localTs = local.profileUpdatedAt || '';
+    const _cloudNewer = !!_cloudTs && (!_localTs || _cloudTs > _localTs);
+    const _adopted = [];
+    const _localNewerDiff = [];
+    const syncStr = (localKey, remoteVal, label) => {
+      if (isBlank(remoteVal)) return;
+      if (isBlank(local[localKey])) { local[localKey] = remoteVal; changed = true; return; }
+      if (String(local[localKey]) === String(remoteVal)) return;
+      if (_cloudNewer) {
+        local[localKey] = remoteVal; changed = true;
+        if (label) _adopted.push(label);
+      } else if (label) {
+        _localNewerDiff.push(label);
+      }
+    };
+    syncStr('fname', row.fname);
+    syncStr('lname', row.lname);
+    syncStr('rank', row.rank);
+    syncStr('airline', row.airline);
+    syncStr('license', row.license, 'licence');
+    syncStr('medical', row.medical, 'medical');
+    syncStr('ecg', row.ecg, 'ECG');
+    syncStr('bookletExpiry', row.booklet_expiry, 'booklet');
+    syncStr('base', row.base);
+    syncStr('fleet', row.fleet);
+    syncStr('operatorCodes', row.operator_codes);
+    syncStr('pilotType', row.pilot_type);
     // Certifiable + tracker fields (columns added 2026-07-01). Fill-empty only —
     // ppcDueDate is certifiable, so a local date is never clobbered.
-    fillStr('ppcDueDate', row.ppc_due_date);
+    syncStr('ppcDueDate', row.ppc_due_date, 'PPC');
     fillStr('personalGoalKind', row.personal_goal_kind);
     fillStr('personalGoalContext', row.personal_goal_context);
     if (isBlank(local.personalGoalHrs) && !isBlank(row.personal_goal_hrs)) {
@@ -22555,6 +22600,25 @@ const Sync = {
     // locally from the row it had just read. (Found 2026-08-01 by an
     // independent review of the fix above; the omit-when-blank rule already
     // defuses it, and this ordering closes the hole outright.)
+    // The device now holds the cloud's content, so it records the cloud's age.
+    if (_adopted.length && _cloudTs) local.profileUpdatedAt = _cloudTs;
+
+    // Never change a certifiable date behind his back.
+    if (_adopted.length && typeof showToast === 'function') {
+      const _fr = (typeof getLang === 'function') && getLang() === 'fr';
+      try {
+        showToast((_fr
+          ? 'Dates mises à jour depuis votre autre appareil : '
+          : 'Dates updated from your other device: ') + _adopted.join(', '));
+      } catch (e) { /* toast unavailable this early — the value is still adopted */ }
+    }
+
+    // This device is the newer one and the cloud disagrees: push, so the other
+    // device can adopt on its next pull instead of staying wrong forever.
+    if (_localNewerDiff.length && typeof this.pushProfile === 'function') {
+      try { this.pushProfile(local); } catch (e) { /* queued by pushProfile itself */ }
+    }
+
     let adoptedNavblue = false, adoptedLang = null, adoptedDark = null;
     try {
       const nbKey = (typeof NAVBLUE_URL_KEY !== 'undefined') ? NAVBLUE_URL_KEY : 'cumulo_navblue_url';
@@ -22587,7 +22651,11 @@ const Sync = {
       }
     } catch (e) { /* storage unavailable — non-fatal */ }
 
-    if (changed) DB.saveProfile(local);
+    // keepStamp: `local.profileUpdatedAt` was just set to the cloud row own
+    // updated_at when a value was adopted. Re-stamping it to now would make this
+    // device look newer than the content it just received, so the device that
+    // actually holds the newest edit could never win the next comparison.
+    if (changed) DB.saveProfile(local, { keepStamp: true });
 
     // Adopting a language or a theme is only half the job: both are read at
     // RENDER time, and pullProfile lands after the page has already painted.
@@ -23147,8 +23215,10 @@ function installAutoSyncPatch() {
     Sync._scheduleAutoSync();
   };
   const _origSaveProfile = DB.saveProfile.bind(DB);
-  DB.saveProfile = function (p) {
-    _origSaveProfile(p);
+  DB.saveProfile = function (p, opts) {
+    // opts is forwarded: pullProfile passes { keepStamp: true } so adopting a
+    // cloud value records the age of that CONTENT, not the moment of the pull.
+    _origSaveProfile(p, opts);
     if (Auth.isAuthenticated() && !Sync._suppressAutoSync) {
       Sync.pushProfile(p).catch(e => console.warn('[Sync] pushProfile error:', e));
     }
@@ -30034,7 +30104,7 @@ function renderSchedule() {
 // INIT
 // ═══════════════════════════════════════════
 // Build version stamp — bump every push so user can verify fresh load
-const BUILD_VERSION = '2026-10-26-0362f79';
+const BUILD_VERSION = '2026-10-31-5266989';
 
 // ─── Self-update on launch ──────────────────────────────────────────
 // There is NO service worker, so a device that cached an old logbook.html

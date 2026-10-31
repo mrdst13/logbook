@@ -298,9 +298,23 @@ const DB = {
     try { return JSON.parse(localStorage.getItem(this.profileKey) || '{}'); }
     catch { return {}; }
   },
-  saveProfile(p) {
+  // `profileUpdatedAt` records WHEN this device last wrote the profile, so a
+  // pull can tell which side is newer. Without it the cloud could only fill
+  // BLANK fields, and two devices holding different PPC dates stayed that way
+  // for good: the laptop said the check was expired while the phone said
+  // nothing, and nothing could ever reconcile them. (Martin 2026-10-26.)
+  //
+  // Always re-stamped to now, because callers routinely spread an existing
+  // profile ({...DB.loadProfile(), ppcDueDate: v}) and would otherwise carry
+  // the OLD stamp onto a brand-new edit. pullProfile adopting cloud values is
+  // the one caller that passes keepStamp, so the device records the age of the
+  // CONTENT it adopted rather than the moment it happened to sync.
+  saveProfile(p, opts) {
     if (DEMO_MODE) return true;
-    return this._persist(this.profileKey, p, 'profil', 'profile');
+    const keep = !!(opts && opts.keepStamp);
+    const next = Object.assign({}, p || {});
+    if (!(keep && next.profileUpdatedAt)) next.profileUpdatedAt = new Date().toISOString();
+    return this._persist(this.profileKey, next, 'profil', 'profile');
   },
 
   // Write to localStorage, but NEVER fail silently. A certifiable logbook
